@@ -1,0 +1,1 @@
+ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS show_profile_photos BOOLEAN DEFAULT TRUE;

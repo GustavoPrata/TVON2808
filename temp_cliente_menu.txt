@@ -1,0 +1,97 @@
+// This is a temporary file to help restructure the cliente bot menu
+// New menu structure:
+// 1. Ver vencimento (stays the same)
+// 2. Renovar plano (was case 3)
+// 3. Ver pontos (new, with submenu)
+// 4. Suporte técnico (stays the same)
+// 5. Falar com atendente (stays the same)
+
+// Case 2: Renovar plano (move from case 3)
+case "2": // Renovar plano
+  const venc2 = cliente.vencimento
+    ? new Date(cliente.vencimento).toLocaleDateString("pt-BR")
+    : "Não definido";
+  const dias2 = cliente.vencimento
+    ? Math.ceil(
+        (new Date(cliente.vencimento).getTime() - Date.now()) /
+          (1000 * 60 * 60 * 24),
+      )
+    : 0;
+  
+  // Calculate valorTotal from pontos
+  const pontosRenovacao2 = await storage.getPontosByClienteId(cliente.id);
+  const valorRenovacao2 = pontosRenovacao2.reduce((sum, ponto) => {
+    const valor = parseFloat(ponto.valor || '0');
+    return sum + valor;
+  }, 0);
+  
+  // Pegar o valor mensal do cliente
+  const valorMensal2 = valorRenovacao2 > 0 ? valorRenovacao2 : 29.00;
+  
+  // Calcular preços com descontos progressivos
+  const precos2 = this.calcularPrecosRenovacao(valorMensal2);
+  
+  // Mostrar informações do plano e opções de renovação
+  await this.sendMessage(
+    telefone,
+    `*RENOVAR PLANO*\n\n` +
+      `*Seu plano atual:*\n` +
+      `• Valor: R$ ${valorMensal2.toFixed(2).replace('.', ',')}\n` +
+      `• Pontos: ${pontosRenovacao2.length || 1}\n` +
+      `• Vencimento: ${venc2}\n` +
+      `• Dias restantes: ${dias2 > 0 ? dias2 : 0}\n\n` +
+      `*Escolha o período de renovação:*\n\n` +
+      `1️⃣ 1 mês - R$ ${precos2.mes1.toFixed(2).replace('.', ',')}\n` +
+      `2️⃣ 3 meses - R$ ${precos2.mes3.toFixed(2).replace('.', ',')}\n` +
+      `3️⃣ 6 meses - R$ ${precos2.mes6.toFixed(2).replace('.', ',')}\n` +
+      `4️⃣ 1 ano - R$ ${precos2.ano1.toFixed(2).replace('.', ',')}\n\n` +
+      `0️⃣ Voltar ao menu principal`
+  );
+  
+  // Salvar estado para próxima interação
+  this.conversaStates.set(telefone, {
+    submenu: "renovar_periodo",
+    lastActivity: new Date(),
+    valorMensal: valorMensal2,
+    precos: precos2,
+    vencimentoAtual: cliente.vencimento,
+    clienteId: cliente.id
+  } as any);
+  break;
+
+// Case 3: Ver pontos (new)
+case "3": // Ver pontos
+  // Get client points
+  const pontosCliente3 = await storage.getPontosByClienteId(cliente.id);
+  const valorTotal3 = pontosCliente3.reduce((sum, ponto) => {
+    const valor = parseFloat(ponto.valor || '0');
+    return sum + valor;
+  }, 0);
+  
+  // Display points information
+  let pontosInfo = `📱 *SEUS PONTOS*\n\n`;
+  pontosInfo += `*Total de pontos:* ${pontosCliente3.length || 1}\n`;
+  pontosInfo += `*Valor mensal:* R$ ${valorTotal3 > 0 ? valorTotal3.toFixed(2).replace('.', ',') : "29,00"}\n\n`;
+  
+  if (pontosCliente3.length > 0) {
+    pontosInfo += `*Pontos ativos:*\n`;
+    pontosCliente3.forEach((ponto, index) => {
+      pontosInfo += `${index + 1}. ${ponto.nome || 'Ponto ' + (index + 1)} - R$ ${parseFloat(ponto.valor || '0').toFixed(2).replace('.', ',')}\n`;
+    });
+    pontosInfo += `\n`;
+  }
+  
+  pontosInfo += `*O que deseja fazer?*\n\n`;
+  pontosInfo += `1️⃣ Adicionar novo ponto\n`;
+  pontosInfo += `2️⃣ Remover ponto\n`;
+  pontosInfo += `0️⃣ Voltar ao menu principal`;
+  
+  await this.sendMessage(telefone, pontosInfo);
+  
+  // Save state for submenu
+  this.conversaStates.set(telefone, {
+    submenu: "pontos_menu",
+    lastActivity: new Date(),
+    clienteId: cliente.id
+  } as any);
+  break;
