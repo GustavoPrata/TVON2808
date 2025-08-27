@@ -101,9 +101,15 @@ export function PixGeneratorSidebar({
           setTimeRemaining('Expirado');
           clearInterval(interval);
         } else {
-          const minutes = Math.floor(remaining / 60000);
+          const hours = Math.floor(remaining / 3600000);
+          const minutes = Math.floor((remaining % 3600000) / 60000);
           const seconds = Math.floor((remaining % 60000) / 1000);
-          setTimeRemaining(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+          
+          if (hours > 0) {
+            setTimeRemaining(`${hours}h:${minutes.toString().padStart(2, '0')}m:${seconds.toString().padStart(2, '0')}s`);
+          } else {
+            setTimeRemaining(`${minutes}m:${seconds.toString().padStart(2, '0')}s`);
+          }
         }
       }
     }, 1000);
