@@ -65,6 +65,8 @@ export class WhatsAppService extends EventEmitter {
   private isReconnecting = false; // Prevent multiple reconnection attempts
   private reconnectAttempts = 0; // Track reconnection attempts
   private keepAliveInterval: NodeJS.Timeout | null = null;
+  private conversationCreationLocks: Map<string, Promise<any>> = new Map(); // Prevent duplicate conversation creation
+  private processedMessagesOnStartup: Set<string> = new Set(); // Track processed messages during startup
 
   constructor() {
     super();
@@ -801,6 +803,97 @@ export class WhatsAppService extends EventEmitter {
     }
   }
 
+  private async getOrCreateConversation(
+    phone: string,
+    pushName?: string,
+    message?: WhatsAppMessage,
+  ): Promise<any> {
+    // Check if we already have a lock for this phone number
+    const existingLock = this.conversationCreationLocks.get(phone);
+    if (existingLock) {
+      console.log(`Waiting for existing conversation creation lock for ${phone}`);
+      return await existingLock;
+    }
+
+    // Create a new lock promise
+    const lockPromise = (async () => {
+      try {
+        // First, try to get existing conversation
+        let conversa = await storage.getConversaByTelefone(phone);
+        
+        if (!conversa) {
+          // Double-check to prevent race condition
+          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+          conversa = await storage.getConversaByTelefone(phone);
+          
+          if (!conversa) {
+            console.log(`Creating new conversation for ${phone}`);
+            
+            // Check if we should fetch client photos
+            let profilePictureUrl: string | undefined;
+            if (this.settings?.fetchClientPhotos) {
+              profilePictureUrl = await this.getProfilePicture(phone);
+            }
+
+            // For media messages, ensure we have proper display text
+            let displayMessage = message?.message || "";
+            if (message && message.type !== "text" && (!displayMessage || displayMessage === "")) {
+              // Use the JSON string we created for media messages
+              switch (message.type) {
+                case "image":
+                  displayMessage = JSON.stringify({ type: "image" });
+                  break;
+                case "video":
+                  displayMessage = JSON.stringify({ type: "video" });
+                  break;
+                case "audio":
+                  displayMessage = displayMessage || JSON.stringify({ duration: 0 });
+                  break;
+                case "document":
+                  displayMessage = displayMessage || JSON.stringify({ fileName: "documento" });
+                  break;
+                case "sticker":
+                  displayMessage = displayMessage || JSON.stringify({ type: "sticker" });
+                  break;
+              }
+            }
+
+            conversa = await storage.createConversa({
+              telefone: phone,
+              nome: pushName || phone,
+              ultimaMensagem: displayMessage,
+              modoAtendimento: "bot",
+              mensagensNaoLidas: this.settings?.markMessagesRead ? 0 : 1,
+              lastSeen: new Date(),
+              isOnline: true,
+              ultimoRemetente: "cliente",
+              profilePicture: profilePictureUrl,
+              tipoUltimaMensagem: message?.type || "text",
+            });
+            
+            console.log(`New conversation created for ${phone} with ID ${conversa.id}`);
+          } else {
+            console.log(`Conversation already exists for ${phone} (found on double-check)`);
+          }
+        } else {
+          console.log(`Existing conversation found for ${phone}`);
+        }
+        
+        return conversa;
+      } finally {
+        // Clean up the lock after a delay
+        setTimeout(() => {
+          this.conversationCreationLocks.delete(phone);
+        }, 1000);
+      }
+    })();
+
+    // Store the lock promise
+    this.conversationCreationLocks.set(phone, lockPromise);
+    
+    return await lockPromise;
+  }
+
   private async processOutgoingMessage(
     message: WhatsAppMessage,
     phone: string,
@@ -885,8 +978,25 @@ export class WhatsAppService extends EventEmitter {
     try {
       console.log("Processando mensagem recebida:", message);
 
-      // Buscar ou criar conversa
-      let conversa = await storage.getConversaByTelefone(message.from);
+      // Check if message was already processed during startup (to avoid duplicates)
+      const messageKey = `${message.from}_${message.id}_${message.timestamp}`;
+      if (this.processedMessagesOnStartup.has(messageKey)) {
+        console.log("Message already processed during startup, skipping:", messageKey);
+        return;
+      }
+      
+      // Mark message as processed
+      this.processedMessagesOnStartup.add(messageKey);
+      
+      // Clean old processed messages after 5 minutes to prevent memory leak
+      if (this.processedMessagesOnStartup.size > 100) {
+        setTimeout(() => {
+          this.processedMessagesOnStartup.clear();
+        }, 5 * 60 * 1000);
+      }
+
+      // Buscar ou criar conversa com proteção contra duplicatas
+      let conversa = await this.getOrCreateConversation(message.from, pushName, message);
       
       // Cancel auto-close timer if there's an open ticket for this conversation
       if (conversa) {
@@ -905,57 +1015,45 @@ export class WhatsAppService extends EventEmitter {
         }
       }
 
-      // Check if we should fetch client photos
-      let profilePictureUrl: string | undefined;
-      if (this.settings?.fetchClientPhotos) {
-        profilePictureUrl = await this.getProfilePicture(message.from);
-      }
-
-      // For media messages, ensure we have proper display text
-      let displayMessage = message.message;
-      if (
-        message.type !== "text" &&
-        (!displayMessage || displayMessage === "")
-      ) {
-        // Use the JSON string we created for media messages
-        switch (message.type) {
-          case "image":
-            displayMessage = JSON.stringify({ type: "image" });
-            break;
-          case "video":
-            displayMessage = JSON.stringify({ type: "video" });
-            break;
-          case "audio":
-            // Should already have JSON with duration
-            displayMessage = displayMessage || JSON.stringify({ duration: 0 });
-            break;
-          case "document":
-            // Should already have JSON with fileName
-            displayMessage =
-              displayMessage || JSON.stringify({ fileName: "documento" });
-            break;
-          case "sticker":
-            // Should already have JSON
-            displayMessage =
-              displayMessage || JSON.stringify({ type: "sticker" });
-            break;
+      // Update the conversation if it already existed
+      if (conversa) {
+        // Check if we should fetch client photos
+        let profilePictureUrl: string | undefined;
+        if (this.settings?.fetchClientPhotos) {
+          profilePictureUrl = await this.getProfilePicture(message.from);
         }
-      }
 
-      if (!conversa) {
-        conversa = await storage.createConversa({
-          telefone: message.from,
-          nome: pushName || message.from, // Use pushName if available
-          ultimaMensagem: displayMessage,
-          modoAtendimento: "bot",
-          mensagensNaoLidas: this.settings?.markMessagesRead ? 0 : 1,
-          lastSeen: new Date(),
-          isOnline: true, // User is online when sending message
-          ultimoRemetente: "cliente", // Track who sent the last message
-          profilePicture: profilePictureUrl, // Save profile picture if available
-          tipoUltimaMensagem: message.type, // Save message type
-        });
-      } else {
+        // For media messages, ensure we have proper display text
+        let displayMessage = message.message;
+        if (
+          message.type !== "text" &&
+          (!displayMessage || displayMessage === "")
+        ) {
+          // Use the JSON string we created for media messages
+          switch (message.type) {
+            case "image":
+              displayMessage = JSON.stringify({ type: "image" });
+              break;
+            case "video":
+              displayMessage = JSON.stringify({ type: "video" });
+              break;
+            case "audio":
+              // Should already have JSON with duration
+              displayMessage = displayMessage || JSON.stringify({ duration: 0 });
+              break;
+            case "document":
+              // Should already have JSON with fileName
+              displayMessage =
+                displayMessage || JSON.stringify({ fileName: "documento" });
+              break;
+            case "sticker":
+              // Should already have JSON
+              displayMessage =
+                displayMessage || JSON.stringify({ type: "sticker" });
+              break;
+          }
+        }
+
         // Update conversation including profile picture if settings enabled
         const updateData: any = {
           ultimaMensagem: displayMessage,

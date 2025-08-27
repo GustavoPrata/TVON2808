@@ -1446,6 +1446,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API to clean duplicate conversations  
+  app.post("/api/conversas/clean-duplicates", async (req, res) => {
+    try {
+      console.log("Starting duplicate conversations cleanup...");
+      
+      // Get all conversations
+      const allConversas = await storage.getConversas();
+      
+      // Group conversations by phone number
+      const conversasByPhone = new Map<string, typeof allConversas>();
+      
+      allConversas.forEach(conversa => {
+        const phone = conversa.telefone;
+        if (!conversasByPhone.has(phone)) {
+          conversasByPhone.set(phone, []);
+        }
+        conversasByPhone.get(phone)!.push(conversa);
+      });
+      
+      let duplicatesRemoved = 0;
+      const duplicatesList: any[] = [];
+      
+      // Process each phone number
+      for (const [phone, conversas] of conversasByPhone.entries()) {
+        if (conversas.length > 1) {
+          // Sort by ID descending (keep the newest one based on ID)
+          conversas.sort((a, b) => b.id - a.id);
+          
+          // Keep the first (newest) conversation, delete the rest
+          const toKeep = conversas[0];
+          const toDelete = conversas.slice(1);
+          
+          console.log(`Found ${toDelete.length} duplicate conversations for ${phone}`);
+          
+          for (const conversa of toDelete) {
+            // Check if this conversation has messages
+            const messages = await storage.getMensagensByConversaId(conversa.id, 1, 0);
+            
+            duplicatesList.push({
+              id: conversa.id,
+              telefone: conversa.telefone,
+              nome: conversa.nome,
+              hasMessages: messages.length > 0,
+              keptConversationId: toKeep.id
+            });
+            
+            // Delete messages and conversation
+            await storage.deleteMessagesByConversaId(conversa.id);
+            await storage.deleteConversa(conversa.id);
+            
+            duplicatesRemoved++;
+            console.log(`Deleted duplicate conversation ${conversa.id} for ${phone}`);
+          }
+        }
+      }
+      
+      console.log(`Cleanup complete. Removed ${duplicatesRemoved} duplicate conversations`);
+      
+      res.json({
+        success: true,
+        message: `Limpeza concluída. ${duplicatesRemoved} conversas duplicadas removidas.`,
+        duplicatesRemoved,
+        details: duplicatesList
+      });
+    } catch (error) {
+      console.error("Error cleaning duplicate conversations:", error);
+      res.status(500).json({ error: "Erro ao limpar conversas duplicadas" });
+    }
+  });
+
   // Rota para buscar mensagens de teste
   app.get("/api/mensagens/conversa/teste/:telefone", async (req, res) => {
     try {

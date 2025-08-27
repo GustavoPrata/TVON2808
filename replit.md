@@ -51,6 +51,17 @@ TV ON is a comprehensive management system for TV/streaming services, designed f
   - ✅ Test bot successfully reuses existing bot logic while maintaining separate menu structure
   - ✅ All submenus properly detect test clients and route to correct menu
 
+## Recent Updates (27/08/2025)
+- **Critical Fix: Duplicate Conversations Prevention During WhatsApp Reconnection**:
+  - ✅ Fixed critical bug where multiple duplicate conversations were created when WhatsApp reconnected after restart
+  - ✅ Implemented conversation creation locks with mutex protection to prevent race conditions
+  - ✅ Added `getOrCreateConversation` method with double-checking mechanism
+  - ✅ Added message deduplication tracking to prevent processing same messages multiple times during startup
+  - ✅ Created API endpoint `/api/conversas/clean-duplicates` for cleaning existing duplicates
+  - ✅ Successfully removed 22 duplicate conversations from database
+  - ✅ System now properly handles simultaneous messages during reconnection without creating duplicates
+  - ✅ Added 100ms delay and double-check before creating new conversations
+
 ## Recent Updates (24/08/2025)
 - **Quick Messages System for Customer Support**:
   - ✅ Comprehensive quick message management system implemented in "Ajuda" menu
