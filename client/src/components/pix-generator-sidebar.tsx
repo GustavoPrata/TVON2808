@@ -282,21 +282,7 @@ export function PixGeneratorSidebar({
         validadeText = `${minutes} minutos`;
       }
       
-      // Primeira mensagem - Informações do PIX
-      sendMessage('send_message', {
-        telefone: telefone,
-        tipo: 'text',
-        conteudo: `Valor: R$ ${pixInfo.valor}\n` +
-                 `Validade: ${validadeText}\n\n` +
-                 `Como pagar:\n` +
-                 `1️⃣ Abra o app do seu banco\n` +
-                 `2️⃣ Escolha a opção PIX\n` +
-                 `3️⃣ Escaneie o QR Code abaixo`
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Segunda mensagem - QR Code (somente a imagem, sem caption)
+      // Primeira mensagem - QR Code (somente a imagem, sem caption)
       if (pixInfo.qrCode) {
         sendMessage('send_message', {
           telefone: telefone,
@@ -308,7 +294,7 @@ export function PixGeneratorSidebar({
 
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Terceira mensagem - Código Copia e Cola
+      // Segunda mensagem - Código PIX Copia e Cola
       if (pixInfo.pixCopiaCola) {
         sendMessage('send_message', {
           telefone: telefone,
@@ -316,6 +302,19 @@ export function PixGeneratorSidebar({
           conteudo: pixInfo.pixCopiaCola
         });
       }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Terceira mensagem - Instruções de pagamento
+      sendMessage('send_message', {
+        telefone: telefone,
+        tipo: 'text',
+        conteudo: `Valor: R$ ${pixInfo.valor}\n` +
+                 `Validade: ${validadeText}\n\n` +
+                 `Como pagar:\n` +
+                 `1️⃣ Abra o app do seu banco\n` +
+                 `2️⃣ Escaneie o QR Code ou use o código Copia e Cola`
+      });
 
       // Limpar formulário
       setPixAmount('');
