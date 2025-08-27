@@ -1185,13 +1185,13 @@ export default function Chat() {
       });
 
       if (response.success && response.pixData) {
-        // Send QR Code as image
+        // Send QR Code as image URL (not base64)
         if (response.pixData.qrCode) {
           sendMessage('send_message', {
             telefone: selectedConversa.telefone,
             tipo: 'image',
-            conteudo: response.pixData.qrCode,
-            isBase64: true
+            conteudo: response.pixData.qrCode
+            // Removed isBase64: true because qrCode is a URL
           });
         }
 
