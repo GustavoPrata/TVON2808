@@ -16,14 +16,19 @@ import {
   Monitor,
   CreditCard,
   UserPlus,
-  HelpCircle
+  HelpCircle,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useState } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useSettings } from '@/contexts/settings-context';
+import { useToast } from '@/hooks/use-toast';
 
 const menuItems = [
   { path: '/', icon: TrendingUp, label: 'Dashboard' },
@@ -45,6 +50,8 @@ const menuItems = [
 export function Sidebar() {
   const [location] = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { notificationsSilenced, toggleNotifications } = useSettings();
+  const { toast } = useToast();
   
   const { data: conversas } = useQuery({
     queryKey: ['/api/conversas'],
@@ -52,6 +59,17 @@ export function Sidebar() {
     refetchInterval: 3000, // Auto-refresh every 3 seconds for real-time badge updates
     staleTime: 0,
   });
+
+  const handleToggleNotifications = () => {
+    toggleNotifications();
+    toast({
+      title: notificationsSilenced ? "Notificações ativadas" : "Notificações silenciadas",
+      description: notificationsSilenced 
+        ? "Você receberá notificações de novas mensagens" 
+        : "Você não receberá notificações de novas mensagens",
+      duration: 3000,
+    });
+  };
 
   const { data: tickets } = useQuery({
     queryKey: ['/api/tickets'],
@@ -176,6 +194,58 @@ export function Sidebar() {
         </ul>
       </nav>
       
+      {/* Notifications Toggle Button */}
+      <div className="p-4 border-t border-slate-700/50">
+        {isCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={handleToggleNotifications}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "w-full p-2 justify-center transition-all",
+                  notificationsSilenced 
+                    ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10' 
+                    : 'text-green-400 hover:text-green-300 hover:bg-green-500/10'
+                )}
+              >
+                {notificationsSilenced ? (
+                  <BellOff className="w-5 h-5" />
+                ) : (
+                  <Bell className="w-5 h-5" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>{notificationsSilenced ? "Notificações Silenciadas" : "Notificações Ativas"}</p>
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Button
+            onClick={handleToggleNotifications}
+            variant="ghost"
+            size="sm"
+            className={cn(
+              "w-full gap-2 justify-start px-4 py-3 transition-all",
+              notificationsSilenced 
+                ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10' 
+                : 'text-green-400 hover:text-green-300 hover:bg-green-500/10'
+            )}
+          >
+            <div className="p-2 rounded-lg bg-slate-800/50">
+              {notificationsSilenced ? (
+                <BellOff className="w-5 h-5" />
+              ) : (
+                <Bell className="w-5 h-5" />
+              )}
+            </div>
+            <span className="flex-1 font-medium text-left">
+              {notificationsSilenced ? "Silenciado" : "Notificações"}
+            </span>
+          </Button>
+        )}
+      </div>
 
     </div>
   );

@@ -4,10 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DashboardCharts } from '@/components/charts/dashboard-charts';
-import { Users, CheckCircle, AlertTriangle, DollarSign, Mail, Activity, TrendingUp, Calendar, Clock, UserCheck, XCircle, Trophy } from 'lucide-react';
+import { Users, CheckCircle, AlertTriangle, DollarSign, Mail, Activity, TrendingUp, Calendar, Clock, UserCheck, XCircle, Trophy, Bell, BellOff } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useSettings } from '@/contexts/settings-context';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Dashboard() {
+  const { notificationsSilenced, toggleNotifications } = useSettings();
+  const { toast } = useToast();
   
   const { data: stats, isLoading } = useQuery({
     queryKey: ['/api/dashboard/stats'],
@@ -16,6 +20,17 @@ export default function Dashboard() {
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
+
+  const handleToggleNotifications = () => {
+    toggleNotifications();
+    toast({
+      title: notificationsSilenced ? "Notificações ativadas" : "Notificações silenciadas",
+      description: notificationsSilenced 
+        ? "Você receberá notificações de novas mensagens" 
+        : "Você não receberá notificações de novas mensagens",
+      duration: 3000,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -40,18 +55,42 @@ export default function Dashboard() {
     <div className="space-y-8">
       {/* Beautiful Header */}
       <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-            <TrendingUp className="w-10 h-10 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <TrendingUp className="w-10 h-10 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Dashboard Principal
+              </h1>
+              <p className="text-sm text-slate-400 mt-1">
+                Visão geral do sistema TV ON
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              Dashboard Principal
-            </h1>
-            <p className="text-sm text-slate-400 mt-1">
-              Visão geral do sistema TV ON
-            </p>
-          </div>
+          <Button
+            onClick={handleToggleNotifications}
+            variant="outline"
+            size="sm"
+            className={`gap-2 transition-all ${
+              notificationsSilenced 
+                ? 'border-red-500/50 hover:border-red-500 text-red-400 hover:text-red-300' 
+                : 'border-green-500/50 hover:border-green-500 text-green-400 hover:text-green-300'
+            }`}
+          >
+            {notificationsSilenced ? (
+              <>
+                <BellOff className="w-4 h-4" />
+                Notificações Silenciadas
+              </>
+            ) : (
+              <>
+                <Bell className="w-4 h-4" />
+                Notificações Ativas
+              </>
+            )}
+          </Button>
         </div>
       </div>
       {/* Stats Cards */}
