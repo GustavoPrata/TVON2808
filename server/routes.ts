@@ -3195,33 +3195,61 @@ Como posso ajudar você hoje?
   // Generate PIX manually
   app.post("/api/pix/generate", async (req, res) => {
     try {
-      const { clienteId, valor, descricao } = req.body;
-      console.log("[PIX API] Recebido pedido de PIX:", { clienteId, valor, descricao });
+      const { clienteId, telefone, valor, descricao } = req.body;
+      console.log("[PIX API] Recebido pedido de PIX:", { clienteId, telefone, valor, descricao });
 
-      if (!clienteId || !valor) {
-        console.log("[PIX API] Erro: dados obrigatórios faltando");
+      if (!valor) {
+        console.log("[PIX API] Erro: valor é obrigatório");
         return res.status(400).json({ 
-          error: "Cliente ID e valor são obrigatórios" 
+          error: "Valor é obrigatório" 
         });
       }
 
-      // Get client info
-      const cliente = await storage.getClienteById(clienteId);
-      console.log("[PIX API] Cliente encontrado:", cliente ? cliente.nome : "NÃO ENCONTRADO");
+      let cliente = null;
+      let nomeIdentificacao = "";
+      let idParaPix = clienteId;
+
+      // Se tem clienteId, usa ele
+      if (clienteId) {
+        cliente = await storage.getClienteById(clienteId);
+        if (cliente) {
+          nomeIdentificacao = cliente.nome;
+        }
+      }
       
-      if (!cliente) {
-        return res.status(404).json({ 
-          error: "Cliente não encontrado" 
+      // Se não tem cliente ou clienteId, tenta buscar pelo telefone
+      if (!cliente && telefone) {
+        // Normaliza o telefone
+        const telefoneNormalizado = telefone.replace(/\D/g, '');
+        cliente = await storage.getClienteByTelefone(telefoneNormalizado);
+        
+        if (cliente) {
+          idParaPix = cliente.id;
+          nomeIdentificacao = cliente.nome;
+        } else {
+          // Se não tem cliente, usa o telefone como identificação
+          nomeIdentificacao = telefone;
+          // Para conversas sem cliente, usaremos um ID fictício negativo baseado no hash do telefone
+          idParaPix = -Math.abs(telefoneNormalizado.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0));
+        }
+      }
+
+      // Se nem cliente nem telefone foram fornecidos
+      if (!idParaPix) {
+        return res.status(400).json({ 
+          error: "Cliente ID ou telefone é obrigatório" 
         });
       }
+
+      console.log("[PIX API] Identificação:", nomeIdentificacao, "ID:", idParaPix);
 
       // Generate PIX
       console.log("[PIX API] Chamando pixService.generatePix...");
       const pixResult = await pixService.generatePix(
-        clienteId,
+        idParaPix,
         valor,
-        descricao || `Pagamento manual - ${cliente.nome}`,
-        { manual: true }
+        descricao || `Pagamento - ${nomeIdentificacao}`,
+        { manual: true, telefone: telefone }
       );
       
       console.log("[PIX API] Resultado do pixService:", pixResult ? "OK" : "FALHOU");

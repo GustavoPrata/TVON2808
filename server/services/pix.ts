@@ -149,21 +149,50 @@ export class PixService {
         }
       }
       
-      const cliente = await storage.getClienteById(clienteId);
-      if (!cliente) {
-        throw new Error('Cliente não encontrado');
+      // Para IDs negativos (conversas sem cliente), criar um cliente temporário
+      let cliente = null;
+      let isTemporaryClient = false;
+      let pagamento = null;
+      
+      if (clienteId < 0) {
+        // Cliente temporário para conversa sem cadastro
+        isTemporaryClient = true;
+        const telefone = metadata?.telefone || 'sem_telefone';
+        cliente = {
+          id: clienteId,
+          nome: `Conversa ${telefone}`,
+          telefone: telefone,
+          email: `${telefone}@temp.com`,
+          cpf: '00000000000',
+          status: 'ativo'
+        };
+        console.log('👤 Cliente temporário criado:', cliente.nome);
+        
+        // Para clientes temporários, criar um pagamento fictício
+        pagamento = {
+          id: Math.abs(clienteId),
+          clienteId,
+          valor: amount.toString(),
+          status: 'pendente',
+          dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          metadata: metadata || {}
+        };
+      } else {
+        cliente = await storage.getClienteById(clienteId);
+        if (!cliente) {
+          throw new Error('Cliente não encontrado');
+        }
+        console.log('👤 Cliente encontrado:', cliente.nome);
+        
+        // Criar pagamento no banco local com metadata - apenas para clientes reais
+        pagamento = await storage.createPagamento({
+          clienteId,
+          valor: amount.toString(),
+          status: 'pendente',
+          dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
+          metadata: metadata || {}
+        });
       }
-
-      console.log('👤 Cliente encontrado:', cliente.nome);
-
-      // Criar pagamento no banco local com metadata
-      const pagamento = await storage.createPagamento({
-        clienteId,
-        valor: amount.toString(),
-        status: 'pendente',
-        dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
-        metadata: metadata || {}
-      });
 
       console.log('💾 Pagamento criado no banco:', pagamento.id);
 
@@ -197,13 +226,17 @@ export class PixService {
         
         console.log('🔄 Atualizando pagamento com dados do Woovi:', updateData);
         
-        // Atualizar com dados do Woovi
-        const result = await db.update(pagamentos)
-          .set(updateData)
-          .where(eq(pagamentos.id, pagamento.id))
-          .returning();
-          
-        console.log('✅ Pagamento atualizado:', result[0]);
+        // Atualizar com dados do Woovi - apenas para clientes reais
+        if (!isTemporaryClient) {
+          const result = await db.update(pagamentos)
+            .set(updateData)
+            .where(eq(pagamentos.id, pagamento.id))
+            .returning();
+            
+          console.log('✅ Pagamento atualizado:', result[0]);
+        } else {
+          console.log('✅ PIX gerado para conversa temporária (não salvo no banco)');
+        }
 
         const pixPayment: PixPayment = {
           id: wooviCharge.id,

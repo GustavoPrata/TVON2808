@@ -12,11 +12,13 @@ import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 
 interface PixGeneratorSidebarProps {
-  clienteId: number;
+  clienteId?: number;  // Opcional - para suportar conversas sem cliente
   clienteNome: string;
   telefone: string;
   sendMessage: (event: string, data: any) => void;
   onPixGenerated?: (pixData: any) => void;
+  initialState?: any;  // Estado inicial do PIX para esta conversa
+  onStateChange?: (state: any) => void;  // Callback para salvar o estado
 }
 
 export function PixGeneratorSidebar({ 
@@ -24,7 +26,9 @@ export function PixGeneratorSidebar({
   clienteNome, 
   telefone, 
   sendMessage,
-  onPixGenerated 
+  onPixGenerated,
+  initialState,
+  onStateChange 
 }: PixGeneratorSidebarProps) {
   const { toast } = useToast();
   const [pixAmount, setPixAmount] = useState('');
@@ -40,10 +44,22 @@ export function PixGeneratorSidebar({
     expiresIn?: string;
     timestamp?: Date;
     descricao?: string;
-  } | null>(null);
+  } | null>(initialState?.activePixData || null);
   const [quickValues] = useState([29.90, 19.90]);
   const [timeRemaining, setTimeRemaining] = useState('');
-  const [pixHistory, setPixHistory] = useState<any[]>([]);
+  const [pixHistory, setPixHistory] = useState<any[]>(initialState?.pixHistory || []);
+  
+  // Salvar estado quando mudar
+  useEffect(() => {
+    if (onStateChange) {
+      onStateChange({
+        activePixData,
+        pixHistory,
+        pixAmount,
+        pixDescription
+      });
+    }
+  }, [activePixData, pixHistory, pixAmount, pixDescription]);
 
   // Countdown timer para PIX ativo
   useEffect(() => {
@@ -167,7 +183,8 @@ export function PixGeneratorSidebar({
 
     try {
       const responseRaw = await apiRequest('POST', '/api/pix/generate', {
-        clienteId,
+        clienteId: clienteId || null,  // Pode ser null para conversas sem cliente
+        telefone: telefone,  // Usar telefone como identificador adicional
         valor: amount,
         descricao: pixDescription || `Pagamento - ${clienteNome}`
       });

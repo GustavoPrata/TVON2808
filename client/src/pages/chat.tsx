@@ -153,6 +153,8 @@ export default function Chat() {
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number>(0);
   const [autoCloseActive, setAutoCloseActive] = useState(false);
   const [ticketExpanded, setTicketExpanded] = useState(false); // Collapsed by default
+  // Estado do PIX por conversa
+  const [pixStateByConversation, setPixStateByConversation] = useState<Map<string, any>>(new Map());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2960,22 +2962,29 @@ export default function Chat() {
                 </div>
               </div>
               
-              {/* PIX Payment Section - Only for clients */}
-              {selectedConversa.isCliente && selectedConversa.clienteId && (
-                <PixGeneratorSidebar
-                  clienteId={selectedConversa.clienteId}
-                  clienteNome={selectedConversa.clienteNome || selectedConversa.nome || ''}
-                  telefone={selectedConversa.telefone}
-                  sendMessage={sendMessage}
-                  onPixGenerated={(pixData) => {
-                    console.log('[Chat] PIX gerado:', pixData);
-                    // Força refresh das mensagens após gerar PIX
-                    setTimeout(() => {
-                      refetchMensagens();
-                    }, 3000);
-                  }}
-                />
-              )}
+              {/* PIX Payment Section - Available for all conversations */}
+              <PixGeneratorSidebar
+                clienteId={selectedConversa.clienteId}
+                clienteNome={selectedConversa.clienteNome || selectedConversa.nome || selectedConversa.telefone || ''}
+                telefone={selectedConversa.telefone}
+                sendMessage={sendMessage}
+                initialState={pixStateByConversation.get(selectedConversa.telefone)}
+                onStateChange={(state) => {
+                  // Salvar estado do PIX para esta conversa
+                  setPixStateByConversation(prev => {
+                    const newMap = new Map(prev);
+                    newMap.set(selectedConversa.telefone, state);
+                    return newMap;
+                  });
+                }}
+                onPixGenerated={(pixData) => {
+                  console.log('[Chat] PIX gerado:', pixData);
+                  // Força refresh das mensagens após gerar PIX
+                  setTimeout(() => {
+                    refetchMensagens();
+                  }, 3000);
+                }}
+              />
               
               {/* Danger Zone Section */}
               <div className="space-y-2">
