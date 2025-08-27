@@ -41,7 +41,7 @@ export function PixGeneratorSidebar({
     timestamp?: Date;
     descricao?: string;
   } | null>(null);
-  const [quickValues] = useState([29, 39, 49, 59]);
+  const [quickValues] = useState([29.90, 19.90]);
   const [timeRemaining, setTimeRemaining] = useState('');
   const [pixHistory, setPixHistory] = useState<any[]>([]);
 
@@ -92,7 +92,7 @@ export function PixGeneratorSidebar({
   };
 
   const setQuickValue = (value: number) => {
-    const cents = value * 100;
+    const cents = Math.round(value * 100);
     setPixAmount(cents.toString());
   };
 
@@ -320,16 +320,16 @@ export function PixGeneratorSidebar({
         {!activePixData ? (
           <>
             {/* Valores Rápidos */}
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 gap-2">
               {quickValues.map(value => (
                 <Button
                   key={value}
                   variant="outline"
                   size="sm"
                   onClick={() => setQuickValue(value)}
-                  className="h-7 text-[10px] font-bold border-slate-600 hover:bg-green-600/20 hover:border-green-500"
+                  className="h-8 text-xs font-bold border-slate-600 hover:bg-green-600/20 hover:border-green-500"
                 >
-                  R$ {value}
+                  R$ {value.toFixed(2).replace('.', ',')}
                 </Button>
               ))}
             </div>
