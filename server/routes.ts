@@ -400,10 +400,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // External URL (like PIX QR Code from OpenPix)
         if (tipo === "image") {
           console.log("Sending external image URL:", mediaUrl);
+          // Don't send URL as caption for external images (like PIX QR codes)
+          const caption = (mediaUrl === conteudo) ? undefined : conteudo;
           const whatsappMessageId = await whatsappService.sendImage(
             telefone,
             mediaUrl, // Send the external URL directly
-            conteudo || undefined,
+            caption,
             undefined, // replyTo
             true // skipSaveMessage - message already saved by WebSocket handler
           );
