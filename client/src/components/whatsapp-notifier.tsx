@@ -36,7 +36,7 @@ export function WhatsAppNotifier() {
         const conversation = conversations?.find((c: any) => c.id === messageData.conversaId);
         
         const notification: ActiveNotification = {
-          id: `notification-${Date.now()}`,
+          id: `notification-${Date.now()}-${messageData.conversaId}`,
           name: conversation?.nome || 'Cliente',
           phone: conversation?.telefone || '',
           message: messageData.conteudo || '',
@@ -44,7 +44,11 @@ export function WhatsAppNotifier() {
           conversationId: messageData.conversaId,
         };
 
-        setActiveNotifications(prev => [...prev, notification]);
+        // Remove any existing notification from the same conversation before adding new one
+        setActiveNotifications(prev => {
+          const filtered = prev.filter(n => n.conversationId !== messageData.conversaId);
+          return [...filtered, notification];
+        });
 
         // Play notification sound if available
         try {
@@ -59,7 +63,7 @@ export function WhatsAppNotifier() {
     const handleConversationCreated = (data: any) => {
       if (location !== '/chat' && !notificationsSilenced) {
         const notification: ActiveNotification = {
-          id: `notification-${Date.now()}`,
+          id: `notification-${Date.now()}-${data.id}`,
           name: data.nome || 'Novo Cliente',
           phone: data.telefone || '',
           message: 'Nova conversa iniciada',
@@ -67,7 +71,11 @@ export function WhatsAppNotifier() {
           conversationId: data.id,
         };
 
-        setActiveNotifications(prev => [...prev, notification]);
+        // Remove any existing notification from the same conversation before adding new one
+        setActiveNotifications(prev => {
+          const filtered = prev.filter(n => n.conversationId !== data.id);
+          return [...filtered, notification];
+        });
       }
     };
 
