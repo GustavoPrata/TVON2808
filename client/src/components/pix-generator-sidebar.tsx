@@ -234,37 +234,38 @@ export function PixGeneratorSidebar({
 
   const sendPixToWhatsApp = async (pixInfo: any) => {
     try {
-      // Mensagem principal
+      // Primeira mensagem - Informações do PIX
       sendMessage('send_message', {
         telefone: telefone,
         tipo: 'text',
-        conteudo: `💳 *PIX GERADO*\n\n` +
-                 `💰 Valor: *R$ ${pixInfo.valor}*\n` +
-                 `📝 ${pixInfo.descricao}\n` +
-                 `⏱️ Validade: ${pixInfo.expiresIn}\n\n` +
-                 `Escaneie o QR Code ou use o código Copia e Cola 👇`
+        conteudo: `Valor: R$ ${pixInfo.valor}\n` +
+                 `Validade: 30 minutos\n\n` +
+                 `Como pagar:\n` +
+                 `1️⃣ Abra o app do seu banco\n` +
+                 `2️⃣ Escolha a opção PIX\n` +
+                 `3️⃣ Escaneie o QR Code abaixo ou\n` +
+                 `4️⃣ Use o código Copia e Cola`
       });
 
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // QR Code
+      // Segunda mensagem - QR Code (somente a imagem, sem caption)
       if (pixInfo.qrCode) {
         sendMessage('send_message', {
           telefone: telefone,
           tipo: 'image',
-          conteudo: pixInfo.qrCode,
-          caption: '📱 QR Code PIX'
+          conteudo: pixInfo.qrCode
         });
       }
 
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Código Copia e Cola
+      // Terceira mensagem - Código Copia e Cola (somente o código)
       if (pixInfo.pixCopiaCola) {
         sendMessage('send_message', {
           telefone: telefone,
           tipo: 'text',
-          conteudo: `📋 *Código PIX:*\n\n\`${pixInfo.pixCopiaCola}\`\n\n_Toque para copiar_`
+          conteudo: pixInfo.pixCopiaCola
         });
       }
 
