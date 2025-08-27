@@ -2801,7 +2801,7 @@ export default function Chat() {
           
           {/* Sidebar Menu - Sempre Visível */}
           {selectedConversa && (
-          <div className="w-80 bg-dark-surface border-l border-slate-700 shadow-2xl flex-shrink-0 h-screen">
+          <div className="w-64 bg-dark-surface border-l border-slate-700 shadow-2xl flex-shrink-0 h-screen">
             {/* Sidebar Header */}
             <div className="p-4 border-b border-slate-700 bg-gradient-to-r from-slate-800 to-slate-900">
               <h3 className="text-lg font-semibold text-slate-100 text-center">Ações da Conversa</h3>
@@ -2946,18 +2946,6 @@ export default function Chat() {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      setShowContactInfo(true);
-
-                    }}
-                    className="w-full justify-start border-slate-600 hover:bg-slate-800"
-                  >
-                    <Info className="w-4 h-4 mr-2" />
-                    Informações do Contato
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    onClick={() => {
                       setShowSearchDialog(true);
 
                     }}
@@ -2965,22 +2953,6 @@ export default function Chat() {
                   >
                     <Search className="w-4 h-4 mr-2" />
                     Buscar na Conversa
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      // Archive logic
-                      toast({
-                        title: "Conversa arquivada",
-                        description: "A conversa foi movida para o arquivo.",
-                      });
-
-                    }}
-                    className="w-full justify-start border-slate-600 hover:bg-slate-800"
-                  >
-                    <Archive className="w-4 h-4 mr-2" />
-                    Arquivar Conversa
                   </Button>
                 </div>
               </div>
@@ -3020,7 +2992,8 @@ export default function Chat() {
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-slate-400">Última mensagem</span>
                       <span className="text-xs text-slate-300">
-                        {format(new Date(selectedConversa.dataUltimaMensagem), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                        {selectedConversa.dataUltimaMensagem && 
+                          format(new Date(selectedConversa.dataUltimaMensagem), "dd/MM 'às' HH:mm", { locale: ptBR })}
                       </span>
                     </div>
                   </div>
