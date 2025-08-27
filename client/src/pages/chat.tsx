@@ -681,18 +681,33 @@ export default function Chat() {
         // Check if message already exists (avoid duplicates)
         setAllMessages(prev => {
           const exists = prev.some(msg => {
+            // Check by database ID if available
+            if (msg.id && newMessage.id && msg.id === newMessage.id) {
+              return true;
+            }
+            
             // Check by WhatsApp ID
             if (msg.whatsappMessageId && newMessage.whatsappMessageId && 
                 msg.whatsappMessageId === newMessage.whatsappMessageId) {
               return true;
             }
             
-            // Check by content + time window (within 5 seconds)
-            if (msg.conteudo === newMessage.conteudo && msg.remetente === 'sistema') {
+            // Check by metadados WhatsApp ID (for whatsapp_message events)
+            if (msg.metadados?.whatsappMessageId && newMessage.metadados?.whatsappMessageId &&
+                msg.metadados.whatsappMessageId === newMessage.metadados.whatsappMessageId) {
+              return true;
+            }
+            
+            // Check by content + remetente + time window (within 3 seconds)
+            // Ensure both messages are from the same sender
+            const sameRemetente = (msg.remetente === 'sistema' && (newMessage.remetente === 'sistema' || newMessage.ehRemetente)) ||
+                                 (msg.remetente === 'cliente' && newMessage.remetente === 'cliente');
+            
+            if (msg.conteudo === newMessage.conteudo && sameRemetente) {
               const msgTime = new Date(msg.timestamp).getTime();
               const newTime = new Date(newMessage.timestamp || Date.now()).getTime();
               const timeDiff = Math.abs(msgTime - newTime);
-              return timeDiff < 5000; // Within 5 seconds
+              return timeDiff < 3000; // Within 3 seconds
             }
             
             return false;
