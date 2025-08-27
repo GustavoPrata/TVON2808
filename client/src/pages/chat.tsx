@@ -15,7 +15,8 @@ import {
   AlertCircle, Loader2, X, MoreVertical, Archive, Trash2, Ban, Volume2, VolumeX,
   Star, Pin, Reply, Forward, Copy, Download, Image, FileText, Mic, Video, Info,
   Settings, LogOut, RefreshCw, Filter, Bell, BellOff, ExternalLink, ChevronDown,
-  Plus, UserCheck, Sparkles, Ticket, CheckCircle, Zap, ChevronUp, ArrowLeft
+  Plus, UserCheck, Sparkles, Ticket, CheckCircle, Zap, ChevronUp, ArrowLeft,
+  Menu, ChevronRight, Edit2, Shield, Activity, Clock3
 } from 'lucide-react';
 
 import defaultProfileIcon from '../assets/default-profile.webp';
@@ -137,6 +138,7 @@ export default function Chat() {
   const [showCreateTestDialog, setShowCreateTestDialog] = useState(false);
   const [showTestDetailsDialog, setShowTestDetailsDialog] = useState(false);
   const [showTestChatModal, setShowTestChatModal] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [showCreateClientDialog, setShowCreateClientDialog] = useState(false);
   const [testPhoneNumber, setTestPhoneNumber] = useState<string>('');
   const [newChatNumber, setNewChatNumber] = useState('');
@@ -1982,224 +1984,18 @@ export default function Chat() {
                 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
-                  {/* Mode Switch */}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="relative flex items-center gap-2 bg-slate-800 rounded-full p-1 shadow-inner">
-                          <div className="flex items-center text-xs font-semibold">
-                            <div className={cn(
-                              "px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300",
-                              selectedConversa.modoAtendimento === 'bot'
-                                ? "text-blue-300"
-                                : "text-slate-500"
-                            )}>
-                              <Bot className="w-3.5 h-3.5" />
-                              <span>BOT</span>
-                            </div>
-                            
-                            <button
-                              onClick={() => handleSwitchMode(selectedConversa.modoAtendimento === 'bot' ? 'humano' : 'bot')}
-                              className="relative w-14 h-7 bg-slate-700 rounded-full transition-colors duration-300 hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-blue-500"
-                            >
-                              <span className={cn(
-                                "absolute top-0.5 left-0.5 w-6 h-6 rounded-full shadow-lg transform transition-all duration-300",
-                                selectedConversa.modoAtendimento === 'bot'
-                                  ? "translate-x-0 bg-gradient-to-br from-blue-500 to-blue-600"
-                                  : "translate-x-7 bg-gradient-to-br from-purple-500 to-purple-600"
-                              )}>
-                                <span className="absolute inset-0 rounded-full animate-pulse bg-white opacity-25"></span>
-                              </span>
-                            </button>
-                            
-                            <div className={cn(
-                              "px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all duration-300",
-                              selectedConversa.modoAtendimento === 'humano'
-                                ? "text-purple-300"
-                                : "text-slate-500"
-                            )}>
-                              <span>HUMANO</span>
-                              <User className="w-3.5 h-3.5" />
-                            </div>
-                          </div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="bg-slate-800 text-slate-200 border-slate-700">
-                        <p>
-                          Modo atual: <span className={cn(
-                            "font-semibold",
-                            selectedConversa.modoAtendimento === 'bot' ? "text-blue-400" : "text-purple-400"
-                          )}>
-                            {selectedConversa.modoAtendimento === 'bot' ? 'Bot Automático' : 'Atendimento Humano'}
-                          </span>
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  
-                  {/* Client Details Button */}
-                  {selectedConversa.isCliente && selectedConversa.clienteId && (
-                    <>
-                      <Separator orientation="vertical" className="h-6" />
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                window.open(`/clientes/${selectedConversa.clienteId}`, '_blank');
-                              }}
-                              className="relative h-9 px-4 bg-gradient-to-br from-green-600/90 to-green-700/90 hover:from-green-500 hover:to-green-600 border-0 text-white rounded-xl transition-all duration-300 shadow-lg shadow-green-900/30 hover:shadow-green-600/40 hover:scale-105 group"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="p-1 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
-                                  <UserCheck className="w-3.5 h-3.5" />
-                                </div>
-                                <span className="text-xs font-semibold tracking-wider">VER CLIENTE</span>
-                              </div>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" className="bg-green-600 text-white border-green-500">
-                            <p>Ver detalhes do cliente #{selectedConversa.clienteId}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </>
-                  )}
-
-                  {/* Test Status / Register Test & Client Buttons */}
-                  {!selectedConversa.isCliente && (
-                    <>
-                      <Separator orientation="vertical" className="h-6" />
-                      {selectedConversa.isTeste ? (
-                        <div className="flex gap-2">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    console.log('Setting test phone number:', selectedConversa.telefone);
-                                    setTestPhoneNumber(selectedConversa.telefone);
-                                    setShowTestDetailsDialog(true);
-                                  }}
-                                  className="relative h-9 px-4 bg-gradient-to-br from-emerald-600/90 to-green-700/90 hover:from-emerald-500 hover:to-green-600 border-0 text-white rounded-xl transition-all duration-300 shadow-lg shadow-emerald-900/30 hover:shadow-emerald-600/40 hover:scale-105 group"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div className="p-1 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
-                                      <Sparkles className="w-3.5 h-3.5" />
-                                    </div>
-                                    <span className="text-xs font-semibold tracking-wider">STATUS</span>
-                                  </div>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="bg-emerald-600 text-white border-emerald-500">
-                                <p>Ver status do teste</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  onClick={() => setShowCreateClientDialog(true)}
-                                  className="relative h-9 px-4 bg-gradient-to-br from-blue-600/90 to-blue-700/90 hover:from-blue-500 hover:to-blue-600 border-0 text-white rounded-xl transition-all duration-300 shadow-lg shadow-blue-900/30 hover:shadow-blue-600/40 hover:scale-105 group"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div className="p-1 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
-                                      <UserPlus className="w-3.5 h-3.5" />
-                                    </div>
-                                    <span className="text-xs font-semibold tracking-wider">CLIENTE</span>
-                                  </div>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="bg-blue-600 text-white border-blue-500">
-                                <p>Cadastrar novo cliente</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  onClick={() => setShowCreateTestDialog(true)}
-                                  className="relative h-9 px-4 bg-gradient-to-br from-purple-600/90 to-purple-700/90 hover:from-purple-500 hover:to-purple-600 border-0 text-white rounded-xl transition-all duration-300 shadow-lg shadow-purple-900/30 hover:shadow-purple-600/40 hover:scale-105 group"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div className="p-1 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
-                                      <Clock className="w-3.5 h-3.5" />
-                                    </div>
-                                    <span className="text-xs font-semibold tracking-wider">TESTE</span>
-                                  </div>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="bg-purple-600 text-white border-purple-500">
-                                <p>Criar teste temporário</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  onClick={() => setShowCreateClientDialog(true)}
-                                  className="relative h-9 px-4 bg-gradient-to-br from-blue-600/90 to-blue-700/90 hover:from-blue-500 hover:to-blue-600 border-0 text-white rounded-xl transition-all duration-300 shadow-lg shadow-blue-900/30 hover:shadow-blue-600/40 hover:scale-105 group"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <div className="p-1 bg-white/20 rounded-lg group-hover:bg-white/30 transition-colors">
-                                      <UserPlus className="w-3.5 h-3.5" />
-                                    </div>
-                                    <span className="text-xs font-semibold tracking-wider">CLIENTE</span>
-                                  </div>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="bg-blue-600 text-white border-blue-500">
-                                <p>Cadastrar novo cliente</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  
-                  {/* More Options */}
-                  <div className="relative z-50">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent 
-                        align="end" 
-                        className="bg-dark-card border-slate-600"
-                        onCloseAutoFocus={(e) => e.preventDefault()}
-                      >
-                        <DropdownMenuItem 
-                          className="hover:bg-slate-700"
-                          onClick={() => setShowSearchDialog(true)}
-                        >
-                          <Search className="w-4 h-4 mr-2" />
-                          Buscar na conversa
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator className="bg-slate-600" />
-                        <DropdownMenuItem 
-                          className="hover:bg-red-500/20 text-red-400"
-                          onClick={() => setShowDeleteDialog(true)}
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Apagar conversa
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  {/* Menu Toggle Button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowSidebar(!showSidebar)}
+                    className="relative"
+                  >
+                    <Menu className="w-5 h-5" />
+                    {showSidebar && (
+                      <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-blue-500 rounded-full"></span>
+                    )}
+                  </Button>
                 </div>
               </div>
             </div>
@@ -3015,6 +2811,258 @@ export default function Chat() {
           </div>
         )}
         </div>
+        
+        {/* Sidebar Menu */}
+        {selectedConversa && (
+          <div className={cn(
+            "fixed right-0 top-0 h-full w-80 bg-dark-surface border-l border-slate-700 shadow-2xl transform transition-transform duration-300 z-50",
+            showSidebar ? "translate-x-0" : "translate-x-full"
+          )}>
+            {/* Sidebar Header */}
+            <div className="p-4 border-b border-slate-700 bg-gradient-to-r from-slate-800 to-slate-900">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-100">Ações da Conversa</h3>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowSidebar(false)}
+                  className="text-slate-400 hover:text-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+            
+            {/* Sidebar Content */}
+            <div className="p-4 space-y-6 overflow-y-auto max-h-[calc(100vh-80px)]">
+              {/* Attendance Mode Section */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Modo de Atendimento</h4>
+                <div className="bg-slate-800 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-300">Modo Atual</span>
+                    <span className={cn(
+                      "text-sm font-semibold",
+                      selectedConversa.modoAtendimento === 'bot' ? "text-blue-400" : "text-purple-400"
+                    )}>
+                      {selectedConversa.modoAtendimento === 'bot' ? 'Bot Automático' : 'Atendimento Humano'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center justify-center py-2">
+                    <div className="relative flex items-center gap-2 bg-slate-900 rounded-full p-1 shadow-inner">
+                      <div className="flex items-center text-xs font-semibold">
+                        <div className={cn(
+                          "px-3 py-2 rounded-full flex items-center gap-1.5 transition-all duration-300",
+                          selectedConversa.modoAtendimento === 'bot'
+                            ? "text-blue-300"
+                            : "text-slate-500"
+                        )}>
+                          <Bot className="w-4 h-4" />
+                          <span>BOT</span>
+                        </div>
+                        
+                        <button
+                          onClick={() => handleSwitchMode(selectedConversa.modoAtendimento === 'bot' ? 'humano' : 'bot')}
+                          className="relative w-14 h-7 bg-slate-700 rounded-full transition-colors duration-300 hover:bg-slate-600"
+                        >
+                          <span className={cn(
+                            "absolute top-0.5 left-0.5 w-6 h-6 rounded-full shadow-lg transform transition-all duration-300",
+                            selectedConversa.modoAtendimento === 'bot'
+                              ? "translate-x-0 bg-gradient-to-br from-blue-500 to-blue-600"
+                              : "translate-x-7 bg-gradient-to-br from-purple-500 to-purple-600"
+                          )}>
+                            <span className="absolute inset-0 rounded-full animate-pulse bg-white opacity-25"></span>
+                          </span>
+                        </button>
+                        
+                        <div className={cn(
+                          "px-3 py-2 rounded-full flex items-center gap-1.5 transition-all duration-300",
+                          selectedConversa.modoAtendimento === 'humano'
+                            ? "text-purple-300"
+                            : "text-slate-500"
+                        )}>
+                          <span>HUMANO</span>
+                          <User className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Client Actions Section */}
+              {selectedConversa.isCliente && selectedConversa.clienteId && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Cliente</h4>
+                  <Button
+                    onClick={() => {
+                      window.open(`/clientes/${selectedConversa.clienteId}`, '_blank');
+                      setShowSidebar(false);
+                    }}
+                    className="w-full justify-start bg-gradient-to-r from-green-600/90 to-green-700/90 hover:from-green-500 hover:to-green-600 text-white"
+                  >
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    Ver Detalhes do Cliente
+                  </Button>
+                </div>
+              )}
+              
+              {/* Test Actions Section */}
+              {!selectedConversa.isCliente && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Ações de Cadastro</h4>
+                  <div className="space-y-2">
+                    {selectedConversa.isTeste ? (
+                      <>
+                        <Button
+                          onClick={() => {
+                            setTestPhoneNumber(selectedConversa.telefone);
+                            setShowTestDetailsDialog(true);
+                            setShowSidebar(false);
+                          }}
+                          className="w-full justify-start bg-gradient-to-r from-emerald-600/90 to-green-700/90 hover:from-emerald-500 hover:to-green-600 text-white"
+                        >
+                          <Activity className="w-4 h-4 mr-2" />
+                          Ver Status do Teste
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setShowCreateClientDialog(true);
+                            setShowSidebar(false);
+                          }}
+                          className="w-full justify-start bg-gradient-to-r from-blue-600/90 to-blue-700/90 hover:from-blue-500 hover:to-blue-600 text-white"
+                        >
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          Cadastrar como Cliente
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          onClick={() => {
+                            setShowCreateTestDialog(true);
+                            setShowSidebar(false);
+                          }}
+                          className="w-full justify-start bg-gradient-to-r from-purple-600/90 to-purple-700/90 hover:from-purple-500 hover:to-purple-600 text-white"
+                        >
+                          <Clock3 className="w-4 h-4 mr-2" />
+                          Criar Teste Temporário
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setShowCreateClientDialog(true);
+                            setShowSidebar(false);
+                          }}
+                          className="w-full justify-start bg-gradient-to-r from-blue-600/90 to-blue-700/90 hover:from-blue-500 hover:to-blue-600 text-white"
+                        >
+                          <UserPlus className="w-4 h-4 mr-2" />
+                          Cadastrar Cliente
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Conversation Actions Section */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Conversa</h4>
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowContactInfo(true);
+                      setShowSidebar(false);
+                    }}
+                    className="w-full justify-start border-slate-600 hover:bg-slate-800"
+                  >
+                    <Info className="w-4 h-4 mr-2" />
+                    Informações do Contato
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowSearchDialog(true);
+                      setShowSidebar(false);
+                    }}
+                    className="w-full justify-start border-slate-600 hover:bg-slate-800"
+                  >
+                    <Search className="w-4 h-4 mr-2" />
+                    Buscar na Conversa
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      // Archive logic
+                      toast({
+                        title: "Conversa arquivada",
+                        description: "A conversa foi movida para o arquivo.",
+                      });
+                      setShowSidebar(false);
+                    }}
+                    className="w-full justify-start border-slate-600 hover:bg-slate-800"
+                  >
+                    <Archive className="w-4 h-4 mr-2" />
+                    Arquivar Conversa
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Danger Zone Section */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold text-red-400 uppercase tracking-wider">Zona de Perigo</h4>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDeleteDialog(true);
+                    setShowSidebar(false);
+                  }}
+                  className="w-full justify-start border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Apagar Conversa
+                </Button>
+              </div>
+              
+              {/* Statistics Section */}
+              {selectedConversa.isCliente && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Estatísticas</h4>
+                  <div className="bg-slate-800 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-400">Status</span>
+                      <Badge variant="outline" className={cn(
+                        "text-xs",
+                        selectedConversa.clienteStatus === 'ativo' 
+                          ? "bg-green-500/10 text-green-400 border-green-500/30"
+                          : "bg-red-500/10 text-red-400 border-red-500/30"
+                      )}>
+                        {selectedConversa.clienteStatus === 'ativo' ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-400">Última mensagem</span>
+                      <span className="text-xs text-slate-300">
+                        {format(new Date(selectedConversa.dataUltimaMensagem), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Sidebar Overlay */}
+        {showSidebar && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setShowSidebar(false)}
+          />
+        )}
       </div>
       
       {/* Media Preview */}
