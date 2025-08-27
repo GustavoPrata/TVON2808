@@ -288,6 +288,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       replyToId,
     } = data;
 
+    // If no conversaId but has telefone, find or create conversation
+    let actualConversaId = conversaId;
+    if (!conversaId && telefone) {
+      const conversa = await storage.getConversaByTelefone(telefone);
+      if (conversa) {
+        actualConversaId = conversa.id;
+      } else {
+        // Create new conversation
+        const newConversa = await storage.createConversa({
+          telefone,
+          nome: telefone,
+          ultimaMensagem: conteudo,
+          status: 'ativo',
+          modoAtendimento: 'humano',
+          mensagensNaoLidas: 0,
+          lastSeen: null,
+          isOnline: false,
+          ultimoRemetente: 'sistema',
+          mensagemLida: true,
+          profilePicture: null,
+          tipoUltimaMensagem: tipo,
+        });
+        actualConversaId = newConversa.id;
+      }
+    }
+
     // For audio messages, ensure we have proper duration in the content
     let finalContent = conteudo;
     if (tipo === "audio" && metadados?.duration) {
@@ -296,24 +322,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Audio message with duration:", duration, "seconds");
     }
 
-    // Salvar mensagem no banco
-    const mensagem = await storage.createMensagem({
-      conversaId,
-      conteudo: finalContent,
-      tipo,
-      remetente: "sistema",
-      lida: true,
-      mediaUrl,
-      metadados,
-    });
+    // Only save to database if we have a conversaId
+    let mensagem = null;
+    if (actualConversaId) {
+      // Salvar mensagem no banco
+      mensagem = await storage.createMensagem({
+        conversaId: actualConversaId,
+        conteudo: finalContent,
+        tipo,
+        remetente: "sistema",
+        lida: true,
+        mediaUrl,
+        metadados,
+      });
 
-    // Atualizar última mensagem da conversa
-    await storage.updateConversa(conversaId, {
-      ultimaMensagem: conteudo,
-      mensagensNaoLidas: 0, // Reset unread count when system sends message
-      ultimoRemetente: "sistema", // Track who sent the last message
-      dataUltimaMensagem: new Date(), // Update timestamp when sending message
-    });
+      // Atualizar última mensagem da conversa
+      await storage.updateConversa(actualConversaId, {
+        ultimaMensagem: conteudo,
+        mensagensNaoLidas: 0, // Reset unread count when system sends message
+        ultimoRemetente: "sistema", // Track who sent the last message
+      });
+    }
 
     // Enviar via WhatsApp
     if (tipo === "texto" || tipo === "text") {
@@ -356,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       console.log("WhatsApp Message ID:", whatsappMessageId);
 
-      if (whatsappMessageId) {
+      if (whatsappMessageId && mensagem) {
         // Update message with WhatsApp ID for future replies
         await storage.updateMensagem(mensagem.id, {
           metadados: {
@@ -380,7 +409,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           console.log("Image send result:", whatsappMessageId);
           
-          if (whatsappMessageId) {
+          if (whatsappMessageId && mensagem) {
             await storage.updateMensagem(mensagem.id, {
               metadados: {
                 ...mensagem.metadados,
@@ -453,7 +482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         console.log("Media send result:", whatsappMessageId);
 
-        if (whatsappMessageId) {
+        if (whatsappMessageId && mensagem) {
           // Update message with WhatsApp ID for future replies/edits/deletes
           await storage.updateMensagem(mensagem.id, {
             whatsappMessageId: whatsappMessageId,
