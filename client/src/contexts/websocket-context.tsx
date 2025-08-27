@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
-import { useToast } from '@/hooks/use-toast';
 
 interface WSMessage {
   type: string;
@@ -22,7 +21,6 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const ws = useRef<WebSocket | null>(null);
   const messageHandlers = useRef<Map<string, (data: any) => void>>(new Map());
   const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
-  const { toast } = useToast();
 
   // Function to connect WebSocket
   const connectWebSocket = () => {
@@ -60,16 +58,8 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           console.log('No handler found for type:', message.type);
         }
 
-        // Show notification for new WhatsApp messages when not in chat
-        if (message.type === 'whatsapp_message' && message.data) {
-          const { conteudo, remetente } = message.data;
-          if (remetente === 'cliente' && window.location.pathname !== '/chat') {
-            toast({
-              title: "Nova mensagem",
-              description: conteudo?.substring(0, 100) || "Mensagem recebida",
-            });
-          }
-        }
+        // Notifications are handled by WhatsAppNotifier component
+        // No need to show toast here as it would duplicate notifications
       } catch (error) {
         console.error('Error parsing WebSocket message:', error);
       }
