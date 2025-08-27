@@ -254,7 +254,8 @@ export function PixGeneratorSidebar({
         sendMessage('send_message', {
           telefone: telefone,
           tipo: 'image',
-          conteudo: pixInfo.qrCode
+          conteudo: pixInfo.qrCode,
+          mediaUrl: pixInfo.qrCode
         });
       }
 
