@@ -104,6 +104,7 @@ export function PixGeneratorSidebar({
         descricao: pixDescription || `Pagamento TV ON - ${clienteNome}`
       });
       
+      // Converter resposta para JSON
       const response = await responseRaw.json();
       console.log('[PIX] Resposta da API:', response);
 
