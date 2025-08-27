@@ -2964,16 +2964,17 @@ export default function Chat() {
               
               {/* PIX Payment Section - Available for all conversations */}
               <PixGeneratorSidebar
+                key={selectedConversa.id} // Força recriação do componente ao mudar de conversa
                 clienteId={selectedConversa.clienteId}
                 clienteNome={selectedConversa.clienteNome || selectedConversa.nome || selectedConversa.telefone || ''}
                 telefone={selectedConversa.telefone}
                 sendMessage={sendMessage}
-                initialState={pixStateByConversation.get(selectedConversa.telefone)}
+                initialState={pixStateByConversation.get(`conv_${selectedConversa.id}`)}
                 onStateChange={(state) => {
-                  // Salvar estado do PIX para esta conversa
+                  // Salvar estado do PIX para esta conversa específica usando ID único
                   setPixStateByConversation(prev => {
                     const newMap = new Map(prev);
-                    newMap.set(selectedConversa.telefone, state);
+                    newMap.set(`conv_${selectedConversa.id}`, state);
                     return newMap;
                   });
                 }}

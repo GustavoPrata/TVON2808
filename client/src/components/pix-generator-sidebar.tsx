@@ -44,10 +44,22 @@ export function PixGeneratorSidebar({
     expiresIn?: string;
     timestamp?: Date;
     descricao?: string;
-  } | null>(initialState?.activePixData || null);
+  } | null>(null);
   const [quickValues] = useState([29.90, 19.90]);
   const [timeRemaining, setTimeRemaining] = useState('');
-  const [pixHistory, setPixHistory] = useState<any[]>(initialState?.pixHistory || []);
+  const [pixHistory, setPixHistory] = useState<any[]>([]);
+  
+  // Reset state when phone number changes (switching conversations)
+  useEffect(() => {
+    // Reset to initial state or empty when switching conversations
+    setActivePixData(initialState?.activePixData || null);
+    setPixHistory(initialState?.pixHistory || []);
+    setPixAmount(initialState?.pixAmount || '');
+    setPixDescription(initialState?.pixDescription || '');
+    setIsGeneratingPix(false);
+    setIsCancelling(false);
+    setTimeRemaining('');
+  }, [telefone, initialState]);
   
   // Salvar estado quando mudar
   useEffect(() => {

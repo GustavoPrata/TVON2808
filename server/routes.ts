@@ -395,8 +395,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
     } else if (mediaUrl) {
-      // Check if mediaUrl is a local file path or base64 data URL
-      if (mediaUrl.startsWith('/uploads/')) {
+      // Check if mediaUrl is an external URL (http/https)
+      if (mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://')) {
+        // External URL (like PIX QR Code from OpenPix)
+        if (tipo === "image") {
+          console.log("Sending external image URL:", mediaUrl);
+          const whatsappMessageId = await whatsappService.sendImage(
+            telefone,
+            mediaUrl, // Send the external URL directly
+            conteudo || undefined,
+            undefined, // replyTo
+            true // skipSaveMessage - message already saved by WebSocket handler
+          );
+          console.log("External image send result:", whatsappMessageId);
+          
+          if (whatsappMessageId && mensagem) {
+            await storage.updateMensagem(mensagem.id, {
+              metadados: {
+                ...mensagem.metadados,
+                whatsappMessageId,
+              },
+            });
+          }
+        }
+      } else if (mediaUrl.startsWith('/uploads/')) {
         // Local file upload - use full path for WhatsApp but keep relative for storage
         if (tipo === "image") {
           const fullPath = path.join(process.cwd(), mediaUrl);
@@ -407,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             undefined, // replyTo
             true // skipSaveMessage - message already saved by WebSocket handler
           );
-          console.log("Image send result:", whatsappMessageId);
+          console.log("Local image send result:", whatsappMessageId);
           
           if (whatsappMessageId && mensagem) {
             await storage.updateMensagem(mensagem.id, {
