@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -2963,41 +2963,27 @@ export default function Chat() {
               </div>
               
               {/* PIX Payment Section - Available for all conversations */}
-              {(() => {
-                const pixStateKey = `conv_${selectedConversa.id}`;
-                const pixInitialState = useMemo(
-                  () => pixStateByConversation.get(pixStateKey) || null,
-                  [pixStateKey, pixStateByConversation.get(pixStateKey)]
-                );
-                
-                const handlePixStateChange = useCallback((state: any) => {
+              <PixGeneratorSidebar
+                key={selectedConversa.id}
+                clienteId={selectedConversa.clienteId}
+                clienteNome={selectedConversa.clienteNome || selectedConversa.nome || selectedConversa.telefone || ''}
+                telefone={selectedConversa.telefone}
+                sendMessage={sendMessage}
+                initialState={pixStateByConversation.get(`conv_${selectedConversa.id}`)}
+                onStateChange={(state) => {
                   setPixStateByConversation(prev => {
                     const newMap = new Map(prev);
-                    newMap.set(pixStateKey, state);
+                    newMap.set(`conv_${selectedConversa.id}`, state);
                     return newMap;
                   });
-                }, [pixStateKey]);
-                
-                const handlePixGenerated = useCallback((pixData: any) => {
+                }}
+                onPixGenerated={(pixData) => {
                   console.log('[Chat] PIX gerado:', pixData);
                   setTimeout(() => {
                     refetchMensagens();
                   }, 3000);
-                }, []);
-                
-                return (
-                  <PixGeneratorSidebar
-                    key={selectedConversa.id}
-                    clienteId={selectedConversa.clienteId}
-                    clienteNome={selectedConversa.clienteNome || selectedConversa.nome || selectedConversa.telefone || ''}
-                    telefone={selectedConversa.telefone}
-                    sendMessage={sendMessage}
-                    initialState={pixInitialState}
-                    onStateChange={handlePixStateChange}
-                    onPixGenerated={handlePixGenerated}
-                  />
-                );
-              })()}
+                }}
+              />
               
               {/* Danger Zone Section */}
               <div className="space-y-2">
