@@ -14,6 +14,8 @@ interface ActiveNotification {
   messageType?: string;
   profilePicture?: string | null;
   conversationId?: number;
+  isCliente?: boolean;
+  isTeste?: boolean;
 }
 
 export function WhatsAppNotifier() {
@@ -44,6 +46,8 @@ export function WhatsAppNotifier() {
           messageType: messageData.tipo || 'text',
           profilePicture: conversation?.profilePicture,
           conversationId: messageData.conversaId,
+          isCliente: conversation?.isCliente || false,
+          isTeste: conversation?.isTeste || false,
         };
 
         // Remove any existing notification from the same conversation before adding new one
@@ -71,6 +75,8 @@ export function WhatsAppNotifier() {
           message: 'Nova conversa iniciada',
           profilePicture: data.profilePicture,
           conversationId: data.id,
+          isCliente: data.isCliente || false,
+          isTeste: data.isTeste || false,
         };
 
         // Remove any existing notification from the same conversation before adding new one
@@ -109,6 +115,8 @@ export function WhatsAppNotifier() {
             messageType={notification.messageType}
             profilePicture={notification.profilePicture}
             conversationId={notification.conversationId}
+            isCliente={notification.isCliente}
+            isTeste={notification.isTeste}
             onClose={() => removeNotification(notification.id)}
           />,
           document.body

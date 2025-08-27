@@ -9,6 +9,8 @@ interface NotificationToastProps {
   messageType?: string;
   profilePicture?: string | null;
   conversationId?: number;
+  isCliente?: boolean;
+  isTeste?: boolean;
   onClose: () => void;
 }
 
@@ -19,6 +21,8 @@ export function NotificationToast({
   messageType = 'text',
   profilePicture,
   conversationId,
+  isCliente = false,
+  isTeste = false,
   onClose
 }: NotificationToastProps) {
   const [, setLocation] = useLocation();
@@ -39,10 +43,18 @@ export function NotificationToast({
   };
 
   const handleViewChat = () => {
+    // Determine which tab to navigate to
+    let tab = 'novos'; // default
+    if (isCliente) {
+      tab = 'clientes';
+    } else if (isTeste) {
+      tab = 'testes';
+    }
+    
     if (conversationId) {
-      setLocation(`/chat?conversaId=${conversationId}`);
+      setLocation(`/chat?conversaId=${conversationId}&tab=${tab}`);
     } else {
-      setLocation('/chat');
+      setLocation(`/chat?tab=${tab}`);
     }
     handleClose();
   };

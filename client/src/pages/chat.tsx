@@ -162,6 +162,7 @@ export default function Chat() {
   const urlParams = new URLSearchParams(window.location.search);
   const phoneFromUrl = urlParams.get('phone');
   const conversaIdFromUrl = urlParams.get('conversaId');
+  const tabFromUrl = urlParams.get('tab');
 
   // WhatsApp Status Query
   const { data: whatsappStatus } = useQuery<WhatsAppStatus>({
@@ -347,7 +348,7 @@ export default function Chat() {
     }
   }, [phoneFromUrl, conversas, tickets]);
 
-  // Handle conversaId parameter from URL (coming from tickets page)
+  // Handle conversaId and tab parameters from URL
   useEffect(() => {
     if (conversaIdFromUrl && conversas) {
       // Find conversation with matching ID
@@ -362,13 +363,35 @@ export default function Chat() {
           hasOpenTicket: !!openTicket,
           ticket: openTicket
         });
-        // Clear the URL parameter after handling
+        
+        // Set the correct tab based on conversation type
+        if (conversation.isTeste) {
+          setContactFilter('testes');
+        } else if (conversation.isCliente) {
+          setContactFilter('clientes');
+        } else {
+          setContactFilter('novos');
+        }
+        
+        // Clear the URL parameters after handling
         const url = new URL(window.location.href);
         url.searchParams.delete('conversaId');
+        url.searchParams.delete('tab');
         window.history.replaceState({}, '', url.toString());
       }
     }
-  }, [conversaIdFromUrl, conversas, tickets]);
+    
+    // Handle tab parameter separately if no conversaId
+    if (tabFromUrl && !conversaIdFromUrl) {
+      if (tabFromUrl === 'clientes' || tabFromUrl === 'testes' || tabFromUrl === 'novos') {
+        setContactFilter(tabFromUrl);
+      }
+      // Clear the tab parameter
+      const url = new URL(window.location.href);
+      url.searchParams.delete('tab');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [conversaIdFromUrl, tabFromUrl, conversas, tickets]);
 
   // Get messages for selected conversation with pagination
   const { data: mensagens, refetch: refetchMensagens, isLoading: isLoadingMessages } = useQuery({
