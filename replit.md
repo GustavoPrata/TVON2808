@@ -52,6 +52,16 @@ TV ON is a comprehensive management system for TV/streaming services, designed f
   - ✅ All submenus properly detect test clients and route to correct menu
 
 ## Recent Updates (27/08/2025)
+- **Global WebSocket Connection for WhatsApp Integration**:
+  - ✅ Implemented global WebSocket context that maintains connection across entire application
+  - ✅ WhatsApp messages are now received and processed on all pages, not just /chat
+  - ✅ Created WebSocketProvider context in `client/src/contexts/websocket-context.tsx`
+  - ✅ Added WhatsAppNotifier component for global message monitoring and notifications
+  - ✅ Notifications appear with toast alerts when new messages arrive while user is on other pages
+  - ✅ Automatic reconnection with 3-second retry on connection loss
+  - ✅ "Ver Chat" button in notifications for quick navigation to chat page
+  - ✅ Maintains backward compatibility with existing useWebSocket hook
+
 - **Critical Fix: Duplicate Conversations Prevention During WhatsApp Reconnection**:
   - ✅ Fixed critical bug where multiple duplicate conversations were created when WhatsApp reconnected after restart
   - ✅ Implemented conversation creation locks with mutex protection to prevent race conditions

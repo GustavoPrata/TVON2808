@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { SettingsProvider } from "@/contexts/settings-context";
+import { WebSocketProvider } from "@/contexts/websocket-context";
+import { WhatsAppNotifier } from "@/components/whatsapp-notifier";
 import Dashboard from "@/pages/dashboard";
 import Clientes from "@/pages/clientes";
 import ClienteDetalhes from "@/pages/cliente-detalhes";
@@ -50,15 +52,18 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SettingsProvider>
-        <TooltipProvider>
-          <div className="flex h-screen bg-slate-950 text-white">
-            <Sidebar />
-            <main className="flex-1 overflow-auto p-6 bg-gradient-to-br from-slate-900 to-slate-950">
-              <Router />
-            </main>
-          </div>
-          <Toaster />
-        </TooltipProvider>
+        <WebSocketProvider>
+          <TooltipProvider>
+            <WhatsAppNotifier />
+            <div className="flex h-screen bg-slate-950 text-white">
+              <Sidebar />
+              <main className="flex-1 overflow-auto p-6 bg-gradient-to-br from-slate-900 to-slate-950">
+                <Router />
+              </main>
+            </div>
+            <Toaster />
+          </TooltipProvider>
+        </WebSocketProvider>
       </SettingsProvider>
     </QueryClientProvider>
   );
