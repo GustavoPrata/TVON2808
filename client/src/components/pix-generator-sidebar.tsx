@@ -98,12 +98,13 @@ export function PixGeneratorSidebar({
       });
 
       // Chamar API para gerar PIX
-      const response = await apiRequest('POST', '/api/pix/generate', {
+      const responseRaw = await apiRequest('POST', '/api/pix/generate', {
         clienteId,
         valor: amount,
         descricao: pixDescription || `Pagamento TV ON - ${clienteNome}`
-      }) as any;
-
+      });
+      
+      const response = await responseRaw.json();
       console.log('[PIX] Resposta da API:', response);
 
       if (response.success && response.pixData) {
@@ -204,9 +205,35 @@ export function PixGeneratorSidebar({
       }
     } catch (error: any) {
       console.error('[PIX] Erro completo:', error);
+      
+      // Tentar extrair mensagem de erro do servidor
+      let errorMessage = "Verifique a configuração do sistema";
+      
+      if (error instanceof Response) {
+        try {
+          const errorData = await error.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = error.statusText || errorMessage;
+        }
+      } else if (error.message) {
+        // Extrair mensagem do erro se estiver no formato "400: {error: 'mensagem'}"
+        try {
+          const match = error.message.match(/\d+:\s*({.*})/);
+          if (match) {
+            const errorData = JSON.parse(match[1]);
+            errorMessage = errorData.error || errorMessage;
+          } else {
+            errorMessage = error.message;
+          }
+        } catch {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "❌ Erro ao Gerar PIX",
-        description: error.message || "Verifique a configuração do sistema",
+        description: errorMessage,
         variant: "destructive"
       });
       setLastPixPayment(null);
