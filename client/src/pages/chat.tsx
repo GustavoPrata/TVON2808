@@ -138,7 +138,7 @@ export default function Chat() {
   const [showCreateTestDialog, setShowCreateTestDialog] = useState(false);
   const [showTestDetailsDialog, setShowTestDetailsDialog] = useState(false);
   const [showTestChatModal, setShowTestChatModal] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(false);
+  // Menu lateral sempre visível - removido estado showSidebar
   const [showCreateClientDialog, setShowCreateClientDialog] = useState(false);
   const [testPhoneNumber, setTestPhoneNumber] = useState<string>('');
   const [newChatNumber, setNewChatNumber] = useState('');
@@ -1909,8 +1909,10 @@ export default function Chat() {
 
         </div>
 
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col relative z-0">
+        {/* Main Content Area with Chat and Sidebar */}
+        <div className="flex-1 flex bg-dark-card max-h-screen">
+          {/* Chat Area */}
+          <div className="flex-1 flex flex-col relative z-0">
         {selectedConversa ? (
           <>
             {/* Chat Header */}
@@ -1982,21 +1984,6 @@ export default function Chat() {
                   </div>
                 </div>
                 
-                {/* Actions */}
-                <div className="flex items-center gap-2">
-                  {/* Menu Toggle Button */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setShowSidebar(!showSidebar)}
-                    className="relative"
-                  >
-                    <Menu className="w-5 h-5" />
-                    {showSidebar && (
-                      <span className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-blue-500 rounded-full"></span>
-                    )}
-                  </Button>
-                </div>
               </div>
             </div>
 
@@ -2811,30 +2798,17 @@ export default function Chat() {
           </div>
         )}
         </div>
-        
-        {/* Sidebar Menu */}
-        {selectedConversa && (
-          <div className={cn(
-            "fixed right-0 top-0 h-full w-80 bg-dark-surface border-l border-slate-700 shadow-2xl transform transition-transform duration-300 z-50",
-            showSidebar ? "translate-x-0" : "translate-x-full"
-          )}>
+          
+          {/* Sidebar Menu - Sempre Visível */}
+          {selectedConversa && (
+          <div className="w-80 bg-dark-surface border-l border-slate-700 shadow-2xl flex-shrink-0 h-screen">
             {/* Sidebar Header */}
             <div className="p-4 border-b border-slate-700 bg-gradient-to-r from-slate-800 to-slate-900">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-100">Ações da Conversa</h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowSidebar(false)}
-                  className="text-slate-400 hover:text-slate-100"
-                >
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
+              <h3 className="text-lg font-semibold text-slate-100 text-center">Ações da Conversa</h3>
             </div>
             
             {/* Sidebar Content */}
-            <div className="p-4 space-y-6 overflow-y-auto max-h-[calc(100vh-80px)]">
+            <div className="p-4 space-y-6 overflow-y-auto h-[calc(100vh-80px)]">
               {/* Attendance Mode Section */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Modo de Atendimento</h4>
@@ -2898,7 +2872,7 @@ export default function Chat() {
                   <Button
                     onClick={() => {
                       window.open(`/clientes/${selectedConversa.clienteId}`, '_blank');
-                      setShowSidebar(false);
+
                     }}
                     className="w-full justify-start bg-gradient-to-r from-green-600/90 to-green-700/90 hover:from-green-500 hover:to-green-600 text-white"
                   >
@@ -2919,7 +2893,7 @@ export default function Chat() {
                           onClick={() => {
                             setTestPhoneNumber(selectedConversa.telefone);
                             setShowTestDetailsDialog(true);
-                            setShowSidebar(false);
+      
                           }}
                           className="w-full justify-start bg-gradient-to-r from-emerald-600/90 to-green-700/90 hover:from-emerald-500 hover:to-green-600 text-white"
                         >
@@ -2929,7 +2903,7 @@ export default function Chat() {
                         <Button
                           onClick={() => {
                             setShowCreateClientDialog(true);
-                            setShowSidebar(false);
+      
                           }}
                           className="w-full justify-start bg-gradient-to-r from-blue-600/90 to-blue-700/90 hover:from-blue-500 hover:to-blue-600 text-white"
                         >
@@ -2942,7 +2916,7 @@ export default function Chat() {
                         <Button
                           onClick={() => {
                             setShowCreateTestDialog(true);
-                            setShowSidebar(false);
+      
                           }}
                           className="w-full justify-start bg-gradient-to-r from-purple-600/90 to-purple-700/90 hover:from-purple-500 hover:to-purple-600 text-white"
                         >
@@ -2952,7 +2926,7 @@ export default function Chat() {
                         <Button
                           onClick={() => {
                             setShowCreateClientDialog(true);
-                            setShowSidebar(false);
+      
                           }}
                           className="w-full justify-start bg-gradient-to-r from-blue-600/90 to-blue-700/90 hover:from-blue-500 hover:to-blue-600 text-white"
                         >
@@ -2973,7 +2947,7 @@ export default function Chat() {
                     variant="outline"
                     onClick={() => {
                       setShowContactInfo(true);
-                      setShowSidebar(false);
+
                     }}
                     className="w-full justify-start border-slate-600 hover:bg-slate-800"
                   >
@@ -2985,7 +2959,7 @@ export default function Chat() {
                     variant="outline"
                     onClick={() => {
                       setShowSearchDialog(true);
-                      setShowSidebar(false);
+
                     }}
                     className="w-full justify-start border-slate-600 hover:bg-slate-800"
                   >
@@ -3001,7 +2975,7 @@ export default function Chat() {
                         title: "Conversa arquivada",
                         description: "A conversa foi movida para o arquivo.",
                       });
-                      setShowSidebar(false);
+
                     }}
                     className="w-full justify-start border-slate-600 hover:bg-slate-800"
                   >
@@ -3018,7 +2992,7 @@ export default function Chat() {
                   variant="outline"
                   onClick={() => {
                     setShowDeleteDialog(true);
-                    setShowSidebar(false);
+                    // setShowSidebar removido(false);
                   }}
                   className="w-full justify-start border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
                 >
@@ -3055,14 +3029,7 @@ export default function Chat() {
             </div>
           </div>
         )}
-        
-        {/* Sidebar Overlay */}
-        {showSidebar && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setShowSidebar(false)}
-          />
-        )}
+        </div>
       </div>
       
       {/* Media Preview */}
