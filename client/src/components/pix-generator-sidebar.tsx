@@ -378,7 +378,7 @@ export function PixGeneratorSidebar({
               ) : (
                 <>
                   <Send className="w-3.5 h-3.5 mr-1.5" />
-                  Gerar e Enviar PIX
+                  Gerar
                 </>
               )}
             </Button>
