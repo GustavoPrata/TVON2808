@@ -35,6 +35,7 @@ export function PixGeneratorSidebar({
   const [pixDescription, setPixDescription] = useState(initialState?.pixDescription || '');
   const [isGeneratingPix, setIsGeneratingPix] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [pixConfig, setPixConfig] = useState<{ expiresIn: number }>({ expiresIn: 86400 }); // 24h padrão
   const [activePixData, setActivePixData] = useState<{
     status: string;
     valor: string;
@@ -52,6 +53,18 @@ export function PixGeneratorSidebar({
   // Use initialState directly in useState to avoid extra renders
   // Component is already recreated when conversation changes due to key prop
   
+  // Buscar configuração PIX ao montar
+  useEffect(() => {
+    fetch('/api/pix/config')
+      .then(res => res.json())
+      .then(data => {
+        if (data.expiresIn) {
+          setPixConfig({ expiresIn: data.expiresIn });
+        }
+      })
+      .catch(err => console.error('Erro ao buscar configuração PIX:', err));
+  }, []);
+  
   // Salvar estado quando mudar (com debounce para evitar loops)
   useEffect(() => {
     if (!onStateChange) return;
@@ -66,7 +79,7 @@ export function PixGeneratorSidebar({
     }, 300); // Debounce de 300ms
     
     return () => clearTimeout(timer);
-  }, [activePixData, pixHistory, pixAmount, pixDescription]);
+  }, [activePixData, pixHistory, pixAmount, pixDescription, onStateChange]);
 
   // Countdown timer para PIX ativo
   useEffect(() => {
@@ -80,7 +93,7 @@ export function PixGeneratorSidebar({
         const created = new Date(activePixData.timestamp).getTime();
         const now = new Date().getTime();
         const elapsed = now - created;
-        const maxTime = 30 * 60 * 1000; // 30 minutos
+        const maxTime = pixConfig.expiresIn * 1000; // converter segundos para milissegundos
         const remaining = maxTime - elapsed;
 
         if (remaining <= 0) {
@@ -96,7 +109,7 @@ export function PixGeneratorSidebar({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [activePixData]);
+  }, [activePixData, pixConfig.expiresIn]);
 
   const formatCurrency = (value: string) => {
     const numbers = value.replace(/\D/g, '');
@@ -258,12 +271,23 @@ export function PixGeneratorSidebar({
 
   const sendPixToWhatsApp = async (pixInfo: any) => {
     try {
+      // Formatar tempo de validade
+      const hours = Math.floor(pixConfig.expiresIn / 3600);
+      const minutes = Math.floor((pixConfig.expiresIn % 3600) / 60);
+      let validadeText = '';
+      if (hours > 0) {
+        validadeText += `${hours}h`;
+        if (minutes > 0) validadeText += ` ${minutes}min`;
+      } else {
+        validadeText = `${minutes} minutos`;
+      }
+      
       // Primeira mensagem - Informações do PIX
       sendMessage('send_message', {
         telefone: telefone,
         tipo: 'text',
         conteudo: `Valor: R$ ${pixInfo.valor}\n` +
-                 `Validade: 30 minutos\n\n` +
+                 `Validade: ${validadeText}\n\n` +
                  `Como pagar:\n` +
                  `1️⃣ Abra o app do seu banco\n` +
                  `2️⃣ Escolha a opção PIX\n` +

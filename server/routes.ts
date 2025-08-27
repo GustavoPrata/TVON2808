@@ -3093,6 +3093,21 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Obter configuração PIX
+  app.get("/api/pix/config", async (req, res) => {
+    try {
+      const config = await storage.getIntegracaoByTipo("pix");
+      if (config && config.configuracoes) {
+        res.json(config.configuracoes);
+      } else {
+        res.json({ expiresIn: 86400 }); // 24h padrão
+      }
+    } catch (error) {
+      console.error("Erro ao obter configuração PIX:", error);
+      res.status(500).json({ error: "Erro ao obter configuração" });
+    }
+  });
+
   // Configuração PIX para Woovi (sem webhookSecret pois Woovi usa API key)
   app.post("/api/pix/configure", async (req, res) => {
     try {
