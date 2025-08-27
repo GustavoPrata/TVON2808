@@ -338,11 +338,25 @@ export function MessageBubble({
             ) : (
               <>
                 {renderMedia()}
-                {message.conteudo && message.tipo !== 'audio' && (
+                {message.conteudo && 
+                 message.tipo !== 'audio' && 
+                 message.tipo !== 'image' && (
                   <p className={cn(
                     "text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere",
                     "max-w-[280px] overflow-hidden",
                     message.mediaUrl && "mt-2"
+                  )} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                    {formatMessageText(message.conteudo)}
+                  </p>
+                )}
+                {/* Para imagens, mostrar o conteúdo apenas se for diferente da URL */}
+                {message.conteudo && 
+                 message.tipo === 'image' && 
+                 message.conteudo !== message.mediaUrl && (
+                  <p className={cn(
+                    "text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere",
+                    "max-w-[280px] overflow-hidden",
+                    "mt-2"
                   )} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                     {formatMessageText(message.conteudo)}
                   </p>

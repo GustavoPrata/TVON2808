@@ -306,6 +306,17 @@ export function PixGeneratorSidebar({
         });
       }
 
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Terceira mensagem - Código Copia e Cola
+      if (pixInfo.pixCopiaCola) {
+        sendMessage('send_message', {
+          telefone: telefone,
+          tipo: 'text',
+          conteudo: pixInfo.pixCopiaCola
+        });
+      }
+
       // Limpar formulário
       setPixAmount('');
       setPixDescription('');
