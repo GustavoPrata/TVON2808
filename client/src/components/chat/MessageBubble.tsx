@@ -244,7 +244,7 @@ export function MessageBubble({
   const messageContent = (
     <div
       className={cn(
-        "group relative max-w-[70%] transition-all duration-200",
+        "group relative max-w-[320px] transition-all duration-200",
         isOwn ? "ml-auto" : "mr-auto",
         isSelected && "ring-2 ring-blue-500 ring-offset-2 ring-offset-dark-background"
       )}
@@ -327,7 +327,7 @@ export function MessageBubble({
                     )}
                     {/* Show current content (not original) when deleted */}
                     {message.conteudo && (
-                      <div className="whitespace-pre-wrap break-words overflow-wrap-anywhere opacity-50 line-through max-w-[400px] overflow-hidden"
+                      <div className="whitespace-pre-wrap break-words overflow-wrap-anywhere opacity-50 line-through max-w-[280px] overflow-hidden"
                            style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                         {formatMessageText(message.conteudo)}
                       </div>
@@ -341,7 +341,7 @@ export function MessageBubble({
                 {message.conteudo && message.tipo !== 'audio' && (
                   <p className={cn(
                     "text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere",
-                    "max-w-[400px] overflow-hidden",
+                    "max-w-[280px] overflow-hidden",
                     message.mediaUrl && "mt-2"
                   )} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                     {formatMessageText(message.conteudo)}
