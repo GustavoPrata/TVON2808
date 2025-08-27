@@ -432,10 +432,10 @@ export function PixGeneratorSidebar({
                       variant="outline"
                       size="sm"
                       onClick={copyPixCode}
-                      className="flex-1 h-7 text-[10px] border-slate-600 hover:bg-slate-700"
+                      className="flex-1 h-7 border-slate-600 hover:bg-slate-700 hover:border-slate-500"
+                      title="Copiar código PIX"
                     >
-                      <Copy className="w-3 h-3 mr-1" />
-                      Copiar Código
+                      <Copy className="w-3.5 h-3.5" />
                     </Button>
                   )}
                   <Button
@@ -443,12 +443,13 @@ export function PixGeneratorSidebar({
                     size="sm"
                     onClick={cancelCurrentPix}
                     disabled={isCancelling}
-                    className="h-7 px-2 text-[10px] border-red-600/50 hover:bg-red-950/30 text-red-400"
+                    className="h-7 w-7 p-0 border-red-600/50 hover:bg-red-950/30 text-red-400"
+                    title="Cancelar PIX"
                   >
                     {isCancelling ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     )}
                   </Button>
                 </div>
