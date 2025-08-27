@@ -31,8 +31,8 @@ export function PixGeneratorSidebar({
   onStateChange 
 }: PixGeneratorSidebarProps) {
   const { toast } = useToast();
-  const [pixAmount, setPixAmount] = useState('');
-  const [pixDescription, setPixDescription] = useState('');
+  const [pixAmount, setPixAmount] = useState(initialState?.pixAmount || '');
+  const [pixDescription, setPixDescription] = useState(initialState?.pixDescription || '');
   const [isGeneratingPix, setIsGeneratingPix] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [activePixData, setActivePixData] = useState<{
@@ -44,33 +44,28 @@ export function PixGeneratorSidebar({
     expiresIn?: string;
     timestamp?: Date;
     descricao?: string;
-  } | null>(null);
+  } | null>(initialState?.activePixData || null);
   const [quickValues] = useState([29.90, 19.90]);
   const [timeRemaining, setTimeRemaining] = useState('');
-  const [pixHistory, setPixHistory] = useState<any[]>([]);
+  const [pixHistory, setPixHistory] = useState<any[]>(initialState?.pixHistory || []);
   
-  // Reset state when phone number changes (switching conversations)
-  useEffect(() => {
-    // Reset to initial state or empty when switching conversations
-    setActivePixData(initialState?.activePixData || null);
-    setPixHistory(initialState?.pixHistory || []);
-    setPixAmount(initialState?.pixAmount || '');
-    setPixDescription(initialState?.pixDescription || '');
-    setIsGeneratingPix(false);
-    setIsCancelling(false);
-    setTimeRemaining('');
-  }, [telefone, initialState]);
+  // Use initialState directly in useState to avoid extra renders
+  // Component is already recreated when conversation changes due to key prop
   
-  // Salvar estado quando mudar
+  // Salvar estado quando mudar (com debounce para evitar loops)
   useEffect(() => {
-    if (onStateChange) {
+    if (!onStateChange) return;
+    
+    const timer = setTimeout(() => {
       onStateChange({
         activePixData,
         pixHistory,
         pixAmount,
         pixDescription
       });
-    }
+    }, 300); // Debounce de 300ms
+    
+    return () => clearTimeout(timer);
   }, [activePixData, pixHistory, pixAmount, pixDescription]);
 
   // Countdown timer para PIX ativo

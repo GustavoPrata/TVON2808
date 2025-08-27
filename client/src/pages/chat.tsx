@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -2963,29 +2963,41 @@ export default function Chat() {
               </div>
               
               {/* PIX Payment Section - Available for all conversations */}
-              <PixGeneratorSidebar
-                key={selectedConversa.id} // Força recriação do componente ao mudar de conversa
-                clienteId={selectedConversa.clienteId}
-                clienteNome={selectedConversa.clienteNome || selectedConversa.nome || selectedConversa.telefone || ''}
-                telefone={selectedConversa.telefone}
-                sendMessage={sendMessage}
-                initialState={pixStateByConversation.get(`conv_${selectedConversa.id}`)}
-                onStateChange={(state) => {
-                  // Salvar estado do PIX para esta conversa específica usando ID único
+              {(() => {
+                const pixStateKey = `conv_${selectedConversa.id}`;
+                const pixInitialState = useMemo(
+                  () => pixStateByConversation.get(pixStateKey) || null,
+                  [pixStateKey, pixStateByConversation.get(pixStateKey)]
+                );
+                
+                const handlePixStateChange = useCallback((state: any) => {
                   setPixStateByConversation(prev => {
                     const newMap = new Map(prev);
-                    newMap.set(`conv_${selectedConversa.id}`, state);
+                    newMap.set(pixStateKey, state);
                     return newMap;
                   });
-                }}
-                onPixGenerated={(pixData) => {
+                }, [pixStateKey]);
+                
+                const handlePixGenerated = useCallback((pixData: any) => {
                   console.log('[Chat] PIX gerado:', pixData);
-                  // Força refresh das mensagens após gerar PIX
                   setTimeout(() => {
                     refetchMensagens();
                   }, 3000);
-                }}
-              />
+                }, []);
+                
+                return (
+                  <PixGeneratorSidebar
+                    key={selectedConversa.id}
+                    clienteId={selectedConversa.clienteId}
+                    clienteNome={selectedConversa.clienteNome || selectedConversa.nome || selectedConversa.telefone || ''}
+                    telefone={selectedConversa.telefone}
+                    sendMessage={sendMessage}
+                    initialState={pixInitialState}
+                    onStateChange={handlePixStateChange}
+                    onPixGenerated={handlePixGenerated}
+                  />
+                );
+              })()}
               
               {/* Danger Zone Section */}
               <div className="space-y-2">
