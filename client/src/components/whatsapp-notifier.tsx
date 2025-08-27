@@ -11,6 +11,7 @@ interface ActiveNotification {
   name: string;
   phone: string;
   message: string;
+  messageType?: string;
   profilePicture?: string | null;
   conversationId?: number;
 }
@@ -40,6 +41,7 @@ export function WhatsAppNotifier() {
           name: conversation?.nome || 'Cliente',
           phone: conversation?.telefone || '',
           message: messageData.conteudo || '',
+          messageType: messageData.tipo || 'text',
           profilePicture: conversation?.profilePicture,
           conversationId: messageData.conversaId,
         };
@@ -104,6 +106,7 @@ export function WhatsAppNotifier() {
             name={notification.name}
             phone={notification.phone}
             message={notification.message}
+            messageType={notification.messageType}
             profilePicture={notification.profilePicture}
             conversationId={notification.conversationId}
             onClose={() => removeNotification(notification.id)}
