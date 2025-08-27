@@ -16,7 +16,7 @@ import {
   Star, Pin, Reply, Forward, Copy, Download, Image, FileText, Mic, Video, Info,
   Settings, LogOut, RefreshCw, Filter, Bell, BellOff, ExternalLink, ChevronDown,
   Plus, UserCheck, Sparkles, Ticket, CheckCircle, Zap, ChevronUp, ArrowLeft,
-  Menu, ChevronRight, Edit2, Shield, Activity, Clock3
+  Menu, ChevronRight, Edit2, Shield, Activity, Clock3, DollarSign
 } from 'lucide-react';
 
 import defaultProfileIcon from '../assets/default-profile.webp';
@@ -115,6 +115,10 @@ export default function Chat() {
   const [isRecording, setIsRecording] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [pixAmount, setPixAmount] = useState('');
+  const [pixDescription, setPixDescription] = useState('');
+  const [isGeneratingPix, setIsGeneratingPix] = useState(false);
+  const [lastPixPayment, setLastPixPayment] = useState<{ status: string; valor: string } | null>(null);
   const [selectedMessages, setSelectedMessages] = useState<Set<number>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
@@ -218,6 +222,41 @@ export default function Chat() {
       }
     }
   }, [conversas, tickets]);
+
+  // Listen for PIX payment updates
+  useEffect(() => {
+    const handlePaymentUpdate = (data: any) => {
+      console.log('PIX payment update received:', data);
+      
+      // Update last payment status if it matches
+      if (lastPixPayment && data.clienteId === selectedConversa?.clienteId) {
+        setLastPixPayment({
+          status: data.status,
+          valor: data.valor
+        });
+
+        // Show toast notification
+        if (data.status === 'pago') {
+          toast({
+            title: "✅ PIX Pago",
+            description: `Pagamento de R$ ${data.valor} confirmado`,
+          });
+        } else if (data.status === 'expirado' || data.status === 'cancelado') {
+          toast({
+            title: "❌ PIX Cancelado",
+            description: `Pagamento de R$ ${data.valor} foi cancelado ou expirou`,
+            variant: "destructive"
+          });
+        }
+      }
+    };
+
+    onMessage('payment_status_updated', handlePaymentUpdate);
+    
+    return () => {
+      offMessage('payment_status_updated', handlePaymentUpdate);
+    };
+  }, [lastPixPayment, selectedConversa?.clienteId, onMessage, offMessage, toast]);
 
   // Countdown timer effect
   useEffect(() => {
@@ -1120,6 +1159,93 @@ export default function Chat() {
     
     // Reset the input
     event.target.value = '';
+  };
+
+  const handleGeneratePix = async () => {
+    if (!selectedConversa || !selectedConversa.clienteId || !pixAmount) return;
+    
+    const amount = parseFloat(pixAmount.replace(',', '.'));
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: "Erro",
+        description: "Insira um valor válido para o PIX",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGeneratingPix(true);
+    
+    try {
+      // Generate PIX through the API
+      const response = await apiRequest('POST', '/api/pix/generate', {
+        clienteId: selectedConversa.clienteId,
+        valor: amount,
+        descricao: pixDescription || `PIX Manual - ${selectedConversa.clienteNome || selectedConversa.nome}`
+      });
+
+      if (response.success && response.pixData) {
+        // Send QR Code as image
+        if (response.pixData.qrCode) {
+          sendMessage('send_message', {
+            telefone: selectedConversa.telefone,
+            tipo: 'image',
+            conteudo: response.pixData.qrCode,
+            isBase64: true
+          });
+        }
+
+        // Send PIX copy-paste code as text
+        if (response.pixData.pixCopiaCola) {
+          setTimeout(() => {
+            sendMessage('send_message', {
+              telefone: selectedConversa.telefone,
+              tipo: 'text',
+              conteudo: response.pixData.pixCopiaCola
+            });
+          }, 1000);
+        }
+
+        // Send informative message
+        setTimeout(() => {
+          sendMessage('send_message', {
+            telefone: selectedConversa.telefone,
+            tipo: 'text',
+            conteudo: `💳 *PIX GERADO*\n\n` +
+                     `*Valor:* R$ ${amount.toFixed(2).replace('.', ',')}\n` +
+                     `*Descrição:* ${pixDescription || 'Pagamento'}\n` +
+                     `*Status:* Aguardando pagamento\n\n` +
+                     `✅ Use o QR Code acima ou copie o código PIX\n` +
+                     `⏰ Validade: ${response.pixData.expiresIn || '30 minutos'}\n\n` +
+                     `_TV ON Sistema_`
+          });
+        }, 2000);
+
+        // Update last payment status
+        setLastPixPayment({
+          status: 'pendente',
+          valor: amount.toFixed(2).replace('.', ',')
+        });
+
+        // Clear form
+        setPixAmount('');
+        setPixDescription('');
+
+        toast({
+          title: "PIX Gerado",
+          description: "QR Code e código enviados para o WhatsApp",
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao gerar PIX:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar PIX. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingPix(false);
+    }
   };
 
   const handleSendMedia = (caption: string) => {
@@ -2956,6 +3082,82 @@ export default function Chat() {
                   </Button>
                 </div>
               </div>
+              
+              {/* PIX Payment Section - Only for clients */}
+              {selectedConversa.isCliente && selectedConversa.clienteId && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide px-1">PIX Manual</h4>
+                  <div className="space-y-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-400">Valor</Label>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-slate-400">R$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="1"
+                          placeholder="29,90"
+                          value={pixAmount}
+                          onChange={(e) => setPixAmount(e.target.value)}
+                          className="h-7 text-xs bg-slate-900 border-slate-700 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-400">Descrição</Label>
+                      <Input
+                        type="text"
+                        placeholder="Ex: Renovação mensal"
+                        value={pixDescription}
+                        onChange={(e) => setPixDescription(e.target.value)}
+                        className="h-7 text-xs bg-slate-900 border-slate-700 focus:border-blue-500"
+                      />
+                    </div>
+                    <Button
+                      onClick={() => handleGeneratePix()}
+                      disabled={!pixAmount || parseFloat(pixAmount) <= 0 || isGeneratingPix}
+                      className="w-full justify-center bg-gradient-to-r from-green-600/90 to-green-700/90 hover:from-green-500 hover:to-green-600 text-white text-xs py-1.5 h-8 disabled:opacity-50"
+                    >
+                      {isGeneratingPix ? (
+                        <>
+                          <Loader2 className="w-3 h-3 mr-1.5 animate-spin" />
+                          Gerando...
+                        </>
+                      ) : (
+                        <>
+                          <DollarSign className="w-3 h-3 mr-1.5" />
+                          Gerar PIX
+                        </>
+                      )}
+                    </Button>
+                    
+                    {/* Show last generated PIX status */}
+                    {lastPixPayment && (
+                      <div className={cn(
+                        "p-2 rounded-lg border text-xs",
+                        lastPixPayment.status === 'pago' 
+                          ? "bg-green-500/10 border-green-500/30 text-green-400"
+                          : lastPixPayment.status === 'pendente'
+                          ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400"
+                          : "bg-red-500/10 border-red-500/30 text-red-400"
+                      )}>
+                        <div className="flex items-center justify-between">
+                          <span>Status:</span>
+                          <span className="font-medium">
+                            {lastPixPayment.status === 'pago' ? 'Pago' : 
+                             lastPixPayment.status === 'pendente' ? 'Aguardando' : 
+                             'Cancelado'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                          <span>Valor:</span>
+                          <span className="font-medium">R$ {lastPixPayment.valor}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               
               {/* Danger Zone Section */}
               <div className="space-y-2">

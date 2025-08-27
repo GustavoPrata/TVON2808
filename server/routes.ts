@@ -3163,6 +3163,56 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Generate PIX manually
+  app.post("/api/pix/generate", async (req, res) => {
+    try {
+      const { clienteId, valor, descricao } = req.body;
+
+      if (!clienteId || !valor) {
+        return res.status(400).json({ 
+          error: "Cliente ID e valor são obrigatórios" 
+        });
+      }
+
+      // Get client info
+      const cliente = await storage.getClienteById(clienteId);
+      if (!cliente) {
+        return res.status(404).json({ 
+          error: "Cliente não encontrado" 
+        });
+      }
+
+      // Generate PIX
+      const pixResult = await pixService.generatePix(
+        clienteId,
+        valor,
+        descricao || `Pagamento manual - ${cliente.nome}`,
+        { manual: true }
+      );
+
+      if (pixResult && pixResult.pixKey) {
+        res.json({
+          success: true,
+          pixData: {
+            qrCode: pixResult.qrCode,
+            pixCopiaCola: pixResult.pixCopiaCola,
+            chargeId: (pixResult as any).chargeId,
+            expiresIn: (pixResult as any).expiresIn || '30 minutos'
+          }
+        });
+      } else {
+        res.status(500).json({ 
+          error: "Erro ao gerar PIX" 
+        });
+      }
+    } catch (error: any) {
+      console.error("Error generating manual PIX:", error);
+      res.status(500).json({ 
+        error: "Erro ao gerar PIX: " + (error.message || "Erro desconhecido")
+      });
+    }
+  });
+
   // Webhook do Woovi
   app.post("/api/pix/webhook", async (req, res) => {
     try {
