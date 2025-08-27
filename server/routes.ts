@@ -3167,8 +3167,10 @@ Como posso ajudar você hoje?
   app.post("/api/pix/generate", async (req, res) => {
     try {
       const { clienteId, valor, descricao } = req.body;
+      console.log("[PIX API] Recebido pedido de PIX:", { clienteId, valor, descricao });
 
       if (!clienteId || !valor) {
+        console.log("[PIX API] Erro: dados obrigatórios faltando");
         return res.status(400).json({ 
           error: "Cliente ID e valor são obrigatórios" 
         });
@@ -3176,6 +3178,8 @@ Como posso ajudar você hoje?
 
       // Get client info
       const cliente = await storage.getClienteById(clienteId);
+      console.log("[PIX API] Cliente encontrado:", cliente ? cliente.nome : "NÃO ENCONTRADO");
+      
       if (!cliente) {
         return res.status(404).json({ 
           error: "Cliente não encontrado" 
@@ -3183,15 +3187,19 @@ Como posso ajudar você hoje?
       }
 
       // Generate PIX
+      console.log("[PIX API] Chamando pixService.generatePix...");
       const pixResult = await pixService.generatePix(
         clienteId,
         valor,
         descricao || `Pagamento manual - ${cliente.nome}`,
         { manual: true }
       );
+      
+      console.log("[PIX API] Resultado do pixService:", pixResult ? "OK" : "FALHOU");
+      console.log("[PIX API] pixResult.pixKey:", pixResult?.pixKey ? "EXISTE" : "NÃO EXISTE");
 
       if (pixResult && pixResult.pixKey) {
-        res.json({
+        const response = {
           success: true,
           pixData: {
             qrCode: pixResult.qrCode,
@@ -3199,14 +3207,17 @@ Como posso ajudar você hoje?
             chargeId: (pixResult as any).chargeId,
             expiresIn: (pixResult as any).expiresIn || '30 minutos'
           }
-        });
+        };
+        console.log("[PIX API] Enviando resposta de sucesso");
+        res.json(response);
       } else {
+        console.log("[PIX API] PIX falhou, sem pixKey");
         res.status(500).json({ 
-          error: "Erro ao gerar PIX" 
+          error: "Erro ao gerar PIX - sem dados retornados" 
         });
       }
     } catch (error: any) {
-      console.error("Error generating manual PIX:", error);
+      console.error("[PIX API] Error generating manual PIX:", error);
       res.status(500).json({ 
         error: "Erro ao gerar PIX: " + (error.message || "Erro desconhecido")
       });
