@@ -3179,7 +3179,7 @@ export default function Chat() {
 
       {/* Search Dialog */}
       <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
-        <DialogContent className="sm:max-w-md bg-dark-surface border-slate-700">
+        <DialogContent className="sm:max-w-lg bg-dark-surface border-slate-700">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">Buscar na Conversa</DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -3209,11 +3209,11 @@ export default function Chat() {
                 />
               </div>
               {searchResults.length > 0 && (
-                <div className="max-h-60 overflow-y-auto space-y-2 mt-2">
+                <div className="max-h-80 overflow-y-auto space-y-2 mt-3 border border-slate-700 rounded-lg p-2">
                   {searchResults.map((msg) => (
                     <div 
                       key={msg.id} 
-                      className="p-2 bg-dark-card rounded cursor-pointer hover:bg-slate-700"
+                      className="p-3 bg-dark-card/50 rounded-lg cursor-pointer hover:bg-slate-700 transition-colors border border-slate-700/50"
                       onClick={() => {
                         // Scroll to message
                         const element = document.getElementById(`msg-${msg.id}`);
@@ -3230,10 +3230,19 @@ export default function Chat() {
                         setSearchResults([]);
                       }}
                     >
-                      <p className="text-sm text-slate-400">
-                        {msg.remetente === 'cliente' ? 'Cliente' : 'Você'}
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-medium text-slate-400">
+                          {msg.remetente === 'cliente' ? 'Cliente' : 'Você'}
+                        </p>
+                        {msg.timestamp && (
+                          <p className="text-xs text-slate-500">
+                            {new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-200 line-clamp-2 break-words">
+                        {msg.conteudo}
                       </p>
-                      <p className="text-sm">{msg.conteudo}</p>
                     </div>
                   ))}
                 </div>
