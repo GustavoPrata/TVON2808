@@ -15,7 +15,7 @@ import {
   AlertCircle, Loader2, X, MoreVertical, Archive, Trash2, Ban, Volume2, VolumeX,
   Star, Pin, Reply, Forward, Copy, Download, Image, FileText, Mic, Video, Info,
   Settings, LogOut, RefreshCw, Filter, Bell, BellOff, ExternalLink, ChevronDown,
-  Plus, UserCheck, Sparkles, Ticket, CheckCircle, Zap, ChevronUp
+  Plus, UserCheck, Sparkles, Ticket, CheckCircle, Zap, ChevronUp, ArrowLeft
 } from 'lucide-react';
 
 import defaultProfileIcon from '../assets/default-profile.webp';
@@ -1447,7 +1447,9 @@ export default function Chat() {
   const isConnecting = whatsappStatus?.status.connection === 'connecting';
 
   return (
-    <div className="h-[calc(100vh-40px)] flex flex-col">
+    <div className="h-[calc(100vh-40px)] flex justify-center bg-gray-900">
+      {/* Mobile Device Simulator - iPhone 15/16 Pro (393-430px) */}
+      <div className="w-full max-w-[430px] flex flex-col shadow-2xl bg-dark-bg">
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -1553,8 +1555,8 @@ export default function Chat() {
       )}
 
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Chat Sidebar */}
-        <div className="w-96 bg-dark-surface border-r border-slate-600 flex flex-col relative">
+        {/* Chat Sidebar - Mobile optimized */}
+        <div className={`${selectedConversa ? 'hidden' : 'flex'} w-full bg-dark-surface border-r border-slate-600 flex-col relative`}>
           <div className="p-4 border-b border-slate-600 relative z-50" style={{ isolation: 'isolate' }}>
             {/* Contact Type Filter */}
             <div className="relative z-50" style={{ position: 'relative', zIndex: 9999 }}>
@@ -1907,8 +1909,8 @@ export default function Chat() {
 
         </div>
 
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col relative z-0">
+        {/* Chat Area - Mobile optimized */}
+        <div className={`${!selectedConversa ? 'hidden' : 'flex'} flex-1 flex-col relative z-0`}>
         {selectedConversa ? (
           <>
             {/* Chat Header */}
@@ -1919,10 +1921,9 @@ export default function Chat() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="lg:hidden"
                     onClick={() => setSelectedConversa(null)}
                   >
-                    <X className="w-4 h-4" />
+                    <ArrowLeft className="w-5 h-5" />
                   </Button>
                   
                   {/* Avatar */}
@@ -3345,7 +3346,7 @@ export default function Chat() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
+      </div>
     </div>
   );
 }
