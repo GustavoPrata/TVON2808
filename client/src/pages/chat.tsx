@@ -2801,25 +2801,25 @@ export default function Chat() {
           
           {/* Sidebar Menu - Sempre Visível */}
           {selectedConversa && (
-          <div className="w-64 bg-dark-surface border-l border-slate-700 shadow-2xl flex-shrink-0 h-screen">
+          <div className="w-48 bg-dark-surface border-l border-slate-700 shadow-xl flex-shrink-0 h-screen">
             {/* Sidebar Header */}
-            <div className="p-4 border-b border-slate-700 bg-gradient-to-r from-slate-800 to-slate-900">
-              <h3 className="text-lg font-semibold text-slate-100 text-center">Ações da Conversa</h3>
+            <div className="p-2.5 border-b border-slate-700 bg-gradient-to-r from-slate-800/50 to-slate-900/50">
+              <h3 className="text-xs font-semibold text-slate-200 text-center uppercase">Ações</h3>
             </div>
             
             {/* Sidebar Content */}
-            <div className="p-4 space-y-6 overflow-y-auto h-[calc(100vh-80px)]">
+            <div className="p-2.5 space-y-3 overflow-y-auto h-[calc(100vh-50px)]">
               {/* Attendance Mode Section */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Modo de Atendimento</h4>
-                <div className="bg-slate-800 rounded-xl p-4 space-y-3">
+              <div className="space-y-2">
+                <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide px-1">Atendimento</h4>
+                <div className="bg-slate-800/40 rounded-lg p-2 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-300">Modo Atual</span>
+                    <span className="text-xs text-slate-400">Modo</span>
                     <span className={cn(
-                      "text-sm font-semibold",
+                      "text-xs font-medium",
                       selectedConversa.modoAtendimento === 'bot' ? "text-blue-400" : "text-purple-400"
                     )}>
-                      {selectedConversa.modoAtendimento === 'bot' ? 'Bot Automático' : 'Atendimento Humano'}
+                      {selectedConversa.modoAtendimento === 'bot' ? 'Bot' : 'Humano'}
                     </span>
                   </div>
                   
@@ -2827,37 +2827,37 @@ export default function Chat() {
                     <div className="relative flex items-center gap-2 bg-slate-900 rounded-full p-1 shadow-inner">
                       <div className="flex items-center text-xs font-semibold">
                         <div className={cn(
-                          "px-3 py-2 rounded-full flex items-center gap-1.5 transition-all duration-300",
+                          "px-1.5 py-0.5 rounded-full flex items-center gap-0.5 transition-all duration-300 text-[10px] font-medium",
                           selectedConversa.modoAtendimento === 'bot'
                             ? "text-blue-300"
                             : "text-slate-500"
                         )}>
-                          <Bot className="w-4 h-4" />
+                          <Bot className="w-3 h-3" />
                           <span>BOT</span>
                         </div>
                         
                         <button
                           onClick={() => handleSwitchMode(selectedConversa.modoAtendimento === 'bot' ? 'humano' : 'bot')}
-                          className="relative w-14 h-7 bg-slate-700 rounded-full transition-colors duration-300 hover:bg-slate-600"
+                          className="relative w-10 h-5 bg-slate-700 rounded-full transition-colors duration-300 hover:bg-slate-600"
                         >
                           <span className={cn(
-                            "absolute top-0.5 left-0.5 w-6 h-6 rounded-full shadow-lg transform transition-all duration-300",
+                            "absolute top-0.5 left-0.5 w-4 h-4 rounded-full shadow-lg transform transition-all duration-300",
                             selectedConversa.modoAtendimento === 'bot'
                               ? "translate-x-0 bg-gradient-to-br from-blue-500 to-blue-600"
-                              : "translate-x-7 bg-gradient-to-br from-purple-500 to-purple-600"
+                              : "translate-x-5 bg-gradient-to-br from-purple-500 to-purple-600"
                           )}>
                             <span className="absolute inset-0 rounded-full animate-pulse bg-white opacity-25"></span>
                           </span>
                         </button>
                         
                         <div className={cn(
-                          "px-3 py-2 rounded-full flex items-center gap-1.5 transition-all duration-300",
+                          "px-1.5 py-0.5 rounded-full flex items-center gap-0.5 transition-all duration-300 text-[10px] font-medium",
                           selectedConversa.modoAtendimento === 'humano'
                             ? "text-purple-300"
                             : "text-slate-500"
                         )}>
                           <span>HUMANO</span>
-                          <User className="w-4 h-4" />
+                          <User className="w-3 h-3" />
                         </div>
                       </div>
                     </div>
@@ -2867,25 +2867,25 @@ export default function Chat() {
               
               {/* Client Actions Section */}
               {selectedConversa.isCliente && selectedConversa.clienteId && (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Cliente</h4>
+                <div className="space-y-2">
+                  <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide px-1">Cliente</h4>
                   <Button
                     onClick={() => {
                       window.open(`/clientes/${selectedConversa.clienteId}`, '_blank');
 
                     }}
-                    className="w-full justify-start bg-gradient-to-r from-green-600/90 to-green-700/90 hover:from-green-500 hover:to-green-600 text-white"
+                    className="w-full justify-start bg-gradient-to-r from-green-600/90 to-green-700/90 hover:from-green-500 hover:to-green-600 text-white text-xs py-1.5 h-8"
                   >
-                    <UserCheck className="w-4 h-4 mr-2" />
-                    Ver Detalhes do Cliente
+                    <UserCheck className="w-3 h-3 mr-1.5" />
+                    Ver Cliente
                   </Button>
                 </div>
               )}
               
               {/* Test Actions Section */}
               {!selectedConversa.isCliente && (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Ações de Cadastro</h4>
+                <div className="space-y-2">
+                  <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide px-1">Cadastro</h4>
                   <div className="space-y-2">
                     {selectedConversa.isTeste ? (
                       <>
@@ -2895,20 +2895,20 @@ export default function Chat() {
                             setShowTestDetailsDialog(true);
       
                           }}
-                          className="w-full justify-start bg-gradient-to-r from-emerald-600/90 to-green-700/90 hover:from-emerald-500 hover:to-green-600 text-white"
+                          className="w-full justify-start bg-gradient-to-r from-emerald-600/90 to-green-700/90 hover:from-emerald-500 hover:to-green-600 text-white text-xs py-1.5 h-8"
                         >
-                          <Activity className="w-4 h-4 mr-2" />
-                          Ver Status do Teste
+                          <Activity className="w-3 h-3 mr-1.5" />
+                          Status Teste
                         </Button>
                         <Button
                           onClick={() => {
                             setShowCreateClientDialog(true);
       
                           }}
-                          className="w-full justify-start bg-gradient-to-r from-blue-600/90 to-blue-700/90 hover:from-blue-500 hover:to-blue-600 text-white"
+                          className="w-full justify-start bg-gradient-to-r from-blue-600/90 to-blue-700/90 hover:from-blue-500 hover:to-blue-600 text-white text-xs py-1.5 h-8"
                         >
-                          <UserPlus className="w-4 h-4 mr-2" />
-                          Cadastrar como Cliente
+                          <UserPlus className="w-3 h-3 mr-1.5" />
+                          Cadastrar
                         </Button>
                       </>
                     ) : (
@@ -2918,20 +2918,20 @@ export default function Chat() {
                             setShowCreateTestDialog(true);
       
                           }}
-                          className="w-full justify-start bg-gradient-to-r from-purple-600/90 to-purple-700/90 hover:from-purple-500 hover:to-purple-600 text-white"
+                          className="w-full justify-start bg-gradient-to-r from-purple-600/90 to-purple-700/90 hover:from-purple-500 hover:to-purple-600 text-white text-xs py-1.5 h-8"
                         >
-                          <Clock3 className="w-4 h-4 mr-2" />
-                          Criar Teste Temporário
+                          <Clock3 className="w-3 h-3 mr-1.5" />
+                          Criar Teste
                         </Button>
                         <Button
                           onClick={() => {
                             setShowCreateClientDialog(true);
       
                           }}
-                          className="w-full justify-start bg-gradient-to-r from-blue-600/90 to-blue-700/90 hover:from-blue-500 hover:to-blue-600 text-white"
+                          className="w-full justify-start bg-gradient-to-r from-blue-600/90 to-blue-700/90 hover:from-blue-500 hover:to-blue-600 text-white text-xs py-1.5 h-8"
                         >
-                          <UserPlus className="w-4 h-4 mr-2" />
-                          Cadastrar Cliente
+                          <UserPlus className="w-3 h-3 mr-1.5" />
+                          Cadastrar
                         </Button>
                       </>
                     )}
@@ -2940,8 +2940,8 @@ export default function Chat() {
               )}
               
               {/* Conversation Actions Section */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Conversa</h4>
+              <div className="space-y-2">
+                <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide px-1">Conversa</h4>
                 <div className="space-y-2">
                   <Button
                     variant="outline"
@@ -2949,56 +2949,30 @@ export default function Chat() {
                       setShowSearchDialog(true);
 
                     }}
-                    className="w-full justify-start border-slate-600 hover:bg-slate-800"
+                    className="w-full justify-start border-slate-600 hover:bg-slate-800 text-xs py-1.5 h-8"
                   >
-                    <Search className="w-4 h-4 mr-2" />
-                    Buscar na Conversa
+                    <Search className="w-3 h-3 mr-1.5" />
+                    Buscar
                   </Button>
                 </div>
               </div>
               
               {/* Danger Zone Section */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-red-400 uppercase tracking-wider">Zona de Perigo</h4>
+              <div className="space-y-2">
+                <h4 className="text-xs font-medium text-red-500 uppercase tracking-wide px-1">Perigo</h4>
                 <Button
                   variant="outline"
                   onClick={() => {
                     setShowDeleteDialog(true);
                     // setShowSidebar removido(false);
                   }}
-                  className="w-full justify-start border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+                  className="w-full justify-start border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 text-xs py-1.5 h-8"
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Apagar Conversa
+                  <Trash2 className="w-3 h-3 mr-1.5" />
+                  Apagar
                 </Button>
               </div>
               
-              {/* Statistics Section */}
-              {selectedConversa.isCliente && (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Estatísticas</h4>
-                  <div className="bg-slate-800 rounded-xl p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400">Status</span>
-                      <Badge variant="outline" className={cn(
-                        "text-xs",
-                        selectedConversa.clienteStatus === 'ativo' 
-                          ? "bg-green-500/10 text-green-400 border-green-500/30"
-                          : "bg-red-500/10 text-red-400 border-red-500/30"
-                      )}>
-                        {selectedConversa.clienteStatus === 'ativo' ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400">Última mensagem</span>
-                      <span className="text-xs text-slate-300">
-                        {selectedConversa.dataUltimaMensagem && 
-                          format(new Date(selectedConversa.dataUltimaMensagem), "dd/MM 'às' HH:mm", { locale: ptBR })}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}
