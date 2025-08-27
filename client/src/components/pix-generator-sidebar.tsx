@@ -267,8 +267,7 @@ export function PixGeneratorSidebar({
                  `Como pagar:\n` +
                  `1️⃣ Abra o app do seu banco\n` +
                  `2️⃣ Escolha a opção PIX\n` +
-                 `3️⃣ Escaneie o QR Code abaixo ou\n` +
-                 `4️⃣ Use o código Copia e Cola`
+                 `3️⃣ Escaneie o QR Code abaixo`
       });
 
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -280,17 +279,6 @@ export function PixGeneratorSidebar({
           tipo: 'image',
           conteudo: pixInfo.qrCode,
           mediaUrl: pixInfo.qrCode
-        });
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Terceira mensagem - Código Copia e Cola (somente o código)
-      if (pixInfo.pixCopiaCola) {
-        sendMessage('send_message', {
-          telefone: telefone,
-          tipo: 'text',
-          conteudo: pixInfo.pixCopiaCola
         });
       }
 
