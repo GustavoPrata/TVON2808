@@ -145,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Authentication routes (before checkAuth middleware)
   app.post("/api/login", async (req, res) => {
-    const { user, password } = req.body;
+    const { user, password, rememberMe } = req.body;
     
     if (!user || !password) {
       return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
@@ -157,6 +157,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [admin] = await db.select().from(login).where(eq(login.user, user));
       (req.session as any).userId = admin.id;
       (req.session as any).user = admin.user;
+      
+      // Set longer session cookie if remember me is checked
+      if (rememberMe) {
+        // Set cookie to expire in 30 days instead of 24 hours
+        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+      }
       
       // Update last access
       await db.update(login)
