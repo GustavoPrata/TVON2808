@@ -349,7 +349,7 @@ export default function Apps() {
                   {/* Expiration */}
                   {ponto.aplicativo !== 'shamel' && (
                     <div className="lg:col-span-3">
-                      <div className="space-y-2">
+                      <div className="flex flex-col items-center gap-2">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-blue-400" />
                           <span className="text-sm text-slate-300">
