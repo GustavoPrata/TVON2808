@@ -27,7 +27,6 @@ export interface IStorage {
 
   // Pontos
   getPontosByClienteId(clienteId: number): Promise<Ponto[]>;
-  getAllPontos(): Promise<Ponto[]>;
   getPontoById(id: number): Promise<Ponto | undefined>;
   createPonto(ponto: InsertPonto): Promise<Ponto>;
   updatePonto(id: number, ponto: Partial<InsertPonto>): Promise<Ponto>;
@@ -298,10 +297,6 @@ export class DatabaseStorage implements IStorage {
 
   async getPontosByClienteId(clienteId: number): Promise<Ponto[]> {
     return await db.select().from(pontos).where(eq(pontos.clienteId, clienteId));
-  }
-
-  async getAllPontos(): Promise<Ponto[]> {
-    return await db.select().from(pontos).orderBy(pontos.expiracao);
   }
 
   async getPontoById(id: number): Promise<Ponto | undefined> {
