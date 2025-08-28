@@ -34,13 +34,13 @@ import { useToast } from '@/hooks/use-toast';
 
 const menuItems = [
   { path: '/', icon: TrendingUp, label: 'Dashboard' },
-  { path: '/clientes', icon: Users, label: 'Clientes' },
-  { path: '/testes', icon: Monitor, label: 'Testes' },
-  { path: '/vencimentos', icon: Calendar, label: 'Vencimentos' },
-  { path: '/apps', icon: Router, label: 'APPs' },
   { path: '/chat', icon: MessageSquare, label: 'Chat', badge: 'chat' },
-  { path: '/whatsapp-settings', icon: Smartphone, label: 'WhatsApp Config' },
   { path: '/tickets', icon: Ticket, label: 'Tickets', badge: 'tickets' },
+  { path: '/vencimentos', icon: Calendar, label: 'Vencimentos' },
+  { path: '/testes', icon: Monitor, label: 'Testes' },
+  { path: '/clientes', icon: Users, label: 'Clientes' },
+  { path: '/apps', icon: Router, label: 'APPs' },
+  { path: '/whatsapp-settings', icon: Smartphone, label: 'WhatsApp Config' },
   { path: '/ajuda', icon: HelpCircle, label: 'Ajuda' },
   { path: '/bot-config', icon: Bot, label: 'Config. Bot' },
   { path: '/woovi', icon: CreditCard, label: 'Woovi' },
