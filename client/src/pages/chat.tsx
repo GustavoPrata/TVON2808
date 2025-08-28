@@ -3407,8 +3407,7 @@ export default function Chat() {
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-red-400">Apagar Conversa</DialogTitle>
             <DialogDescription className="text-slate-400">
-              Esta ação irá apagar permanentemente a conversa e todas as mensagens. 
-              {selectedConversa?.isCliente && " O cliente também será removido do sistema."}
+              Esta ação irá apagar permanentemente a conversa e todas as mensagens.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
@@ -3416,7 +3415,6 @@ export default function Chat() {
               <AlertCircle className="h-4 w-4 text-red-400" />
               <AlertDescription className="text-red-300">
                 Esta ação não pode ser desfeita! Todas as mensagens serão perdidas permanentemente.
-                {selectedConversa?.isCliente && " O registro do cliente também será apagado."}
               </AlertDescription>
             </Alert>
           </div>
@@ -3434,19 +3432,12 @@ export default function Chat() {
                 if (!selectedConversa) return;
                 
                 try {
-                  // Delete conversation
+                  // Delete conversation and its messages only (not the client)
                   await apiRequest('DELETE', `/api/conversas/${selectedConversa.id}`);
-                  
-                  // If it's a client, also delete the client
-                  if (selectedConversa.isCliente && selectedConversa.clienteId) {
-                    await apiRequest('DELETE', `/api/clientes/${selectedConversa.clienteId}`);
-                  }
                   
                   toast({
                     title: "Conversa apagada",
-                    description: selectedConversa.isCliente 
-                      ? "A conversa e o cliente foram removidos com sucesso"
-                      : "A conversa foi removida com sucesso",
+                    description: "A conversa e todas as mensagens foram removidas com sucesso",
                   });
                   
                   // Reset selected conversation and refresh list
