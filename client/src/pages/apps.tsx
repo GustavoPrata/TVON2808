@@ -332,17 +332,16 @@ export default function Apps() {
                         </span>
                       </div>
                       <Badge className={cn(
-                        "flex items-center gap-1",
+                        "text-xs px-2 py-0.5",
                         daysRemaining <= 0 
                           ? 'bg-red-500/20 text-red-400 border-red-500/30'
                           : daysRemaining <= 3 
                           ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
                           : 'bg-green-500/20 text-green-400 border-green-500/30'
                       )}>
-                        <Clock className="w-3 h-3" />
                         {daysRemaining <= 0 
-                          ? `Vencido há ${Math.abs(daysRemaining)} dias`
-                          : `${daysRemaining} dias restantes`
+                          ? `-${Math.abs(daysRemaining)} dias`
+                          : `${daysRemaining} dias`
                         }
                       </Badge>
                     </div>
