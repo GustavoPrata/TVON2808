@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -109,6 +110,8 @@ export default function Vencimentos() {
         description: 'Configurações de avisos atualizadas com sucesso.',
       });
       setConfigOpen(false);
+      // Invalidate and refetch config to ensure UI is updated
+      queryClient.invalidateQueries({ queryKey: ['/api/avisos/config'] });
     },
     onError: () => {
       toast({
