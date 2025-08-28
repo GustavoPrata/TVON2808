@@ -652,6 +652,27 @@ export default function ClienteDetalhes() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* ID do Cliente */}
+            <div>
+              <label className="text-sm text-slate-400 mb-1 block">ID do Cliente</label>
+              <div className="p-3 rounded-lg bg-dark-bg flex items-center gap-2">
+                <span className="font-mono text-lg font-semibold text-blue-400">#{cliente.id}</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(cliente.id.toString());
+                    toast({
+                      title: "ID copiado",
+                      description: `ID ${cliente.id} copiado para a área de transferência`,
+                    });
+                  }}
+                  className="ml-auto p-1 hover:bg-slate-700 rounded transition-colors"
+                  title="Copiar ID"
+                >
+                  <Copy className="w-4 h-4 text-slate-500 hover:text-slate-300" />
+                </button>
+              </div>
+            </div>
+
             {/* Nome e Telefone */}
             <div>
               <label className="text-sm text-slate-400 mb-1 block">Informações Principais</label>
