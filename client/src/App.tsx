@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/header";
 import { SettingsProvider } from "@/contexts/settings-context";
 import { WebSocketProvider } from "@/contexts/websocket-context";
 import { WhatsAppNotifier } from "@/components/whatsapp-notifier";
+import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "@/pages/dashboard";
 import Clientes from "@/pages/clientes";
 import ClienteDetalhes from "@/pages/cliente-detalhes";
@@ -25,6 +26,8 @@ import Woovi from "@/pages/woovi";
 import Indicacoes from "@/pages/indicacoes";
 import Ajuda from "@/pages/ajuda";
 import NotFound from "@/pages/not-found";
+import Login from "@/pages/login";
+import { Loader2 } from "lucide-react";
 
 function Router() {
   return (
@@ -50,23 +53,46 @@ function Router() {
   );
 }
 
+function AuthProtectedApp() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-4" />
+          <p className="text-slate-300">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
+  return (
+    <SettingsProvider>
+      <WebSocketProvider>
+        <TooltipProvider>
+          <WhatsAppNotifier />
+          <div className="flex h-screen bg-slate-950 text-white">
+            <Sidebar />
+            <main className="flex-1 overflow-auto p-6 bg-gradient-to-br from-slate-900 to-slate-950">
+              <Router />
+            </main>
+          </div>
+          <Toaster />
+        </TooltipProvider>
+      </WebSocketProvider>
+    </SettingsProvider>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <SettingsProvider>
-        <WebSocketProvider>
-          <TooltipProvider>
-            <WhatsAppNotifier />
-            <div className="flex h-screen bg-slate-950 text-white">
-              <Sidebar />
-              <main className="flex-1 overflow-auto p-6 bg-gradient-to-br from-slate-900 to-slate-950">
-                <Router />
-              </main>
-            </div>
-            <Toaster />
-          </TooltipProvider>
-        </WebSocketProvider>
-      </SettingsProvider>
+      <AuthProtectedApp />
     </QueryClientProvider>
   );
 }

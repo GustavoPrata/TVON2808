@@ -413,6 +413,24 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+// Admin login table
+export const login = pgTable("login", {
+  id: serial("id").primaryKey(),
+  user: varchar("user", { length: 100 }).notNull().unique(),
+  password: text("password").notNull(), // Senha com hash bcrypt
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  ultimoAcesso: timestamp("ultimo_acesso"),
+});
+
+export const insertLoginSchema = createInsertSchema(login).omit({
+  id: true,
+  criadoEm: true,
+  ultimoAcesso: true,
+});
+
+export type Login = typeof login.$inferSelect;
+export type InsertLogin = z.infer<typeof insertLoginSchema>;
+
 // Tests table
 export const testes = pgTable("testes", {
   id: serial("id").primaryKey(),

@@ -1,6 +1,8 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+import session from "express-session";
+import MemoryStore from "memorystore";
 import { storage } from "./storage";
 import { db } from "./db";
 import { whatsappService } from "./services/whatsapp";
@@ -8,6 +10,9 @@ import { externalApiService } from "./services/externalApi";
 import { pixService } from "./services/pix";
 import { notificationService } from "./services/notifications";
 import quickMessagesRouter from "./routes/quick-messages";
+import { authenticate, checkAuth } from "./auth";
+import bcrypt from 'bcrypt';
+import { initAdmin } from "./init-admin";
 import {
   insertClienteSchema,
   insertPontoSchema,
@@ -18,6 +23,7 @@ import {
   pontos,
   testes,
   insertTesteSchema,
+  login,
 } from "@shared/schema";
 import { z } from "zod";
 import { asc, sql, eq } from "drizzle-orm";
@@ -115,8 +121,79 @@ function formatPhoneNumber(phone: string) {
 const autoCloseTimers = new Map<number, { timer: NodeJS.Timeout, startTime: number }>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize admin user on startup
+  await initAdmin();
+  
+  // Configure session middleware
+  const MemoryStoreSession = (MemoryStore as any)(session);
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'tv-on-secret-key-2024',
+    resave: false,
+    saveUninitialized: false,
+    store: new MemoryStoreSession({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    }),
+    cookie: {
+      secure: false, // set to true in production with HTTPS
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+  }));
+
   // Serve static files for uploads
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+  
+  // Authentication routes (before checkAuth middleware)
+  app.post("/api/login", async (req, res) => {
+    const { user, password } = req.body;
+    
+    if (!user || !password) {
+      return res.status(400).json({ error: 'Usuário e senha são obrigatórios' });
+    }
+    
+    const isValid = await authenticate(user, password);
+    
+    if (isValid) {
+      const [admin] = await db.select().from(login).where(eq(login.user, user));
+      (req.session as any).userId = admin.id;
+      (req.session as any).user = admin.user;
+      
+      // Update last access
+      await db.update(login)
+        .set({ ultimoAcesso: new Date() })
+        .where(eq(login.user, user));
+      
+      return res.json({ success: true, user: admin.user });
+    }
+    
+    return res.status(401).json({ error: 'Usuário ou senha inválidos' });
+  });
+
+  app.post("/api/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Erro ao fazer logout' });
+      }
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/auth/status", (req, res) => {
+    if ((req.session as any).userId) {
+      res.json({ authenticated: true, user: (req.session as any).user });
+    } else {
+      res.json({ authenticated: false });
+    }
+  });
+
+  // Apply auth middleware to all API routes except login routes
+  app.use("/api/*", (req, res, next) => {
+    const publicPaths = ['/api/login', '/api/logout', '/api/auth/status'];
+    if (publicPaths.includes(req.path)) {
+      return next();
+    }
+    return checkAuth(req, res, next);
+  });
   
   // Register quick messages routes
   app.use("/api/mensagens-rapidas", quickMessagesRouter);

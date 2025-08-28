@@ -19,7 +19,8 @@ import {
   HelpCircle,
   Bell,
   BellOff,
-  Router
+  Router,
+  LogOut
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -197,55 +198,103 @@ export function Sidebar() {
       </nav>
       
       {/* Notifications Toggle Button */}
-      <div className="p-4 border-t border-slate-700/50">
+      <div className="p-4 border-t border-slate-700/50 space-y-2">
         {isCollapsed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={handleToggleNotifications}
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "w-full p-2 justify-center transition-all",
-                  notificationsSilenced 
-                    ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10' 
-                    : 'text-green-400 hover:text-green-300 hover:bg-green-500/10'
-                )}
-              >
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleToggleNotifications}
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "w-full p-2 justify-center transition-all",
+                    notificationsSilenced 
+                      ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10' 
+                      : 'text-green-400 hover:text-green-300 hover:bg-green-500/10'
+                  )}
+                >
+                  {notificationsSilenced ? (
+                    <BellOff className="w-5 h-5" />
+                  ) : (
+                    <Bell className="w-5 h-5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>{notificationsSilenced ? "Notificações Silenciadas" : "Notificações Ativas"}</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={async () => {
+                    try {
+                      await fetch('/api/logout', { method: 'POST' });
+                      window.location.href = '/';
+                    } catch (error) {
+                      console.error('Logout error:', error);
+                    }
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  className="w-full p-2 justify-center text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
+                >
+                  <LogOut className="w-5 h-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Sair</p>
+              </TooltipContent>
+            </Tooltip>
+          </>
+        ) : (
+          <>
+            <Button
+              onClick={handleToggleNotifications}
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "w-full gap-2 justify-start px-4 py-3 transition-all",
+                notificationsSilenced 
+                  ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10' 
+                  : 'text-green-400 hover:text-green-300 hover:bg-green-500/10'
+              )}
+            >
+              <div className="p-2 rounded-lg bg-slate-800/50">
                 {notificationsSilenced ? (
                   <BellOff className="w-5 h-5" />
                 ) : (
                   <Bell className="w-5 h-5" />
                 )}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p>{notificationsSilenced ? "Notificações Silenciadas" : "Notificações Ativas"}</p>
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <Button
-            onClick={handleToggleNotifications}
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "w-full gap-2 justify-start px-4 py-3 transition-all",
-              notificationsSilenced 
-                ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10' 
-                : 'text-green-400 hover:text-green-300 hover:bg-green-500/10'
-            )}
-          >
-            <div className="p-2 rounded-lg bg-slate-800/50">
-              {notificationsSilenced ? (
-                <BellOff className="w-5 h-5" />
-              ) : (
-                <Bell className="w-5 h-5" />
-              )}
-            </div>
-            <span className="flex-1 font-medium text-left">
-              {notificationsSilenced ? "Silenciado" : "Notificações"}
-            </span>
-          </Button>
+              </div>
+              <span className="flex-1 font-medium text-left">
+                {notificationsSilenced ? "Silenciado" : "Notificações"}
+              </span>
+            </Button>
+            
+            <Button
+              onClick={async () => {
+                try {
+                  await fetch('/api/logout', { method: 'POST' });
+                  window.location.href = '/';
+                } catch (error) {
+                  console.error('Logout error:', error);
+                }
+              }}
+              variant="ghost"
+              size="sm"
+              className="w-full gap-2 justify-start px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
+            >
+              <div className="p-2 rounded-lg bg-slate-800/50">
+                <LogOut className="w-5 h-5" />
+              </div>
+              <span className="flex-1 font-medium text-left">
+                Sair
+              </span>
+            </Button>
+          </>
         )}
       </div>
 
