@@ -16,7 +16,8 @@ import {
   Star, Pin, Reply, Forward, Copy, Download, Image, FileText, Mic, Video, Info,
   Settings, LogOut, RefreshCw, Filter, Bell, BellOff, ExternalLink, ChevronDown,
   Plus, UserCheck, Sparkles, Ticket, CheckCircle, Zap, ChevronUp, ArrowLeft,
-  Menu, ChevronRight, Edit2, Shield, Activity, Clock3, DollarSign, XCircle
+  Menu, ChevronRight, Edit2, Shield, Activity, Clock3, DollarSign, XCircle,
+  Smartphone, Calendar, Tv, Monitor, Laptop
 } from 'lucide-react';
 
 import defaultProfileIcon from '../assets/default-profile.webp';
@@ -54,6 +55,13 @@ import {
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { MessageBubble } from '@/components/chat/MessageBubble';
 import { EmojiPicker } from '@/components/chat/EmojiPicker';
 import { AttachmentMenu } from '@/components/chat/AttachmentMenu';
@@ -111,7 +119,10 @@ export default function Chat() {
   const [selectedConversa, setSelectedConversa] = useState<ConversaWithDetails | null>(null);
   const [messageText, setMessageText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [contactFilter, setContactFilter] = useState<'novos' | 'clientes' | 'testes'>('novos');
+  const [contactFilter, setContactFilter] = useState<'novos' | 'clientes' | 'testes' | 'apps'>('novos');
+  const [appSearchTerm, setAppSearchTerm] = useState('');
+  const [appFilter, setAppFilter] = useState<'todos' | 'ibo_pro' | 'ibo_player' | 'shamel'>('todos');
+  const [deviceFilter, setDeviceFilter] = useState<'todos' | 'smart_tv' | 'tv_box' | 'celular' | 'notebook'>('todos');
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -202,6 +213,13 @@ export default function Chat() {
   const { data: quickMessages = [] } = useQuery<any[]>({
     queryKey: ['/api/mensagens-rapidas/ativas'],
     enabled: !!selectedConversa?.hasOpenTicket,
+  });
+
+  // Get pontos (aplicativos) for APPs menu
+  const { data: pontos = [] } = useQuery<any[]>({
+    queryKey: ['/api/pontos'],
+    enabled: contactFilter === 'apps',
+    refetchInterval: contactFilter === 'apps' ? 10000 : false,
   });
 
   // Update when conversations or tickets change
@@ -1377,6 +1395,29 @@ export default function Chat() {
     }, 3000);
   };
 
+  // Filter pontos (aplicativos) based on filters
+  const filteredPontos = pontos?.filter(ponto => {
+    // Search filter
+    const matchesSearch = !appSearchTerm || 
+      ponto.macAddress?.toLowerCase().includes(appSearchTerm.toLowerCase()) ||
+      ponto.usuario?.toLowerCase().includes(appSearchTerm.toLowerCase()) ||
+      ponto.clienteNome?.toLowerCase().includes(appSearchTerm.toLowerCase()) ||
+      ponto.clienteTelefone?.includes(appSearchTerm);
+    
+    // App filter
+    const matchesApp = appFilter === 'todos' || ponto.aplicativo === appFilter;
+    
+    // Device filter
+    const matchesDevice = deviceFilter === 'todos' || ponto.dispositivo === deviceFilter;
+    
+    return matchesSearch && matchesApp && matchesDevice;
+  })?.sort((a, b) => {
+    // Sort by expiration date (earliest first)
+    const dateA = a.expiracao ? new Date(a.expiracao).getTime() : 0;
+    const dateB = b.expiracao ? new Date(b.expiracao).getTime() : 0;
+    return dateA - dateB;
+  });
+
   // Filter conversations based on contact type and search
   const filteredConversas = conversas?.filter(conv => {
     const matchesSearch = conv.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1658,7 +1699,7 @@ export default function Chat() {
                 setTestPhoneNumber('');
                 setShowTestDetailsDialog(false);
               }}>
-                <TabsList className="grid w-full grid-cols-3 bg-dark-card">
+                <TabsList className="grid w-full grid-cols-4 bg-dark-card">
                   <TabsTrigger 
                     value="novos" 
                     className="data-[state=active]:bg-primary"
@@ -1692,33 +1733,186 @@ export default function Chat() {
                     <Sparkles className="w-4 h-4 mr-1" />
                     Testes
                   </TabsTrigger>
+                  <TabsTrigger 
+                    value="apps" 
+                    className="data-[state=active]:bg-primary"
+                    onClick={() => {
+                      console.log('Clicked APPs tab');
+                      setContactFilter('apps');
+                    }}
+                  >
+                    <Smartphone className="w-4 h-4 mr-1" />
+                    APPs
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
             
-            <div className="relative mt-4">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-              <Input
-                placeholder="Buscar conversa..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-dark-card border-slate-600"
-              />
-            </div>
-            
-            {/* New Chat Button */}
-            <Button
-              onClick={() => setShowNewChatDialog(true)}
-              className="w-full mt-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Conversa
-            </Button>
+            {contactFilter === 'apps' ? (
+              <>
+                {/* APPs filters */}
+                <div className="space-y-3 mt-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                    <Input
+                      placeholder="Buscar por MAC, usuário ou cliente..."
+                      value={appSearchTerm}
+                      onChange={(e) => setAppSearchTerm(e.target.value)}
+                      className="pl-10 bg-dark-card border-slate-600"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={appFilter} onValueChange={(value: any) => setAppFilter(value)}>
+                      <SelectTrigger className="bg-dark-card border-slate-600">
+                        <SelectValue placeholder="App" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos os Apps</SelectItem>
+                        <SelectItem value="ibo_pro">IBO Pro</SelectItem>
+                        <SelectItem value="ibo_player">IBO Player</SelectItem>
+                        <SelectItem value="shamel">Shamel</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    
+                    <Select value={deviceFilter} onValueChange={(value: any) => setDeviceFilter(value)}>
+                      <SelectTrigger className="bg-dark-card border-slate-600">
+                        <SelectValue placeholder="Dispositivo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="smart_tv">Smart TV</SelectItem>
+                        <SelectItem value="tv_box">TV Box</SelectItem>
+                        <SelectItem value="celular">Celular</SelectItem>
+                        <SelectItem value="notebook">Notebook</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="relative mt-4">
+                  <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                  <Input
+                    placeholder="Buscar conversa..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-dark-card border-slate-600"
+                  />
+                </div>
+                
+                {/* New Chat Button */}
+                <Button
+                  onClick={() => setShowNewChatDialog(true)}
+                  className="w-full mt-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Conversa
+                </Button>
+              </>
+            )}
           </div>
         
         <div className="flex-1 overflow-y-auto relative z-10">
           <div className="p-2 space-y-1 relative">
-            {!isConnected ? (
+            {contactFilter === 'apps' ? (
+              // APPs List
+              filteredPontos?.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                  <Smartphone className="w-12 h-12 mb-4" />
+                  <p className="text-center">Nenhum aplicativo encontrado</p>
+                </div>
+              ) : (
+                filteredPontos?.map((ponto: any) => {
+                  const isExpiringSoon = ponto.expiracao && 
+                    new Date(ponto.expiracao).getTime() - Date.now() < 5 * 24 * 60 * 60 * 1000; // 5 days
+                  const isExpired = ponto.expiracao && 
+                    new Date(ponto.expiracao).getTime() < Date.now();
+                  
+                  const getDeviceIcon = () => {
+                    switch(ponto.dispositivo) {
+                      case 'smart_tv': return <Tv className="w-5 h-5" />;
+                      case 'tv_box': return <Monitor className="w-5 h-5" />;
+                      case 'celular': return <Smartphone className="w-5 h-5" />;
+                      case 'notebook': return <Laptop className="w-5 h-5" />;
+                      default: return <Monitor className="w-5 h-5" />;
+                    }
+                  };
+
+                  const getAppBadgeColor = () => {
+                    switch(ponto.aplicativo) {
+                      case 'ibo_pro': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                      case 'ibo_player': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+                      case 'shamel': return 'bg-green-500/20 text-green-400 border-green-500/30';
+                      default: return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+                    }
+                  };
+
+                  return (
+                    <div key={ponto.id} className="mb-2 p-3 bg-dark-card rounded-lg border border-slate-700 hover:border-slate-600 transition-all duration-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1">
+                          {/* Device Icon */}
+                          <div className="p-2 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-lg">
+                            {getDeviceIcon()}
+                          </div>
+                          
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-white">{ponto.usuario}</span>
+                              <Badge className={cn("text-xs", getAppBadgeColor())}>
+                                {ponto.aplicativo.replace('_', ' ').toUpperCase()}
+                              </Badge>
+                            </div>
+                            
+                            <div className="flex items-center gap-4 text-xs text-slate-400">
+                              <span className="font-mono">MAC: {ponto.macAddress || 'N/A'}</span>
+                              {ponto.deviceKey && (
+                                <span className="font-mono">KEY: {ponto.deviceKey}</span>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center gap-2 mt-1">
+                              <User className="w-3 h-3" />
+                              <span className="text-xs text-slate-400">
+                                {ponto.clienteNome} - {ponto.clienteTelefone}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Expiration */}
+                        <div className="text-right">
+                          <div className={cn(
+                            "flex items-center gap-1 text-xs",
+                            isExpired ? "text-red-400" : isExpiringSoon ? "text-amber-400" : "text-slate-400"
+                          )}>
+                            <Calendar className="w-3 h-3" />
+                            <span>
+                              {ponto.expiracao ? format(new Date(ponto.expiracao), 'dd/MM/yyyy') : 'Sem vencimento'}
+                            </span>
+                          </div>
+                          {isExpired ? (
+                            <Badge className="mt-1 bg-red-500/20 text-red-400 border-red-500/30 text-xs">
+                              Expirado
+                            </Badge>
+                          ) : isExpiringSoon ? (
+                            <Badge className="mt-1 bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
+                              Vencendo
+                            </Badge>
+                          ) : (
+                            <Badge className="mt-1 bg-green-500/20 text-green-400 border-green-500/30 text-xs">
+                              Ativo
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )
+            ) : !isConnected ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                 <WifiOff className="w-12 h-12 mb-4" />
                 <p className="text-center">WhatsApp não conectado</p>
