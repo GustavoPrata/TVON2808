@@ -1568,18 +1568,28 @@ export default function ClienteDetalhes() {
                         {editingPonto === ponto.id ? (
                           <div className="flex gap-1">
                             <Input
-                              value={editedPonto.expiracao ? format(new Date(editedPonto.expiracao), 'yyyy-MM-dd') : ''}
+                              value={editedPonto.expiracao ? format(new Date(editedPonto.expiracao), 'dd/MM/yyyy') : ''}
                               onChange={(e) => {
-                                const dateValue = e.target.value;
-                                if (dateValue) {
-                                  const date = new Date(dateValue + 'T23:59:59.999Z');
-                                  setEditedPonto({ ...editedPonto, expiracao: date.toISOString() });
-                                } else {
+                                const value = e.target.value;
+                                // Remove caracteres não numéricos exceto /
+                                const cleaned = value.replace(/[^0-9/]/g, '');
+                                
+                                // Tenta parsear no formato dd/mm/yyyy
+                                if (cleaned.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                                  const [day, month, year] = cleaned.split('/');
+                                  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 23, 59, 59, 999);
+                                  
+                                  // Verifica se a data é válida
+                                  if (!isNaN(date.getTime())) {
+                                    setEditedPonto({ ...editedPonto, expiracao: date.toISOString() });
+                                  }
+                                } else if (cleaned === '') {
                                   setEditedPonto({ ...editedPonto, expiracao: '' });
                                 }
                               }}
+                              placeholder="DD/MM/AAAA"
                               className="h-8 bg-slate-700/50 border-orange-600/50 text-white text-sm flex-1"
-                              type="date"
+                              type="text"
                             />
                             <Popover>
                               <PopoverTrigger asChild>
@@ -1867,9 +1877,42 @@ export default function ClienteDetalhes() {
               <div className="flex gap-2">
                 <Input
                   id="expiracao"
-                  type="date"
-                  value={newPonto.expiracao}
-                  onChange={(e) => setNewPonto({ ...newPonto, expiracao: e.target.value })}
+                  type="text"
+                  placeholder="DD/MM/AAAA"
+                  value={(() => {
+                    if (!newPonto.expiracao) return '';
+                    const date = new Date(newPonto.expiracao + 'T00:00:00');
+                    return format(date, 'dd/MM/yyyy');
+                  })()}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Remove caracteres não numéricos exceto /
+                    const cleaned = value.replace(/[^0-9/]/g, '');
+                    
+                    // Auto-formata enquanto digita
+                    let formatted = cleaned;
+                    if (cleaned.length >= 2 && !cleaned.includes('/')) {
+                      formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
+                    }
+                    if (formatted.length >= 5 && formatted.split('/').length === 2) {
+                      const parts = formatted.split('/');
+                      formatted = parts[0] + '/' + parts[1].slice(0, 2) + '/' + parts[1].slice(2);
+                    }
+                    
+                    // Atualiza o valor do input
+                    e.target.value = formatted;
+                    
+                    // Tenta parsear no formato dd/mm/yyyy
+                    if (formatted.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                      const [day, month, year] = formatted.split('/');
+                      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                      
+                      // Verifica se a data é válida
+                      if (!isNaN(date.getTime()) && date.getDate() == parseInt(day)) {
+                        setNewPonto({ ...newPonto, expiracao: format(date, 'yyyy-MM-dd') });
+                      }
+                    }
+                  }}
                   className="bg-dark-bg border-slate-700 flex-1"
                 />
                 <Popover>
@@ -1898,7 +1941,7 @@ export default function ClienteDetalhes() {
                   </PopoverContent>
                 </Popover>
               </div>
-              <p className="text-xs text-slate-500 mt-1">Digite ou selecione no calendário - Padrão: 12 meses a partir de hoje</p>
+              <p className="text-xs text-slate-500 mt-1">Cole ou digite no formato DD/MM/AAAA (ex: 29/12/2025)</p>
             </div>
 
             <div className="col-span-2">
