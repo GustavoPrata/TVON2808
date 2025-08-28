@@ -3340,6 +3340,70 @@ Como posso ajudar você hoje?
     }
   });
 
+  // In-memory storage for PIX state (temporary solution)
+  const pixStateMemoryStore = new Map<string, any>();
+
+  // Salvar estado do PIX por conversa
+  app.post("/api/pix/state/:conversaId", async (req, res) => {
+    try {
+      const { conversaId } = req.params;
+      const { telefone, activePixData, pixHistory, pixAmount, pixDescription } = req.body;
+
+      // Armazenar na memória para persistir durante a sessão
+      const key = `conv_${conversaId}`;
+      pixStateMemoryStore.set(key, {
+        conversaId: Number(conversaId),
+        telefone,
+        activePixData,
+        pixHistory,
+        pixAmount,
+        pixDescription,
+        updatedAt: new Date(),
+      });
+      
+      console.log('[PIX State] Estado salvo para conversa:', conversaId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Erro ao salvar estado do PIX:", error);
+      res.status(500).json({ error: "Erro ao salvar estado do PIX" });
+    }
+  });
+
+  // Recuperar estado do PIX por conversa
+  app.get("/api/pix/state/:conversaId", async (req, res) => {
+    try {
+      const { conversaId } = req.params;
+      const key = `conv_${conversaId}`;
+      const state = pixStateMemoryStore.get(key);
+      
+      if (state) {
+        console.log('[PIX State] Estado recuperado para conversa:', conversaId);
+        res.json(state);
+      } else {
+        console.log('[PIX State] Nenhum estado encontrado para conversa:', conversaId);
+        res.json(null);
+      }
+    } catch (error) {
+      console.error("Erro ao recuperar estado do PIX:", error);
+      res.status(500).json({ error: "Erro ao recuperar estado do PIX" });
+    }
+  });
+
+  // Limpar estado do PIX por conversa
+  app.delete("/api/pix/state/:conversaId", async (req, res) => {
+    try {
+      const { conversaId } = req.params;
+      const key = `conv_${conversaId}`;
+      pixStateMemoryStore.delete(key);
+      
+      console.log('[PIX State] Estado limpo para conversa:', conversaId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Erro ao limpar estado do PIX:", error);
+      res.status(500).json({ error: "Erro ao limpar estado do PIX" });
+    }
+  });
+
   // Config TV - Settings endpoints
   app.get("/api/external-api/settings/redirect_base_url", async (req, res) => {
     try {

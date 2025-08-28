@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { 
   clientes, pontos, pagamentos, conversas, mensagens, tickets, 
-  botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas,
+  botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
@@ -156,6 +156,12 @@ export interface IStorage {
   updateMensagemRapida(id: number, mensagem: Partial<InsertMensagemRapida>): Promise<MensagemRapida>;
   deleteMensagemRapida(id: number): Promise<void>;
   getMensagensRapidasAtivas(): Promise<MensagemRapida[]>;
+
+  // PIX State
+  getPixState(conversaId: number): Promise<any | undefined>;
+  createPixState(data: any): Promise<any>;
+  updatePixState(id: number, data: any): Promise<any>;
+  deletePixState(conversaId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1112,6 +1118,26 @@ export class DatabaseStorage implements IStorage {
       .from(mensagensRapidas)
       .where(eq(mensagensRapidas.ativo, true))
       .orderBy(mensagensRapidas.ordem);
+  }
+
+  // PIX State Implementation
+  async getPixState(conversaId: number): Promise<any | undefined> {
+    const result = await db.select().from(pixState).where(eq(pixState.conversaId, conversaId)).limit(1);
+    return result[0];
+  }
+
+  async createPixState(data: any): Promise<any> {
+    const result = await db.insert(pixState).values(data).returning();
+    return result[0];
+  }
+
+  async updatePixState(id: number, data: any): Promise<any> {
+    const result = await db.update(pixState).set(data).where(eq(pixState.id, id)).returning();
+    return result[0];
+  }
+
+  async deletePixState(conversaId: number): Promise<void> {
+    await db.delete(pixState).where(eq(pixState.conversaId, conversaId));
   }
 }
 

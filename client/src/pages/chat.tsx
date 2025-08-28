@@ -155,6 +155,9 @@ export default function Chat() {
   const [ticketExpanded, setTicketExpanded] = useState(false); // Collapsed by default
   // Estado do PIX por conversa
   const [pixStateByConversation, setPixStateByConversation] = useState<Map<string, any>>(new Map());
+  const [isLoadingPixState, setIsLoadingPixState] = useState(false);
+  const [isSavingPixState, setIsSavingPixState] = useState(false);
+  const pixStateSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -968,6 +971,75 @@ export default function Chat() {
   }, [whatsappStatus]);
 
   // Reset messages when conversation changes
+  // Load and save PIX state for conversation
+  useEffect(() => {
+    if (!selectedConversa || selectedConversa.id === -1) return;
+
+    // Load PIX state from database
+    const loadPixState = async () => {
+      setIsLoadingPixState(true);
+      try {
+        const response = await fetch(`/api/pix/state/${selectedConversa.id}`);
+        if (response.ok) {
+          const state = await response.json();
+          if (state) {
+            setPixStateByConversation(prev => {
+              const newMap = new Map(prev);
+              newMap.set(`conv_${selectedConversa.id}`, state);
+              return newMap;
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar estado do PIX:', error);
+      } finally {
+        setIsLoadingPixState(false);
+      }
+    };
+
+    loadPixState();
+  }, [selectedConversa?.id]);
+
+  // Save PIX state with debounce when it changes
+  useEffect(() => {
+    if (!selectedConversa || selectedConversa.id === -1) return;
+    
+    const currentState = pixStateByConversation.get(`conv_${selectedConversa.id}`);
+    if (!currentState) return;
+
+    // Clear existing timeout
+    if (pixStateSaveTimeoutRef.current) {
+      clearTimeout(pixStateSaveTimeoutRef.current);
+    }
+
+    // Set new timeout for saving (debounced)
+    pixStateSaveTimeoutRef.current = setTimeout(async () => {
+      setIsSavingPixState(true);
+      try {
+        await fetch(`/api/pix/state/${selectedConversa.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            telefone: selectedConversa.telefone,
+            ...currentState
+          }),
+        });
+      } catch (error) {
+        console.error('Erro ao salvar estado do PIX:', error);
+      } finally {
+        setIsSavingPixState(false);
+      }
+    }, 1000); // 1 second debounce
+
+    return () => {
+      if (pixStateSaveTimeoutRef.current) {
+        clearTimeout(pixStateSaveTimeoutRef.current);
+      }
+    };
+  }, [pixStateByConversation, selectedConversa]);
+
   useEffect(() => {
     setAllMessages([]);
     setMessageOffset(0);

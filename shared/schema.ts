@@ -87,6 +87,19 @@ export const pagamentos = pgTable("pagamentos", {
   dataVencimento: timestamp("data_vencimento"),
 });
 
+// Estado do PIX por conversa
+export const pixState = pgTable("pix_state", {
+  id: serial("id").primaryKey(),
+  conversaId: integer("conversa_id").references(() => conversas.id).notNull().unique(),
+  telefone: varchar("telefone", { length: 20 }).notNull(),
+  activePixData: json("active_pix_data"), // Dados do PIX ativo
+  pixHistory: json("pix_history"), // Histórico de PIX da conversa
+  pixAmount: varchar("pix_amount", { length: 10 }), // Valor atual no formulário
+  pixDescription: text("pix_description"), // Descrição atual no formulário
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Conversas do chat
 export const conversas = pgTable("conversas", {
   id: serial("id").primaryKey(),
