@@ -40,11 +40,11 @@ const menuItems = [
   { path: '/testes', icon: Monitor, label: 'Testes' },
   { path: '/clientes', icon: Users, label: 'Clientes' },
   { path: '/apps', icon: Router, label: 'APPs' },
-  { path: '/whatsapp-settings', icon: Smartphone, label: 'WhatsApp Config' },
+  { path: '/indicacoes', icon: UserPlus, label: 'Indicações' },
   { path: '/ajuda', icon: HelpCircle, label: 'Ajuda' },
+  { path: '/whatsapp-settings', icon: Smartphone, label: 'WhatsApp Config' },
   { path: '/bot-config', icon: Bot, label: 'Config. Bot' },
   { path: '/woovi', icon: CreditCard, label: 'Woovi' },
-  { path: '/indicacoes', icon: UserPlus, label: 'Indicações' },
   { path: '/config-tv', icon: Server, label: 'Config da API' },
   { path: '/logs', icon: FileText, label: 'Logs' },
 ];
