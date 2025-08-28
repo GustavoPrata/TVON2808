@@ -341,8 +341,8 @@ export default function Apps() {
                   </div>
 
                   {/* Expiration */}
-                  <div className="lg:col-span-3">
-                    {ponto.aplicativo !== 'shamel' ? (
+                  {ponto.aplicativo !== 'shamel' && (
+                    <div className="lg:col-span-3">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-blue-400" />
@@ -364,12 +364,8 @@ export default function Apps() {
                           }
                         </Badge>
                       </div>
-                    ) : (
-                      <div className="text-sm text-slate-400">
-                        Sem vencimento
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Actions */}
                   <div className="lg:col-span-2 flex items-center justify-end gap-2">
