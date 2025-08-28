@@ -1566,12 +1566,38 @@ export default function ClienteDetalhes() {
                           <p className="text-xs font-semibold text-orange-300">Data de Expiração</p>
                         </div>
                         {editingPonto === ponto.id ? (
-                          <Input
-                            value={editedPonto.expiracao}
-                            onChange={(e) => setEditedPonto({ ...editedPonto, expiracao: e.target.value })}
-                            className="h-8 bg-slate-700/50 border-orange-600/50 text-white text-sm"
-                            type="date"
-                          />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full h-8 justify-start text-left font-normal bg-slate-700/50 border-orange-600/50 text-white text-sm px-2",
+                                  !editedPonto.expiracao && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarDays className="mr-2 h-3 w-3" />
+                                {editedPonto.expiracao ? (
+                                  format(new Date(editedPonto.expiracao), "dd/MM/yyyy", { locale: ptBR })
+                                ) : (
+                                  <span>Selecione uma data</span>
+                                )}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0 bg-dark-surface border-slate-700" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={editedPonto.expiracao ? new Date(editedPonto.expiracao) : undefined}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    date.setHours(23, 59, 59, 999);
+                                    setEditedPonto({ ...editedPonto, expiracao: date.toISOString() });
+                                  }
+                                }}
+                                locale={ptBR}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
                         ) : (
                           <p className="text-base text-orange-400 font-medium">
                             {ponto.expiracao ? format(new Date(ponto.expiracao), "dd/MM/yyyy", { locale: ptBR }) : 'Sem data'}
@@ -1829,13 +1855,38 @@ export default function ClienteDetalhes() {
 
             <div>
               <Label htmlFor="expiracao" className="text-slate-400">Data de Expiração *</Label>
-              <Input
-                id="expiracao"
-                type="date"
-                value={newPonto.expiracao}
-                onChange={(e) => setNewPonto({ ...newPonto, expiracao: e.target.value })}
-                className="bg-dark-bg border-slate-700"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal bg-dark-bg border-slate-700",
+                      !newPonto.expiracao && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    {newPonto.expiracao ? (
+                      format(new Date(newPonto.expiracao), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })
+                    ) : (
+                      <span>Selecione uma data</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-dark-surface border-slate-700" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={newPonto.expiracao ? new Date(newPonto.expiracao) : undefined}
+                    onSelect={(date) => {
+                      if (date) {
+                        date.setHours(23, 59, 59, 999);
+                        setNewPonto({ ...newPonto, expiracao: format(date, 'yyyy-MM-dd') });
+                      }
+                    }}
+                    locale={ptBR}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
               <p className="text-xs text-slate-500 mt-1">Padrão: 12 meses a partir de hoje</p>
             </div>
 
