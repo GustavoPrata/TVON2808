@@ -114,7 +114,7 @@ export class NotificationService {
         // Verificar se está dentro do período de aviso (vencido ou vencendo)
         if (diasRestantes <= config.diasAntecedencia || diasRestantes === 0 || diasRestantes < 0) {
           // Verificar se já enviou aviso hoje
-          const avisoExistente = await storage.getAvisoByClienteId(cliente.id, hoje);
+          const avisoExistente = await storage.getAvisoByClienteId(cliente.id, vencimento);
           
           if (!avisoExistente) {
             await this.sendExpirationNotification(cliente, diasRestantes, config.mensagemPadrao);
@@ -168,12 +168,16 @@ export class NotificationService {
       if (sucesso) {
         // Registrar aviso enviado
         const nowBrazil = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
-        await storage.createAviso({
+        const dataVencimento = new Date(cliente.vencimento);
+        
+        await storage.createAvisoVencimento({
           clienteId: cliente.id,
-          tipo: 'vencimento',
-          mensagem: mensagem,
-          dataEnvio: new Date(nowBrazil),
-          enviado: true
+          telefone: phoneNumber,
+          dataVencimento: dataVencimento,
+          dataAviso: new Date(nowBrazil),
+          tipoAviso: 'automatico',
+          statusEnvio: 'enviado',
+          mensagemEnviada: mensagem
         });
         
         console.log(`✅ Notificação enviada para ${cliente.nome}`);
