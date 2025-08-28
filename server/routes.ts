@@ -1590,8 +1590,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/clientes-vencimentos", async (req, res) => {
     try {
       const clientes = await storage.getClientes();
-      // Filter only clients with expiry dates
-      const clientesComVencimento = clientes.filter(c => c.vencimento);
+      // Filter only clients with expiry dates and exclude familia type
+      const clientesComVencimento = clientes.filter(c => c.vencimento && c.tipo !== 'familia');
       res.json(clientesComVencimento);
     } catch (error) {
       console.error("Error in /api/clientes-vencimentos:", error);
