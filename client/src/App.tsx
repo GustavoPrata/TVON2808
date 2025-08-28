@@ -12,6 +12,7 @@ import Dashboard from "@/pages/dashboard";
 import Clientes from "@/pages/clientes";
 import ClienteDetalhes from "@/pages/cliente-detalhes";
 import Vencimentos from "@/pages/vencimentos";
+import Apps from "@/pages/apps";
 import Chat from "@/pages/chat";
 import Tickets from "@/pages/tickets";
 import BotConfig from "@/pages/bot-config-new";
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/clientes" component={Clientes} />
       <Route path="/clientes/:id" component={ClienteDetalhes} />
       <Route path="/vencimentos" component={Vencimentos} />
+      <Route path="/apps" component={Apps} />
       <Route path="/chat" component={Chat} />
       <Route path="/tickets" component={Tickets} />
       <Route path="/bot-config" component={BotConfig} />

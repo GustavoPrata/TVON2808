@@ -18,7 +18,8 @@ import {
   UserPlus,
   HelpCircle,
   Bell,
-  BellOff
+  BellOff,
+  Router
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ const menuItems = [
   { path: '/clientes', icon: Users, label: 'Clientes' },
   { path: '/testes', icon: Monitor, label: 'Testes' },
   { path: '/vencimentos', icon: Calendar, label: 'Vencimentos' },
+  { path: '/apps', icon: Router, label: 'APPs' },
   { path: '/chat', icon: MessageSquare, label: 'Chat', badge: 'chat' },
   { path: '/whatsapp-settings', icon: Smartphone, label: 'WhatsApp Config' },
   { path: '/tickets', icon: Ticket, label: 'Tickets', badge: 'tickets' },

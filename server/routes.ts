@@ -1122,6 +1122,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Buscar todos os pontos (aplicativos)
+  app.get("/api/pontos", async (req, res) => {
+    try {
+      const pontos = await storage.getAllPontos();
+      // Enrich pontos with cliente data
+      const pontosWithClientes = await Promise.all(
+        pontos.map(async (ponto) => {
+          const cliente = await storage.getClienteById(ponto.clienteId);
+          return {
+            ...ponto,
+            clienteNome: cliente?.nome || 'Cliente não encontrado',
+            clienteTelefone: cliente?.telefone || ''
+          };
+        })
+      );
+      res.json(pontosWithClientes);
+    } catch (error) {
+      console.error("Erro ao buscar todos os pontos:", error);
+      res
+        .status(500)
+        .json({ error: "Erro ao buscar pontos", details: error.message });
+    }
+  });
+
   app.post("/api/clientes/:id/pontos", async (req, res) => {
     try {
       const pontoData = insertPontoSchema.parse({

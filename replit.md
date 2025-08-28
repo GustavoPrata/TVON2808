@@ -28,6 +28,7 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
     - **Chat Interface**: Real-time WhatsApp chat integration with media message display, clickable phone numbers, and conversation creation upon first message. Global WebSocket connection for cross-application message processing and notifications. Conversation deduplication and mutex protection for concurrent message handling.
     - **API Configuration**: Manages external API systems and redirect URLs.
     - **System Management**: Manages individual "pontos" (service points) for revenue tracking.
+    - **Applications Management (APPs)**: Comprehensive interface for viewing registered applications with MAC addresses, app names, expiration dates, and advanced filtering capabilities.
     - **Referral System ("Indique e Ganhe")**: Clients earn free months via phone number-based referral codes, with automatic validation, admin UI, and WhatsApp notifications.
     - **Ticket Management System**: Automatically pins conversations with open tickets, visual indicators, automatic mode switching (human/bot), and direct navigation from tickets to chat.
     - **Quick Messages System**: Management and dynamic display of categorized quick messages (text/image) for customer support.

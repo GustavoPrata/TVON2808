@@ -56,6 +56,11 @@ export const api = {
     return response.json();
   },
 
+  getAllPontos: async (): Promise<(Ponto & { clienteNome?: string; clienteTelefone?: string })[]> => {
+    const response = await apiRequest('GET', '/api/pontos');
+    return response.json();
+  },
+
   createPonto: async (clienteId: number, data: Omit<Ponto, 'id' | 'clienteId'> & { syncWithApi?: boolean }): Promise<Ponto> => {
     const response = await apiRequest('POST', `/api/clientes/${clienteId}/pontos`, data);
     return response.json();
