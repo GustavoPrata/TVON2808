@@ -51,6 +51,9 @@ export default function Apps() {
   const { data: pontos, isLoading } = useQuery({
     queryKey: ['/api/pontos'],
     queryFn: api.getAllPontos,
+    refetchInterval: 10000, // Auto-refresh every 10 seconds
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const updateExpirationMutation = useMutation({

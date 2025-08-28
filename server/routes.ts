@@ -1119,6 +1119,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Enviar mensagem de boas-vindas
       await notificationService.sendWelcomeMessage(cliente.id);
 
+      // Broadcast new client event to all connected clients
+      broadcastMessage("client_created", {
+        id: cliente.id,
+        cliente: cliente,
+      });
+
       res.status(201).json(cliente);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1164,6 +1170,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Broadcast update event to all connected clients
+      broadcastMessage("client_updated", {
+        id: cliente.id,
+        cliente: cliente,
+      });
+
       res.json(cliente);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1186,6 +1198,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       await storage.deleteCliente(clienteId);
+      
+      // Broadcast delete event to all connected clients
+      broadcastMessage("client_deleted", {
+        id: clienteId,
+      });
+      
       res.json({ message: "Cliente deletado com sucesso" });
     } catch (error) {
       console.error("Erro ao deletar cliente:", error);
@@ -1554,6 +1572,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!payment) {
         return res.status(500).json({ error: "Erro ao criar pagamento" });
       }
+
+      // Broadcast payment created event to all connected clients
+      broadcastMessage("payment_created", {
+        id: payment.id,
+        clienteId: clienteId,
+        payment: payment,
+      });
 
       res.status(201).json(payment);
     } catch (error) {
@@ -1949,6 +1974,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'aberto'
       });
       
+      // Broadcast new ticket event to all connected clients
+      broadcastMessage("ticket_created", {
+        id: ticket.id,
+        ticket: ticket,
+      });
+      
       res.status(201).json(ticket);
     } catch (error) {
       console.error("Error creating ticket:", error);
@@ -1992,6 +2023,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Don't fail the ticket closing if mode change fails
         }
       }
+      
+      // Broadcast ticket update event to all connected clients
+      broadcastMessage("ticket_updated", {
+        id: ticket.id,
+        ticket: ticket,
+      });
       
       res.json(ticket);
     } catch (error) {
@@ -3164,6 +3201,12 @@ Como posso ajudar você hoje?
         throw apiError;
       }
 
+      // Broadcast new test event to all connected clients
+      broadcastMessage("test_created", {
+        id: teste.id,
+        teste: teste,
+      });
+
       res.status(201).json(teste);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -3287,6 +3330,12 @@ Como posso ajudar você hoje?
         }
       }
 
+      // Broadcast test update event to all connected clients
+      broadcastMessage("test_updated", {
+        id: updatedTeste.id,
+        teste: updatedTeste,
+      });
+
       res.json(updatedTeste);
     } catch (error) {
       console.error("Error updating test:", error);
@@ -3312,6 +3361,12 @@ Como posso ajudar você hoje?
 
       // Mark as deleted instead of removing from database
       await storage.updateTeste(teste.id, { status: "deletado" });
+      
+      // Broadcast test delete event to all connected clients
+      broadcastMessage("test_deleted", {
+        id: teste.id,
+      });
+      
       res.json({ message: "Teste deletado com sucesso" });
     } catch (error) {
       res.status(500).json({ error: "Erro ao deletar teste" });
@@ -3342,6 +3397,14 @@ Como posso ajudar você hoje?
         }
       }
 
+      // Broadcast cleanup event to all connected clients
+      if (deletedCount > 0) {
+        broadcastMessage("tests_cleanup", {
+          deletedCount,
+          totalExpired: expiredTestes.length,
+        });
+      }
+      
       res.json({
         message: `${deletedCount} testes expirados movidos para deletados`,
         totalExpired: expiredTestes.length,

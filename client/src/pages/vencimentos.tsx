@@ -58,6 +58,9 @@ export default function Vencimentos() {
       if (!response.ok) throw new Error('Failed to fetch clients');
       return response.json() as Promise<Cliente[]>;
     },
+    refetchInterval: 10000, // Auto-refresh every 10 seconds
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // Fetch avisos sent today
@@ -68,6 +71,9 @@ export default function Vencimentos() {
       if (!response.ok) throw new Error('Failed to fetch avisos');
       return response.json();
     },
+    refetchInterval: 10000, // Auto-refresh every 10 seconds
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // Fetch config avisos
@@ -78,6 +84,9 @@ export default function Vencimentos() {
       if (!response.ok) throw new Error('Failed to fetch config');
       return response.json();
     },
+    refetchInterval: 15000, // Auto-refresh every 15 seconds
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   useEffect(() => {

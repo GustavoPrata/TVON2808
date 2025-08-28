@@ -61,6 +61,9 @@ export default function Testes() {
       if (!response.ok) throw new Error('Failed to fetch tests');
       return response.json();
     },
+    refetchInterval: 10000, // Auto-refresh every 10 seconds
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const { data: sistemas } = useQuery({
@@ -70,6 +73,9 @@ export default function Testes() {
       if (!response.ok) throw new Error('Failed to fetch sistemas');
       return response.json();
     },
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   // Set default sistema when sistemas are loaded and restore from localStorage

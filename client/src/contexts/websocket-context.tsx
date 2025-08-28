@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import { queryClient } from '@/lib/queryClient';
 
 interface WSMessage {
   type: string;
@@ -56,6 +57,49 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
           handler(message.data);
         } else {
           console.log('No handler found for type:', message.type);
+        }
+
+        // Auto-invalidate queries based on message type to keep UI in sync
+        switch (message.type) {
+          case 'whatsapp_message':
+          case 'conversation_created':
+          case 'conversation_updated':
+            queryClient.invalidateQueries({ queryKey: ['/api/conversas'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/whatsapp/conversations'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/conversas/', message.data?.conversaId] });
+            break;
+          
+          case 'client_created':
+          case 'client_updated':
+          case 'client_deleted':
+            queryClient.invalidateQueries({ queryKey: ['/api/clientes'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/clientes-vencimentos'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
+            if (message.data?.id) {
+              queryClient.invalidateQueries({ queryKey: ['/api/clientes/', message.data.id] });
+            }
+            break;
+          
+          case 'ticket_created':
+          case 'ticket_updated':
+          case 'ticket_closed':
+          case 'ticket_auto_closed':
+            queryClient.invalidateQueries({ queryKey: ['/api/tickets'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
+            break;
+          
+          case 'payment_created':
+          case 'payment_updated':
+            queryClient.invalidateQueries({ queryKey: ['/api/pagamentos'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
+            break;
+            
+          case 'test_created':
+          case 'test_updated':
+          case 'test_deleted':
+            queryClient.invalidateQueries({ queryKey: ['/api/testes'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
+            break;
         }
 
         // Notifications are handled by WhatsAppNotifier component
