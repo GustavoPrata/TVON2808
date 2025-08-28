@@ -5,13 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { 
-  Calendar, Clock, CheckCircle, XCircle, Users, Smartphone, Monitor, Tv2, 
-  Filter, Search, Edit, Trash2, AlertTriangle, Router, Wifi, HardDrive, 
-  Activity, TrendingUp, Shield, Zap, Globe, Server, Cpu, Settings
+  Calendar, Clock, CheckCircle, XCircle, Smartphone, Monitor, Tv2, 
+  Filter, Search, Edit, AlertTriangle, Router, Wifi, Copy, 
+  Activity, Shield, Cpu, CalendarPlus
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
+import { apiRequest } from '@/lib/queryClient';
+import { queryClient } from '@/lib/queryClient';
 import type { Ponto } from '@/types';
+import { useToast } from '@/hooks/use-toast';
+import { useMutation } from '@tanstack/react-query';
 import {
   Select,
   SelectContent,
@@ -30,11 +34,41 @@ export default function Apps() {
   const [filterType, setFilterType] = useState<'todos' | 'vencidos' | 'proximos'>('todos');
   const [filterApp, setFilterApp] = useState<string>('todos');
   const [searchTerm, setSearchTerm] = useState('');
+  const [copiedMac, setCopiedMac] = useState<string | null>(null);
+  const { toast } = useToast();
   const [diasFiltro, setDiasFiltro] = useState(7);
 
   const { data: pontos, isLoading } = useQuery({
     queryKey: ['/api/pontos'],
     queryFn: api.getAllPontos,
+  });
+
+  const updateExpirationMutation = useMutation({
+    mutationFn: async (pontoId: number) => {
+      const ponto = pontos?.find(p => p.id === pontoId);
+      if (!ponto) throw new Error('Ponto não encontrado');
+      
+      const newExpiration = new Date();
+      newExpiration.setFullYear(newExpiration.getFullYear() + 1);
+      
+      return apiRequest('PUT', `/api/pontos/${pontoId}`, {
+        expiracao: newExpiration.toISOString()
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
+      toast({
+        title: 'Sucesso!',
+        description: 'Data de vencimento atualizada para 1 ano.',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível atualizar a data de vencimento.',
+        variant: 'destructive',
+      });
+    },
   });
 
   const getDaysUntilExpiry = (expiracao: string) => {
@@ -48,6 +82,34 @@ export default function Apps() {
     const diffTime = expiryDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  const formatPhone = (phone: string) => {
+    if (!phone) return '';
+    const cleaned = phone.replace(/\D/g, '');
+    const match = cleaned.match(/^(\d{2})(\d{5})(\d{4})$/);
+    if (match) {
+      return `(${match[1]}) ${match[2]}-${match[3]}`;
+    }
+    return phone;
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMac(text);
+      toast({
+        title: 'Copiado!',
+        description: 'MAC copiado para área de transferência.',
+      });
+      setTimeout(() => setCopiedMac(null), 2000);
+    } catch (err) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível copiar o MAC.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const getDeviceIcon = (dispositivo: string) => {
@@ -239,7 +301,7 @@ export default function Apps() {
                           {ponto.status}
                         </Badge>
                       </div>
-                      <p className="text-sm text-slate-400">{ponto.clienteTelefone}</p>
+                      <p className="text-sm text-slate-400">{formatPhone(ponto.clienteTelefone || '')}</p>
                       <Badge className="mt-2 bg-slate-700 text-slate-300 border-slate-600">
                         {getAppLabel(ponto.aplicativo)}
                       </Badge>
@@ -248,17 +310,23 @@ export default function Apps() {
 
                   {/* Device & MAC */}
                   <div className="lg:col-span-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Wifi className="w-4 h-4 text-slate-400" />
-                        <code className="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">
-                          {ponto.macAddress || 'Sem MAC'}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <HardDrive className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm text-slate-300">{ponto.usuario}</span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Wifi className="w-4 h-4 text-slate-400" />
+                      <code className="text-sm bg-slate-700 px-2 py-1 rounded text-slate-300">
+                        {ponto.macAddress || 'Sem MAC'}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(ponto.macAddress || '')}
+                        disabled={!ponto.macAddress}
+                        className="p-1 h-auto hover:bg-slate-700"
+                      >
+                        <Copy className={cn(
+                          "w-3 h-3",
+                          copiedMac === ponto.macAddress ? "text-green-400" : "text-slate-400"
+                        )} />
+                      </Button>
                     </div>
                   </div>
 
@@ -293,16 +361,26 @@ export default function Apps() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      onClick={() => {
+                        toast({
+                          title: 'Função em desenvolvimento',
+                          description: 'A edição de aplicativos será implementada em breve.',
+                        });
+                      }}
                       className="hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-4 h-4 mr-1" />
+                      Editar
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="hover:bg-red-500/20 hover:text-red-400 transition-colors"
+                      onClick={() => updateExpirationMutation.mutate(ponto.id)}
+                      disabled={updateExpirationMutation.isPending}
+                      className="hover:bg-green-500/20 hover:text-green-400 transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <CalendarPlus className="w-4 h-4 mr-1" />
+                      +1 Ano
                     </Button>
                   </div>
                 </div>
