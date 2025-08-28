@@ -43,12 +43,10 @@ export default function Login() {
     setIsLoading(true);
     
     try {
-      const response = await apiRequest("/api/login", {
-        method: "POST",
-        body: JSON.stringify({ user, password, rememberMe }),
-      });
+      const response = await apiRequest("POST", "/api/login", { user, password, rememberMe });
+      const data = await response.json();
       
-      if (response.success) {
+      if (data.success) {
         // Save or clear remembered credentials
         if (rememberMe) {
           localStorage.setItem("rememberedUser", user);
