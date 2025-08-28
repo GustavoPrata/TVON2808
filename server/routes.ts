@@ -4339,6 +4339,7 @@ Como posso ajudar você hoje?
       let created = 0;
       let updated = 0;
       let deleted = 0;
+      const errors: string[] = [];
 
       // Create/update users in API from local pontos
       for (const ponto of pontosLocais) {
@@ -4347,42 +4348,69 @@ Como posso ajudar você hoje?
         const cliente = clienteMap.get(ponto.clienteId);
         const sistema = await storage.getSistemaById(ponto.sistemaId);
 
-        if (!cliente || !sistema) continue;
+        if (!cliente) {
+          console.warn(`Cliente não encontrado para ponto ${ponto.id}`);
+          continue;
+        }
+        
+        if (!sistema) {
+          console.warn(`Sistema não encontrado para ponto ${ponto.id}`);
+          continue;
+        }
 
         const expDate = cliente.vencimento
           ? Math.floor(new Date(cliente.vencimento).getTime() / 1000).toString()
           : Math.floor(Date.now() / 1000 + 365 * 24 * 60 * 60).toString();
 
         const apiUser = apiUsersMap.get(ponto.usuario);
-
-        if (apiUser) {
-          // Update existing user
-          await externalApiService.updateUser(apiUser.id, {
-            password: ponto.senha,
-            exp_date: expDate,
-            status: "Active",
-            system: parseInt(sistema.systemId),
-          });
-          updated++;
-
-          // Save apiUserId if not already saved
-          if (!ponto.apiUserId) {
-            await storage.updatePonto(ponto.id, { apiUserId: apiUser.id });
+        
+        // Parse systemId safely
+        let systemNumber = 1;
+        try {
+          systemNumber = parseInt(sistema.systemId);
+          if (isNaN(systemNumber)) {
+            console.warn(`SystemId inválido para sistema ${sistema.id}: ${sistema.systemId}, usando padrão 1`);
+            systemNumber = 1;
           }
-        } else {
-          // Create new user
-          const newUser = await externalApiService.createUser({
-            username: ponto.usuario,
-            password: ponto.senha,
-            exp_date: expDate,
-            status: "Active",
-            system: parseInt(sistema.systemId),
-          });
+        } catch (e) {
+          console.warn(`Erro ao converter systemId: ${e}, usando padrão 1`);
+          systemNumber = 1;
+        }
 
-          if (newUser) {
-            await storage.updatePonto(ponto.id, { apiUserId: newUser.id });
-            created++;
+        try {
+          if (apiUser) {
+            // Update existing user
+            await externalApiService.updateUser(apiUser.id, {
+              password: ponto.senha,
+              exp_date: expDate,
+              status: "Active",
+              system: systemNumber,
+            });
+            updated++;
+
+            // Save apiUserId if not already saved
+            if (!ponto.apiUserId) {
+              await storage.updatePonto(ponto.id, { apiUserId: apiUser.id });
+            }
+          } else {
+            // Create new user
+            const newUser = await externalApiService.createUser({
+              username: ponto.usuario,
+              password: ponto.senha,
+              exp_date: expDate,
+              status: "Active",
+              system: systemNumber,
+            });
+
+            if (newUser) {
+              await storage.updatePonto(ponto.id, { apiUserId: newUser.id });
+              created++;
+            }
           }
+        } catch (userError) {
+          const errorMsg = `Erro ao processar usuário ${ponto.usuario}: ${userError}`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
         }
       }
 
@@ -4392,22 +4420,32 @@ Como posso ajudar você hoje?
       );
       for (const apiUser of apiUsers) {
         if (!localUsernames.has(apiUser.username)) {
-          await externalApiService.deleteUser(apiUser.id);
-          deleted++;
+          try {
+            await externalApiService.deleteUser(apiUser.id);
+            deleted++;
+          } catch (deleteError) {
+            const errorMsg = `Erro ao deletar usuário ${apiUser.username}: ${deleteError}`;
+            console.error(errorMsg);
+            errors.push(errorMsg);
+          }
         }
       }
 
       res.json({
-        success: true,
+        success: errors.length === 0,
         synced: created + updated,
         created,
         updated,
         deleted,
         message: `Sincronização concluída: ${created} criados, ${updated} atualizados, ${deleted} removidos`,
+        errors: errors.length > 0 ? errors : undefined,
       });
     } catch (error) {
       console.error("Erro ao sincronizar usuários:", error);
-      res.status(500).json({ error: "Erro ao sincronizar usuários" });
+      res.status(500).json({ 
+        error: "Erro ao sincronizar usuários",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
