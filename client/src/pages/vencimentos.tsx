@@ -11,6 +11,8 @@ import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import type { Cliente } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { useLocation } from 'wouter';
 import {
   Select,
   SelectContent,
@@ -20,6 +22,7 @@ import {
 } from "@/components/ui/select";
 
 export default function Vencimentos() {
+  const [location, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDays, setFilterDays] = useState('todos');
   const [configOpen, setConfigOpen] = useState(false);
@@ -27,6 +30,24 @@ export default function Vencimentos() {
   const [avisoAtivo, setAvisoAtivo] = useState(true);
   const [mensagemPadrao, setMensagemPadrao] = useState('');
   const { toast } = useToast();
+  
+  // Format phone number to Brazilian format
+  const formatPhoneNumber = (phone: string) => {
+    const digits = phone.replace(/\D/g, '');
+    
+    // Remove country code if present
+    const phoneWithoutCountry = digits.startsWith('55') ? digits.slice(2) : digits;
+    
+    if (phoneWithoutCountry.length === 11) {
+      // Mobile: (11) 91234-5678
+      return `(${phoneWithoutCountry.slice(0, 2)}) ${phoneWithoutCountry.slice(2, 7)}-${phoneWithoutCountry.slice(7)}`;
+    } else if (phoneWithoutCountry.length === 10) {
+      // Landline: (11) 1234-5678
+      return `(${phoneWithoutCountry.slice(0, 2)}) ${phoneWithoutCountry.slice(2, 6)}-${phoneWithoutCountry.slice(6)}`;
+    }
+    
+    return phone;
+  };
 
   // Fetch clients with expiry dates
   const { data: clientes, isLoading, refetch: refetchClientes } = useQuery({
@@ -415,13 +436,23 @@ export default function Vencimentos() {
                     <tr key={cliente.id} className="border-b border-slate-700/50 hover:bg-slate-800/30 transition-colors">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                            <span className="text-white text-sm font-bold">
-                              {cliente.nome.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
+                          <Avatar 
+                            className="w-12 h-12 shadow-md cursor-pointer"
+                            onClick={() => navigate(`/clientes/${cliente.id}`)}
+                          >
+                            <AvatarFallback className="bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+                              <span className="text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-lg font-bold">
+                                {cliente.nome && cliente.nome.length > 0 ? cliente.nome.charAt(0).toUpperCase() : '?'}
+                              </span>
+                            </AvatarFallback>
+                          </Avatar>
                           <div>
-                            <p className="font-medium text-white">{cliente.nome}</p>
+                            <p 
+                              className="font-semibold text-white text-lg cursor-pointer hover:text-blue-400 transition-colors"
+                              onClick={() => navigate(`/clientes/${cliente.id}`)}
+                            >
+                              {cliente.nome}
+                            </p>
                             {cliente.observacoes && (
                               <p className="text-xs text-slate-400 mt-0.5">{cliente.observacoes}</p>
                             )}
@@ -429,7 +460,9 @@ export default function Vencimentos() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="font-mono text-sm text-slate-300">{cliente.telefone}</span>
+                        <span className="font-medium text-slate-300">
+                          {formatPhoneNumber(cliente.telefone)}
+                        </span>
                       </td>
                       <td className="py-3 px-4">
                         {cliente.vencimento ? (
