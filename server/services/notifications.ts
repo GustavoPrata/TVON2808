@@ -7,74 +7,183 @@ export class NotificationService {
 
   constructor() {
     this.initializeScheduledNotifications();
+    
+    // Log hora atual do Brasil ao iniciar
+    const nowBrazil = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    console.log(`\n🕐 Sistema de notificações iniciado - Hora atual no Brasil: ${nowBrazil}\n`);
   }
 
   private async initializeScheduledNotifications() {
     try {
-      // Notificações de vencimento - verificar diariamente às 9h
-      cron.schedule('0 9 * * *', async () => {
-        await this.checkExpiringClients();
+      // Verificar a cada minuto se é hora de enviar avisos de vencimento
+      cron.schedule('* * * * *', async () => {
+        await this.checkIfTimeToSendExpirationNotifications();
+      }, {
+        timezone: "America/Sao_Paulo"  // Usar timezone do Brasil
       });
 
       // Notificações de pagamento - verificar a cada hora
       cron.schedule('0 * * * *', async () => {
         await this.checkPaymentNotifications();
+      }, {
+        timezone: "America/Sao_Paulo"  // Usar timezone do Brasil
       });
 
-      await this.logActivity('info', 'Serviço de notificações inicializado');
+      await this.logActivity('info', 'Serviço de notificações inicializado com timezone Brasil (São Paulo)');
     } catch (error) {
       console.error('Erro ao inicializar notificações:', error);
       await this.logActivity('error', `Erro ao inicializar notificações: ${error}`);
     }
   }
 
+  private async checkIfTimeToSendExpirationNotifications() {
+    try {
+      // Obter configuração de avisos
+      const config = await storage.getConfigAvisos();
+      
+      // Obter hora atual no Brasil
+      const nowBrazil = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+      const currentTime = new Date(nowBrazil);
+      const currentHour = currentTime.getHours();
+      const currentMinute = currentTime.getMinutes();
+      const currentTimeStr = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+
+      // Log apenas a cada 5 minutos ou quando for a hora configurada
+      if (currentMinute % 5 === 0 || currentTimeStr === config?.horaAviso) {
+        console.log(`⏱️ Verificando avisos: ${currentTimeStr} (Brasil) - Configurado: ${config?.horaAviso || 'não configurado'} - Ativo: ${config?.ativo ? 'Sim' : 'Não'}`);
+      }
+
+      if (!config || !config.ativo) return;
+
+      // Verificar se é a hora configurada
+      if (currentTimeStr === config.horaAviso) {
+        // Verificar se já enviou avisos hoje
+        const hoje = new Date(nowBrazil);
+        hoje.setHours(0, 0, 0, 0);
+        
+        const avisosHoje = await storage.getAvisosHoje();
+        const jaEnviouHoje = avisosHoje && avisosHoje.length > 0;
+        
+        console.log(`\n⏰ HORA CONFIGURADA ATINGIDA: ${currentTimeStr} (Brasil)`);
+        console.log(`📋 Avisos já enviados hoje: ${jaEnviouHoje ? `Sim (${avisosHoje.length} avisos)` : 'Não'}`);
+        
+        if (!jaEnviouHoje) {
+          console.log(`📤 INICIANDO ENVIO DE AVISOS DE VENCIMENTO...`);
+          await this.checkExpiringClients();
+        } else {
+          console.log(`⏭️ Pulando envio - avisos já foram enviados hoje`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erro ao verificar hora de avisos:', error);
+    }
+  }
+
   private async checkExpiringClients() {
     try {
-      const notificationConfig = await storage.getNotificacaoConfigByTipo('vencimento');
-      if (!notificationConfig || !notificationConfig.ativo) return;
+      console.log('🔍 Iniciando verificação de vencimentos...');
+      
+      // Obter configuração de avisos
+      const config = await storage.getConfigAvisos();
+      if (!config || !config.ativo) {
+        console.log('❌ Avisos de vencimento desativados');
+        return;
+      }
 
-      const diasAntes = notificationConfig.diasAntes || 3;
-      const clientesVencendo = await storage.getVencimentosProximos(diasAntes);
-
-      for (const cliente of clientesVencendo) {
+      // Obter clientes com vencimento
+      const clientes = await storage.getClientes();
+      const clientesComVencimento = clientes.filter(c => c.vencimento);
+      
+      // Data atual no Brasil
+      const nowBrazil = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+      const hoje = new Date(nowBrazil);
+      hoje.setHours(0, 0, 0, 0);
+      
+      let clientesNotificados = 0;
+      let clientesJaNotificados = 0;
+      
+      for (const cliente of clientesComVencimento) {
         const vencimento = new Date(cliente.vencimento!);
-        const hoje = new Date();
-        const diasRestantes = Math.ceil((vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diasRestantes <= diasAntes && diasRestantes > 0) {
-          await this.sendExpirationNotification(cliente, diasRestantes, notificationConfig.mensagem);
+        vencimento.setHours(0, 0, 0, 0);
+        
+        const diffTime = vencimento.getTime() - hoje.getTime();
+        const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        console.log(`📅 Cliente: ${cliente.nome} - Vencimento em ${diasRestantes} dias`);
+        
+        // Verificar se está dentro do período de aviso (vencido ou vencendo)
+        if (diasRestantes <= config.diasAntecedencia || diasRestantes === 0 || diasRestantes < 0) {
+          // Verificar se já enviou aviso hoje
+          const avisoExistente = await storage.getAvisoByClienteId(cliente.id, hoje);
+          
+          if (!avisoExistente) {
+            await this.sendExpirationNotification(cliente, diasRestantes, config.mensagemPadrao);
+            clientesNotificados++;
+          } else {
+            clientesJaNotificados++;
+          }
         }
       }
 
-      await this.logActivity('info', `Verificação de vencimentos executada - ${clientesVencendo.length} clientes verificados`);
+      console.log(`✅ Verificação concluída: ${clientesNotificados} avisos enviados, ${clientesJaNotificados} já notificados hoje`);
+      await this.logActivity('info', `Verificação de vencimentos - ${clientesNotificados} avisos enviados`);
     } catch (error) {
-      console.error('Erro ao verificar vencimentos:', error);
+      console.error('❌ Erro ao verificar vencimentos:', error);
       await this.logActivity('error', `Erro ao verificar vencimentos: ${error}`);
     }
   }
 
   private async sendExpirationNotification(cliente: any, diasRestantes: number, templateMessage: string) {
     try {
-      const mensagem = templateMessage
+      // Formatar mensagem
+      let mensagem = templateMessage || 'Olá {nome}! Seu plano vence em {dias} dias. Entre em contato para renovar.';
+      
+      // Determinar texto de dias
+      let textoDias = '';
+      if (diasRestantes === 0) {
+        textoDias = 'hoje';
+      } else if (diasRestantes === 1) {
+        textoDias = 'amanhã';
+      } else if (diasRestantes < 0) {
+        textoDias = `há ${Math.abs(diasRestantes)} dias`;
+      } else {
+        textoDias = `em ${diasRestantes} dias`;
+      }
+      
+      mensagem = mensagem
         .replace('{nome}', cliente.nome)
         .replace('{dias}', diasRestantes.toString())
-        .replace('{vencimento}', new Date(cliente.vencimento).toLocaleDateString('pt-BR'));
+        .replace('{vencimento}', new Date(cliente.vencimento).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))
+        .replace('{textoDias}', textoDias);
 
-      // Ensure phone number has country code (Brazil 55)
+      // Garantir que o telefone tem código do Brasil (55)
       let phoneNumber = cliente.telefone.replace(/\D/g, ''); // Remove non-digits
       if (!phoneNumber.startsWith('55')) {
         phoneNumber = '55' + phoneNumber;
       }
 
+      console.log(`📱 Enviando aviso para ${cliente.nome} (${phoneNumber})...`);
       const sucesso = await whatsappService.sendMessage(phoneNumber, mensagem);
       
       if (sucesso) {
+        // Registrar aviso enviado
+        const nowBrazil = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+        await storage.createAviso({
+          clienteId: cliente.id,
+          tipo: 'vencimento',
+          mensagem: mensagem,
+          dataEnvio: new Date(nowBrazil),
+          enviado: true
+        });
+        
+        console.log(`✅ Notificação enviada para ${cliente.nome}`);
         await this.logActivity('info', `Notificação de vencimento enviada para ${cliente.nome}`);
       } else {
+        console.log(`❌ Falha ao enviar para ${cliente.nome}`);
         await this.logActivity('error', `Falha ao enviar notificação para ${cliente.nome}`);
       }
     } catch (error) {
-      console.error('Erro ao enviar notificação de vencimento:', error);
+      console.error('❌ Erro ao enviar notificação:', error);
       await this.logActivity('error', `Erro ao enviar notificação: ${error}`);
     }
   }
