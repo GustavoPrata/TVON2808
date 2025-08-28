@@ -669,7 +669,7 @@ export default function ClienteDetalhes() {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6 p-6">
+          <CardContent className="space-y-4 p-4">
             {/* Nome do Cliente */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nome Completo</label>
@@ -678,35 +678,35 @@ export default function ClienteDetalhes() {
                   <Input
                     value={editingField.value}
                     onChange={(e) => setEditingField({ ...editingField, value: e.target.value })}
-                    className="flex-1 bg-slate-900 border-slate-600 text-white text-lg h-12"
+                    className="flex-1 bg-slate-900 border-slate-600 text-white h-9 text-sm"
                     placeholder="Nome do cliente"
                     autoFocus
                   />
                   <Button 
                     size="sm" 
                     onClick={handleSave} 
-                    className="h-10 px-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg"
+                    className="h-7 px-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-xs"
                   >
-                    <Save className="w-4 h-4 mr-1" />
+                    <Save className="w-3 h-3" />
                     Salvar
                   </Button>
                   <Button 
                     size="sm" 
                     variant="outline" 
                     onClick={handleCancel}
-                    className="h-10 px-4 border-slate-600 hover:bg-slate-800"
+                    className="h-7 px-2 border-slate-600 hover:bg-slate-800 text-xs"
                   >
                     Cancelar
                   </Button>
                 </div>
               ) : (
-                <div className="group relative flex items-center p-4 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all">
+                <div className="group relative flex items-center p-2.5 rounded-lg bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all">
                   <div className="flex-1">
-                    <span className="text-xl font-semibold text-white">{cliente.nome}</span>
+                    <span className="text-sm font-medium text-white">{cliente.nome}</span>
                   </div>
                   <button
                     onClick={() => handleEdit('nome', cliente.nome)}
-                    className="opacity-0 group-hover:opacity-100 p-2 hover:bg-slate-700 rounded-lg transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-700 rounded transition-all"
                   >
                     <Edit2 className="w-4 h-4 text-slate-400" />
                   </button>
@@ -725,36 +725,36 @@ export default function ClienteDetalhes() {
                       const formatted = formatPhoneForEdit(e.target.value);
                       setEditingField({ ...editingField, value: formatted });
                     }}
-                    className="flex-1 bg-slate-900 border-slate-600 text-white text-lg h-12"
+                    className="flex-1 bg-slate-900 border-slate-600 text-white h-9 text-sm"
                     placeholder="(00) 00000-0000"
                     autoFocus
                   />
                   <Button 
                     size="sm" 
                     onClick={handleSave} 
-                    className="h-10 px-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg"
+                    className="h-7 px-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-xs"
                   >
-                    <Save className="w-4 h-4 mr-1" />
+                    <Save className="w-3 h-3" />
                     Salvar
                   </Button>
                   <Button 
                     size="sm" 
                     variant="outline" 
                     onClick={handleCancel}
-                    className="h-10 px-4 border-slate-600 hover:bg-slate-800"
+                    className="h-7 px-2 border-slate-600 hover:bg-slate-800 text-xs"
                   >
                     Cancelar
                   </Button>
                 </div>
               ) : (
-                <div className="group relative flex items-center p-4 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all">
-                  <Phone className="w-5 h-5 text-green-400 mr-3" />
+                <div className="group relative flex items-center p-2.5 rounded-lg bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all">
+                  <Phone className="w-4 h-4 text-green-400 mr-2" />
                   <div className="flex-1">
-                    <span className="text-xl font-semibold text-white">{formatPhoneNumber(cliente.telefone)}</span>
+                    <span className="text-sm font-medium text-white">{formatPhoneNumber(cliente.telefone)}</span>
                   </div>
                   <button
                     onClick={() => handleEdit('telefone', cliente.telefone)}
-                    className="opacity-0 group-hover:opacity-100 p-2 hover:bg-slate-700 rounded-lg transition-all"
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-700 rounded transition-all"
                   >
                     <Edit2 className="w-4 h-4 text-slate-400" />
                   </button>
@@ -773,7 +773,7 @@ export default function ClienteDetalhes() {
                       value={editingField.value}
                       onValueChange={(value) => setEditingField({ ...editingField, value })}
                     >
-                      <SelectTrigger className="flex-1 bg-slate-900 border-slate-600 h-12 text-lg">
+                      <SelectTrigger className="flex-1 bg-slate-900 border-slate-600 h-9 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-700">
@@ -798,11 +798,11 @@ export default function ClienteDetalhes() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="group relative flex items-center p-4 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all cursor-pointer"
+                  <div className="group relative flex items-center p-2.5 rounded-lg bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all cursor-pointer"
                        onClick={() => handleEdit('tipo', cliente.tipo)}>
-                    <Shield className="w-5 h-5 text-purple-400 mr-3" />
+                    <Shield className="w-4 h-4 text-purple-400 mr-2" />
                     <div className="flex-1">
-                      <span className="text-lg font-semibold capitalize text-white">{cliente.tipo}</span>
+                      <span className="text-sm font-medium capitalize text-white">{cliente.tipo}</span>
                     </div>
                     <Edit2 className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-all" />
                   </div>
@@ -818,7 +818,7 @@ export default function ClienteDetalhes() {
                       value={editingField.value}
                       onValueChange={(value) => setEditingField({ ...editingField, value })}
                     >
-                      <SelectTrigger className="flex-1 bg-slate-900 border-slate-600 h-12 text-lg">
+                      <SelectTrigger className="flex-1 bg-slate-900 border-slate-600 h-9 text-sm">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-900 border-slate-700">
@@ -845,11 +845,11 @@ export default function ClienteDetalhes() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="group relative flex items-center p-4 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all cursor-pointer"
+                  <div className="group relative flex items-center p-2.5 rounded-lg bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all cursor-pointer"
                        onClick={() => handleEdit('status', cliente.status)}>
                     <div className="flex-1">
-                      <Badge className={cn("text-sm px-3 py-1.5 font-semibold", getStatusBadge(cliente.status))}>
-                        {React.createElement(getStatusIcon(cliente.status), { className: "w-4 h-4 mr-1.5" })}
+                      <Badge className={cn("text-xs px-2 py-1 font-medium", getStatusBadge(cliente.status))}>
+                        {React.createElement(getStatusIcon(cliente.status), { className: "w-3 h-3 mr-1" })}
                         {cliente.status.toUpperCase()}
                       </Badge>
                     </div>
@@ -862,14 +862,14 @@ export default function ClienteDetalhes() {
             {/* Valor Total */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Valor Total Mensal</label>
-              <div className="p-4 rounded-xl bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-600/30">
+              <div className="p-3 rounded-lg bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-600/30">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-500/20 rounded-lg">
-                      <DollarSign className="w-6 h-6 text-green-400" />
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-green-500/20 rounded">
+                      <DollarSign className="w-4 h-4 text-green-400" />
                     </div>
                     <div>
-                      <span className="text-2xl font-bold text-green-400">
+                      <span className="text-lg font-semibold text-green-400">
                         R$ {pontos.reduce((total, ponto) => total + parseFloat((ponto as any).valor || '0'), 0).toFixed(2)}
                       </span>
                       <p className="text-xs text-slate-400 mt-0.5">
@@ -889,7 +889,7 @@ export default function ClienteDetalhes() {
                   <Textarea
                     value={editingField.value}
                     onChange={(e) => setEditingField({ ...editingField, value: e.target.value })}
-                    className="bg-slate-900 border-slate-600 text-white min-h-[120px] resize-none"
+                    className="bg-slate-900 border-slate-600 text-white min-h-[80px] resize-none text-sm"
                     placeholder="Digite as observações sobre o cliente..."
                     autoFocus
                   />
@@ -899,7 +899,7 @@ export default function ClienteDetalhes() {
                       onClick={handleSave} 
                       className="px-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
                     >
-                      <Save className="w-4 h-4 mr-1" />
+                      <Save className="w-3 h-3" />
                       Salvar
                     </Button>
                     <Button 
@@ -915,14 +915,14 @@ export default function ClienteDetalhes() {
               ) : (
                 <div 
                   onClick={() => handleEdit('observacoes', cliente.observacoes || '')}
-                  className="group relative p-4 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all cursor-pointer min-h-[100px]"
+                  className="group relative p-3 rounded-lg bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all cursor-pointer min-h-[60px]"
                 >
                   {cliente.observacoes ? (
-                    <p className="text-white whitespace-pre-wrap">{cliente.observacoes}</p>
+                    <p className="text-white whitespace-pre-wrap text-sm">{cliente.observacoes}</p>
                   ) : (
-                    <p className="text-slate-500 italic">Clique para adicionar observações...</p>
+                    <p className="text-slate-500 italic text-sm">Clique para adicionar observações...</p>
                   )}
-                  <button className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-slate-700 rounded-lg transition-all">
+                  <button className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-slate-700 rounded transition-all">
                     <Edit2 className="w-4 h-4 text-slate-400" />
                   </button>
                 </div>
