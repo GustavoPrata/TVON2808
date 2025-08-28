@@ -135,6 +135,9 @@ export class NotificationService {
 
   private async sendExpirationNotification(cliente: any, diasRestantes: number, templateMessage: string) {
     try {
+      // Pegar apenas o primeiro nome
+      const primeiroNome = cliente.nome.split(' ')[0];
+      
       // Formatar mensagem
       let mensagem = templateMessage || 'Olá {nome}! Seu plano vence em {dias} dias. Entre em contato para renovar.';
       
@@ -151,7 +154,7 @@ export class NotificationService {
       }
       
       mensagem = mensagem
-        .replace('{nome}', cliente.nome)
+        .replace('{nome}', primeiroNome)
         .replace('{dias}', diasRestantes.toString())
         .replace('{vencimento}', new Date(cliente.vencimento).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }))
         .replace('{textoDias}', textoDias);
