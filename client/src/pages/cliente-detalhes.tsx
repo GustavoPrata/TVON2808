@@ -669,203 +669,264 @@ export default function ClienteDetalhes() {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Nome e Telefone */}
-            <div>
-              <label className="text-sm text-slate-400 mb-1 block">Informações Principais</label>
-              <div className="flex items-center gap-2">
-                {editingField?.field === 'nome' || editingField?.field === 'telefone' ? (
-                  <div className="flex-1 flex gap-2">
-                    <Input
-                      value={editingField.field === 'nome' ? editingField.value : cliente.nome}
-                      onChange={(e) => editingField.field === 'nome' && setEditingField({ ...editingField, value: e.target.value })}
-                      className="flex-1 bg-dark-bg border-slate-700"
-                      placeholder="Nome"
-                      autoFocus={editingField.field === 'nome'}
-                    />
-                    <Input
-                      value={editingField.field === 'telefone' ? editingField.value : cliente.telefone}
-                      onChange={(e) => {
-                        if (editingField.field === 'telefone') {
-                          const formatted = formatPhoneForEdit(e.target.value);
-                          setEditingField({ ...editingField, value: formatted });
-                        }
-                      }}
-                      className="w-48 bg-dark-bg border-slate-700"
-                      placeholder="(00) 00000-0000"
-                      autoFocus={editingField.field === 'telefone'}
-                    />
-                    <Button size="sm" onClick={handleSave} className="bg-green-500 hover:bg-green-600">
-                      <Save className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={handleCancel}>
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div 
-                    className="flex-1 p-3 rounded-lg bg-dark-bg flex items-center justify-between"
+          <CardContent className="space-y-6 p-6">
+            {/* Nome do Cliente */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nome Completo</label>
+              {editingField?.field === 'nome' ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={editingField.value}
+                    onChange={(e) => setEditingField({ ...editingField, value: e.target.value })}
+                    className="flex-1 bg-slate-900 border-slate-600 text-white text-lg h-12"
+                    placeholder="Nome do cliente"
+                    autoFocus
+                  />
+                  <Button 
+                    size="sm" 
+                    onClick={handleSave} 
+                    className="h-10 px-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg"
                   >
-                    <div className="flex items-center gap-4">
-                      <span className="font-medium text-lg">{cliente.nome}</span>
-                      <div className="flex items-center gap-2 text-slate-400">
-                        <Phone className="w-4 h-4" />
-                        <span className="font-medium">{formatPhoneNumber(cliente.telefone)}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEdit('nome', cliente.nome)}
-                        className="p-1 hover:bg-slate-700 rounded"
-                      >
-                        <Edit2 className="w-4 h-4 text-slate-500" />
-                      </button>
-                      <button
-                        onClick={() => handleEdit('telefone', cliente.telefone)}
-                        className="p-1 hover:bg-slate-700 rounded"
-                      >
-                        <Phone className="w-4 h-4 text-slate-500" />
-                      </button>
-                    </div>
+                    <Save className="w-4 h-4 mr-1" />
+                    Salvar
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={handleCancel}
+                    className="h-10 px-4 border-slate-600 hover:bg-slate-800"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <div className="group relative flex items-center p-4 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all">
+                  <div className="flex-1">
+                    <span className="text-xl font-semibold text-white">{cliente.nome}</span>
                   </div>
-                )}
-              </div>
+                  <button
+                    onClick={() => handleEdit('nome', cliente.nome)}
+                    className="opacity-0 group-hover:opacity-100 p-2 hover:bg-slate-700 rounded-lg transition-all"
+                  >
+                    <Edit2 className="w-4 h-4 text-slate-400" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Telefone */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Telefone</label>
+              {editingField?.field === 'telefone' ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={editingField.value}
+                    onChange={(e) => {
+                      const formatted = formatPhoneForEdit(e.target.value);
+                      setEditingField({ ...editingField, value: formatted });
+                    }}
+                    className="flex-1 bg-slate-900 border-slate-600 text-white text-lg h-12"
+                    placeholder="(00) 00000-0000"
+                    autoFocus
+                  />
+                  <Button 
+                    size="sm" 
+                    onClick={handleSave} 
+                    className="h-10 px-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg"
+                  >
+                    <Save className="w-4 h-4 mr-1" />
+                    Salvar
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={handleCancel}
+                    className="h-10 px-4 border-slate-600 hover:bg-slate-800"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <div className="group relative flex items-center p-4 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all">
+                  <Phone className="w-5 h-5 text-green-400 mr-3" />
+                  <div className="flex-1">
+                    <span className="text-xl font-semibold text-white">{formatPhoneNumber(cliente.telefone)}</span>
+                  </div>
+                  <button
+                    onClick={() => handleEdit('telefone', cliente.telefone)}
+                    className="opacity-0 group-hover:opacity-100 p-2 hover:bg-slate-700 rounded-lg transition-all"
+                  >
+                    <Edit2 className="w-4 h-4 text-slate-400" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Tipo e Status */}
             <div className="grid grid-cols-2 gap-4">
               {/* Tipo */}
-              <div>
-                <label className="text-sm text-slate-400 mb-1 block">Tipo</label>
-                <div className="flex items-center gap-2">
-                  {editingField?.field === 'tipo' ? (
-                    <>
-                      <Select
-                        value={editingField.value}
-                        onValueChange={(value) => setEditingField({ ...editingField, value })}
-                      >
-                        <SelectTrigger className="flex-1 bg-dark-bg border-slate-700">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="regular">Regular</SelectItem>
-                          <SelectItem value="familia">Família</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button size="sm" onClick={handleSave} className="bg-green-500 hover:bg-green-600">
-                        <Save className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={handleCancel}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </>
-                  ) : (
-                    <div 
-                      onClick={() => handleEdit('tipo', cliente.tipo)}
-                      className="flex-1 p-3 rounded-lg bg-dark-bg cursor-pointer flex items-center justify-between"
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tipo de Cliente</label>
+                {editingField?.field === 'tipo' ? (
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={editingField.value}
+                      onValueChange={(value) => setEditingField({ ...editingField, value })}
                     >
-                      <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-slate-500" />
-                        <span className="font-medium capitalize">{cliente.tipo}</span>
-                      </div>
-                      <Edit2 className="w-4 h-4 text-slate-500" />
+                      <SelectTrigger className="flex-1 bg-slate-900 border-slate-600 h-12 text-lg">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-700">
+                        <SelectItem value="regular">Regular</SelectItem>
+                        <SelectItem value="familia">Família</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      size="sm" 
+                      onClick={handleSave} 
+                      className="h-10 px-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                    >
+                      <Save className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleCancel}
+                      className="h-10 px-4 border-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="group relative flex items-center p-4 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all cursor-pointer"
+                       onClick={() => handleEdit('tipo', cliente.tipo)}>
+                    <Shield className="w-5 h-5 text-purple-400 mr-3" />
+                    <div className="flex-1">
+                      <span className="text-lg font-semibold capitalize text-white">{cliente.tipo}</span>
                     </div>
-                  )}
-                </div>
+                    <Edit2 className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-all" />
+                  </div>
+                )}
               </div>
 
               {/* Status */}
-              <div>
-                <label className="text-sm text-slate-400 mb-1 block">Status</label>
-                <div className="flex items-center gap-2">
-                  {editingField?.field === 'status' ? (
-                    <>
-                      <Select
-                        value={editingField.value}
-                        onValueChange={(value) => setEditingField({ ...editingField, value })}
-                      >
-                        <SelectTrigger className="flex-1 bg-dark-bg border-slate-700">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ativo">Ativo</SelectItem>
-                          <SelectItem value="inativo">Inativo</SelectItem>
-                          <SelectItem value="suspenso">Suspenso</SelectItem>
-                          <SelectItem value="cancelado">Cancelado</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Button size="sm" onClick={handleSave} className="bg-green-500 hover:bg-green-600">
-                        <Save className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={handleCancel}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </>
-                  ) : (
-                    <div 
-                      onClick={() => handleEdit('status', cliente.status)}
-                      className="flex-1 p-3 rounded-lg bg-dark-bg cursor-pointer flex items-center justify-between"
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</label>
+                {editingField?.field === 'status' ? (
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={editingField.value}
+                      onValueChange={(value) => setEditingField({ ...editingField, value })}
                     >
-                      <Badge className={cn("border", getStatusBadge(cliente.status))}>
-                        {React.createElement(getStatusIcon(cliente.status), { className: "w-3 h-3 mr-1" })}
-                        {cliente.status}
+                      <SelectTrigger className="flex-1 bg-slate-900 border-slate-600 h-12 text-lg">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-700">
+                        <SelectItem value="ativo">Ativo</SelectItem>
+                        <SelectItem value="inativo">Inativo</SelectItem>
+                        <SelectItem value="suspenso">Suspenso</SelectItem>
+                        <SelectItem value="cancelado">Cancelado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      size="sm" 
+                      onClick={handleSave} 
+                      className="h-10 px-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                    >
+                      <Save className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleCancel}
+                      className="h-10 px-4 border-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="group relative flex items-center p-4 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all cursor-pointer"
+                       onClick={() => handleEdit('status', cliente.status)}>
+                    <div className="flex-1">
+                      <Badge className={cn("text-sm px-3 py-1.5 font-semibold", getStatusBadge(cliente.status))}>
+                        {React.createElement(getStatusIcon(cliente.status), { className: "w-4 h-4 mr-1.5" })}
+                        {cliente.status.toUpperCase()}
                       </Badge>
-                      <Edit2 className="w-4 h-4 text-slate-500" />
                     </div>
-                  )}
-                </div>
+                    <Edit2 className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-all" />
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Valor Total */}
-            <div>
-              <label className="text-sm text-slate-400 mb-1 block">Valor Total Mensal</label>
-              <div className="p-3 rounded-lg bg-dark-bg border border-slate-700">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-green-500" />
-                  <span className="text-xl font-bold text-green-400">
-                    R$ {pontos.reduce((total, ponto) => total + parseFloat((ponto as any).valor || '0'), 0).toFixed(2)}
-                  </span>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Valor Total Mensal</label>
+              <div className="p-4 rounded-xl bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-600/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-500/20 rounded-lg">
+                      <DollarSign className="w-6 h-6 text-green-400" />
+                    </div>
+                    <div>
+                      <span className="text-2xl font-bold text-green-400">
+                        R$ {pontos.reduce((total, ponto) => total + parseFloat((ponto as any).valor || '0'), 0).toFixed(2)}
+                      </span>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Soma de {pontos.length} {pontos.length === 1 ? 'ponto' : 'pontos'} ativos
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Soma dos valores de todos os pontos
-                </p>
               </div>
             </div>
 
             {/* Observações */}
-            <div>
-              <label className="text-sm text-slate-400 mb-1 block">Observações</label>
-              <div className="flex items-start gap-2">
-                {editingField?.field === 'observacoes' ? (
-                  <>
-                    <Textarea
-                      value={editingField.value}
-                      onChange={(e) => setEditingField({ ...editingField, value: e.target.value })}
-                      className="flex-1 bg-dark-bg border-slate-700 min-h-[100px]"
-                      autoFocus
-                    />
-                    <div className="flex flex-col gap-1">
-                      <Button size="sm" onClick={handleSave} className="bg-green-500 hover:bg-green-600">
-                        <Save className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={handleCancel}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <div 
-                    onClick={() => handleEdit('observacoes', cliente.observacoes || '')}
-                    className="flex-1 p-3 rounded-lg bg-dark-bg hover:bg-slate-800 cursor-pointer transition-colors min-h-[80px] group"
-                  >
-                    <p className="text-slate-300">
-                      {cliente.observacoes || 'Clique para adicionar observações...'}
-                    </p>
-                    <Edit2 className="w-4 h-4 text-slate-500 opacity-0 group-hover:opacity-100 mt-2" />
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Observações</label>
+              {editingField?.field === 'observacoes' ? (
+                <div className="flex flex-col gap-2">
+                  <Textarea
+                    value={editingField.value}
+                    onChange={(e) => setEditingField({ ...editingField, value: e.target.value })}
+                    className="bg-slate-900 border-slate-600 text-white min-h-[120px] resize-none"
+                    placeholder="Digite as observações sobre o cliente..."
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button 
+                      size="sm" 
+                      onClick={handleSave} 
+                      className="px-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                    >
+                      <Save className="w-4 h-4 mr-1" />
+                      Salvar
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleCancel}
+                      className="px-4 border-slate-600"
+                    >
+                      Cancelar
+                    </Button>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div 
+                  onClick={() => handleEdit('observacoes', cliente.observacoes || '')}
+                  className="group relative p-4 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 border border-slate-700 hover:border-slate-600 transition-all cursor-pointer min-h-[100px]"
+                >
+                  {cliente.observacoes ? (
+                    <p className="text-white whitespace-pre-wrap">{cliente.observacoes}</p>
+                  ) : (
+                    <p className="text-slate-500 italic">Clique para adicionar observações...</p>
+                  )}
+                  <button className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 p-2 hover:bg-slate-700 rounded-lg transition-all">
+                    <Edit2 className="w-4 h-4 text-slate-400" />
+                  </button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
