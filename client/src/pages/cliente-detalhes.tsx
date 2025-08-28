@@ -644,19 +644,15 @@ export default function ClienteDetalhes() {
         {/* Informações Principais */}
         <Card className="lg:col-span-2 bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-slate-700/50 pb-6">
-            <CardTitle className="text-2xl font-bold flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/30">
-                <User className="w-7 h-7 text-white" />
+            <CardTitle className="text-2xl font-bold flex items-center justify-between w-full">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/30">
+                  <User className="w-7 h-7 text-white" />
+                </div>
+                Informações do Cliente
               </div>
-              Informações do Cliente
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* ID do Cliente */}
-            <div>
-              <label className="text-sm text-slate-400 mb-1 block">ID do Cliente</label>
-              <div className="p-3 rounded-lg bg-dark-bg flex items-center gap-2">
-                <span className="font-mono text-lg font-semibold text-blue-400">#{cliente.id}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-lg font-semibold text-blue-400">ID: #{cliente.id}</span>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(cliente.id.toString());
@@ -665,14 +661,15 @@ export default function ClienteDetalhes() {
                       description: `ID ${cliente.id} copiado para a área de transferência`,
                     });
                   }}
-                  className="ml-auto p-1 hover:bg-slate-700 rounded transition-colors"
+                  className="p-1 hover:bg-slate-700 rounded transition-colors"
                   title="Copiar ID"
                 >
                   <Copy className="w-4 h-4 text-slate-500 hover:text-slate-300" />
                 </button>
               </div>
-            </div>
-
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
             {/* Nome e Telefone */}
             <div>
               <label className="text-sm text-slate-400 mb-1 block">Informações Principais</label>
