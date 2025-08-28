@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, RefreshCw, Database, Cloud, CheckCircle2, XCircle, AlertTriangle, Users, Shield, ArrowRight, AlertCircle } from 'lucide-react';
+import { Loader2, RefreshCw, Database, Cloud, CheckCircle2, XCircle, AlertTriangle, Users, Shield, ArrowRight, AlertCircle, Server } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -248,8 +248,29 @@ export function SyncStatus() {
             <p className="text-xs text-slate-500">
               {syncStatus.apiConnected ? 'sistemas na API' : 'não conectado'}
             </p>
+            {syncStatus.apiUrl && (
+              <p className="text-xs text-slate-400 mt-2 truncate" title={syncStatus.apiUrl}>
+                {syncStatus.apiUrl}
+              </p>
+            )}
           </div>
         </div>
+
+        {/* API Configuration Info */}
+        {syncStatus.apiUrl && (
+          <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+            <div className="flex items-center gap-2 mb-2">
+              <Server className="w-4 h-4 text-blue-400" />
+              <span className="text-sm font-medium text-white">Configuração da API</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400">URL:</span>
+              <code className="text-xs bg-slate-900 px-2 py-1 rounded text-blue-300 flex-1">
+                {syncStatus.apiUrl}
+              </code>
+            </div>
+          </div>
+        )}
 
         {/* Sync Actions */}
         <div className="flex flex-col gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">

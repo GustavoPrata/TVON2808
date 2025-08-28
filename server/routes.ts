@@ -4137,6 +4137,7 @@ Como posso ajudar você hoje?
         apiSystemsCount: apiSystems.length,
         inSync: apiConnected && localSystems.length === apiSystems.length,
         lastSync: integration?.ultimaAtualizacao || null,
+        apiUrl: integration?.baseUrl || null,
       });
     } catch (error) {
       console.error("Erro ao verificar status de sincronização:", error);
