@@ -1624,15 +1624,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let mensagem = config?.mensagemPadrao || 'Olá {nome}! Seu plano vence hoje. Entre em contato para renovar.';
       mensagem = mensagem.replace('{nome}', cliente.nome);
 
+      // Ensure phone number has country code (Brazil 55)
+      let phoneNumber = telefone.replace(/\D/g, ''); // Remove non-digits
+      if (!phoneNumber.startsWith('55')) {
+        phoneNumber = '55' + phoneNumber;
+      }
+
       // Send WhatsApp message if connected
       if (whatsappService && whatsappService.isConnected()) {
         try {
-          await whatsappService.sendMessage(telefone, mensagem);
+          await whatsappService.sendMessage(phoneNumber, mensagem);
           
           // Record the sent notification
           const aviso = await storage.createAvisoVencimento({
             clienteId,
-            telefone,
+            telefone: phoneNumber,
             dataVencimento: cliente.vencimento || new Date(),
             tipoAviso: 'manual',
             statusEnvio: 'enviado',
@@ -1646,7 +1652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Record failed notification
           const aviso = await storage.createAvisoVencimento({
             clienteId,
-            telefone,
+            telefone: phoneNumber,
             dataVencimento: cliente.vencimento || new Date(),
             tipoAviso: 'manual',
             statusEnvio: 'erro',
@@ -1695,13 +1701,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const mensagemPersonalizada = mensagem.replace('{nome}', cliente.nome);
 
+        // Ensure phone number has country code (Brazil 55)
+        let phoneNumber = cliente.telefone.replace(/\D/g, ''); // Remove non-digits
+        if (!phoneNumber.startsWith('55')) {
+          phoneNumber = '55' + phoneNumber;
+        }
+
         if (whatsappService && whatsappService.isConnected()) {
           try {
-            await whatsappService.sendMessage(cliente.telefone, mensagemPersonalizada);
+            await whatsappService.sendMessage(phoneNumber, mensagemPersonalizada);
             
             await storage.createAvisoVencimento({
               clienteId: cliente.id,
-              telefone: cliente.telefone,
+              telefone: phoneNumber,
               dataVencimento: cliente.vencimento,
               tipoAviso: 'automatico',
               statusEnvio: 'enviado',
@@ -1714,7 +1726,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             await storage.createAvisoVencimento({
               clienteId: cliente.id,
-              telefone: cliente.telefone,
+              telefone: phoneNumber,
               dataVencimento: cliente.vencimento,
               tipoAviso: 'automatico',
               statusEnvio: 'erro',

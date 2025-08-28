@@ -60,7 +60,13 @@ export class NotificationService {
         .replace('{dias}', diasRestantes.toString())
         .replace('{vencimento}', new Date(cliente.vencimento).toLocaleDateString('pt-BR'));
 
-      const sucesso = await whatsappService.sendMessage(cliente.telefone, mensagem);
+      // Ensure phone number has country code (Brazil 55)
+      let phoneNumber = cliente.telefone.replace(/\D/g, ''); // Remove non-digits
+      if (!phoneNumber.startsWith('55')) {
+        phoneNumber = '55' + phoneNumber;
+      }
+
+      const sucesso = await whatsappService.sendMessage(phoneNumber, mensagem);
       
       if (sucesso) {
         await this.logActivity('info', `Notificação de vencimento enviada para ${cliente.nome}`);
@@ -91,8 +97,14 @@ export class NotificationService {
         
         const cliente = await storage.getClienteById(pagamento.clienteId);
         if (cliente) {
+          // Ensure phone number has country code (Brazil 55)
+          let phoneNumber = cliente.telefone.replace(/\D/g, ''); // Remove non-digits
+          if (!phoneNumber.startsWith('55')) {
+            phoneNumber = '55' + phoneNumber;
+          }
+
           await whatsappService.sendMessage(
-            cliente.telefone,
+            phoneNumber,
             `Olá ${cliente.nome}! Seu pagamento PIX expirou. Entre em contato para gerar um novo.`
           );
         }
@@ -117,7 +129,13 @@ export class NotificationService {
         .replace('{nome}', cliente.nome)
         .replace('{telefone}', cliente.telefone);
 
-      await whatsappService.sendMessage(cliente.telefone, mensagem);
+      // Ensure phone number has country code (Brazil 55)
+      let phoneNumber = cliente.telefone.replace(/\D/g, ''); // Remove non-digits
+      if (!phoneNumber.startsWith('55')) {
+        phoneNumber = '55' + phoneNumber;
+      }
+
+      await whatsappService.sendMessage(phoneNumber, mensagem);
       await this.logActivity('info', `Mensagem de boas-vindas enviada para ${cliente.nome}`);
     } catch (error) {
       console.error('Erro ao enviar mensagem de boas-vindas:', error);
@@ -142,7 +160,13 @@ export class NotificationService {
         .replace('{valor}', `R$ ${pagamento.valor}`)
         .replace('{data}', new Date().toLocaleDateString('pt-BR'));
 
-      await whatsappService.sendMessage(cliente.telefone, mensagem);
+      // Ensure phone number has country code (Brazil 55)
+      let phoneNumber = cliente.telefone.replace(/\D/g, ''); // Remove non-digits
+      if (!phoneNumber.startsWith('55')) {
+        phoneNumber = '55' + phoneNumber;
+      }
+
+      await whatsappService.sendMessage(phoneNumber, mensagem);
       await this.logActivity('info', `Confirmação de pagamento enviada para ${cliente.nome}`);
     } catch (error) {
       console.error('Erro ao enviar confirmação de pagamento:', error);
@@ -152,7 +176,13 @@ export class NotificationService {
 
   async sendCustomMessage(telefone: string, mensagem: string) {
     try {
-      const sucesso = await whatsappService.sendMessage(telefone, mensagem);
+      // Ensure phone number has country code (Brazil 55)
+      let phoneNumber = telefone.replace(/\D/g, ''); // Remove non-digits
+      if (!phoneNumber.startsWith('55')) {
+        phoneNumber = '55' + phoneNumber;
+      }
+
+      const sucesso = await whatsappService.sendMessage(phoneNumber, mensagem);
       if (sucesso) {
         await this.logActivity('info', `Mensagem personalizada enviada para ${telefone}`);
       } else {
@@ -175,7 +205,13 @@ export class NotificationService {
       const taskId = `custom-${clienteId}-${Date.now()}`;
 
       const task = cron.schedule(cronExpression, async () => {
-        await whatsappService.sendMessage(cliente.telefone, mensagem);
+        // Ensure phone number has country code (Brazil 55)
+        let phoneNumber = cliente.telefone.replace(/\D/g, ''); // Remove non-digits
+        if (!phoneNumber.startsWith('55')) {
+          phoneNumber = '55' + phoneNumber;
+        }
+
+        await whatsappService.sendMessage(phoneNumber, mensagem);
         await this.logActivity('info', `Notificação agendada enviada para ${cliente.nome}`);
         
         // Remover tarefa após execução
