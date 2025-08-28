@@ -209,67 +209,59 @@ export default function Apps() {
       </div>
 
       {/* Filters Section */}
-      <div className="grid lg:grid-cols-4 gap-4">
-        <Card className="lg:col-span-1 bg-slate-800 border-slate-700">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-4 h-4 text-slate-400" />
-              <span className="text-sm font-semibold text-slate-300">Filtro Rápido</span>
+      <Card className="bg-slate-800 border-slate-700">
+        <CardContent className="p-4 space-y-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Buscar por cliente, MAC, telefone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-slate-700 border-slate-600 focus:border-blue-500 text-white"
+              />
             </div>
-            <div className="space-y-2">
+            
+            <Select value={filterApp} onValueChange={setFilterApp}>
+              <SelectTrigger className="w-[200px] bg-slate-700 border-slate-600">
+                <SelectValue placeholder="Filtrar por app" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-700">
+                <SelectItem value="todos">Todos os Apps</SelectItem>
+                {uniqueApps.map(app => (
+                  <SelectItem key={app} value={app}>
+                    {getAppLabel(app)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-slate-400" />
+            <div className="flex gap-2">
               {['todos', 'proximos', 'vencidos'].map((type) => (
                 <Button
                   key={type}
-                  variant={filterType === type ? 'default' : 'ghost'}
+                  variant={filterType === type ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setFilterType(type as any)}
                   className={cn(
-                    "w-full justify-start",
                     filterType === type 
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                      : 'hover:bg-slate-700 text-slate-400'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-600' 
+                      : 'border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-white'
                   )}
                 >
-                  {type === 'todos' && 'Todos os Apps'}
-                  {type === 'proximos' && `Vencendo (${diasFiltro} dias)`}
-                  {type === 'vencidos' && 'Apps Vencidos'}
+                  {type === 'todos' && 'Todos'}
+                  {type === 'proximos' && `Vencendo em ${diasFiltro} dias`}
+                  {type === 'vencidos' && 'Vencidos'}
                 </Button>
               ))}
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-3 bg-slate-800 border-slate-700">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400" />
-                <Input
-                  type="text"
-                  placeholder="Buscar por cliente, MAC, telefone..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-slate-700 border-slate-600 focus:border-blue-500 text-white"
-                />
-              </div>
-              
-              <Select value={filterApp} onValueChange={setFilterApp}>
-                <SelectTrigger className="w-[200px] bg-slate-700 border-slate-600">
-                  <SelectValue placeholder="Filtrar por app" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-700">
-                  <SelectItem value="todos">Todos os Apps</SelectItem>
-                  {uniqueApps.map(app => (
-                    <SelectItem key={app} value={app}>
-                      {getAppLabel(app)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Apps Grid */}
       <div className="grid gap-4">
