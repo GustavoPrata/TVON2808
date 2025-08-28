@@ -146,10 +146,13 @@ export default function Apps() {
   };
 
   const filteredPontos = pontos?.filter((ponto: PontoComCliente) => {
+    // Exclude shamel apps from date-based filters
     if (filterType === 'vencidos') {
+      if (ponto.aplicativo === 'shamel') return false;
       const days = getDaysUntilExpiry(ponto.expiracao);
       if (days > 0) return false;
     } else if (filterType === 'proximos') {
+      if (ponto.aplicativo === 'shamel') return false;
       const days = getDaysUntilExpiry(ponto.expiracao);
       if (days <= 0 || days > diasFiltro) return false;
     }
@@ -172,8 +175,9 @@ export default function Apps() {
   });
 
   const totalAtivos = pontos?.filter(p => p.status === 'ativo').length || 0;
-  const totalVencidos = pontos?.filter(p => getDaysUntilExpiry(p.expiracao) <= 0).length || 0;
+  const totalVencidos = pontos?.filter(p => p.aplicativo !== 'shamel' && getDaysUntilExpiry(p.expiracao) <= 0).length || 0;
   const totalProximos = pontos?.filter(p => {
+    if (p.aplicativo === 'shamel') return false;
     const days = getDaysUntilExpiry(p.expiracao);
     return days > 0 && days <= 7;
   }).length || 0;
@@ -186,7 +190,7 @@ export default function Apps() {
     );
   }
 
-  const uniqueApps = [...new Set(pontos?.map(p => p.aplicativo) || [])];
+  const uniqueApps = Array.from(new Set(pontos?.map(p => p.aplicativo) || []));
 
   return (
     <div className="space-y-6">
@@ -338,47 +342,54 @@ export default function Apps() {
 
                   {/* Expiration */}
                   <div className="lg:col-span-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-blue-400" />
-                        <span className="text-sm text-slate-300">
-                          {new Date(ponto.expiracao).toLocaleDateString('pt-BR')}
-                        </span>
+                    {ponto.aplicativo !== 'shamel' ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-blue-400" />
+                          <span className="text-sm text-slate-300">
+                            {new Date(ponto.expiracao).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <Badge className={cn(
+                          "text-xs px-2 py-0.5",
+                          daysRemaining <= 0 
+                            ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                            : daysRemaining <= 3 
+                            ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                            : 'bg-green-500/20 text-green-400 border-green-500/30'
+                        )}>
+                          {daysRemaining <= 0 
+                            ? `-${Math.abs(daysRemaining)} dias`
+                            : `${daysRemaining} dias`
+                          }
+                        </Badge>
                       </div>
-                      <Badge className={cn(
-                        "text-xs px-2 py-0.5",
-                        daysRemaining <= 0 
-                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                          : daysRemaining <= 3 
-                          ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                          : 'bg-green-500/20 text-green-400 border-green-500/30'
-                      )}>
-                        {daysRemaining <= 0 
-                          ? `-${Math.abs(daysRemaining)} dias`
-                          : `${daysRemaining} dias`
-                        }
-                      </Badge>
-                    </div>
+                    ) : (
+                      <div className="text-sm text-slate-400">
+                        Sem vencimento
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}
                   <div className="lg:col-span-2 flex items-center justify-end gap-2">
-                    <Popover open={openPopover === ponto.id} onOpenChange={(open) => {
-                      setOpenPopover(open ? ponto.id : null);
-                      if (open) {
-                        setSelectedDate(new Date(ponto.expiracao));
-                      }
-                    }}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
-                        >
-                          <Calendar className="w-4 h-4 mr-1" />
-                          Editar Data
-                        </Button>
-                      </PopoverTrigger>
+                    {ponto.aplicativo !== 'shamel' ? (
+                      <Popover open={openPopover === ponto.id} onOpenChange={(open) => {
+                        setOpenPopover(open ? ponto.id : null);
+                        if (open) {
+                          setSelectedDate(new Date(ponto.expiracao));
+                        }
+                      }}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                          >
+                            <Calendar className="w-4 h-4 mr-1" />
+                            Editar Data
+                          </Button>
+                        </PopoverTrigger>
                       <PopoverContent className="w-auto p-0 bg-slate-800 border-slate-700" align="end">
                         <div className="p-3 border-b border-slate-700">
                           <p className="text-sm font-medium text-white">Selecione a nova data</p>
@@ -416,17 +427,20 @@ export default function Apps() {
                           </Button>
                         </div>
                       </PopoverContent>
-                    </Popover>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => updateExpirationMutation.mutate({ pontoId: ponto.id })}
-                      disabled={updateExpirationMutation.isPending}
-                      className="hover:bg-green-500/20 hover:text-green-400 transition-colors"
-                    >
-                      <CalendarPlus className="w-4 h-4 mr-1" />
-                      +1 Ano
-                    </Button>
+                      </Popover>
+                    ) : null}
+                    {ponto.aplicativo !== 'shamel' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => updateExpirationMutation.mutate({ pontoId: ponto.id })}
+                        disabled={updateExpirationMutation.isPending}
+                        className="hover:bg-green-500/20 hover:text-green-400 transition-colors"
+                      >
+                        <CalendarPlus className="w-4 h-4 mr-1" />
+                        +1 Ano
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
