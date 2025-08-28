@@ -468,6 +468,9 @@ export class DatabaseStorage implements IStorage {
     // Delete all tickets related to this conversation
     await db.delete(tickets).where(eq(tickets.conversaId, id));
     
+    // Delete PIX state related to this conversation
+    await db.delete(pixState).where(eq(pixState.conversaId, id));
+    
     // Then delete the conversation itself
     await db.delete(conversas).where(eq(conversas.id, id));
   }

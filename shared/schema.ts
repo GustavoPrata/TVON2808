@@ -23,7 +23,7 @@ export const clientes = pgTable("clientes", {
 // Pontos/Usuários dos clientes
 export const pontos = pgTable("pontos", {
   id: serial("id").primaryKey(),
-  clienteId: integer("cliente_id").references(() => clientes.id).notNull(),
+  clienteId: integer("cliente_id").references(() => clientes.id, { onDelete: "cascade" }).notNull(),
   aplicativo: varchar("aplicativo", { length: 20 }).notNull(), // ibo_pro, ibo_player, shamel
   dispositivo: varchar("dispositivo", { length: 20 }).notNull(), // smart_tv, tv_box, celular, notebook
   usuario: varchar("usuario", { length: 50 }).notNull(),
@@ -42,8 +42,8 @@ export const pontos = pgTable("pontos", {
 // Sistema de Indicações
 export const indicacoes = pgTable("indicacoes", {
   id: serial("id").primaryKey(),
-  indicadorId: integer("indicador_id").references(() => clientes.id).notNull(), // Quem indicou
-  indicadoId: integer("indicado_id").references(() => clientes.id).notNull(), // Quem foi indicado
+  indicadorId: integer("indicador_id").references(() => clientes.id, { onDelete: "cascade" }).notNull(), // Quem indicou
+  indicadoId: integer("indicado_id").references(() => clientes.id, { onDelete: "cascade" }).notNull(), // Quem foi indicado
   codigoIndicacao: varchar("codigo_indicacao", { length: 20 }).notNull(), // Telefone usado como código
   dataIndicacao: timestamp("data_indicacao").notNull().defaultNow(),
   status: varchar("status", { length: 20 }).notNull().default("pendente"), // pendente, confirmada, expirada
@@ -55,7 +55,7 @@ export const indicacoes = pgTable("indicacoes", {
 // Avisos de Vencimento
 export const avisosVencimento = pgTable("avisos_vencimento", {
   id: serial("id").primaryKey(),
-  clienteId: integer("cliente_id").references(() => clientes.id).notNull(),
+  clienteId: integer("cliente_id").references(() => clientes.id, { onDelete: "cascade" }).notNull(),
   telefone: varchar("telefone", { length: 20 }).notNull(),
   dataVencimento: timestamp("data_vencimento").notNull(),
   dataAviso: timestamp("data_aviso").notNull().defaultNow(),
@@ -94,7 +94,7 @@ export const mensagensRapidas = pgTable("mensagens_rapidas", {
 // Pagamentos PIX
 export const pagamentos = pgTable("pagamentos", {
   id: serial("id").primaryKey(),
-  clienteId: integer("cliente_id").references(() => clientes.id).notNull(),
+  clienteId: integer("cliente_id").references(() => clientes.id, { onDelete: "cascade" }).notNull(),
   valor: numeric("valor", { precision: 10, scale: 2 }).notNull(),
   status: varchar("status", { length: 20 }).notNull().default("pendente"), // pendente, pago, confirmado, cancelado, expirado, devolvido
   tipo: varchar("tipo", { length: 20 }).default("mensalidade"), // mensalidade, renovacao, teste
@@ -113,7 +113,7 @@ export const pagamentos = pgTable("pagamentos", {
 // Estado do PIX por conversa
 export const pixState = pgTable("pix_state", {
   id: serial("id").primaryKey(),
-  conversaId: integer("conversa_id").references(() => conversas.id).notNull().unique(),
+  conversaId: integer("conversa_id").references(() => conversas.id, { onDelete: "cascade" }).notNull().unique(),
   telefone: varchar("telefone", { length: 20 }).notNull(),
   activePixData: json("active_pix_data"), // Dados do PIX ativo
   pixHistory: json("pix_history"), // Histórico de PIX da conversa
@@ -126,7 +126,7 @@ export const pixState = pgTable("pix_state", {
 // Conversas do chat
 export const conversas = pgTable("conversas", {
   id: serial("id").primaryKey(),
-  clienteId: integer("cliente_id").references(() => clientes.id),
+  clienteId: integer("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
   telefone: varchar("telefone", { length: 20 }).notNull(),
   nome: varchar("nome", { length: 100 }),
   ultimaMensagem: text("ultima_mensagem"),
@@ -148,7 +148,7 @@ export const conversas = pgTable("conversas", {
 // Mensagens do chat
 export const mensagens = pgTable("mensagens", {
   id: serial("id").primaryKey(),
-  conversaId: integer("conversa_id").references(() => conversas.id).notNull(),
+  conversaId: integer("conversa_id").references(() => conversas.id, { onDelete: "cascade" }).notNull(),
   conteudo: text("conteudo").notNull(),
   tipo: varchar("tipo", { length: 20 }).notNull().default("texto"), // texto, imagem, video, audio, arquivo, sticker
   remetente: varchar("remetente", { length: 20 }).notNull(), // cliente, sistema, bot
@@ -168,8 +168,8 @@ export const mensagens = pgTable("mensagens", {
 // Tickets de suporte
 export const tickets = pgTable("tickets", {
   id: serial("id").primaryKey(),
-  clienteId: integer("cliente_id").references(() => clientes.id),
-  conversaId: integer("conversa_id").references(() => conversas.id),
+  clienteId: integer("cliente_id").references(() => clientes.id, { onDelete: "set null" }),
+  conversaId: integer("conversa_id").references(() => conversas.id, { onDelete: "cascade" }),
   titulo: varchar("titulo", { length: 200 }).notNull(),
   descricao: text("descricao").notNull(),
   status: varchar("status", { length: 20 }).notNull().default("aberto"), // aberto, em_atendimento, fechado
