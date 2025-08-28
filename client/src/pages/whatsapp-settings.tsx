@@ -13,7 +13,7 @@ import {
   Settings, User, Wifi, MessageSquare, Users, 
   CheckCircle, Loader2, WifiOff, Smartphone, 
   Download, Save, Eye, EyeOff, Bell, RefreshCw,
-  RotateCw, Camera, Upload, Info, Phone, QrCode
+  RotateCw, Camera, Upload, Info, Phone, QrCode, X
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -69,6 +69,7 @@ export default function WhatsAppSettings() {
   const { toast } = useToast();
   const [profilePictureFile, setProfilePictureFile] = useState<File | null>(null);
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [hasLoadedSettings, setHasLoadedSettings] = useState(false);
   const [connectionMode, setConnectionMode] = useState<'qr' | 'phone'>('qr');
@@ -268,17 +269,25 @@ export default function WhatsAppSettings() {
     console.log('Renderizando QR code:', whatsappStatus.qr);
     
     return (
-      <div className="bg-white p-4 rounded-lg flex items-center justify-center">
+      <div 
+        className="bg-white p-4 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:scale-105 hover:shadow-xl"
+        onClick={() => setShowQrModal(true)}
+        title="Clique para ampliar"
+      >
         <div className="text-center">
           <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
             <img 
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(whatsappStatus.qr)}`} 
               alt="QR Code WhatsApp" 
               className="w-full h-full object-contain"
+              style={{ pointerEvents: 'none' }}
             />
           </div>
           <p className="text-gray-600 text-sm">
             Escaneie o QR Code com seu WhatsApp
+          </p>
+          <p className="text-gray-400 text-xs mt-1">
+            Clique para ampliar
           </p>
         </div>
       </div>
@@ -975,6 +984,38 @@ export default function WhatsAppSettings() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* QR Code Modal Expandido */}
+      {showQrModal && whatsappStatus?.qr && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100]"
+          onClick={() => setShowQrModal(false)}
+        >
+          <div 
+            className="bg-white p-8 rounded-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-end mb-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowQrModal(false)}
+                className="hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <img 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(whatsappStatus.qr)}`}
+              alt="QR Code Ampliado"
+              className="w-96 h-96"
+            />
+            <p className="text-center text-gray-600 mt-4">
+              Escaneie com o WhatsApp para conectar
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Disconnect Dialog */}
       <AlertDialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>

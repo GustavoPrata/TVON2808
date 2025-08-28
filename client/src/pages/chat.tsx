@@ -113,6 +113,7 @@ export default function Chat() {
   const [searchTerm, setSearchTerm] = useState('');
   const [contactFilter, setContactFilter] = useState<'novos' | 'clientes' | 'testes'>('novos');
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [showQrModal, setShowQrModal] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
@@ -1610,6 +1611,38 @@ export default function Chat() {
         </div>
       </div>
       
+      {/* QR Code Modal Expandido */}
+      {showQrModal && qrCode && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100]"
+          onClick={() => setShowQrModal(false)}
+        >
+          <div 
+            className="bg-white p-8 rounded-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-end mb-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowQrModal(false)}
+                className="hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <img 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrCode)}`}
+              alt="QR Code Ampliado"
+              className="w-96 h-96"
+            />
+            <p className="text-center text-gray-600 mt-4">
+              Escaneie com o WhatsApp para conectar
+            </p>
+          </div>
+        </div>
+      )}
+      
       {/* QR Code Modal */}
       {qrCode && !isConnected && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
@@ -1625,11 +1658,16 @@ export default function Chat() {
               </Button>
             </CardHeader>
             <CardContent className="flex flex-col items-center space-y-4">
-              <div className="bg-white p-4 rounded-lg">
+              <div 
+                className="bg-white p-4 rounded-lg cursor-pointer transition-all hover:scale-105 hover:shadow-xl"
+                onClick={() => setShowQrModal(true)}
+                title="Clique para ampliar"
+              >
                 <img 
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCode)}`}
                   alt="QR Code"
                   className="w-64 h-64"
+                  style={{ pointerEvents: 'none' }}
                 />
               </div>
               <p className="text-sm text-slate-400 text-center">
