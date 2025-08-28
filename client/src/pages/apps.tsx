@@ -23,7 +23,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface PontoComCliente extends Ponto {
   clienteNome?: string;
@@ -35,6 +43,8 @@ export default function Apps() {
   const [filterApp, setFilterApp] = useState<string>('todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedMac, setCopiedMac] = useState<string | null>(null);
+  const [openPopover, setOpenPopover] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const { toast } = useToast();
   const [diasFiltro, setDiasFiltro] = useState(7);
 
@@ -44,12 +54,14 @@ export default function Apps() {
   });
 
   const updateExpirationMutation = useMutation({
-    mutationFn: async (pontoId: number) => {
+    mutationFn: async ({ pontoId, date }: { pontoId: number; date?: Date }) => {
       const ponto = pontos?.find(p => p.id === pontoId);
       if (!ponto) throw new Error('Ponto não encontrado');
       
-      const newExpiration = new Date();
-      newExpiration.setFullYear(newExpiration.getFullYear() + 1);
+      const newExpiration = date || new Date();
+      if (!date) {
+        newExpiration.setFullYear(newExpiration.getFullYear() + 1);
+      }
       
       return apiRequest('PUT', `/api/pontos/${pontoId}`, {
         expiracao: newExpiration.toISOString()
@@ -57,9 +69,11 @@ export default function Apps() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
+      setOpenPopover(null);
+      setSelectedDate(undefined);
       toast({
         title: 'Sucesso!',
-        description: 'Data de vencimento atualizada para 1 ano.',
+        description: 'Data de vencimento atualizada.',
       });
     },
     onError: () => {
@@ -349,24 +363,64 @@ export default function Apps() {
 
                   {/* Actions */}
                   <div className="lg:col-span-2 flex items-center justify-end gap-2">
+                    <Popover open={openPopover === ponto.id} onOpenChange={(open) => {
+                      setOpenPopover(open ? ponto.id : null);
+                      if (open) {
+                        setSelectedDate(new Date(ponto.expiracao));
+                      }
+                    }}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                        >
+                          <Calendar className="w-4 h-4 mr-1" />
+                          Editar Data
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-slate-800 border-slate-700" align="end">
+                        <div className="p-3 border-b border-slate-700">
+                          <p className="text-sm font-medium text-white">Selecione a nova data</p>
+                        </div>
+                        <CalendarComponent
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={setSelectedDate}
+                          locale={ptBR}
+                          className="bg-slate-800 text-white"
+                        />
+                        <div className="p-3 border-t border-slate-700 flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setOpenPopover(null);
+                              setSelectedDate(undefined);
+                            }}
+                            className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (selectedDate) {
+                                updateExpirationMutation.mutate({ pontoId: ponto.id, date: selectedDate });
+                              }
+                            }}
+                            disabled={!selectedDate || updateExpirationMutation.isPending}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Confirmar
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        toast({
-                          title: 'Função em desenvolvimento',
-                          description: 'A edição de aplicativos será implementada em breve.',
-                        });
-                      }}
-                      className="hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
-                    >
-                      <Edit className="w-4 h-4 mr-1" />
-                      Editar
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => updateExpirationMutation.mutate(ponto.id)}
+                      onClick={() => updateExpirationMutation.mutate({ pontoId: ponto.id })}
                       disabled={updateExpirationMutation.isPending}
                       className="hover:bg-green-500/20 hover:text-green-400 transition-colors"
                     >
