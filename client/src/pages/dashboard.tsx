@@ -16,7 +16,7 @@ export default function Dashboard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ['/api/dashboard/stats'],
     queryFn: api.getDashboardStats,
-    refetchInterval: 10000, // Refetch every 10 seconds for real-time updates
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
     refetchOnWindowFocus: true,
     staleTime: 0,
   });
@@ -101,7 +101,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-slate-400 text-sm font-medium">Total Clientes</p>
                 <p className="text-3xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text mt-1">
-                  {stats.totalClientes}
+                  {Number(stats.totalClientes) || 0}
                 </p>
               </div>
               <div className="p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl">
@@ -109,8 +109,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-4 flex items-center gap-2">
-              <span className="text-green-400 text-sm font-semibold">+12%</span>
-              <span className="text-slate-500 text-sm">vs mês anterior</span>
+              <span className="text-slate-500 text-sm">Total de clientes cadastrados</span>
             </div>
           </CardContent>
         </Card>
@@ -121,7 +120,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-slate-400 text-sm font-medium">Clientes Ativos</p>
                 <p className="text-3xl font-bold text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text mt-1">
-                  {stats.clientesAtivos}
+                  {Number(stats.clientesAtivos) || 0}
                 </p>
               </div>
               <div className="p-3 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl">
@@ -130,9 +129,9 @@ export default function Dashboard() {
             </div>
             <div className="mt-4 flex items-center gap-2">
               <span className="text-green-400 text-sm font-semibold">
-                {stats.totalClientes > 0 ? ((stats.clientesAtivos / stats.totalClientes) * 100).toFixed(1) : 0}%
+                {Number(stats.totalClientes) > 0 ? ((Number(stats.clientesAtivos) / Number(stats.totalClientes)) * 100).toFixed(0) : 0}%
               </span>
-              <span className="text-slate-500 text-sm">taxa de atividade</span>
+              <span className="text-slate-500 text-sm">dos clientes</span>
             </div>
           </CardContent>
         </Card>
@@ -143,7 +142,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-slate-400 text-sm font-medium">Vencendo em 5 dias</p>
                 <p className="text-3xl font-bold text-transparent bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text mt-1">
-                  {stats.vencendo5Dias}
+                  {Number(stats.vencendo5Dias) || 0}
                 </p>
               </div>
               <div className="p-3 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-xl">
@@ -152,7 +151,7 @@ export default function Dashboard() {
             </div>
             <div className="mt-4 flex items-center gap-2">
               <span className="text-yellow-400 text-sm font-semibold">
-                {stats.totalClientes > 0 ? ((stats.vencendo5Dias / stats.totalClientes) * 100).toFixed(1) : 0}%
+                {Number(stats.totalClientes) > 0 ? ((Number(stats.vencendo5Dias) / Number(stats.totalClientes)) * 100).toFixed(0) : 0}%
               </span>
               <span className="text-slate-500 text-sm">do total</span>
             </div>
@@ -165,7 +164,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-slate-400 text-sm font-medium">Receita Mensal</p>
                 <p className="text-3xl font-bold text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text mt-1">
-                  R$ {stats.receitaMensal.toFixed(2)}
+                  R$ {(Number(stats.receitaMensal) || 0).toFixed(2)}
                 </p>
               </div>
               <div className="p-3 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl">
@@ -173,8 +172,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-4 flex items-center gap-2">
-              <span className="text-green-400 text-sm font-semibold">+7.3%</span>
-              <span className="text-slate-500 text-sm">vs mês anterior</span>
+              <span className="text-slate-500 text-sm">Soma dos valores ativos</span>
             </div>
           </CardContent>
         </Card>
@@ -300,42 +298,54 @@ export default function Dashboard() {
                 <Activity className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <CardTitle className="text-white">Atividade Recente</CardTitle>
+                <CardTitle className="text-white">Status do Sistema</CardTitle>
                 <CardDescription className="text-slate-400">
-                  Últimas atividades do sistema
+                  Informações gerais do sistema
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="space-y-4">
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
-                <div className="w-8 h-8 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg flex items-center justify-center">
-                  <UserCheck className="w-4 h-4 text-green-400" />
+              {stats.totalClientes > 0 && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg flex items-center justify-center">
+                    <UserCheck className="w-4 h-4 text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white">Clientes Ativos</p>
+                    <p className="text-xs text-slate-400">{Number(stats.clientesAtivos) || 0} de {Number(stats.totalClientes) || 0} clientes</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-white">Novo cliente cadastrado</p>
-                  <p className="text-xs text-slate-400">há 2 minutos</p>
+              )}
+              {stats.vencendo5Dias > 0 && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
+                  <div className="w-8 h-8 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-lg flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-yellow-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white">Vencimentos Próximos</p>
+                    <p className="text-xs text-slate-400">{Number(stats.vencendo5Dias) || 0} clientes nos próximos 5 dias</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
-                <div className="w-8 h-8 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-lg flex items-center justify-center">
-                  <DollarSign className="w-4 h-4 text-yellow-400" />
+              )}
+              {stats.receitaMensal > 0 && (
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white">Receita Mensal</p>
+                    <p className="text-xs text-slate-400">R$ {(Number(stats.receitaMensal) || 0).toFixed(2)}</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-white">Pagamento recebido</p>
-                  <p className="text-xs text-slate-400">há 5 minutos</p>
+              )}
+              {(!stats.totalClientes || Number(stats.totalClientes) === 0) && (
+                <div className="text-center py-8 text-slate-400">
+                  <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Sistema aguardando clientes</p>
                 </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/50">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-lg flex items-center justify-center">
-                  <Users className="w-4 h-4 text-blue-400" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-white">Usuário renovado</p>
-                  <p className="text-xs text-slate-400">há 8 minutos</p>
-                </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -356,7 +366,8 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="pt-6">
             <div className="space-y-3">
-              {stats.vencimentosProximos.slice(0, 5).map((cliente) => {
+              {stats.vencimentosProximos && stats.vencimentosProximos.length > 0 ? (
+                stats.vencimentosProximos.slice(0, 5).map((cliente) => {
                 // Criar data de vencimento no timezone de São Paulo
                 const expiryDate = new Date(cliente.vencimento || '');
                 
@@ -375,13 +386,13 @@ export default function Dashboard() {
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl flex items-center justify-center">
                         <span className="text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text font-bold">
-                          {cliente.nome.charAt(0)}
+                          {cliente.nome ? cliente.nome.charAt(0).toUpperCase() : '?'}
                         </span>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-white">{cliente.nome}</p>
+                        <p className="text-sm font-medium text-white">{cliente.nome || 'Sem nome'}</p>
                         <p className="text-xs text-slate-400">
-                          {new Date(cliente.vencimento || '').toLocaleDateString('pt-BR')}
+                          {cliente.vencimento ? new Date(cliente.vencimento).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : 'Sem data'}
                         </p>
                       </div>
                     </div>
@@ -399,7 +410,14 @@ export default function Dashboard() {
                     </div>
                   </div>
                 );
-              })}
+              }))
+              ) : (
+                <div className="text-center py-8 text-slate-400">
+                  <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Nenhum vencimento próximo</p>
+                  <p className="text-sm mt-1">Sem clientes vencendo nos próximos 7 dias</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
