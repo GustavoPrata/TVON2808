@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft, Edit2, Save, X, Plus, Trash2, Calendar, Phone, CreditCard, User, Users, Monitor, Smartphone, Tv, CheckCircle, XCircle, AlertTriangle, DollarSign, Clock, Shield, Eye, EyeOff, Wifi, Key, CalendarDays, Copy, ExternalLink, Link as LinkIcon, FileText, ZoomIn, ZoomOut, Move } from 'lucide-react';
+import { FaWhatsapp } from 'react-icons/fa';
 import { api } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -1158,6 +1159,16 @@ export default function ClienteDetalhes() {
                       
                       {/* Botões de Ação */}
                       <div className="flex items-center gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => copyToClipboard('(14) 99722-0616', 'Telefone WhatsApp copiado!')}
+                          className="h-8 w-8 bg-green-500/20 hover:bg-green-500/30 transition-all"
+                          title="Copiar WhatsApp"
+                        >
+                          <FaWhatsapp className="w-4 h-4 text-green-400" />
+                        </Button>
+                        
                         <Button
                           size="icon"
                           variant="ghost"
