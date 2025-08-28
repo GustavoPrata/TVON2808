@@ -146,13 +146,14 @@ export default function Apps() {
   };
 
   const filteredPontos = pontos?.filter((ponto: PontoComCliente) => {
-    // Exclude shamel apps from date-based filters
+    // Always exclude shamel apps from the list
+    if (ponto.aplicativo === 'shamel') return false;
+    
+    // Date-based filters
     if (filterType === 'vencidos') {
-      if (ponto.aplicativo === 'shamel') return false;
       const days = getDaysUntilExpiry(ponto.expiracao);
       if (days > 0) return false;
     } else if (filterType === 'proximos') {
-      if (ponto.aplicativo === 'shamel') return false;
       const days = getDaysUntilExpiry(ponto.expiracao);
       if (days <= 0 || days > diasFiltro) return false;
     }
@@ -174,7 +175,7 @@ export default function Apps() {
     return true;
   });
 
-  const totalAtivos = pontos?.filter(p => p.status === 'ativo').length || 0;
+  const totalAtivos = pontos?.filter(p => p.aplicativo !== 'shamel' && p.status === 'ativo').length || 0;
   const totalVencidos = pontos?.filter(p => p.aplicativo !== 'shamel' && getDaysUntilExpiry(p.expiracao) <= 0).length || 0;
   const totalProximos = pontos?.filter(p => {
     if (p.aplicativo === 'shamel') return false;
@@ -190,7 +191,7 @@ export default function Apps() {
     );
   }
 
-  const uniqueApps = Array.from(new Set(pontos?.map(p => p.aplicativo) || []));
+  const uniqueApps = Array.from(new Set(pontos?.filter(p => p.aplicativo !== 'shamel').map(p => p.aplicativo) || []));
 
   return (
     <div className="space-y-6">
@@ -211,7 +212,7 @@ export default function Apps() {
           
           <div className="flex items-center gap-3">
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">{pontos?.length || 0}</p>
+              <p className="text-2xl font-bold text-white">{pontos?.filter(p => p.aplicativo !== 'shamel').length || 0}</p>
               <p className="text-xs text-slate-400">Total</p>
             </div>
             <div className="text-center">
