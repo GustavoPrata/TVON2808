@@ -173,6 +173,11 @@ export default function Apps() {
     }
 
     return true;
+  })?.sort((a, b) => {
+    // Sort by expiration date in ascending order (earliest first)
+    const dateA = new Date(a.expiracao).getTime();
+    const dateB = new Date(b.expiracao).getTime();
+    return dateA - dateB;
   });
 
   const totalAtivos = pontos?.filter(p => p.aplicativo !== 'shamel' && p.status === 'ativo').length || 0;
