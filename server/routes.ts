@@ -1627,7 +1627,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send WhatsApp message if connected
       if (whatsappService && whatsappService.isConnected()) {
         try {
-          await whatsappService.sendTextMessage(telefone, mensagem);
+          await whatsappService.sendMessage(telefone, mensagem);
           
           // Record the sent notification
           const aviso = await storage.createAvisoVencimento({
@@ -1697,7 +1697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (whatsappService && whatsappService.isConnected()) {
           try {
-            await whatsappService.sendTextMessage(cliente.telefone, mensagemPersonalizada);
+            await whatsappService.sendMessage(cliente.telefone, mensagemPersonalizada);
             
             await storage.createAvisoVencimento({
               clienteId: cliente.id,
