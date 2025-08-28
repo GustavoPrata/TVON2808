@@ -1159,7 +1159,7 @@ export class WhatsAppService extends EventEmitter {
               modoAtendimento: "bot",
             });
             conversa.modoAtendimento = "bot";
-            await this.sendBotMenu(conversa.telefone, botNovos);
+            // Don't send menu here - processBot will handle it
             await this.processBot(conversa, message);
           }
         }
