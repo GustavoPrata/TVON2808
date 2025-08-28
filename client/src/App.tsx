@@ -17,7 +17,6 @@ import Apps from "@/pages/apps";
 import Chat from "@/pages/chat";
 import Tickets from "@/pages/tickets";
 import BotConfig from "@/pages/bot-config-new";
-import Integracoes from "@/pages/integracoes";
 import Logs from "@/pages/logs";
 import WhatsAppSettings from "@/pages/whatsapp-settings";
 import ConfigTV from "@/pages/config-tv";
@@ -40,7 +39,6 @@ function Router() {
       <Route path="/chat" component={Chat} />
       <Route path="/tickets" component={Tickets} />
       <Route path="/bot-config" component={BotConfig} />
-      <Route path="/integracoes" component={Integracoes} />
       <Route path="/config-tv" component={ConfigTV} />
       <Route path="/whatsapp-settings" component={WhatsAppSettings} />
       <Route path="/woovi" component={Woovi} />

@@ -43,7 +43,6 @@ const menuItems = [
   { path: '/tickets', icon: Ticket, label: 'Tickets', badge: 'tickets' },
   { path: '/ajuda', icon: HelpCircle, label: 'Ajuda' },
   { path: '/bot-config', icon: Bot, label: 'Config. Bot' },
-  { path: '/integracoes', icon: Settings, label: 'Integrações' },
   { path: '/woovi', icon: CreditCard, label: 'Woovi' },
   { path: '/indicacoes', icon: UserPlus, label: 'Indicações' },
   { path: '/config-tv', icon: Server, label: 'Config da API' },
