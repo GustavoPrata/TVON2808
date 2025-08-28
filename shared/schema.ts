@@ -52,6 +52,29 @@ export const indicacoes = pgTable("indicacoes", {
   observacoes: text("observacoes"),
 });
 
+// Avisos de Vencimento
+export const avisosVencimento = pgTable("avisos_vencimento", {
+  id: serial("id").primaryKey(),
+  clienteId: integer("cliente_id").references(() => clientes.id).notNull(),
+  telefone: varchar("telefone", { length: 20 }).notNull(),
+  dataVencimento: timestamp("data_vencimento").notNull(),
+  dataAviso: timestamp("data_aviso").notNull().defaultNow(),
+  tipoAviso: varchar("tipo_aviso", { length: 20 }).notNull(), // automatico, manual
+  statusEnvio: varchar("status_envio", { length: 20 }).notNull().default("enviado"), // enviado, erro
+  mensagemErro: text("mensagem_erro"),
+  mensagemEnviada: text("mensagem_enviada"),
+});
+
+// Configuração de Avisos de Vencimento
+export const configAvisos = pgTable("config_avisos", {
+  id: serial("id").primaryKey(),
+  horaAviso: varchar("hora_aviso", { length: 5 }).notNull().default("09:00"), // HH:MM
+  diasAntecedencia: integer("dias_antecedencia").notNull().default(0), // 0 = no dia do vencimento
+  ativo: boolean("ativo").notNull().default(true),
+  mensagemPadrao: text("mensagem_padrao").notNull().default("Olá {nome}! 👋\n\nSeu plano vence hoje. Renove agora para continuar aproveitando nossos serviços!\n\n💳 PIX disponível para pagamento rápido."),
+  ultimaExecucao: timestamp("ultima_execucao"),
+});
+
 // Mensagens Rápidas para Suporte
 export const mensagensRapidas = pgTable("mensagens_rapidas", {
   id: serial("id").primaryKey(),
@@ -467,3 +490,22 @@ export const insertTesteSchema = createInsertSchema(testes).omit({
 
 export type Teste = typeof testes.$inferSelect;
 export type InsertTeste = z.infer<typeof insertTesteSchema>;
+
+// Avisos de Vencimento types
+export const insertAvisoVencimentoSchema = createInsertSchema(avisosVencimento).omit({
+  id: true,
+  dataAviso: true,
+  statusEnvio: true,
+});
+
+export type AvisoVencimento = typeof avisosVencimento.$inferSelect;
+export type InsertAvisoVencimento = z.infer<typeof insertAvisoVencimentoSchema>;
+
+// Config Avisos types
+export const insertConfigAvisosSchema = createInsertSchema(configAvisos).omit({
+  id: true,
+  ultimaExecucao: true,
+});
+
+export type ConfigAvisos = typeof configAvisos.$inferSelect;
+export type InsertConfigAvisos = z.infer<typeof insertConfigAvisosSchema>;

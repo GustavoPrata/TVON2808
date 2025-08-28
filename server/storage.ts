@@ -2,6 +2,7 @@ import { db } from "./db";
 import { 
   clientes, pontos, pagamentos, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
+  avisosVencimento, configAvisos,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
@@ -10,7 +11,9 @@ import {
   type User, type InsertUser, type Sistema, type InsertSistema,
   type RedirectUrl, type InsertRedirectUrl, type WhatsappSettings, type InsertWhatsappSettings,
   type Teste, type InsertTeste, type Indicacao, type InsertIndicacao,
-  type MensagemRapida, type InsertMensagemRapida
+  type MensagemRapida, type InsertMensagemRapida,
+  type AvisoVencimento, type InsertAvisoVencimento,
+  type ConfigAvisos, type InsertConfigAvisos
 } from "@shared/schema";
 import { eq, desc, asc, sql, and, or, gte, lte, ilike, ne, count } from "drizzle-orm";
 
@@ -164,6 +167,16 @@ export interface IStorage {
   createPixState(data: any): Promise<any>;
   updatePixState(id: number, data: any): Promise<any>;
   deletePixState(conversaId: number): Promise<void>;
+
+  // Avisos de Vencimento
+  getAvisosVencimento(): Promise<AvisoVencimento[]>;
+  getAvisoByClienteId(clienteId: number, dataVencimento: Date): Promise<AvisoVencimento | undefined>;
+  createAvisoVencimento(aviso: InsertAvisoVencimento): Promise<AvisoVencimento>;
+  getAvisosHoje(): Promise<AvisoVencimento[]>;
+  
+  // Configuração de Avisos
+  getConfigAvisos(): Promise<ConfigAvisos | undefined>;
+  updateConfigAvisos(config: Partial<InsertConfigAvisos>): Promise<ConfigAvisos>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1148,6 +1161,79 @@ export class DatabaseStorage implements IStorage {
 
   async deletePixState(conversaId: number): Promise<void> {
     await db.delete(pixState).where(eq(pixState.conversaId, conversaId));
+  }
+
+  // Avisos de Vencimento Implementation
+  async getAvisosVencimento(): Promise<AvisoVencimento[]> {
+    return await db.select().from(avisosVencimento).orderBy(desc(avisosVencimento.dataAviso));
+  }
+
+  async getAvisoByClienteId(clienteId: number, dataVencimento: Date): Promise<AvisoVencimento | undefined> {
+    // Check if alert was sent today for this client
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const result = await db.select().from(avisosVencimento)
+      .where(and(
+        eq(avisosVencimento.clienteId, clienteId),
+        gte(avisosVencimento.dataAviso, today),
+        lte(avisosVencimento.dataAviso, tomorrow)
+      ))
+      .limit(1);
+    return result[0];
+  }
+
+  async createAvisoVencimento(aviso: InsertAvisoVencimento): Promise<AvisoVencimento> {
+    const result = await db.insert(avisosVencimento).values(aviso).returning();
+    return result[0];
+  }
+
+  async getAvisosHoje(): Promise<AvisoVencimento[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    return await db.select().from(avisosVencimento)
+      .where(and(
+        gte(avisosVencimento.dataAviso, today),
+        lte(avisosVencimento.dataAviso, tomorrow)
+      ))
+      .orderBy(desc(avisosVencimento.dataAviso));
+  }
+
+  // Configuração de Avisos Implementation
+  async getConfigAvisos(): Promise<ConfigAvisos | undefined> {
+    const result = await db.select().from(configAvisos).limit(1);
+    if (result.length === 0) {
+      // Create default config if not exists
+      const defaultConfig = await db.insert(configAvisos)
+        .values({
+          horaAviso: '09:00',
+          diasAntecedencia: 0,
+          ativo: true,
+          mensagemPadrao: 'Olá {nome}! 👋\n\nSeu plano vence hoje. Renove agora para continuar aproveitando nossos serviços!\n\n💳 PIX disponível para pagamento rápido.'
+        })
+        .returning();
+      return defaultConfig[0];
+    }
+    return result[0];
+  }
+
+  async updateConfigAvisos(config: Partial<InsertConfigAvisos>): Promise<ConfigAvisos> {
+    const existing = await this.getConfigAvisos();
+    if (existing) {
+      const result = await db.update(configAvisos)
+        .set(config)
+        .where(eq(configAvisos.id, existing.id))
+        .returning();
+      return result[0];
+    }
+    // Create if not exists
+    const result = await db.insert(configAvisos).values(config as InsertConfigAvisos).returning();
+    return result[0];
   }
 }
 

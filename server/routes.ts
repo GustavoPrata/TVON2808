@@ -1561,6 +1561,183 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Avisos de Vencimento Routes
+  app.get("/api/clientes-vencimentos", async (req, res) => {
+    try {
+      const clientes = await storage.getClientes();
+      // Filter only clients with expiry dates
+      const clientesComVencimento = clientes.filter(c => c.vencimento);
+      res.json(clientesComVencimento);
+    } catch (error) {
+      console.error("Error in /api/clientes-vencimentos:", error);
+      res.status(500).json({ error: "Erro ao buscar clientes com vencimentos" });
+    }
+  });
+
+  app.get("/api/avisos/hoje", async (req, res) => {
+    try {
+      const avisos = await storage.getAvisosHoje();
+      res.json(avisos);
+    } catch (error) {
+      console.error("Error in /api/avisos/hoje:", error);
+      res.status(500).json({ error: "Erro ao buscar avisos de hoje" });
+    }
+  });
+
+  app.get("/api/avisos/config", async (req, res) => {
+    try {
+      const config = await storage.getConfigAvisos();
+      res.json(config);
+    } catch (error) {
+      console.error("Error in /api/avisos/config:", error);
+      res.status(500).json({ error: "Erro ao buscar configuração de avisos" });
+    }
+  });
+
+  app.put("/api/avisos/config", async (req, res) => {
+    try {
+      const config = await storage.updateConfigAvisos(req.body);
+      res.json(config);
+    } catch (error) {
+      console.error("Error in /api/avisos/config:", error);
+      res.status(500).json({ error: "Erro ao atualizar configuração de avisos" });
+    }
+  });
+
+  app.post("/api/avisos/enviar", async (req, res) => {
+    try {
+      const { clienteId, telefone } = req.body;
+      
+      const cliente = await storage.getClienteById(clienteId);
+      if (!cliente) {
+        return res.status(404).json({ error: "Cliente não encontrado" });
+      }
+
+      // Check if already sent today
+      const avisoExistente = await storage.getAvisoByClienteId(clienteId, new Date());
+      if (avisoExistente) {
+        return res.status(400).json({ error: "Aviso já enviado hoje para este cliente" });
+      }
+
+      // Get config for message template
+      const config = await storage.getConfigAvisos();
+      let mensagem = config?.mensagemPadrao || 'Olá {nome}! Seu plano vence hoje. Entre em contato para renovar.';
+      mensagem = mensagem.replace('{nome}', cliente.nome);
+
+      // Send WhatsApp message if connected
+      if (whatsappService && whatsappService.isConnected()) {
+        try {
+          await whatsappService.sendTextMessage(telefone, mensagem);
+          
+          // Record the sent notification
+          const aviso = await storage.createAvisoVencimento({
+            clienteId,
+            telefone,
+            dataVencimento: cliente.vencimento || new Date(),
+            tipoAviso: 'manual',
+            statusEnvio: 'enviado',
+            mensagemEnviada: mensagem
+          });
+          
+          res.json({ success: true, aviso });
+        } catch (whatsappError) {
+          console.error("Erro ao enviar WhatsApp:", whatsappError);
+          
+          // Record failed notification
+          const aviso = await storage.createAvisoVencimento({
+            clienteId,
+            telefone,
+            dataVencimento: cliente.vencimento || new Date(),
+            tipoAviso: 'manual',
+            statusEnvio: 'erro',
+            mensagemErro: whatsappError.message
+          });
+          
+          res.status(500).json({ error: "Erro ao enviar mensagem WhatsApp" });
+        }
+      } else {
+        res.status(503).json({ error: "WhatsApp não conectado" });
+      }
+    } catch (error) {
+      console.error("Error in /api/avisos/enviar:", error);
+      res.status(500).json({ error: "Erro ao enviar aviso" });
+    }
+  });
+
+  app.post("/api/avisos/verificar-vencimentos", async (req, res) => {
+    try {
+      const config = await storage.getConfigAvisos();
+      if (!config?.ativo) {
+        return res.json({ message: "Avisos automáticos desativados", avisosEnviados: 0 });
+      }
+
+      // Get all clients expiring today
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const amanha = new Date(hoje);
+      amanha.setDate(amanha.getDate() + 1);
+      
+      const clientes = await storage.getClientes();
+      const clientesVencendoHoje = clientes.filter(cliente => {
+        if (!cliente.vencimento) return false;
+        const vencimento = new Date(cliente.vencimento);
+        vencimento.setHours(0, 0, 0, 0);
+        return vencimento.getTime() === hoje.getTime();
+      });
+
+      let avisosEnviados = 0;
+      let mensagem = config.mensagemPadrao || 'Olá {nome}! Seu plano vence hoje.';
+
+      for (const cliente of clientesVencendoHoje) {
+        // Check if already notified today
+        const avisoExistente = await storage.getAvisoByClienteId(cliente.id, new Date());
+        if (avisoExistente) continue;
+
+        const mensagemPersonalizada = mensagem.replace('{nome}', cliente.nome);
+
+        if (whatsappService && whatsappService.isConnected()) {
+          try {
+            await whatsappService.sendTextMessage(cliente.telefone, mensagemPersonalizada);
+            
+            await storage.createAvisoVencimento({
+              clienteId: cliente.id,
+              telefone: cliente.telefone,
+              dataVencimento: cliente.vencimento,
+              tipoAviso: 'automatico',
+              statusEnvio: 'enviado',
+              mensagemEnviada: mensagemPersonalizada
+            });
+            
+            avisosEnviados++;
+          } catch (error) {
+            console.error(`Erro ao enviar aviso para ${cliente.nome}:`, error);
+            
+            await storage.createAvisoVencimento({
+              clienteId: cliente.id,
+              telefone: cliente.telefone,
+              dataVencimento: cliente.vencimento,
+              tipoAviso: 'automatico',
+              statusEnvio: 'erro',
+              mensagemErro: error.message
+            });
+          }
+        }
+      }
+
+      // Update last execution time
+      await storage.updateConfigAvisos({ ultimaExecucao: new Date() });
+
+      res.json({
+        message: `${avisosEnviados} avisos enviados com sucesso`,
+        avisosEnviados,
+        totalVencendoHoje: clientesVencendoHoje.length
+      });
+    } catch (error) {
+      console.error("Error in /api/avisos/verificar-vencimentos:", error);
+      res.status(500).json({ error: "Erro ao verificar vencimentos" });
+    }
+  });
+
   // Conversas
   app.get("/api/conversas", async (req, res) => {
     try {
