@@ -1749,6 +1749,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Limpar conversas duplicadas
+  app.post("/api/conversas/limpar-duplicadas", async (req, res) => {
+    try {
+      const totalMerged = await storage.mergeConversasDuplicadas();
+      res.json({ 
+        success: true, 
+        message: `${totalMerged} conversas duplicadas foram mescladas com sucesso`,
+        totalMerged 
+      });
+    } catch (error) {
+      console.error("Error cleaning duplicate conversations:", error);
+      res.status(500).json({ error: "Erro ao limpar conversas duplicadas" });
+    }
+  });
+
   app.get("/api/conversas/:id/mensagens", async (req, res) => {
     try {
       const mensagens = await storage.getMensagensByConversaId(

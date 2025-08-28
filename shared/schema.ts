@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, numeric, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -141,7 +141,9 @@ export const conversas = pgTable("conversas", {
   profilePicture: text("profile_picture"), // URL da foto de perfil do cliente
   tipoUltimaMensagem: varchar("tipo_ultima_mensagem", { length: 20 }), // texto, imagem, video, audio, arquivo, sticker
   metadados: text("metadados"), // JSON string para armazenar metadados adicionais
-});
+}, (table) => ({
+  telefoneIdx: index("idx_conversas_telefone").on(table.telefone),
+}));
 
 // Mensagens do chat
 export const mensagens = pgTable("mensagens", {

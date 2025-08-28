@@ -51,6 +51,7 @@ export interface IStorage {
   createConversa(conversa: InsertConversa): Promise<Conversa>;
   updateConversa(id: number, conversa: Partial<InsertConversa>): Promise<Conversa>;
   deleteConversa(id: number): Promise<void>;
+  mergeConversasDuplicadas(): Promise<number>;
 
   // Mensagens
   getMensagensByConversaId(conversaId: number, limit?: number, offset?: number): Promise<Mensagem[]>;
@@ -469,6 +470,82 @@ export class DatabaseStorage implements IStorage {
     
     // Then delete the conversation itself
     await db.delete(conversas).where(eq(conversas.id, id));
+  }
+
+  async mergeConversasDuplicadas(): Promise<number> {
+    try {
+      // Busca todos os telefones com conversas duplicadas
+      const duplicados = await db.select({
+        telefone: conversas.telefone,
+        count: sql<number>`count(*)`,
+      })
+        .from(conversas)
+        .groupBy(conversas.telefone)
+        .having(sql`count(*) > 1`);
+
+      let totalMerged = 0;
+
+      for (const { telefone } of duplicados) {
+        // Busca todas as conversas deste telefone ordenadas por data (mais recente primeiro)
+        const conversasDuplicadas = await db.select()
+          .from(conversas)
+          .where(eq(conversas.telefone, telefone))
+          .orderBy(desc(conversas.dataUltimaMensagem), desc(conversas.id));
+
+        if (conversasDuplicadas.length > 1) {
+          const conversaPrincipal = conversasDuplicadas[0]; // Mantém a mais recente
+          const conversasParaDeletar = conversasDuplicadas.slice(1);
+
+          // Move todas as mensagens das conversas duplicadas para a conversa principal
+          for (const conversaDup of conversasParaDeletar) {
+            await db.update(mensagens)
+              .set({ conversaId: conversaPrincipal.id })
+              .where(eq(mensagens.conversaId, conversaDup.id));
+
+            // Move tickets se houver
+            await db.update(tickets)
+              .set({ conversaId: conversaPrincipal.id })
+              .where(eq(tickets.conversaId, conversaDup.id));
+
+            // Move PIX state se houver
+            const pixStateRows = await db.select()
+              .from(pixState)
+              .where(eq(pixState.conversaId, conversaDup.id))
+              .limit(1);
+              
+            if (pixStateRows.length > 0) {
+              // Verifica se já existe um PIX state para a conversa principal
+              const existingPixState = await db.select()
+                .from(pixState)
+                .where(eq(pixState.conversaId, conversaPrincipal.id))
+                .limit(1);
+                
+              if (existingPixState.length === 0) {
+                // Move o PIX state para a conversa principal
+                await db.update(pixState)
+                  .set({ conversaId: conversaPrincipal.id })
+                  .where(eq(pixState.conversaId, conversaDup.id));
+              } else {
+                // Se já existe, deleta o duplicado
+                await db.delete(pixState)
+                  .where(eq(pixState.conversaId, conversaDup.id));
+              }
+            }
+
+            // Deleta a conversa duplicada
+            await db.delete(conversas).where(eq(conversas.id, conversaDup.id));
+            totalMerged++;
+          }
+
+          console.log(`Merged ${conversasParaDeletar.length} duplicate conversations for ${telefone}`);
+        }
+      }
+
+      return totalMerged;
+    } catch (error) {
+      console.error('Error merging duplicate conversations:', error);
+      throw error;
+    }
   }
 
   async deleteMessagesByConversaId(conversaId: number): Promise<void> {

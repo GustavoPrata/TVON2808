@@ -822,8 +822,8 @@ export class WhatsAppService extends EventEmitter {
         let conversa = await storage.getConversaByTelefone(phone);
         
         if (!conversa) {
-          // Double-check to prevent race condition
-          await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+          // Double-check to prevent race condition with longer delay
+          await new Promise(resolve => setTimeout(resolve, 200)); // Increased delay
           conversa = await storage.getConversaByTelefone(phone);
           
           if (!conversa) {
@@ -858,25 +858,34 @@ export class WhatsAppService extends EventEmitter {
               }
             }
 
-            conversa = await storage.createConversa({
-              telefone: phone,
-              nome: pushName || phone,
-              ultimaMensagem: displayMessage,
-              modoAtendimento: "bot",
-              mensagensNaoLidas: this.settings?.markMessagesRead ? 0 : 1,
-              lastSeen: new Date(),
-              isOnline: true,
-              ultimoRemetente: "cliente",
-              profilePicture: profilePictureUrl,
-              tipoUltimaMensagem: message?.type || "text",
-            });
-            
-            console.log(`New conversation created for ${phone} with ID ${conversa.id}`);
+            try {
+              conversa = await storage.createConversa({
+                telefone: phone,
+                nome: pushName || phone,
+                ultimaMensagem: displayMessage,
+                modoAtendimento: "bot",
+                mensagensNaoLidas: this.settings?.markMessagesRead ? 0 : 1,
+                lastSeen: new Date(),
+                isOnline: true,
+                ultimoRemetente: "cliente",
+                profilePicture: profilePictureUrl,
+                tipoUltimaMensagem: message?.type || "text",
+              });
+              
+              console.log(`New conversation created for ${phone} with ID ${conversa.id}`);
+            } catch (createError: any) {
+              // Se a criação falhar por duplicação, busca novamente
+              console.log(`Creation failed, likely duplicate. Fetching again for ${phone}`);
+              conversa = await storage.getConversaByTelefone(phone);
+              if (!conversa) {
+                throw createError; // Re-throw if still not found
+              }
+            }
           } else {
             console.log(`Conversation already exists for ${phone} (found on double-check)`);
           }
         } else {
-          console.log(`Existing conversation found for ${phone}`);
+          console.log(`Existing conversation found for ${phone} with ID ${conversa.id}`);
         }
         
         return conversa;
@@ -884,7 +893,7 @@ export class WhatsAppService extends EventEmitter {
         // Clean up the lock after a delay
         setTimeout(() => {
           this.conversationCreationLocks.delete(phone);
-        }, 1000);
+        }, 2000); // Increased lock retention time
       }
     })();
 
