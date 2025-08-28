@@ -26,6 +26,7 @@ export interface IStorage {
   searchClientes(term: string, tipo?: string): Promise<Cliente[]>;
 
   // Pontos
+  getPontos(): Promise<Ponto[]>;
   getPontosByClienteId(clienteId: number): Promise<Ponto[]>;
   getAllPontos(): Promise<Ponto[]>;
   getPontoById(id: number): Promise<Ponto | undefined>;
@@ -294,6 +295,10 @@ export class DatabaseStorage implements IStorage {
         )
       ).orderBy(desc(clientes.dataCadastro));
     }
+  }
+
+  async getPontos(): Promise<Ponto[]> {
+    return await db.select().from(pontos).orderBy(desc(pontos.expiracao));
   }
 
   async getPontosByClienteId(clienteId: number): Promise<Ponto[]> {
