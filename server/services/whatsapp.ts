@@ -4247,9 +4247,12 @@ export class WhatsAppService extends EventEmitter {
           // Send expired client menu
           const daysExpired = Math.ceil((new Date().getTime() - new Date(cliente.vencimento).getTime()) / (1000 * 60 * 60 * 24));
           
+          // Use apenas o primeiro nome
+          const primeiroNome = cliente.nome.split(' ')[0];
+          
           const expiredMenu =
             `⚠️ *PLANO VENCIDO*\n\n` +
-            `${greeting}, *${cliente.nome}!*\n\n` +
+            `${greeting}, *${primeiroNome}!*\n\n` +
             `Seu plano venceu há ${daysExpired} ${daysExpired === 1 ? 'dia' : 'dias'}.\n` +
             `Vencimento: ${new Date(cliente.vencimento).toLocaleDateString('pt-BR')}\n\n` +
             `Escolha uma opção:\n\n` +

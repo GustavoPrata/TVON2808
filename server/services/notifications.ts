@@ -109,7 +109,8 @@ export class NotificationService {
         const diffTime = vencimento.getTime() - hoje.getTime();
         const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
-        console.log(`📅 Cliente: ${cliente.nome} - Vencimento em ${diasRestantes} dias`);
+        const primeiroNome = cliente.nome.split(' ')[0];
+        console.log(`📅 Cliente: ${primeiroNome} - Vencimento em ${diasRestantes} dias`);
         
         // Verificar se está dentro do período de aviso (vencido ou vencendo)
         if (diasRestantes <= config.diasAntecedencia || diasRestantes === 0 || diasRestantes < 0) {
@@ -165,7 +166,7 @@ export class NotificationService {
         phoneNumber = '55' + phoneNumber;
       }
 
-      console.log(`📱 Enviando aviso para ${cliente.nome} (${phoneNumber})...`);
+      console.log(`📱 Enviando aviso para ${primeiroNome} (${phoneNumber})...`);
       const sucesso = await whatsappService.sendMessage(phoneNumber, mensagem);
       
       if (sucesso) {
@@ -183,11 +184,11 @@ export class NotificationService {
           mensagemEnviada: mensagem
         });
         
-        console.log(`✅ Notificação enviada para ${cliente.nome}`);
-        await this.logActivity('info', `Notificação de vencimento enviada para ${cliente.nome}`);
+        console.log(`✅ Notificação enviada para ${primeiroNome}`);
+        await this.logActivity('info', `Notificação de vencimento enviada para ${primeiroNome}`);
       } else {
-        console.log(`❌ Falha ao enviar para ${cliente.nome}`);
-        await this.logActivity('error', `Falha ao enviar notificação para ${cliente.nome}`);
+        console.log(`❌ Falha ao enviar para ${primeiroNome}`);
+        await this.logActivity('error', `Falha ao enviar notificação para ${primeiroNome}`);
       }
     } catch (error) {
       console.error('❌ Erro ao enviar notificação:', error);
@@ -219,9 +220,10 @@ export class NotificationService {
             phoneNumber = '55' + phoneNumber;
           }
 
+          const primeiroNome = cliente.nome.split(' ')[0];
           await whatsappService.sendMessage(
             phoneNumber,
-            `Olá ${cliente.nome}! Seu pagamento PIX expirou. Entre em contato para gerar um novo.`
+            `Olá ${primeiroNome}! Seu pagamento PIX expirou. Entre em contato para gerar um novo.`
           );
         }
       }
