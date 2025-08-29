@@ -68,6 +68,18 @@ export class WhatsAppService extends EventEmitter {
   private conversationCreationLocks: Map<string, Promise<any>> = new Map(); // Prevent duplicate conversation creation
   private processedMessagesOnStartup: Set<string> = new Set(); // Track processed messages during startup
 
+  // Verificar se está rodando no Replit (bloquear envio se estiver)
+  private isReplitEnvironment(): boolean {
+    const isReplit = process.env.REPLIT_DOMAINS || process.env.REPLIT || process.env.REPL_ID;
+    console.log('🔍 Verificando ambiente:', {
+      REPLIT_DOMAINS: !!process.env.REPLIT_DOMAINS,
+      REPLIT: !!process.env.REPLIT,
+      REPL_ID: !!process.env.REPL_ID,
+      isReplitEnvironment: !!isReplit
+    });
+    return !!isReplit;
+  }
+
   constructor() {
     super();
     // Initialize WhatsApp service
@@ -4748,6 +4760,12 @@ export class WhatsAppService extends EventEmitter {
     message: string,
     replyTo?: any,
   ): Promise<string | null> {
+    // Verificar se está no ambiente Replit e bloquear envio
+    if (this.isReplitEnvironment()) {
+      console.log('🚫 Envio de mensagem bloqueado - servidor Replit não deve enviar mensagens WhatsApp');
+      return null;
+    }
+
     if (!this.sock) {
       console.error("Socket WhatsApp não está conectado");
       return null;
@@ -4848,6 +4866,12 @@ export class WhatsAppService extends EventEmitter {
     replyTo?: any,
     skipSaveMessage: boolean = false,
   ): Promise<string | null> {
+    // Verificar se está no ambiente Replit e bloquear envio
+    if (this.isReplitEnvironment()) {
+      console.log('🚫 Envio de imagem bloqueado - servidor Replit não deve enviar mensagens WhatsApp');
+      return null;
+    }
+
     if (!this.sock) {
       console.error("Socket WhatsApp não está conectado");
       return null;
@@ -4966,6 +4990,12 @@ export class WhatsAppService extends EventEmitter {
     buttons: Array<{ id: string; displayText: string }>,
     footer?: string,
   ): Promise<string | null> {
+    // Verificar se está no ambiente Replit e bloquear envio
+    if (this.isReplitEnvironment()) {
+      console.log('🚫 Envio de botões bloqueado - servidor Replit não deve enviar mensagens WhatsApp');
+      return null;
+    }
+
     if (!this.sock) {
       console.error("Socket WhatsApp não está conectado");
       return null;
@@ -5067,6 +5097,12 @@ export class WhatsAppService extends EventEmitter {
       rows: Array<{ id: string; title: string; description?: string }>;
     }>,
   ): Promise<string | null> {
+    // Verificar se está no ambiente Replit e bloquear envio
+    if (this.isReplitEnvironment()) {
+      console.log('🚫 Envio de lista bloqueado - servidor Replit não deve enviar mensagens WhatsApp');
+      return null;
+    }
+
     if (!this.sock) {
       console.error("Socket WhatsApp não está conectado");
       return null;
@@ -5204,6 +5240,12 @@ export class WhatsAppService extends EventEmitter {
   }
 
   async sendMedia(to: string, media: any): Promise<string | null> {
+    // Verificar se está no ambiente Replit e bloquear envio
+    if (this.isReplitEnvironment()) {
+      console.log('🚫 Envio de mídia bloqueado - servidor Replit não deve enviar mensagens WhatsApp');
+      return null;
+    }
+
     if (!this.sock) {
       console.error("Socket WhatsApp não está conectado");
       return null;
