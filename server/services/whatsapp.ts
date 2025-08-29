@@ -4782,18 +4782,14 @@ export class WhatsAppService extends EventEmitter {
 
       console.log("Message sent result:", result?.key);
 
-      // Get or create conversation
-      let conversa = await storage.getConversaByTelefone(to);
-      if (!conversa) {
-        // Create conversation if it doesn't exist
-        conversa = await storage.createConversa({
-          telefone: to,
-          ultimaMensagem: message,
-          ultimoRemetente: "sistema",
-          tipoUltimaMensagem: "text",
-          mensagensNaoLidas: 0,
-        });
-      }
+      // Get or create conversation using the mutex-protected method to prevent duplicates
+      let conversa = await this.getOrCreateConversation(to, undefined, {
+        from: to,
+        id: result?.key?.id || "",
+        message: message,
+        type: "text",
+        timestamp: new Date().toISOString(),
+      });
 
       // Save message to database like a normal message
       const whatsappMessageId = result?.key?.id || null;
