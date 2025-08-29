@@ -3707,13 +3707,21 @@ Como posso ajudar você hoje?
       // O Woovi autentica webhooks usando a própria API Key, não precisa validar assinatura adicional
       // A segurança vem do endpoint único e da validação dos dados
 
-      // Processar evento do webhook
-      await pixService.processWebhook(req.body);
-
+      // Sempre responder sucesso primeiro para evitar reenvios
       res.status(200).json({ received: true });
+
+      // Processar evento do webhook de forma assíncrona
+      try {
+        await pixService.processWebhook(req.body);
+      } catch (processingError) {
+        console.error("Erro ao processar webhook (não crítico):", processingError);
+        // Não retornar erro para o Woovi, apenas logar
+      }
+
     } catch (error) {
-      console.error("Erro ao processar webhook:", error);
-      res.status(500).json({ error: "Erro ao processar webhook" });
+      console.error("Erro crítico no webhook:", error);
+      // Se falhar antes de responder, retornar erro
+      res.status(200).json({ received: true, error: "Processamento interno falhou" });
     }
   });
 
