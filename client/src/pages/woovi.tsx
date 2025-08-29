@@ -76,6 +76,7 @@ export default function Woovi() {
   const { toast } = useToast();
   const [appId, setAppId] = useState('');
   const [correlationId, setCorrelationId] = useState('');
+  const [authorization, setAuthorization] = useState('');
   const [expiresIn, setExpiresIn] = useState('86400'); // 24 horas padrão
   const [testValor, setTestValor] = useState('10.00');
   const [testDescricao, setTestDescricao] = useState('Teste de PIX - TV ON Sistema');
@@ -95,6 +96,7 @@ export default function Woovi() {
       if (pixConfig && pixConfig.configuracoes) {
         setAppId(pixConfig.configuracoes.appId || '');
         setCorrelationId(pixConfig.configuracoes.correlationID || '');
+        setAuthorization(pixConfig.configuracoes.authorization || '');
         setExpiresIn(String(pixConfig.configuracoes.expiresIn || 86400));
         if (pixConfig.configuracoes.appId) {
           setShowConfig(true);
@@ -132,6 +134,7 @@ export default function Woovi() {
         body: JSON.stringify({
           appId,
           correlationID: correlationId || `TVON_PIX_${Date.now()}`,
+          authorization: authorization || '',
           expiresIn: parseInt(expiresIn) || 86400
         })
       });
@@ -296,6 +299,20 @@ export default function Woovi() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="authorization" className="text-slate-200">Authorization (Para Webhook)</Label>
+                  <Input
+                    id="authorization"
+                    value={authorization}
+                    onChange={(e) => setAuthorization(e.target.value)}
+                    placeholder="Bearer token ou chave de autorização"
+                    className="bg-slate-700/50 border-slate-600 text-slate-100 placeholder:text-slate-500"
+                  />
+                  <p className="text-sm text-slate-500">
+                    Token de autorização para validar webhooks
+                  </p>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="correlationId" className="text-slate-200">Correlation ID (Opcional)</Label>
                   <Input
                     id="correlationId"
@@ -415,11 +432,33 @@ export default function Woovi() {
                       <div className="mt-2 p-2 bg-slate-700/50 rounded font-mono text-sm break-all text-slate-100">
                         https://tv-on.site/api/pix/webhook
                       </div>
+                      {authorization && (
+                        <>
+                          <strong className="block mt-3">Authorization Header:</strong>
+                          <div className="mt-2 p-2 bg-slate-700/50 rounded font-mono text-sm break-all text-slate-100 flex items-center justify-between">
+                            <span>{authorization}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                navigator.clipboard.writeText(authorization);
+                                toast({
+                                  title: 'Copiado!',
+                                  description: 'Authorization copiado para a área de transferência'
+                                });
+                              }}
+                              className="ml-2 h-6 w-6 p-0 hover:bg-slate-600"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
                       <p className="mt-2 text-sm">
                         Configure os eventos: <strong className="text-green-400">OPENPIX:CHARGE_COMPLETED</strong> e <strong className="text-green-400">OPENPIX:CHARGE_EXPIRED</strong>
                       </p>
                       <p className="mt-1 text-sm text-slate-400">
-                        A autenticação do webhook é feita automaticamente através da sua API Key
+                        {authorization ? 'Use o Authorization Header acima para autenticar o webhook' : 'Configure um Authorization para autenticar o webhook'}
                       </p>
                     </AlertDescription>
                   </Alert>

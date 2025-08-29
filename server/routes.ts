@@ -3487,10 +3487,10 @@ Como posso ajudar você hoje?
     }
   });
 
-  // Configuração PIX para Woovi (sem webhookSecret pois Woovi usa API key)
+  // Configuração PIX para Woovi (com authorization para webhook)
   app.post("/api/pix/configure", async (req, res) => {
     try {
-      const { appId, correlationID, expiresIn } = req.body;
+      const { appId, correlationID, authorization, expiresIn } = req.body;
 
       // Salvar configuração no banco
       const existingConfig = await storage.getIntegracaoByTipo("pix");
@@ -3498,6 +3498,7 @@ Como posso ajudar você hoje?
       const configuracoes = {
         appId,
         correlationID: correlationID || `TVON_PIX_${Date.now()}`,
+        authorization: authorization || '',
         expiresIn: expiresIn || 86400, // 24h padrão
       };
 
@@ -3704,8 +3705,27 @@ Como posso ajudar você hoje?
       console.log("Headers:", req.headers);
       console.log("Body:", JSON.stringify(req.body, null, 2));
 
-      // O Woovi autentica webhooks usando a própria API Key, não precisa validar assinatura adicional
-      // A segurança vem do endpoint único e da validação dos dados
+      // Validar Authorization header se configurado
+      const config = await storage.getIntegracaoByTipo("pix");
+      if (config && config.configuracoes && config.configuracoes.authorization) {
+        const authHeader = req.headers.authorization;
+        const expectedAuth = config.configuracoes.authorization;
+        
+        console.log("🔐 Validando Authorization:", {
+          received: authHeader ? 'Presente' : 'Ausente',
+          expected: expectedAuth ? 'Configurado' : 'Não configurado'
+        });
+
+        if (!authHeader || authHeader !== expectedAuth) {
+          console.warn("⚠️ Authorization inválido no webhook");
+          console.warn("Recebido:", authHeader);
+          console.warn("Esperado:", expectedAuth);
+          return res.status(401).json({ error: "Não autorizado" });
+        }
+        console.log("✅ Authorization válido");
+      } else {
+        console.log("ℹ️ Nenhum Authorization configurado - processando sem validação");
+      }
 
       // Sempre responder sucesso primeiro para evitar reenvios
       res.status(200).json({ received: true });
