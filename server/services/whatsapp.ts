@@ -95,6 +95,26 @@ export class WhatsAppService extends EventEmitter {
     this.emit(type, data);
   }
 
+  // Public method to reset reconnection attempts and force restart
+  async forceRestart() {
+    console.log("🔄 Forçando reinício da conexão WhatsApp...");
+    this.reconnectAttempts = 0;
+    this.isReconnecting = false;
+    
+    // Disconnect current connection if exists
+    if (this.sock) {
+      try {
+        await this.sock.ws.close();
+      } catch (error) {
+        console.log("⚠️ Erro ao fechar conexão durante restart forçado:", error);
+      }
+      this.sock = null;
+    }
+    
+    // Initialize fresh connection
+    await this.initialize();
+  }
+
   async initialize() {
     // Prevent multiple simultaneous initializations
     if (this.sock?.ws && this.connectionState.connection === "open") {
@@ -134,25 +154,27 @@ export class WhatsAppService extends EventEmitter {
         auth: state,
         printQRInTerminal: false,
         browser: ["TV ON System", "Chrome", "1.0.0"],
-        // Connection timeout and retry configs for stable connection
-        connectTimeoutMs: 60000,
-        defaultQueryTimeoutMs: 60000,
-        // Keep connection alive with regular pings
-        keepAliveIntervalMs: 30000,
+        // Connection timeout and retry configs optimized for Replit
+        connectTimeoutMs: 30000,
+        defaultQueryTimeoutMs: 30000,
+        // Keep connection alive with shorter intervals
+        keepAliveIntervalMs: 15000,
         // Retry configuration for failed operations
-        retryRequestDelayMs: 1000,
-        maxMsgRetryCount: 5,
+        retryRequestDelayMs: 500,
+        maxMsgRetryCount: 3,
+        // QR generation timeout settings
+        qrTimeout: 45000,
         // Socket configuration for stable connection
         syncFullHistory: false,
         // Optimize for production environment
         shouldSyncHistoryMessage: () => false,
         shouldIgnoreJid: () => false,
-        // Add default presence to available
-        markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? true,
-        // Enable automatic receipt acknowledgment
-        markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? true,
+        // Add default presence setting (removed duplicate)
+        markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? false,
         // Handle disconnections more gracefully
         emitOwnEvents: false,
+        // Disable some features for better stability
+        generateHighQualityLinkPreview: false,
       }) as any;
 
       this.sock.ev.on("connection.update", (update) => {
@@ -532,37 +554,47 @@ export class WhatsAppService extends EventEmitter {
         let reconnectDelay = 2000;
         let shouldClearSession = false;
 
+        // Limit QR timeout attempts to prevent infinite loops
+        if (isQRTimeout && this.reconnectAttempts >= 5) {
+          console.log("🛑 Muitas tentativas de QR Code falharam. Parando reconexão automática.");
+          console.log("🔧 Para reconectar, reinicie o servidor ou escaneie um novo QR Code.");
+          this.isReconnecting = false;
+          this.emit("qr_max_attempts_reached");
+          return;
+        }
+
         if (isConflict) {
           // Only clear session on real conflicts (multiple devices)
           console.log("🔄 Conflito de sessão detectado - limpando credenciais");
           shouldClearSession = true;
-          reconnectDelay = 1000;
+          reconnectDelay = 3000;
           this.reconnectAttempts = 0;
         } else if (isAuthFailure && !isQRTimeout) {
           // Only clear on real auth failures, not QR timeouts
           console.log("🔄 Falha de autenticação detectada - limpando credenciais");
           shouldClearSession = true;
-          reconnectDelay = 3000;
+          reconnectDelay = 5000;
           this.reconnectAttempts = 0;
         } else if (isQRTimeout) {
-          // QR timeout - check if we have valid credentials first
+          // QR timeout - use progressive delays to avoid flooding
           console.log("⏰ Timeout do QR Code - verificando credenciais existentes");
           const hasValidCreds = await this.checkExistingCredentials();
           if (hasValidCreds) {
             console.log("✅ Tentando reconectar com credenciais existentes");
-            reconnectDelay = 2000;
+            reconnectDelay = 3000;
           } else {
-            console.log("❌ Sem credenciais válidas - gerará novo QR");
-            reconnectDelay = 1000;
+            console.log("❌ Sem credenciais válidas - aguardando mais tempo antes do próximo QR");
+            // Progressive delay: 5s, 10s, 20s, 30s, 60s
+            reconnectDelay = Math.min(60000, 5000 * Math.pow(2, Math.min(this.reconnectAttempts, 4)));
           }
-        } else if (this.reconnectAttempts > 10) {
+        } else if (this.reconnectAttempts > 15) {
           // Only clear session after many failed attempts
           console.log("🔄 Muitas tentativas falharam - limpando sessão");
           shouldClearSession = true;
-          reconnectDelay = Math.min(30000, 5000 * Math.min(this.reconnectAttempts - 10, 5));
+          reconnectDelay = Math.min(60000, 10000 * Math.min(this.reconnectAttempts - 15, 3));
         } else {
-          // For other errors, just reconnect
-          reconnectDelay = 2000;
+          // For other errors, use progressive delay
+          reconnectDelay = Math.min(10000, 2000 * Math.min(this.reconnectAttempts + 1, 5));
         }
 
         // Clear session only when really necessary
@@ -582,6 +614,8 @@ export class WhatsAppService extends EventEmitter {
         // User logged out manually - clear session
         console.log("👋 Logout manual detectado - limpando sessão");
         await this.clearAuthSession();
+      } else if (this.isReconnecting) {
+        console.log("🔄 Reconexão já em andamento, ignorando...");
       }
 
       this.emit("disconnected");

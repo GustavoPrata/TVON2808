@@ -2504,6 +2504,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Force restart WhatsApp connection (resets attempt counter)
+  app.post("/api/whatsapp/force-restart", async (req, res) => {
+    try {
+      await whatsappService.forceRestart();
+      res.json({ message: "Reinício forçado da conexão WhatsApp iniciado" });
+    } catch (error) {
+      console.error("Erro ao forçar restart:", error);
+      res.status(500).json({ error: "Erro ao forçar restart do WhatsApp" });
+    }
+  });
+
   // Request pairing code for phone number authentication
   app.post("/api/whatsapp/request-pairing-code", async (req, res) => {
     try {
