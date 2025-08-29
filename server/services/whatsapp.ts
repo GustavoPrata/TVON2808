@@ -102,24 +102,30 @@ export class WhatsAppService extends EventEmitter {
       return;
     }
 
+    console.log("🚀 Inicializando WhatsApp com conexão persistente...");
+
     try {
       // Load saved settings from database
       const savedSettings = await storage.getWhatsAppSettings();
       if (savedSettings) {
         this.settings = savedSettings;
-        console.log("Loaded WhatsApp settings from database:", this.settings);
+        console.log("✅ Configurações do WhatsApp carregadas do banco:", this.settings);
       }
 
+      // Use persistent auth state with better error handling
       const { state, saveCreds } = await useMultiFileAuthState(
         "./auth_info_baileys",
       );
+
+      console.log("📁 Estado de autenticação carregado");
 
       // Close existing connection if any
       if (this.sock) {
         try {
           await this.sock.ws.close();
+          console.log("🔌 Conexão existente fechada");
         } catch (error) {
-          console.log("Error closing existing connection:", error);
+          console.log("⚠️ Erro ao fechar conexão existente:", error);
         }
         this.sock = null;
       }
@@ -128,10 +134,25 @@ export class WhatsAppService extends EventEmitter {
         auth: state,
         printQRInTerminal: false,
         browser: ["TV ON System", "Chrome", "1.0.0"],
-        // Add connection timeout to prevent hanging
+        // Connection timeout and retry configs for stable connection
         connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 60000,
+        // Keep connection alive with regular pings
+        keepAliveIntervalMs: 30000,
+        // Retry configuration for failed operations
+        retryRequestDelayMs: 1000,
+        maxMsgRetryCount: 5,
+        // Socket configuration for stable connection
+        syncFullHistory: false,
+        // Optimize for production environment
+        shouldSyncHistoryMessage: () => false,
+        shouldIgnoreJid: () => false,
         // Add default presence to available
         markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? true,
+        // Enable automatic receipt acknowledgment
+        markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? true,
+        // Handle disconnections more gracefully
+        emitOwnEvents: false,
       }) as any;
 
       this.sock.ev.on("connection.update", (update) => {
@@ -196,18 +217,29 @@ export class WhatsAppService extends EventEmitter {
         }
       });
 
+      console.log("✅ Serviço WhatsApp inicializado com conexão persistente");
+      console.log("🔄 Monitoramento ativo: Keep-alive a cada 15s, verificação de saúde a cada 10s");
+      
       await this.logActivity(
         "info",
         "WhatsApp",
-        "Serviço WhatsApp inicializado",
+        "Serviço WhatsApp inicializado com conexão persistente 24/7",
       );
     } catch (error) {
-      console.error("Erro ao inicializar WhatsApp:", error);
+      console.error("❌ Erro ao inicializar WhatsApp:", error);
       await this.logActivity(
         "error",
         "WhatsApp",
-        `Erro ao inicializar: ${error}`,
+        `Erro ao inicializar conexão persistente: ${error}`,
       );
+      
+      // Even if initialization fails, try to reconnect
+      if (!this.isReconnecting) {
+        console.log("🔄 Tentando reconectar em 3 segundos...");
+        setTimeout(() => {
+          this.initialize();
+        }, 3000);
+      }
     }
   }
 
@@ -455,12 +487,12 @@ export class WhatsAppService extends EventEmitter {
       if (shouldReconnect && !this.isReconnecting) {
         this.isReconnecting = true;
 
-        // Handle different error types with appropriate delays
-        let reconnectDelay = 5000; // Default 5 seconds
+        // Handle different error types with more aggressive reconnection
+        let reconnectDelay = 2000; // Reduced default delay to 2 seconds
 
         if (isConflict) {
           // For conflicts, clear session and reconnect immediately
-          console.log("Conflito detectado, limpando sessão e reconectando...");
+          console.log("🔄 Conflito detectado, limpando sessão e reconectando...");
           try {
             // Clear auth state to force new session
             const fs = await import("fs/promises");
@@ -483,12 +515,12 @@ export class WhatsAppService extends EventEmitter {
           } catch (error) {
             console.error("Erro ao limpar sessão:", error);
           }
-          reconnectDelay = 2000; // Reconnect quickly after clearing session
+          reconnectDelay = 1000; // Reconnect very quickly after clearing session
           this.reconnectAttempts = 0; // Reset attempts on conflict
         } else if (errorCode === 401 || isAuthFailure) {
-          // For auth failures, clear session and wait
-          reconnectDelay = 5000;
-          console.log("Falha de autenticação detectada, limpando sessão...");
+          // For auth failures, clear session and wait less
+          reconnectDelay = 3000;
+          console.log("🔄 Falha de autenticação detectada, limpando sessão...");
 
           // Clear auth state on 401 error
           try {
@@ -512,19 +544,23 @@ export class WhatsAppService extends EventEmitter {
             console.error("Erro ao limpar sessão:", error);
           }
           this.reconnectAttempts = 0; // Reset attempts
-        } else if (this.reconnectAttempts > 2) {
-          // Progressive backoff for repeated failures
-          reconnectDelay = Math.min(30000, 5000 * this.reconnectAttempts);
+        } else if (this.reconnectAttempts > 5) {
+          // More aggressive retry - only back off after 5+ attempts
+          reconnectDelay = Math.min(15000, 3000 * Math.min(this.reconnectAttempts - 5, 3));
+        } else {
+          // For other errors, reconnect quickly
+          reconnectDelay = 2000;
         }
 
-        // Always try to reconnect
+        // Always try to reconnect - be persistent!
         this.reconnectAttempts++;
         console.log(
-          `Reconectando em ${reconnectDelay / 1000}s (tentativa ${this.reconnectAttempts})...`,
+          `🔄 Reconectando em ${reconnectDelay / 1000}s (tentativa ${this.reconnectAttempts}) - Conexão persistente ativada`,
         );
 
         setTimeout(() => {
           this.isReconnecting = false;
+          console.log("🚀 Iniciando reconexão automática...");
           this.initialize();
         }, reconnectDelay);
       } else if (!shouldReconnect) {
@@ -559,13 +595,20 @@ export class WhatsAppService extends EventEmitter {
       this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
       this.isReconnecting = false;
       this.emit("connected");
-      await this.logActivity("info", "WhatsApp", "Conectado com sucesso");
+      
+      console.log("🎉 WhatsApp conectado com sucesso! Conexão persistente ativada.");
+      console.log("📱 Sistema configurado para manter conexão 24/7");
+      
+      await this.logActivity("info", "WhatsApp", "Conectado com sucesso - Conexão persistente ativada");
 
       // Apply settings when connected
       await this.applySettings(this.settings);
 
-      // Set up keep-alive mechanism
+      // Set up robust keep-alive mechanism
       this.setupKeepAlive();
+
+      // Additional connection hardening
+      this.setupConnectionHardening();
     }
 
     this.connectionState = { ...this.connectionState, ...update };
@@ -5437,17 +5480,27 @@ export class WhatsAppService extends EventEmitter {
       clearInterval(this.keepAliveInterval);
     }
 
-    // Set up keep-alive ping every 30 seconds
+    console.log("🔧 Configurando keep-alive robusto para conexão persistente");
+
+    // Set up keep-alive ping every 15 seconds for more frequent checks
     this.keepAliveInterval = setInterval(async () => {
       if (this.sock && this.connectionState.connection === "open") {
         try {
-          // Only send presence update if markOnlineOnConnect is true
+          // Verify connection health first
+          const connectionHealth = await this.checkConnectionHealth();
+          
+          if (!connectionHealth) {
+            console.log("⚠️ Conexão não está saudável, forçando reconexão...");
+            this.forceReconnect();
+            return;
+          }
+
+          // Send keep-alive ping
           if (this.settings?.markOnlineOnConnect) {
             await this.sock.sendPresenceUpdate("available");
-            console.log("Keep-alive ping sent with presence update");
+            console.log("✅ Keep-alive ping sent with presence update");
           } else {
-            // Just send a simple ping without presence update
-            // This keeps the connection alive without showing as online
+            // Send ping without presence update
             await this.sock.query({
               tag: "iq",
               attrs: {
@@ -5456,13 +5509,139 @@ export class WhatsAppService extends EventEmitter {
                 xmlns: "w:ping",
               },
             });
-            console.log("Keep-alive ping sent (no presence update)");
+            console.log("✅ Keep-alive ping sent (no presence update)");
           }
+
+          // Additional connection stability check
+          if (this.sock.ws?.readyState !== 1) {
+            console.log("⚠️ WebSocket readyState não é 1, reconectando...");
+            this.forceReconnect();
+          }
+
         } catch (error) {
-          console.error("Keep-alive ping failed:", error);
+          console.error("❌ Keep-alive ping failed:", error);
+          console.log("🔄 Forçando reconexão devido a erro no keep-alive");
+          this.forceReconnect();
+        }
+      } else {
+        console.log("⚠️ Socket não disponível ou não conectado, tentando reconectar...");
+        if (!this.isReconnecting) {
+          this.forceReconnect();
         }
       }
-    }, 30000); // Every 30 seconds
+    }, 15000); // Every 15 seconds for more frequent monitoring
+
+    console.log("✅ Keep-alive configurado com intervalo de 15 segundos");
+  }
+
+  private async checkConnectionHealth(): Promise<boolean> {
+    try {
+      if (!this.sock || this.connectionState.connection !== "open") {
+        return false;
+      }
+
+      // Check WebSocket state
+      if (this.sock.ws?.readyState !== 1) {
+        return false;
+      }
+
+      // Try a simple ping to verify connection
+      await Promise.race([
+        this.sock.query({
+          tag: "iq",
+          attrs: {
+            to: "@s.whatsapp.net",
+            type: "get",
+            xmlns: "w:ping",
+          },
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
+      ]);
+
+      return true;
+    } catch (error) {
+      console.log("❌ Health check failed:", error);
+      return false;
+    }
+  }
+
+  private forceReconnect() {
+    if (this.isReconnecting) {
+      console.log("⏸️ Reconexão já em andamento, ignorando...");
+      return;
+    }
+
+    console.log("🔄 Forçando reconexão imediata...");
+    this.isReconnecting = true;
+
+    // Close current connection
+    if (this.sock) {
+      try {
+        this.sock.ws?.close();
+      } catch (error) {
+        console.log("Erro ao fechar conexão existente:", error);
+      }
+      this.sock = null;
+    }
+
+    // Clear keep-alive
+    if (this.keepAliveInterval) {
+      clearInterval(this.keepAliveInterval);
+      this.keepAliveInterval = null;
+    }
+
+    // Reconnect immediately
+    setTimeout(() => {
+      this.isReconnecting = false;
+      console.log("🚀 Iniciando reconexão...");
+      this.initialize();
+    }, 2000);
+  }
+
+  private setupConnectionHardening() {
+    console.log("🛡️ Configurando endurecimento de conexão para máxima estabilidade");
+
+    // Monitor WebSocket state and force reconnect if needed
+    const connectionMonitor = setInterval(() => {
+      if (this.sock && this.sock.ws) {
+        const wsState = this.sock.ws.readyState;
+        
+        // WebSocket states: 0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED
+        if (wsState === 2 || wsState === 3) {
+          console.log(`⚠️ WebSocket em estado ${wsState}, forçando reconexão...`);
+          clearInterval(connectionMonitor);
+          this.forceReconnect();
+        } else if (wsState === 1) {
+          // Connection is good, but let's verify it's really working
+          if (!this.isReconnecting) {
+            this.verifyConnectionActive();
+          }
+        }
+      }
+    }, 10000); // Check every 10 seconds
+
+    // Clean up monitor when disconnecting
+    this.sock?.ws?.addEventListener('close', () => {
+      clearInterval(connectionMonitor);
+    });
+
+    console.log("✅ Endurecimento de conexão configurado");
+  }
+
+  private async verifyConnectionActive() {
+    try {
+      // Try to get connection info to verify if connection is really active
+      if (this.sock && this.connectionState.connection === "open") {
+        // Simple presence check - this will fail if connection is dead
+        await Promise.race([
+          this.sock.sendPresenceUpdate("available"),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Verification timeout")), 3000))
+        ]);
+      }
+    } catch (error) {
+      console.log("❌ Verificação de conexão falhou, reconectando...");
+      this.forceReconnect();
+    }
   }
 
   async applySettings(settings: any) {
