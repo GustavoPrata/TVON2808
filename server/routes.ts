@@ -989,24 +989,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Calculate valorTotal for each client by summing their pontos values
-      const clientesComValor = await Promise.all(
-        clientes.map(async (cliente) => {
-          const pontos = await storage.getPontosByClienteId(cliente.id);
-          const valorTotal = pontos.reduce((sum, ponto) => {
-            const valor = parseFloat(ponto.valor || '0');
-            return sum + valor;
-          }, 0);
-          
-          return {
-            ...cliente,
-            valorTotal: valorTotal.toFixed(2)
-          };
-        })
-      );
+      // Get all pontos in a single query
+      const allPontos = await storage.getAllPontos();
+      
+      // Create a map of clienteId -> pontos for efficient lookup
+      const pontosMap = new Map<number, typeof allPontos>();
+      for (const ponto of allPontos) {
+        if (!pontosMap.has(ponto.clienteId)) {
+          pontosMap.set(ponto.clienteId, []);
+        }
+        pontosMap.get(ponto.clienteId)!.push(ponto);
+      }
+
+      // Calculate valorTotal for each client using the map
+      const clientesComValor = clientes.map(cliente => {
+        const clientePontos = pontosMap.get(cliente.id) || [];
+        const valorTotal = clientePontos.reduce((sum, ponto) => {
+          const valor = parseFloat(ponto.valor || '0');
+          return sum + valor;
+        }, 0);
+        
+        return {
+          ...cliente,
+          valorTotal: valorTotal.toFixed(2)
+        };
+      });
 
       res.json(clientesComValor);
     } catch (error) {
+      console.error("Erro ao buscar clientes:", error);
       res.status(500).json({ error: "Erro ao buscar clientes" });
     }
   });
