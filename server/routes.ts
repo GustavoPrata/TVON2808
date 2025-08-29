@@ -136,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     cookie: {
       secure: false, // set to true in production with HTTPS
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days by default
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days by default
     }
   }));
 
@@ -160,11 +160,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Set longer session cookie if remember me is checked
       if (rememberMe) {
-        // Set cookie to expire in 30 days
-        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+        // Set cookie to expire in 90 days for remember me
+        req.session.cookie.maxAge = 90 * 24 * 60 * 60 * 1000; // 90 days
       } else {
-        // Default to 7 days even without remember me
-        req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+        // Default to 30 days even without remember me
+        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
       }
       
       // Update last access
