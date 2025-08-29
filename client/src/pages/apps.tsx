@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -43,6 +44,7 @@ export default function Apps() {
   const [filterApp, setFilterApp] = useState<string>('todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedMac, setCopiedMac] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [openPopover, setOpenPopover] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const { toast } = useToast();
@@ -111,19 +113,28 @@ export default function Apps() {
     return phone;
   };
 
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = async (text: string, type: 'mac' | 'key' = 'mac') => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopiedMac(text);
-      toast({
-        title: 'Copiado!',
-        description: 'MAC copiado para área de transferência.',
-      });
-      setTimeout(() => setCopiedMac(null), 2000);
+      if (type === 'mac') {
+        setCopiedMac(text);
+        toast({
+          title: 'Copiado!',
+          description: 'MAC copiado para área de transferência.',
+        });
+        setTimeout(() => setCopiedMac(null), 2000);
+      } else {
+        setCopiedKey(text);
+        toast({
+          title: 'Copiado!',
+          description: 'Chave copiada para área de transferência.',
+        });
+        setTimeout(() => setCopiedKey(null), 2000);
+      }
     } catch (err) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível copiar o MAC.',
+        description: `Não foi possível copiar ${type === 'mac' ? 'o MAC' : 'a chave'}.`,
         variant: 'destructive',
       });
     }
@@ -310,7 +321,15 @@ export default function Apps() {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-white">{ponto.clienteNome || 'Cliente'}</h3>
+                        {ponto.clienteId ? (
+                          <Link href={`/clientes/${ponto.clienteId}`}>
+                            <h3 className="font-bold text-white hover:text-blue-400 cursor-pointer transition-colors">
+                              {ponto.clienteNome || 'Cliente'}
+                            </h3>
+                          </Link>
+                        ) : (
+                          <h3 className="font-bold text-white">{ponto.clienteNome || 'Cliente'}</h3>
+                        )}
                         <Badge className={cn(
                           "text-xs",
                           ponto.status === 'ativo' 
@@ -320,7 +339,15 @@ export default function Apps() {
                           {ponto.status}
                         </Badge>
                       </div>
-                      <p className="text-sm text-slate-400">{formatPhone(ponto.clienteTelefone || '')}</p>
+                      {ponto.clienteId ? (
+                        <Link href={`/clientes/${ponto.clienteId}`}>
+                          <p className="text-sm text-slate-400 hover:text-blue-400 cursor-pointer transition-colors">
+                            {formatPhone(ponto.clienteTelefone || '')}
+                          </p>
+                        </Link>
+                      ) : (
+                        <p className="text-sm text-slate-400">{formatPhone(ponto.clienteTelefone || '')}</p>
+                      )}
                       <Badge className="mt-2 bg-slate-700 text-slate-300 border-slate-600">
                         {getAppLabel(ponto.aplicativo)}
                       </Badge>
@@ -329,23 +356,44 @@ export default function Apps() {
 
                   {/* Device & MAC */}
                   <div className="lg:col-span-3">
-                    <div className="flex items-center gap-2">
-                      <Wifi className="w-4 h-4 text-slate-400" />
-                      <code className="text-sm bg-slate-700 px-2 py-1 rounded text-slate-300">
-                        {ponto.macAddress || 'Sem MAC'}
-                      </code>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(ponto.macAddress || '')}
-                        disabled={!ponto.macAddress}
-                        className="p-1 h-auto hover:bg-slate-700"
-                      >
-                        <Copy className={cn(
-                          "w-3 h-3",
-                          copiedMac === ponto.macAddress ? "text-green-400" : "text-slate-400"
-                        )} />
-                      </Button>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Wifi className="w-4 h-4 text-slate-400" />
+                        <code className="text-sm bg-slate-700 px-2 py-1 rounded text-slate-300">
+                          {ponto.macAddress || 'Sem MAC'}
+                        </code>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(ponto.macAddress || '', 'mac')}
+                          disabled={!ponto.macAddress}
+                          className="p-1 h-auto hover:bg-slate-700"
+                        >
+                          <Copy className={cn(
+                            "w-3 h-3",
+                            copiedMac === ponto.macAddress ? "text-green-400" : "text-slate-400"
+                          )} />
+                        </Button>
+                      </div>
+                      {ponto.deviceKey && (
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-slate-400" />
+                          <code className="text-sm bg-slate-700 px-2 py-1 rounded text-slate-300">
+                            {ponto.deviceKey}
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => copyToClipboard(ponto.deviceKey || '', 'key')}
+                            className="p-1 h-auto hover:bg-slate-700"
+                          >
+                            <Copy className={cn(
+                              "w-3 h-3",
+                              copiedKey === ponto.deviceKey ? "text-green-400" : "text-slate-400"
+                            )} />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
