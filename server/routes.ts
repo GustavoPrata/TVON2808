@@ -3017,6 +3017,90 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Anotações Routes
+  app.get("/api/anotacoes", async (req, res) => {
+    try {
+      const anotacoes = await storage.getAnotacoes();
+      res.json(anotacoes);
+    } catch (error) {
+      console.error("Erro ao buscar anotações:", error);
+      res.status(500).json({ error: "Falha ao buscar anotações" });
+    }
+  });
+
+  app.get("/api/anotacoes/:id", async (req, res) => {
+    try {
+      const anotacao = await storage.getAnotacaoById(parseInt(req.params.id));
+      if (!anotacao) {
+        return res.status(404).json({ error: "Anotação não encontrada" });
+      }
+      res.json(anotacao);
+    } catch (error) {
+      console.error("Erro ao buscar anotação:", error);
+      res.status(500).json({ error: "Falha ao buscar anotação" });
+    }
+  });
+
+  app.post("/api/anotacoes", async (req, res) => {
+    try {
+      const { titulo, descricao, prioridade, cor, categoria, prazo } = req.body;
+      
+      if (!titulo) {
+        return res.status(400).json({ error: "Título é obrigatório" });
+      }
+
+      const anotacao = await storage.createAnotacao({
+        titulo,
+        descricao,
+        prioridade: prioridade || "media",
+        cor: cor || "#4F46E5",
+        categoria,
+        prazo: prazo ? new Date(prazo) : null,
+        concluida: false,
+        ordem: 0
+      });
+      
+      res.status(201).json(anotacao);
+    } catch (error) {
+      console.error("Erro ao criar anotação:", error);
+      res.status(500).json({ error: "Falha ao criar anotação" });
+    }
+  });
+
+  app.put("/api/anotacoes/:id", async (req, res) => {
+    try {
+      const anotacao = await storage.updateAnotacao(parseInt(req.params.id), req.body);
+      res.json(anotacao);
+    } catch (error) {
+      console.error("Erro ao atualizar anotação:", error);
+      res.status(500).json({ error: "Falha ao atualizar anotação" });
+    }
+  });
+
+  app.delete("/api/anotacoes/:id", async (req, res) => {
+    try {
+      await storage.deleteAnotacao(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Erro ao deletar anotação:", error);
+      res.status(500).json({ error: "Falha ao deletar anotação" });
+    }
+  });
+
+  app.put("/api/anotacoes/reorder", async (req, res) => {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids)) {
+        return res.status(400).json({ error: "IDs devem ser um array" });
+      }
+      await storage.reorderAnotacoes(ids);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Erro ao reordenar anotações:", error);
+      res.status(500).json({ error: "Falha ao reordenar anotações" });
+    }
+  });
+
   app.post(
     "/api/whatsapp/profile-picture",
     profilePictureUpload.single("profilePicture"),

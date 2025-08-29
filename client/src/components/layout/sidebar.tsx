@@ -20,7 +20,8 @@ import {
   Bell,
   BellOff,
   Router,
-  LogOut
+  LogOut,
+  StickyNote
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,6 +43,7 @@ const menuItems = [
   { path: '/apps', icon: Router, label: 'APPs' },
   { path: '/indicacoes', icon: UserPlus, label: 'Indicações' },
   { path: '/ajuda', icon: HelpCircle, label: 'Ajuda' },
+  { path: '/anotacoes', icon: StickyNote, label: 'Anotações' },
   { path: '/whatsapp-settings', icon: Smartphone, label: 'WhatsApp Config' },
   { path: '/bot-config', icon: Bot, label: 'Config. Bot' },
   { path: '/woovi', icon: CreditCard, label: 'Woovi' },

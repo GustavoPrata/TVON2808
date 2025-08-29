@@ -493,6 +493,32 @@ export const insertTesteSchema = createInsertSchema(testes).omit({
 export type Teste = typeof testes.$inferSelect;
 export type InsertTeste = z.infer<typeof insertTesteSchema>;
 
+// Anotações/Tasks
+export const anotacoes = pgTable("anotacoes", {
+  id: serial("id").primaryKey(),
+  titulo: varchar("titulo", { length: 200 }).notNull(),
+  descricao: text("descricao"),
+  concluida: boolean("concluida").default(false),
+  prioridade: varchar("prioridade", { length: 20 }).notNull().default("media"), // baixa, media, alta
+  cor: varchar("cor", { length: 7 }).default("#4F46E5"), // Hex color
+  ordem: integer("ordem").notNull().default(0), // Para ordenação manual
+  criadoEm: timestamp("criado_em").defaultNow().notNull(),
+  atualizadoEm: timestamp("atualizado_em").defaultNow().notNull(),
+  prazo: timestamp("prazo"), // Data limite opcional
+  categoria: varchar("categoria", { length: 50 }), // Categoria opcional
+});
+
+export const insertAnotacaoSchema = createInsertSchema(anotacoes).omit({
+  id: true,
+  criadoEm: true,
+  atualizadoEm: true,
+}).extend({
+  prazo: z.coerce.date().optional().nullable(),
+});
+
+export type Anotacao = typeof anotacoes.$inferSelect;
+export type InsertAnotacao = z.infer<typeof insertAnotacaoSchema>;
+
 // Avisos de Vencimento types
 export const insertAvisoVencimentoSchema = createInsertSchema(avisosVencimento).omit({
   id: true,

@@ -2,7 +2,7 @@ import { db } from "./db";
 import { 
   clientes, pontos, pagamentos, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
-  avisosVencimento, configAvisos,
+  avisosVencimento, configAvisos, anotacoes,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
@@ -13,7 +13,8 @@ import {
   type Teste, type InsertTeste, type Indicacao, type InsertIndicacao,
   type MensagemRapida, type InsertMensagemRapida,
   type AvisoVencimento, type InsertAvisoVencimento,
-  type ConfigAvisos, type InsertConfigAvisos
+  type ConfigAvisos, type InsertConfigAvisos,
+  type Anotacao, type InsertAnotacao
 } from "@shared/schema";
 import { eq, desc, asc, sql, and, or, gte, lte, ilike, ne, count } from "drizzle-orm";
 
@@ -178,6 +179,14 @@ export interface IStorage {
   // Configuração de Avisos
   getConfigAvisos(): Promise<ConfigAvisos | undefined>;
   updateConfigAvisos(config: Partial<InsertConfigAvisos>): Promise<ConfigAvisos>;
+  
+  // Anotações
+  getAnotacoes(): Promise<Anotacao[]>;
+  getAnotacaoById(id: number): Promise<Anotacao | undefined>;
+  createAnotacao(anotacao: InsertAnotacao): Promise<Anotacao>;
+  updateAnotacao(id: number, anotacao: Partial<InsertAnotacao>): Promise<Anotacao>;
+  deleteAnotacao(id: number): Promise<void>;
+  reorderAnotacoes(ids: number[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1324,6 +1333,47 @@ export class DatabaseStorage implements IStorage {
     // Create if not exists
     const result = await db.insert(configAvisos).values(config as InsertConfigAvisos).returning();
     return result[0];
+  }
+
+  // Anotações implementation
+  async getAnotacoes(): Promise<Anotacao[]> {
+    return await db.select().from(anotacoes).orderBy(anotacoes.ordem, anotacoes.criadoEm);
+  }
+
+  async getAnotacaoById(id: number): Promise<Anotacao | undefined> {
+    const result = await db.select().from(anotacoes).where(eq(anotacoes.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createAnotacao(anotacao: InsertAnotacao): Promise<Anotacao> {
+    const result = await db.insert(anotacoes).values(anotacao).returning();
+    return result[0];
+  }
+
+  async updateAnotacao(id: number, anotacao: Partial<InsertAnotacao>): Promise<Anotacao> {
+    const result = await db.update(anotacoes)
+      .set({
+        ...anotacao,
+        atualizadoEm: new Date()
+      })
+      .where(eq(anotacoes.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteAnotacao(id: number): Promise<void> {
+    await db.delete(anotacoes).where(eq(anotacoes.id, id));
+  }
+
+  async reorderAnotacoes(ids: number[]): Promise<void> {
+    // Update order for each note
+    const updates = ids.map((id, index) => 
+      db.update(anotacoes)
+        .set({ ordem: index, atualizadoEm: new Date() })
+        .where(eq(anotacoes.id, id))
+    );
+    
+    await Promise.all(updates);
   }
 }
 
