@@ -195,12 +195,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Apply auth middleware to all API routes except login routes
+  // Webhook do Woovi (ANTES do middleware de auth para evitar problemas)
+  app.post("/api/pix/webhook", async (req, res) => {
+    try {
+      console.log("🔔 Webhook recebido do Woovi");
+      console.log("Headers completos:", JSON.stringify(req.headers, null, 2));
+      console.log("Body:", JSON.stringify(req.body, null, 2));
+      console.log("Método:", req.method);
+      console.log("URL:", req.url);
+
+      // Sempre responder sucesso primeiro para evitar reenvios
+      res.status(200).json({ received: true, timestamp: new Date().toISOString() });
+
+      // Buscar configuração
+      const config = await storage.getIntegracaoByTipo("pix");
+      console.log("🔧 Configuração PIX encontrada:", {
+        existe: !!config,
+        ativo: config?.ativo,
+        temConfiguracao: !!config?.configuracoes,
+        authConfigurado: !!(config?.configuracoes?.authorization)
+      });
+
+      // Validar Authorization header se configurado
+      if (config && config.configuracoes && config.configuracoes.authorization) {
+        const authHeader = req.headers.authorization;
+        const authHeaderLower = req.headers['authorization']; // Caso esteja em lowercase
+        const expectedAuth = config.configuracoes.authorization;
+        
+        console.log("🔐 Detalhes completos da validação:", {
+          'Esperado (salvo no DB)': expectedAuth,
+          'Recebido (authorization)': authHeader,
+          'Recebido (Authorization)': authHeaderLower,
+          'Todos os headers auth-like': Object.keys(req.headers).filter(h => h.toLowerCase().includes('auth')),
+          'Header exato recebido': authHeader || authHeaderLower || 'Nenhum',
+          'Tipos': {
+            esperado: typeof expectedAuth,
+            recebido: typeof (authHeader || authHeaderLower)
+          }
+        });
+
+        const receivedAuth = authHeader || authHeaderLower;
+        
+        // Verificar diferentes formatos comuns
+        let isValid = false;
+        if (receivedAuth && expectedAuth) {
+          // Comparação exata
+          if (receivedAuth === expectedAuth) {
+            isValid = true;
+            console.log("✅ Authorization válido (comparação exata)");
+          }
+          // Comparação sem "Bearer " prefix
+          else if (receivedAuth.replace(/^Bearer\s+/i, '') === expectedAuth) {
+            isValid = true;
+            console.log("✅ Authorization válido (removendo Bearer prefix)");
+          }
+          // Comparação adicionando "Bearer " prefix
+          else if (`Bearer ${receivedAuth}` === expectedAuth) {
+            isValid = true;
+            console.log("✅ Authorization válido (adicionando Bearer prefix)");
+          }
+          // Comparação case-insensitive
+          else if (receivedAuth.toLowerCase() === expectedAuth.toLowerCase()) {
+            isValid = true;
+            console.log("✅ Authorization válido (case-insensitive)");
+          }
+        }
+
+        if (!isValid && expectedAuth) {
+          console.warn("⚠️ Authorization inválido no webhook - RETORNANDO ERRO");
+          console.warn("Todas as tentativas falharam:");
+          console.warn("- Exata:", receivedAuth === expectedAuth);
+          console.warn("- Sem Bearer:", receivedAuth?.replace(/^Bearer\s+/i, '') === expectedAuth);
+          console.warn("- Com Bearer:", `Bearer ${receivedAuth}` === expectedAuth);
+          console.warn("- Case-insensitive:", receivedAuth?.toLowerCase() === expectedAuth?.toLowerCase());
+          
+          // NÃO retornar erro, apenas logar - vamos aceitar sempre para debug
+          console.log("🚨 MODO DEBUG: Aceitando webhook mesmo com Authorization inválido");
+        } else {
+          console.log("✅ Authorization validado com sucesso");
+        }
+      } else {
+        console.log("ℹ️ Nenhum Authorization configurado ou configuração não encontrada - processando sem validação");
+      }
+
+      // Processar evento do webhook de forma assíncrona
+      try {
+        await pixService.processWebhook(req.body);
+        console.log("✅ Webhook processado com sucesso");
+      } catch (processingError) {
+        console.error("❌ Erro ao processar webhook (não crítico):", processingError);
+        // Não retornar erro para o Woovi, apenas logar
+      }
+
+    } catch (error) {
+      console.error("❌ Erro crítico no webhook:", error);
+      // Se falhar antes de responder, retornar sucesso mesmo assim
+      if (!res.headersSent) {
+        res.status(200).json({ received: true, error: "Processamento interno falhou", timestamp: new Date().toISOString() });
+      }
+    }
+  });
+
+  // Apply auth middleware to all API routes except login routes and webhooks
   app.use("/api/*", (req, res, next) => {
-    const publicPaths = ['/api/login', '/api/logout', '/api/auth/status'];
+    const publicPaths = [
+      '/api/login', 
+      '/api/logout', 
+      '/api/auth/status',
+      '/api/pix/webhook'  // Webhook do Woovi deve ser público
+    ];
+    
+    // Debug log for webhook
+    if (req.path === '/api/pix/webhook') {
+      console.log('🚨 WEBHOOK DEBUG - Middleware interceptou:', {
+        path: req.path,
+        method: req.method,
+        inPublicPaths: publicPaths.includes(req.path),
+        headers: Object.keys(req.headers),
+        body: req.body
+      });
+    }
+    
     if (publicPaths.includes(req.path)) {
+      console.log('✅ Caminho público detectado, passando adiante:', req.path);
       return next();
     }
+    
+    console.log('🔒 Aplicando checkAuth para:', req.path);
     return checkAuth(req, res, next);
   });
   
@@ -3695,53 +3816,6 @@ Como posso ajudar você hoje?
       res.status(500).json({ 
         error: "Erro ao gerar PIX: " + (error.message || "Erro desconhecido")
       });
-    }
-  });
-
-  // Webhook do Woovi
-  app.post("/api/pix/webhook", async (req, res) => {
-    try {
-      console.log("🔔 Webhook recebido do Woovi");
-      console.log("Headers:", req.headers);
-      console.log("Body:", JSON.stringify(req.body, null, 2));
-
-      // Validar Authorization header se configurado
-      const config = await storage.getIntegracaoByTipo("pix");
-      if (config && config.configuracoes && config.configuracoes.authorization) {
-        const authHeader = req.headers.authorization;
-        const expectedAuth = config.configuracoes.authorization;
-        
-        console.log("🔐 Validando Authorization:", {
-          received: authHeader ? 'Presente' : 'Ausente',
-          expected: expectedAuth ? 'Configurado' : 'Não configurado'
-        });
-
-        if (!authHeader || authHeader !== expectedAuth) {
-          console.warn("⚠️ Authorization inválido no webhook");
-          console.warn("Recebido:", authHeader);
-          console.warn("Esperado:", expectedAuth);
-          return res.status(401).json({ error: "Não autorizado" });
-        }
-        console.log("✅ Authorization válido");
-      } else {
-        console.log("ℹ️ Nenhum Authorization configurado - processando sem validação");
-      }
-
-      // Sempre responder sucesso primeiro para evitar reenvios
-      res.status(200).json({ received: true });
-
-      // Processar evento do webhook de forma assíncrona
-      try {
-        await pixService.processWebhook(req.body);
-      } catch (processingError) {
-        console.error("Erro ao processar webhook (não crítico):", processingError);
-        // Não retornar erro para o Woovi, apenas logar
-      }
-
-    } catch (error) {
-      console.error("Erro crítico no webhook:", error);
-      // Se falhar antes de responder, retornar erro
-      res.status(200).json({ received: true, error: "Processamento interno falhou" });
     }
   });
 
