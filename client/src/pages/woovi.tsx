@@ -413,7 +413,7 @@ export default function Woovi() {
                     <AlertDescription className="text-slate-300">
                       <strong>Webhook URL para configurar no Woovi:</strong>
                       <div className="mt-2 p-2 bg-slate-700/50 rounded font-mono text-sm break-all text-slate-100">
-                        {window.location.origin}/api/pix/webhook
+                        https://tv-on.site/api/pix/webhook
                       </div>
                       <p className="mt-2 text-sm">
                         Configure os eventos: <strong className="text-green-400">OPENPIX:CHARGE_COMPLETED</strong> e <strong className="text-green-400">OPENPIX:CHARGE_EXPIRED</strong>
