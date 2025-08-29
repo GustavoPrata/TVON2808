@@ -929,19 +929,28 @@ export class WhatsAppService extends EventEmitter {
         // Check if it's a client
         const cliente = await storage.getClienteByTelefone(phone);
 
-        // Create conversation
-        conversa = await storage.createConversa({
-          telefone: phone,
-          nome: cliente?.nome || formatPhoneNumber(phone),
-          ultimaMensagem: message.message,
-          status: "ativo",
-          modoAtendimento: "humano", // Set to human since it's sent directly
-          mensagensNaoLidas: 0,
-          ultimoRemetente: "sistema",
-          mensagemLida: true,
-          clienteId: cliente?.id || null,
-          tipoUltimaMensagem: message.type,
-        });
+        // Create conversation (with duplicate protection)
+        try {
+          conversa = await storage.createConversa({
+            telefone: phone,
+            nome: cliente?.nome || formatPhoneNumber(phone),
+            ultimaMensagem: message.message,
+            status: "ativo",
+            modoAtendimento: "humano", // Set to human since it's sent directly
+            mensagensNaoLidas: 0,
+            ultimoRemetente: "sistema",
+            mensagemLida: true,
+            clienteId: cliente?.id || null,
+            tipoUltimaMensagem: message.type,
+          });
+        } catch (error) {
+          // If creation fails due to unique constraint (duplicate), try to get existing conversation
+          console.log("Conversa pode já existir, tentando buscar novamente...");
+          conversa = await storage.getConversaByTelefone(phone);
+          if (!conversa) {
+            throw error; // Re-throw if it's a different error
+          }
+        }
 
         // Send WebSocket event for new conversation
         this.notifyWebSocketClients("conversation_created", {
@@ -4797,17 +4806,26 @@ export class WhatsAppService extends EventEmitter {
 
       console.log("Message sent result:", result?.key);
 
-      // Get or create conversation
+      // Get or create conversation (with duplicate protection)
       let conversa = await storage.getConversaByTelefone(to);
       if (!conversa) {
-        // Create conversation if it doesn't exist
-        conversa = await storage.createConversa({
-          telefone: to,
-          ultimaMensagem: message,
-          ultimoRemetente: "sistema",
-          tipoUltimaMensagem: "text",
-          mensagensNaoLidas: 0,
-        });
+        try {
+          // Create conversation if it doesn't exist
+          conversa = await storage.createConversa({
+            telefone: to,
+            ultimaMensagem: message,
+            ultimoRemetente: "sistema",
+            tipoUltimaMensagem: "text",
+            mensagensNaoLidas: 0,
+          });
+        } catch (error) {
+          // If creation fails due to unique constraint (duplicate), try to get existing conversation
+          console.log("Conversa pode já existir, tentando buscar novamente...");
+          conversa = await storage.getConversaByTelefone(to);
+          if (!conversa) {
+            throw error; // Re-throw if it's a different error
+          }
+        }
       }
 
       // Save message to database like a normal message
@@ -4913,17 +4931,26 @@ export class WhatsAppService extends EventEmitter {
 
       // Only save message if not called from WebSocket handler (which already saved it)
       if (!skipSaveMessage) {
-        // Get or create conversation
+        // Get or create conversation (with duplicate protection)
         let conversa = await storage.getConversaByTelefone(to);
         if (!conversa) {
-          // Create conversation if it doesn't exist
-          conversa = await storage.createConversa({
-            telefone: to,
-            ultimaMensagem: caption || "📷 Imagem",
-            ultimoRemetente: "sistema",
-            tipoUltimaMensagem: "image",
-            mensagensNaoLidas: 0,
-          });
+          try {
+            // Create conversation if it doesn't exist
+            conversa = await storage.createConversa({
+              telefone: to,
+              ultimaMensagem: caption || "📷 Imagem",
+              ultimoRemetente: "sistema",
+              tipoUltimaMensagem: "image",
+              mensagensNaoLidas: 0,
+            });
+          } catch (error) {
+            // If creation fails due to unique constraint (duplicate), try to get existing conversation
+            console.log("Conversa pode já existir, tentando buscar novamente...");
+            conversa = await storage.getConversaByTelefone(to);
+            if (!conversa) {
+              throw error; // Re-throw if it's a different error
+            }
+          }
         }
 
         // Save message to database
@@ -5026,16 +5053,25 @@ export class WhatsAppService extends EventEmitter {
 
       console.log("Resultado do envio dos botões:", result);
 
-      // Get or create conversation
+      // Get or create conversation (with duplicate protection)
       let conversa = await storage.getConversaByTelefone(telefone);
       if (!conversa) {
-        conversa = await storage.createConversa({
-          telefone: telefone,
-          ultimaMensagem: text,
-          ultimoRemetente: "sistema",
-          tipoUltimaMensagem: "text",
-          mensagensNaoLidas: 0,
-        });
+        try {
+          conversa = await storage.createConversa({
+            telefone: telefone,
+            ultimaMensagem: text,
+            ultimoRemetente: "sistema",
+            tipoUltimaMensagem: "text",
+            mensagensNaoLidas: 0,
+          });
+        } catch (error) {
+          // If creation fails due to unique constraint (duplicate), try to get existing conversation
+          console.log("Conversa pode já existir, tentando buscar novamente...");
+          conversa = await storage.getConversaByTelefone(telefone);
+          if (!conversa) {
+            throw error; // Re-throw if it's a different error
+          }
+        }
       }
 
       // Save message to database
@@ -5129,16 +5165,25 @@ export class WhatsAppService extends EventEmitter {
 
       const result = await this.sock.sendMessage(jid, listMessage);
 
-      // Get or create conversation
+      // Get or create conversation (with duplicate protection)
       let conversa = await storage.getConversaByTelefone(telefone);
       if (!conversa) {
-        conversa = await storage.createConversa({
-          telefone: telefone,
-          ultimaMensagem: text,
-          ultimoRemetente: "sistema",
-          tipoUltimaMensagem: "text",
-          mensagensNaoLidas: 0,
-        });
+        try {
+          conversa = await storage.createConversa({
+            telefone: telefone,
+            ultimaMensagem: text,
+            ultimoRemetente: "sistema",
+            tipoUltimaMensagem: "text",
+            mensagensNaoLidas: 0,
+          });
+        } catch (error) {
+          // If creation fails due to unique constraint (duplicate), try to get existing conversation
+          console.log("Conversa pode já existir, tentando buscar novamente...");
+          conversa = await storage.getConversaByTelefone(telefone);
+          if (!conversa) {
+            throw error; // Re-throw if it's a different error
+          }
+        }
       }
 
       // Save message to database
@@ -5572,16 +5617,25 @@ export class WhatsAppService extends EventEmitter {
     );
 
     if (!conversa) {
-      // Create new conversation
+      // Create new conversation (with duplicate protection)
       console.log(`Creating new conversation for ${telefone} in bot mode`);
-      conversa = await storage.createConversa({
-        telefone,
-        nome: telefone,
-        status: "ativo",
-        modoAtendimento: "bot",
-        ultimaMensagem: mensagem,
-        tipoUltimaMensagem: "text",
-      });
+      try {
+        conversa = await storage.createConversa({
+          telefone,
+          nome: telefone,
+          status: "ativo",
+          modoAtendimento: "bot",
+          ultimaMensagem: mensagem,
+          tipoUltimaMensagem: "text",
+        });
+      } catch (error) {
+        // If creation fails due to unique constraint (duplicate), try to get existing conversation
+        console.log("Conversa pode já existir, tentando buscar novamente...");
+        conversa = await storage.getConversaByTelefone(telefone);
+        if (!conversa) {
+          throw error; // Re-throw if it's a different error
+        }
+      }
     } else {
       // Update existing conversation WITHOUT forcing bot mode
       console.log(`Updating existing conversation ${conversa.id} in ${conversa.modoAtendimento} mode`);
