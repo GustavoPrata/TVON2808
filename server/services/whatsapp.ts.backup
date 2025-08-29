@@ -582,6 +582,10 @@ export class WhatsAppService extends EventEmitter {
         // User logged out manually - clear session
         console.log("👋 Logout manual detectado - limpando sessão");
         await this.clearAuthSession();
+          }
+        } catch (error) {
+          console.error("Erro ao limpar sessão após logout:", error);
+        }
       }
 
       this.emit("disconnected");
