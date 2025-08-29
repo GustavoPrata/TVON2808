@@ -36,12 +36,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
 export function checkAuth(req: Request, res: Response, next: NextFunction) {
   // Permite acesso a algumas rotas sem autenticação
-  const publicRoutes = [
-    '/api/login', 
-    '/api/logout', 
-    '/api/auth/status',
-    '/api/pix/webhook'  // Webhook do Woovi deve ser público
-  ];
+  const publicRoutes = ['/api/login', '/api/logout', '/api/auth/status'];
   
   if (publicRoutes.includes(req.path)) {
     return next();

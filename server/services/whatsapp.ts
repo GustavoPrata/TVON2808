@@ -68,18 +68,6 @@ export class WhatsAppService extends EventEmitter {
   private conversationCreationLocks: Map<string, Promise<any>> = new Map(); // Prevent duplicate conversation creation
   private processedMessagesOnStartup: Set<string> = new Set(); // Track processed messages during startup
 
-  // Verificar se está rodando no Replit (bloquear envio se estiver)
-  private isReplitEnvironment(): boolean {
-    const isReplit = process.env.REPLIT_DOMAINS || process.env.REPLIT || process.env.REPL_ID;
-    console.log('🔍 Verificando ambiente:', {
-      REPLIT_DOMAINS: !!process.env.REPLIT_DOMAINS,
-      REPLIT: !!process.env.REPLIT,
-      REPL_ID: !!process.env.REPL_ID,
-      isReplitEnvironment: !!isReplit
-    });
-    return !!isReplit;
-  }
-
   constructor() {
     super();
     // Initialize WhatsApp service
@@ -95,26 +83,6 @@ export class WhatsAppService extends EventEmitter {
     this.emit(type, data);
   }
 
-  // Public method to reset reconnection attempts and force restart
-  async forceRestart() {
-    console.log("🔄 Forçando reinício da conexão WhatsApp...");
-    this.reconnectAttempts = 0;
-    this.isReconnecting = false;
-    
-    // Disconnect current connection if exists
-    if (this.sock) {
-      try {
-        await this.sock.ws.close();
-      } catch (error) {
-        console.log("⚠️ Erro ao fechar conexão durante restart forçado:", error);
-      }
-      this.sock = null;
-    }
-    
-    // Initialize fresh connection
-    await this.initialize();
-  }
-
   async initialize() {
     // Prevent multiple simultaneous initializations
     if (this.sock?.ws && this.connectionState.connection === "open") {
@@ -122,30 +90,24 @@ export class WhatsAppService extends EventEmitter {
       return;
     }
 
-    console.log("🚀 Inicializando WhatsApp com conexão persistente...");
-
     try {
       // Load saved settings from database
       const savedSettings = await storage.getWhatsAppSettings();
       if (savedSettings) {
         this.settings = savedSettings;
-        console.log("✅ Configurações do WhatsApp carregadas do banco:", this.settings);
+        console.log("Loaded WhatsApp settings from database:", this.settings);
       }
 
-      // Use persistent auth state with better error handling
       const { state, saveCreds } = await useMultiFileAuthState(
         "./auth_info_baileys",
       );
-
-      console.log("📁 Estado de autenticação carregado");
 
       // Close existing connection if any
       if (this.sock) {
         try {
           await this.sock.ws.close();
-          console.log("🔌 Conexão existente fechada");
         } catch (error) {
-          console.log("⚠️ Erro ao fechar conexão existente:", error);
+          console.log("Error closing existing connection:", error);
         }
         this.sock = null;
       }
@@ -154,27 +116,10 @@ export class WhatsAppService extends EventEmitter {
         auth: state,
         printQRInTerminal: false,
         browser: ["TV ON System", "Chrome", "1.0.0"],
-        // Connection timeout and retry configs optimized for Replit
-        connectTimeoutMs: 30000,
-        defaultQueryTimeoutMs: 30000,
-        // Keep connection alive with shorter intervals
-        keepAliveIntervalMs: 15000,
-        // Retry configuration for failed operations
-        retryRequestDelayMs: 500,
-        maxMsgRetryCount: 3,
-        // QR generation timeout settings
-        qrTimeout: 45000,
-        // Socket configuration for stable connection
-        syncFullHistory: false,
-        // Optimize for production environment
-        shouldSyncHistoryMessage: () => false,
-        shouldIgnoreJid: () => false,
-        // Add default presence setting (removed duplicate)
-        markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? false,
-        // Handle disconnections more gracefully
-        emitOwnEvents: false,
-        // Disable some features for better stability
-        generateHighQualityLinkPreview: false,
+        // Add connection timeout to prevent hanging
+        connectTimeoutMs: 60000,
+        // Add default presence to available
+        markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? true,
       }) as any;
 
       this.sock.ev.on("connection.update", (update) => {
@@ -239,29 +184,18 @@ export class WhatsAppService extends EventEmitter {
         }
       });
 
-      console.log("✅ Serviço WhatsApp inicializado com conexão persistente");
-      console.log("🔄 Monitoramento ativo: Keep-alive a cada 15s, verificação de saúde a cada 10s");
-      
       await this.logActivity(
         "info",
         "WhatsApp",
-        "Serviço WhatsApp inicializado com conexão persistente 24/7",
+        "Serviço WhatsApp inicializado",
       );
     } catch (error) {
-      console.error("❌ Erro ao inicializar WhatsApp:", error);
+      console.error("Erro ao inicializar WhatsApp:", error);
       await this.logActivity(
         "error",
         "WhatsApp",
-        `Erro ao inicializar conexão persistente: ${error}`,
+        `Erro ao inicializar: ${error}`,
       );
-      
-      // Even if initialization fails, try to reconnect
-      if (!this.isReconnecting) {
-        console.log("🔄 Tentando reconectar em 3 segundos...");
-        setTimeout(() => {
-          this.initialize();
-        }, 3000);
-      }
     }
   }
 
@@ -479,143 +413,131 @@ export class WhatsAppService extends EventEmitter {
     }
   }
 
-  private async checkExistingCredentials(): Promise<boolean> {
-    try {
-      const fs = await import("fs/promises");
-      const path = await import("path");
-      const authDir = "./auth_info_baileys";
-      const credsFile = path.join(authDir, "creds.json");
-      
-      // Check if credentials file exists and has valid content
-      const exists = await fs.access(credsFile).then(() => true).catch(() => false);
-      if (!exists) {
-        console.log("❌ Arquivo de credenciais não encontrado");
-        return false;
-      }
-      
-      const credsContent = await fs.readFile(credsFile, 'utf-8');
-      const creds = JSON.parse(credsContent);
-      
-      // Check if has essential credential fields
-      if (creds && creds.noiseKey && creds.pairingEphemeralKeyPair) {
-        console.log("✅ Credenciais válidas encontradas, tentando reconectar sem QR");
-        return true;
-      }
-      
-      console.log("❌ Credenciais inválidas ou incompletas");
-      return false;
-    } catch (error) {
-      console.log("❌ Erro ao verificar credenciais:", error);
-      return false;
-    }
-  }
-
-  private async clearAuthSession(): Promise<void> {
-    try {
-      const fs = await import("fs/promises");
-      const path = await import("path");
-      const authDir = "./auth_info_baileys";
-
-      if (await fs.access(authDir).then(() => true).catch(() => false)) {
-        const files = await fs.readdir(authDir);
-        for (const file of files) {
-          await fs.unlink(path.join(authDir, file)).catch(() => {});
-        }
-        console.log("🧹 Sessão de autenticação limpa");
-      }
-    } catch (error) {
-      console.error("Erro ao limpar sessão:", error);
-    }
-  }
-
   private async handleConnectionUpdate(update: Partial<ConnectionState>) {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
       this.qrCode = qr;
       this.emit("qr", qr);
-      await this.logActivity("info", "WhatsApp", "QR Code gerado - Escaneie para conectar");
-      console.log("📱 Novo QR Code gerado - aguardando scan");
+      await this.logActivity("info", "WhatsApp", "QR Code gerado");
     }
 
     if (connection === "close") {
       const errorCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
       const shouldReconnect = errorCode !== DisconnectReason.loggedOut;
-      const isConflict = lastDisconnect?.error?.message?.includes("conflict") || 
-                        lastDisconnect?.error?.message?.includes("replaced");
+      const isConflict =
+        lastDisconnect?.error?.message?.includes("conflict") ||
+        lastDisconnect?.error?.message?.includes("replaced");
       const isAuthFailure = errorCode === 401;
-      const isQRTimeout = errorCode === 408 && lastDisconnect?.error?.message?.includes("QR refs attempts ended");
 
       console.log("Conexão fechada devido a:", lastDisconnect?.error);
-      console.log("Error code:", errorCode, "Is conflict:", isConflict, "Is auth failure:", isAuthFailure, "Is QR timeout:", isQRTimeout);
+      console.log(
+        "Error code:",
+        errorCode,
+        "Is conflict:",
+        isConflict,
+        "Is auth failure:",
+        isAuthFailure,
+      );
 
       if (shouldReconnect && !this.isReconnecting) {
         this.isReconnecting = true;
-        let reconnectDelay = 2000;
-        let shouldClearSession = false;
 
-        // Limit QR timeout attempts to prevent infinite loops
-        if (isQRTimeout && this.reconnectAttempts >= 5) {
-          console.log("🛑 Muitas tentativas de QR Code falharam. Parando reconexão automática.");
-          console.log("🔧 Para reconectar, reinicie o servidor ou escaneie um novo QR Code.");
-          this.isReconnecting = false;
-          this.emit("qr_max_attempts_reached");
-          return;
-        }
+        // Handle different error types with appropriate delays
+        let reconnectDelay = 5000; // Default 5 seconds
 
         if (isConflict) {
-          // Only clear session on real conflicts (multiple devices)
-          console.log("🔄 Conflito de sessão detectado - limpando credenciais");
-          shouldClearSession = true;
-          reconnectDelay = 3000;
-          this.reconnectAttempts = 0;
-        } else if (isAuthFailure && !isQRTimeout) {
-          // Only clear on real auth failures, not QR timeouts
-          console.log("🔄 Falha de autenticação detectada - limpando credenciais");
-          shouldClearSession = true;
-          reconnectDelay = 5000;
-          this.reconnectAttempts = 0;
-        } else if (isQRTimeout) {
-          // QR timeout - use progressive delays to avoid flooding
-          console.log("⏰ Timeout do QR Code - verificando credenciais existentes");
-          const hasValidCreds = await this.checkExistingCredentials();
-          if (hasValidCreds) {
-            console.log("✅ Tentando reconectar com credenciais existentes");
-            reconnectDelay = 3000;
-          } else {
-            console.log("❌ Sem credenciais válidas - aguardando mais tempo antes do próximo QR");
-            // Progressive delay: 5s, 10s, 20s, 30s, 60s
-            reconnectDelay = Math.min(60000, 5000 * Math.pow(2, Math.min(this.reconnectAttempts, 4)));
+          // For conflicts, clear session and reconnect immediately
+          console.log("Conflito detectado, limpando sessão e reconectando...");
+          try {
+            // Clear auth state to force new session
+            const fs = await import("fs/promises");
+            const path = await import("path");
+            const authDir = "./auth_info_baileys";
+
+            if (
+              await fs
+                .access(authDir)
+                .then(() => true)
+                .catch(() => false)
+            ) {
+              const files = await fs.readdir(authDir);
+              for (const file of files) {
+                if (file.includes("session") || file.includes("creds")) {
+                  await fs.unlink(path.join(authDir, file)).catch(() => {});
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Erro ao limpar sessão:", error);
           }
-        } else if (this.reconnectAttempts > 15) {
-          // Only clear session after many failed attempts
-          console.log("🔄 Muitas tentativas falharam - limpando sessão");
-          shouldClearSession = true;
-          reconnectDelay = Math.min(60000, 10000 * Math.min(this.reconnectAttempts - 15, 3));
-        } else {
-          // For other errors, use progressive delay
-          reconnectDelay = Math.min(10000, 2000 * Math.min(this.reconnectAttempts + 1, 5));
+          reconnectDelay = 2000; // Reconnect quickly after clearing session
+          this.reconnectAttempts = 0; // Reset attempts on conflict
+        } else if (errorCode === 401 || isAuthFailure) {
+          // For auth failures, clear session and wait
+          reconnectDelay = 5000;
+          console.log("Falha de autenticação detectada, limpando sessão...");
+
+          // Clear auth state on 401 error
+          try {
+            const fs = await import("fs/promises");
+            const path = await import("path");
+            const authDir = "./auth_info_baileys";
+
+            if (
+              await fs
+                .access(authDir)
+                .then(() => true)
+                .catch(() => false)
+            ) {
+              const files = await fs.readdir(authDir);
+              for (const file of files) {
+                await fs.unlink(path.join(authDir, file)).catch(() => {});
+              }
+              console.log("Sessão limpa devido a erro 401");
+            }
+          } catch (error) {
+            console.error("Erro ao limpar sessão:", error);
+          }
+          this.reconnectAttempts = 0; // Reset attempts
+        } else if (this.reconnectAttempts > 2) {
+          // Progressive backoff for repeated failures
+          reconnectDelay = Math.min(30000, 5000 * this.reconnectAttempts);
         }
 
-        // Clear session only when really necessary
-        if (shouldClearSession) {
-          await this.clearAuthSession();
-        }
-
+        // Always try to reconnect
         this.reconnectAttempts++;
-        console.log(`🔄 Reconectando em ${reconnectDelay / 1000}s (tentativa ${this.reconnectAttempts})`);
+        console.log(
+          `Reconectando em ${reconnectDelay / 1000}s (tentativa ${this.reconnectAttempts})...`,
+        );
 
         setTimeout(() => {
           this.isReconnecting = false;
-          console.log("🚀 Iniciando reconexão automática...");
           this.initialize();
         }, reconnectDelay);
       } else if (!shouldReconnect) {
-        // User logged out manually - clear session
-        console.log("👋 Logout manual detectado - limpando sessão");
-        await this.clearAuthSession();
-      } else if (this.isReconnecting) {
-        console.log("🔄 Reconexão já em andamento, ignorando...");
+        // User logged out manually, clear session
+        console.log("Usuário deslogou manualmente, limpando sessão...");
+        try {
+          const fs = await import("fs/promises");
+          const path = await import("path");
+          const authDir = "./auth_info_baileys";
+
+          if (
+            await fs
+              .access(authDir)
+              .then(() => true)
+              .catch(() => false)
+          ) {
+            const files = await fs.readdir(authDir);
+            for (const file of files) {
+              await fs.unlink(path.join(authDir, file)).catch(() => {});
+            }
+            console.log("Sessão limpa após logout manual");
+          }
+        } catch (error) {
+          console.error("Erro ao limpar sessão após logout:", error);
+        }
       }
 
       this.emit("disconnected");
@@ -625,20 +547,13 @@ export class WhatsAppService extends EventEmitter {
       this.reconnectAttempts = 0; // Reset reconnect attempts on successful connection
       this.isReconnecting = false;
       this.emit("connected");
-      
-      console.log("🎉 WhatsApp conectado com sucesso! Conexão persistente ativada.");
-      console.log("📱 Sistema configurado para manter conexão 24/7");
-      
-      await this.logActivity("info", "WhatsApp", "Conectado com sucesso - Conexão persistente ativada");
+      await this.logActivity("info", "WhatsApp", "Conectado com sucesso");
 
       // Apply settings when connected
       await this.applySettings(this.settings);
 
-      // Set up robust keep-alive mechanism
+      // Set up keep-alive mechanism
       this.setupKeepAlive();
-
-      // Additional connection hardening
-      this.setupConnectionHardening();
     }
 
     this.connectionState = { ...this.connectionState, ...update };
@@ -1002,28 +917,19 @@ export class WhatsAppService extends EventEmitter {
         // Check if it's a client
         const cliente = await storage.getClienteByTelefone(phone);
 
-        // Create conversation (with duplicate protection)
-        try {
-          conversa = await storage.createConversa({
-            telefone: phone,
-            nome: cliente?.nome || formatPhoneNumber(phone),
-            ultimaMensagem: message.message,
-            status: "ativo",
-            modoAtendimento: "humano", // Set to human since it's sent directly
-            mensagensNaoLidas: 0,
-            ultimoRemetente: "sistema",
-            mensagemLida: true,
-            clienteId: cliente?.id || null,
-            tipoUltimaMensagem: message.type,
-          });
-        } catch (error) {
-          // If creation fails due to unique constraint (duplicate), try to get existing conversation
-          console.log("Conversa pode já existir, tentando buscar novamente...");
-          conversa = await storage.getConversaByTelefone(phone);
-          if (!conversa) {
-            throw error; // Re-throw if it's a different error
-          }
-        }
+        // Create conversation
+        conversa = await storage.createConversa({
+          telefone: phone,
+          nome: cliente?.nome || formatPhoneNumber(phone),
+          ultimaMensagem: message.message,
+          status: "ativo",
+          modoAtendimento: "humano", // Set to human since it's sent directly
+          mensagensNaoLidas: 0,
+          ultimoRemetente: "sistema",
+          mensagemLida: true,
+          clienteId: cliente?.id || null,
+          tipoUltimaMensagem: message.type,
+        });
 
         // Send WebSocket event for new conversation
         this.notifyWebSocketClients("conversation_created", {
@@ -4842,12 +4748,6 @@ export class WhatsAppService extends EventEmitter {
     message: string,
     replyTo?: any,
   ): Promise<string | null> {
-    // Verificar se está no ambiente Replit e bloquear envio
-    if (this.isReplitEnvironment()) {
-      console.log('🚫 Envio de mensagem bloqueado - servidor Replit não deve enviar mensagens WhatsApp');
-      return null;
-    }
-
     if (!this.sock) {
       console.error("Socket WhatsApp não está conectado");
       return null;
@@ -4879,26 +4779,17 @@ export class WhatsAppService extends EventEmitter {
 
       console.log("Message sent result:", result?.key);
 
-      // Get or create conversation (with duplicate protection)
+      // Get or create conversation
       let conversa = await storage.getConversaByTelefone(to);
       if (!conversa) {
-        try {
-          // Create conversation if it doesn't exist
-          conversa = await storage.createConversa({
-            telefone: to,
-            ultimaMensagem: message,
-            ultimoRemetente: "sistema",
-            tipoUltimaMensagem: "text",
-            mensagensNaoLidas: 0,
-          });
-        } catch (error) {
-          // If creation fails due to unique constraint (duplicate), try to get existing conversation
-          console.log("Conversa pode já existir, tentando buscar novamente...");
-          conversa = await storage.getConversaByTelefone(to);
-          if (!conversa) {
-            throw error; // Re-throw if it's a different error
-          }
-        }
+        // Create conversation if it doesn't exist
+        conversa = await storage.createConversa({
+          telefone: to,
+          ultimaMensagem: message,
+          ultimoRemetente: "sistema",
+          tipoUltimaMensagem: "text",
+          mensagensNaoLidas: 0,
+        });
       }
 
       // Save message to database like a normal message
@@ -4957,12 +4848,6 @@ export class WhatsAppService extends EventEmitter {
     replyTo?: any,
     skipSaveMessage: boolean = false,
   ): Promise<string | null> {
-    // Verificar se está no ambiente Replit e bloquear envio
-    if (this.isReplitEnvironment()) {
-      console.log('🚫 Envio de imagem bloqueado - servidor Replit não deve enviar mensagens WhatsApp');
-      return null;
-    }
-
     if (!this.sock) {
       console.error("Socket WhatsApp não está conectado");
       return null;
@@ -5004,26 +4889,17 @@ export class WhatsAppService extends EventEmitter {
 
       // Only save message if not called from WebSocket handler (which already saved it)
       if (!skipSaveMessage) {
-        // Get or create conversation (with duplicate protection)
+        // Get or create conversation
         let conversa = await storage.getConversaByTelefone(to);
         if (!conversa) {
-          try {
-            // Create conversation if it doesn't exist
-            conversa = await storage.createConversa({
-              telefone: to,
-              ultimaMensagem: caption || "📷 Imagem",
-              ultimoRemetente: "sistema",
-              tipoUltimaMensagem: "image",
-              mensagensNaoLidas: 0,
-            });
-          } catch (error) {
-            // If creation fails due to unique constraint (duplicate), try to get existing conversation
-            console.log("Conversa pode já existir, tentando buscar novamente...");
-            conversa = await storage.getConversaByTelefone(to);
-            if (!conversa) {
-              throw error; // Re-throw if it's a different error
-            }
-          }
+          // Create conversation if it doesn't exist
+          conversa = await storage.createConversa({
+            telefone: to,
+            ultimaMensagem: caption || "📷 Imagem",
+            ultimoRemetente: "sistema",
+            tipoUltimaMensagem: "image",
+            mensagensNaoLidas: 0,
+          });
         }
 
         // Save message to database
@@ -5090,12 +4966,6 @@ export class WhatsAppService extends EventEmitter {
     buttons: Array<{ id: string; displayText: string }>,
     footer?: string,
   ): Promise<string | null> {
-    // Verificar se está no ambiente Replit e bloquear envio
-    if (this.isReplitEnvironment()) {
-      console.log('🚫 Envio de botões bloqueado - servidor Replit não deve enviar mensagens WhatsApp');
-      return null;
-    }
-
     if (!this.sock) {
       console.error("Socket WhatsApp não está conectado");
       return null;
@@ -5126,25 +4996,16 @@ export class WhatsAppService extends EventEmitter {
 
       console.log("Resultado do envio dos botões:", result);
 
-      // Get or create conversation (with duplicate protection)
+      // Get or create conversation
       let conversa = await storage.getConversaByTelefone(telefone);
       if (!conversa) {
-        try {
-          conversa = await storage.createConversa({
-            telefone: telefone,
-            ultimaMensagem: text,
-            ultimoRemetente: "sistema",
-            tipoUltimaMensagem: "text",
-            mensagensNaoLidas: 0,
-          });
-        } catch (error) {
-          // If creation fails due to unique constraint (duplicate), try to get existing conversation
-          console.log("Conversa pode já existir, tentando buscar novamente...");
-          conversa = await storage.getConversaByTelefone(telefone);
-          if (!conversa) {
-            throw error; // Re-throw if it's a different error
-          }
-        }
+        conversa = await storage.createConversa({
+          telefone: telefone,
+          ultimaMensagem: text,
+          ultimoRemetente: "sistema",
+          tipoUltimaMensagem: "text",
+          mensagensNaoLidas: 0,
+        });
       }
 
       // Save message to database
@@ -5206,12 +5067,6 @@ export class WhatsAppService extends EventEmitter {
       rows: Array<{ id: string; title: string; description?: string }>;
     }>,
   ): Promise<string | null> {
-    // Verificar se está no ambiente Replit e bloquear envio
-    if (this.isReplitEnvironment()) {
-      console.log('🚫 Envio de lista bloqueado - servidor Replit não deve enviar mensagens WhatsApp');
-      return null;
-    }
-
     if (!this.sock) {
       console.error("Socket WhatsApp não está conectado");
       return null;
@@ -5238,25 +5093,16 @@ export class WhatsAppService extends EventEmitter {
 
       const result = await this.sock.sendMessage(jid, listMessage);
 
-      // Get or create conversation (with duplicate protection)
+      // Get or create conversation
       let conversa = await storage.getConversaByTelefone(telefone);
       if (!conversa) {
-        try {
-          conversa = await storage.createConversa({
-            telefone: telefone,
-            ultimaMensagem: text,
-            ultimoRemetente: "sistema",
-            tipoUltimaMensagem: "text",
-            mensagensNaoLidas: 0,
-          });
-        } catch (error) {
-          // If creation fails due to unique constraint (duplicate), try to get existing conversation
-          console.log("Conversa pode já existir, tentando buscar novamente...");
-          conversa = await storage.getConversaByTelefone(telefone);
-          if (!conversa) {
-            throw error; // Re-throw if it's a different error
-          }
-        }
+        conversa = await storage.createConversa({
+          telefone: telefone,
+          ultimaMensagem: text,
+          ultimoRemetente: "sistema",
+          tipoUltimaMensagem: "text",
+          mensagensNaoLidas: 0,
+        });
       }
 
       // Save message to database
@@ -5358,12 +5204,6 @@ export class WhatsAppService extends EventEmitter {
   }
 
   async sendMedia(to: string, media: any): Promise<string | null> {
-    // Verificar se está no ambiente Replit e bloquear envio
-    if (this.isReplitEnvironment()) {
-      console.log('🚫 Envio de mídia bloqueado - servidor Replit não deve enviar mensagens WhatsApp');
-      return null;
-    }
-
     if (!this.sock) {
       console.error("Socket WhatsApp não está conectado");
       return null;
@@ -5510,27 +5350,17 @@ export class WhatsAppService extends EventEmitter {
       clearInterval(this.keepAliveInterval);
     }
 
-    console.log("🔧 Configurando keep-alive robusto para conexão persistente");
-
-    // Set up keep-alive ping every 15 seconds for more frequent checks
+    // Set up keep-alive ping every 30 seconds
     this.keepAliveInterval = setInterval(async () => {
       if (this.sock && this.connectionState.connection === "open") {
         try {
-          // Verify connection health first
-          const connectionHealth = await this.checkConnectionHealth();
-          
-          if (!connectionHealth) {
-            console.log("⚠️ Conexão não está saudável, forçando reconexão...");
-            this.forceReconnect();
-            return;
-          }
-
-          // Send keep-alive ping
+          // Only send presence update if markOnlineOnConnect is true
           if (this.settings?.markOnlineOnConnect) {
             await this.sock.sendPresenceUpdate("available");
-            console.log("✅ Keep-alive ping sent with presence update");
+            console.log("Keep-alive ping sent with presence update");
           } else {
-            // Send ping without presence update
+            // Just send a simple ping without presence update
+            // This keeps the connection alive without showing as online
             await this.sock.query({
               tag: "iq",
               attrs: {
@@ -5539,139 +5369,13 @@ export class WhatsAppService extends EventEmitter {
                 xmlns: "w:ping",
               },
             });
-            console.log("✅ Keep-alive ping sent (no presence update)");
+            console.log("Keep-alive ping sent (no presence update)");
           }
-
-          // Additional connection stability check
-          if (this.sock.ws?.readyState !== 1) {
-            console.log("⚠️ WebSocket readyState não é 1, reconectando...");
-            this.forceReconnect();
-          }
-
         } catch (error) {
-          console.error("❌ Keep-alive ping failed:", error);
-          console.log("🔄 Forçando reconexão devido a erro no keep-alive");
-          this.forceReconnect();
-        }
-      } else {
-        console.log("⚠️ Socket não disponível ou não conectado, tentando reconectar...");
-        if (!this.isReconnecting) {
-          this.forceReconnect();
+          console.error("Keep-alive ping failed:", error);
         }
       }
-    }, 15000); // Every 15 seconds for more frequent monitoring
-
-    console.log("✅ Keep-alive configurado com intervalo de 15 segundos");
-  }
-
-  private async checkConnectionHealth(): Promise<boolean> {
-    try {
-      if (!this.sock || this.connectionState.connection !== "open") {
-        return false;
-      }
-
-      // Check WebSocket state
-      if (this.sock.ws?.readyState !== 1) {
-        return false;
-      }
-
-      // Try a simple ping to verify connection
-      await Promise.race([
-        this.sock.query({
-          tag: "iq",
-          attrs: {
-            to: "@s.whatsapp.net",
-            type: "get",
-            xmlns: "w:ping",
-          },
-        }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
-      ]);
-
-      return true;
-    } catch (error) {
-      console.log("❌ Health check failed:", error);
-      return false;
-    }
-  }
-
-  private forceReconnect() {
-    if (this.isReconnecting) {
-      console.log("⏸️ Reconexão já em andamento, ignorando...");
-      return;
-    }
-
-    console.log("🔄 Forçando reconexão imediata...");
-    this.isReconnecting = true;
-
-    // Close current connection
-    if (this.sock) {
-      try {
-        this.sock.ws?.close();
-      } catch (error) {
-        console.log("Erro ao fechar conexão existente:", error);
-      }
-      this.sock = null;
-    }
-
-    // Clear keep-alive
-    if (this.keepAliveInterval) {
-      clearInterval(this.keepAliveInterval);
-      this.keepAliveInterval = null;
-    }
-
-    // Reconnect immediately
-    setTimeout(() => {
-      this.isReconnecting = false;
-      console.log("🚀 Iniciando reconexão...");
-      this.initialize();
-    }, 2000);
-  }
-
-  private setupConnectionHardening() {
-    console.log("🛡️ Configurando endurecimento de conexão para máxima estabilidade");
-
-    // Monitor WebSocket state and force reconnect if needed
-    const connectionMonitor = setInterval(() => {
-      if (this.sock && this.sock.ws) {
-        const wsState = this.sock.ws.readyState;
-        
-        // WebSocket states: 0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED
-        if (wsState === 2 || wsState === 3) {
-          console.log(`⚠️ WebSocket em estado ${wsState}, forçando reconexão...`);
-          clearInterval(connectionMonitor);
-          this.forceReconnect();
-        } else if (wsState === 1) {
-          // Connection is good, but let's verify it's really working
-          if (!this.isReconnecting) {
-            this.verifyConnectionActive();
-          }
-        }
-      }
-    }, 10000); // Check every 10 seconds
-
-    // Clean up monitor when disconnecting
-    this.sock?.ws?.addEventListener('close', () => {
-      clearInterval(connectionMonitor);
-    });
-
-    console.log("✅ Endurecimento de conexão configurado");
-  }
-
-  private async verifyConnectionActive() {
-    try {
-      // Try to get connection info to verify if connection is really active
-      if (this.sock && this.connectionState.connection === "open") {
-        // Simple presence check - this will fail if connection is dead
-        await Promise.race([
-          this.sock.sendPresenceUpdate("available"),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Verification timeout")), 3000))
-        ]);
-      }
-    } catch (error) {
-      console.log("❌ Verificação de conexão falhou, reconectando...");
-      this.forceReconnect();
-    }
+    }, 30000); // Every 30 seconds
   }
 
   async applySettings(settings: any) {
@@ -5826,25 +5530,16 @@ export class WhatsAppService extends EventEmitter {
     );
 
     if (!conversa) {
-      // Create new conversation (with duplicate protection)
+      // Create new conversation
       console.log(`Creating new conversation for ${telefone} in bot mode`);
-      try {
-        conversa = await storage.createConversa({
-          telefone,
-          nome: telefone,
-          status: "ativo",
-          modoAtendimento: "bot",
-          ultimaMensagem: mensagem,
-          tipoUltimaMensagem: "text",
-        });
-      } catch (error) {
-        // If creation fails due to unique constraint (duplicate), try to get existing conversation
-        console.log("Conversa pode já existir, tentando buscar novamente...");
-        conversa = await storage.getConversaByTelefone(telefone);
-        if (!conversa) {
-          throw error; // Re-throw if it's a different error
-        }
-      }
+      conversa = await storage.createConversa({
+        telefone,
+        nome: telefone,
+        status: "ativo",
+        modoAtendimento: "bot",
+        ultimaMensagem: mensagem,
+        tipoUltimaMensagem: "text",
+      });
     } else {
       // Update existing conversation WITHOUT forcing bot mode
       console.log(`Updating existing conversation ${conversa.id} in ${conversa.modoAtendimento} mode`);
