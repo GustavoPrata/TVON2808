@@ -93,14 +93,20 @@ export async function initDatabase() {
       ON mensagens(conversa_id, timestamp DESC)
     `);
     
-    // Create anotacoes table - ultra simplified
+    // Create anotacoes table
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS anotacoes (
         id SERIAL PRIMARY KEY,
-        texto TEXT NOT NULL,
+        titulo VARCHAR(255) NOT NULL,
+        descricao TEXT,
+        prioridade VARCHAR(20) NOT NULL DEFAULT 'media',
+        cor VARCHAR(10),
+        categoria VARCHAR(100),
+        prazo TIMESTAMP,
         concluida BOOLEAN DEFAULT FALSE,
         ordem INTEGER NOT NULL DEFAULT 0,
-        criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+        criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+        atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
       )
     `);
     
