@@ -39,6 +39,17 @@ function formatPhoneNumber(phone: string) {
   return phone;
 }
 
+// Helper function to extract phone number from WhatsApp JID
+function extractPhoneFromJid(jid: string | undefined): string {
+  if (!jid) return "";
+  
+  // Remove any WhatsApp suffixes (@s.whatsapp.net, @g.us, @lid, etc.)
+  const phone = jid.split('@')[0] || "";
+  
+  // Clean up any non-digit characters that might remain
+  return phone.replace(/[^0-9]/g, '');
+}
+
 export interface WhatsAppMessage {
   id: string;
   from: string;
@@ -203,7 +214,7 @@ export class WhatsAppService extends EventEmitter {
     console.log("Handling message delete:", { key });
 
     const whatsappMessageId = key.id;
-    const phone = key.remoteJid?.replace("@s.whatsapp.net", "") || "";
+    const phone = extractPhoneFromJid(key.remoteJid);
 
     if (!whatsappMessageId || !phone) return;
 
@@ -294,7 +305,7 @@ export class WhatsAppService extends EventEmitter {
     console.log("Update.message:", JSON.stringify(update.message, null, 2));
 
     const whatsappMessageId = key.id;
-    const phone = key.remoteJid?.replace("@s.whatsapp.net", "") || "";
+    const phone = extractPhoneFromJid(key.remoteJid);
 
     if (!whatsappMessageId || !phone) {
       console.log("Missing whatsappMessageId or phone, aborting");
@@ -591,7 +602,7 @@ export class WhatsAppService extends EventEmitter {
       return;
     }
 
-    const phone = remoteJid?.replace("@s.whatsapp.net", "") || "";
+    const phone = extractPhoneFromJid(remoteJid);
     const pushName = message.pushName || ""; // Get contact's display name
     let messageText =
       message.message?.conversation ||
@@ -5480,7 +5491,7 @@ export class WhatsAppService extends EventEmitter {
     try {
       // Ensure phone is in the correct format
       const formattedPhone = phone.includes("@")
-        ? phone.replace("@s.whatsapp.net", "")
+        ? extractPhoneFromJid(phone)
         : phone;
 
       // Try to get contact info from WhatsApp
