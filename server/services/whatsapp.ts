@@ -963,11 +963,33 @@ export class WhatsAppService extends EventEmitter {
         );
         if (existingMessage) {
           console.log(
-            "Message already exists, skipping duplicate save:",
+            "Message already exists by WhatsApp ID, skipping duplicate save:",
             message.id,
           );
           return;
         }
+      }
+
+      // Additional check: Look for recent duplicate messages by content and sender
+      // This helps avoid duplicates when the same message is processed twice
+      const recentMessages = await storage.getMensagensByConversaId(conversa.id);
+      const duplicateFound = recentMessages.some((msg) => {
+        if (msg.remetente === "sistema" && msg.conteudo === message.message) {
+          const msgTime = new Date(msg.timestamp).getTime();
+          const currentTime = new Date(message.timestamp).getTime();
+          const timeDiff = Math.abs(msgTime - currentTime);
+          // If same message within 5 seconds, consider it a duplicate
+          return timeDiff < 5000;
+        }
+        return false;
+      });
+
+      if (duplicateFound) {
+        console.log(
+          "Message already exists by content/time check, skipping duplicate save:",
+          message.message.substring(0, 50),
+        );
+        return;
       }
 
       // Save the message
@@ -4811,6 +4833,7 @@ export class WhatsAppService extends EventEmitter {
         remetente: "sistema",
         lida: true,
         metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
+        whatsappMessageId: whatsappMessageId, // Also save as whatsappMessageId field
       });
 
       // Update conversation last message
@@ -4930,6 +4953,7 @@ export class WhatsAppService extends EventEmitter {
           lida: true,
           mediaUrl: relativeMediaUrl,
           metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
+          whatsappMessageId: whatsappMessageId, // Also save as whatsappMessageId field
         });
 
         // Update conversation last message
