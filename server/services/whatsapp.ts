@@ -575,6 +575,12 @@ export class WhatsAppService extends EventEmitter {
     const message = m.messages[0];
     if (!message) return;
 
+    // Check if this is a reaction message
+    if (message.message?.reactionMessage) {
+      await this.handleReactionMessage(message);
+      return;
+    }
+
     console.log("Processing incoming message:", {
       id: message.key?.id,
       from: message.key?.remoteJid,
@@ -763,6 +769,84 @@ export class WhatsAppService extends EventEmitter {
     }
 
     // Don't emit the raw WhatsApp message, it will be emitted from processIncomingMessage
+  }
+
+  private async handleReactionMessage(message: any) {
+    try {
+      const reaction = message.message.reactionMessage;
+      const isFromMe = message.key.fromMe;
+      const remoteJid = message.key.remoteJid;
+      const phone = extractPhoneFromJid(remoteJid);
+      
+      console.log("=== REACTION MESSAGE RECEIVED ===");
+      console.log("Reaction details:", {
+        emoji: reaction.text,
+        messageId: reaction.key?.id,
+        from: phone,
+        isFromMe: isFromMe,
+        isRemoval: !reaction.text // Empty text means reaction removal
+      });
+
+      // Get the conversation
+      let conversa = await storage.getConversaByTelefone(phone);
+      if (!conversa) {
+        console.log("No conversation found for reaction, ignoring");
+        return;
+      }
+
+      // Find the original message that was reacted to
+      const targetMessageId = reaction.key?.id;
+      if (!targetMessageId) {
+        console.log("No target message ID for reaction");
+        return;
+      }
+
+      // Get the message from database
+      const mensagens = await storage.getMensagensByConversaId(conversa.id);
+      const targetMessage = mensagens.find(
+        msg => msg.whatsappMessageId === targetMessageId || 
+               msg.metadados?.whatsappMessageId === targetMessageId
+      );
+
+      if (!targetMessage) {
+        console.log("Target message not found for reaction");
+        return;
+      }
+
+      // Update the message with the reaction
+      const updatedMetadados = {
+        ...(targetMessage.metadados || {}),
+        reaction: reaction.text || null, // null means reaction was removed
+        reactionFrom: isFromMe ? "sistema" : "cliente",
+        reactionTimestamp: new Date().toISOString()
+      };
+
+      await storage.updateMensagem(targetMessage.id, {
+        metadados: updatedMetadados
+      });
+
+      // Notify WebSocket clients about the reaction
+      this.notifyWebSocketClients("message_reaction", {
+        conversaId: conversa.id,
+        messageId: targetMessage.id,
+        reaction: reaction.text || null,
+        from: isFromMe ? "sistema" : "cliente",
+        targetMessageId: targetMessage.id
+      });
+
+      // If it's from a client and bot is active, DON'T respond to reactions
+      if (!isFromMe) {
+        const botActive = conversa.modoAtendimento === "bot";
+        if (botActive) {
+          console.log("Bot ignoring reaction message from client");
+          return; // Bot doesn't respond to reactions
+        }
+      }
+
+      console.log("Reaction processed successfully");
+    } catch (error) {
+      console.error("Error handling reaction message:", error);
+    }
   }
 
   private getMessageType(

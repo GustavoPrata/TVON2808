@@ -885,6 +885,27 @@ export default function Chat() {
       queryClient.invalidateQueries({ queryKey: ['/api/whatsapp/conversations'] });
     };
 
+    // Handle message reactions
+    const handleMessageReaction = (data: any) => {
+      // Update the message with the reaction
+      if (selectedConversa && data.conversaId === selectedConversa.id) {
+        setAllMessages(prev => prev.map((msg: any) => {
+          if (msg.id === data.targetMessageId) {
+            return {
+              ...msg,
+              metadados: {
+                ...(msg.metadados || {}),
+                reaction: data.reaction,
+                reactionFrom: data.from,
+                reactionTimestamp: new Date().toISOString()
+              }
+            };
+          }
+          return msg;
+        }));
+      }
+    };
+
     // Registering handler for whatsapp_message
     onMessage('whatsapp_message', handleNewMessage);
     onMessage('message_sent', handleMessageSent);
@@ -894,6 +915,7 @@ export default function Chat() {
     onMessage('messages_marked_read', handleMessagesMarkedRead);
     onMessage('message_deleted', handleMessageDeleted);
     onMessage('message_edited', handleMessageEdited);
+    onMessage('message_reaction', handleMessageReaction);
     onMessage('conversation_updated', handleConversationUpdated);
     onMessage('conversation_created', handleConversationCreated);
     onMessage('ticket_auto_closed', handleTicketAutoClosed);
@@ -908,6 +930,7 @@ export default function Chat() {
       offMessage('messages_marked_read');
       offMessage('message_deleted');
       offMessage('message_edited');
+      offMessage('message_reaction');
       offMessage('conversation_updated');
       offMessage('conversation_created');
       offMessage('ticket_auto_closed');

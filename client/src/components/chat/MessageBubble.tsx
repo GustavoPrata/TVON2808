@@ -424,6 +424,16 @@ export function MessageBubble({
               </div>
             )}
         </div>
+        
+        {/* Reaction Display */}
+        {(message.metadados?.reaction || message.metadados?.reactionFrom) && (
+          <div className={cn(
+            "absolute -bottom-3 bg-slate-800 rounded-full px-2 py-0.5 text-lg shadow-md",
+            isOwn ? "right-4" : "left-4"
+          )}>
+            <span>{message.metadados?.reaction || ""}</span>
+          </div>
+        )}
       </div>
     </div>
   );
