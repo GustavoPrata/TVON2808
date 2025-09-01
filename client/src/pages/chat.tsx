@@ -1637,7 +1637,7 @@ export default function Chat() {
       {/* QR Code Modal Expandido */}
       {showQrModal && qrCode && (
         <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100]"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[10000]"
           onClick={() => setShowQrModal(false)}
         >
           <div 
@@ -1668,7 +1668,7 @@ export default function Chat() {
       
       {/* QR Code Modal */}
       {qrCode && !isConnected && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]">
           <Card className="w-96 bg-dark-surface border-slate-700">
             <CardHeader className="flex flex-row items-center justify-between">
               <h3 className="text-xl font-semibold">Conectar WhatsApp</h3>
@@ -1712,7 +1712,7 @@ export default function Chat() {
         <div className="w-96 bg-dark-surface border-r border-slate-600 flex flex-col relative">
           <div className="p-4 border-b border-slate-600 relative z-50" style={{ isolation: 'isolate' }}>
             {/* Contact Type Filter */}
-            <div className="relative z-50" style={{ position: 'relative', zIndex: 9999 }}>
+            <div className="relative z-10">
               <Tabs value={contactFilter} onValueChange={(value) => {
                 setContactFilter(value as any);
                 // Clear test phone number when changing tabs to prevent TestDetailsDialog from rendering
