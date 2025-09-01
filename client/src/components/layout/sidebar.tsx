@@ -21,7 +21,8 @@ import {
   BellOff,
   Router,
   LogOut,
-  StickyNote
+  StickyNote,
+  Activity
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ const menuItems = [
   { path: '/chat', icon: MessageSquare, label: 'Chat', badge: 'chat' },
   { path: '/tickets', icon: Ticket, label: 'Tickets', badge: 'tickets' },
   { path: '/vencimentos', icon: Calendar, label: 'Vencimentos' },
+  { path: '/acessos', icon: Activity, label: 'Acessos' },
   { path: '/testes', icon: Monitor, label: 'Testes' },
   { path: '/clientes', icon: Users, label: 'Clientes' },
   { path: '/apps', icon: Router, label: 'APPs' },
