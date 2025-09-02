@@ -210,3 +210,16 @@ export function useWebSocketContext() {
   }
   return context;
 }
+
+// Export with the expected name for backward compatibility
+export const useWebSocket = () => {
+  const { isConnected, sendMessage, onMessage, offMessage, messages } = useWebSocketContext();
+  
+  return {
+    isConnected,
+    sendMessage,
+    messages,
+    registerHandler: onMessage,
+    unregisterHandler: offMessage,
+  };
+};
