@@ -165,15 +165,10 @@ export default function Acessos() {
       return { text: 'Nunca acessado', color: 'text-gray-400' };
     }
 
-    // Converter UTC para horário de Brasília (UTC-3)
+    // Usar o horário direto da API sem conversão
     const now = new Date();
-    const lastAccessUTC = new Date(ultimoAcesso);
-    
-    // Subtrair 3 horas para converter de UTC para Brasília
-    const lastAccess = new Date(lastAccessUTC.getTime() - (3 * 60 * 60 * 1000));
-    const nowBrasil = new Date(now.getTime() - (3 * 60 * 60 * 1000));
-    
-    const minutesDiff = (now.getTime() - lastAccessUTC.getTime()) / (1000 * 60);
+    const lastAccess = new Date(ultimoAcesso);
+    const minutesDiff = (now.getTime() - lastAccess.getTime()) / (1000 * 60);
 
     if (minutesDiff <= 10) {
       return { text: 'Online agora', color: 'text-green-400' };
@@ -182,13 +177,13 @@ export default function Acessos() {
     const hoursDiff = minutesDiff / 60;
     const daysDiff = hoursDiff / 24;
     
-    // Se foi hoje (comparar no horário de Brasília)
-    if (nowBrasil.toDateString() === lastAccess.toDateString()) {
+    // Se foi hoje
+    if (now.toDateString() === lastAccess.toDateString()) {
       return { text: `Hoje às ${format(lastAccess, 'HH:mm', { locale: ptBR })}`, color: 'text-blue-400' };
     }
     
     // Se foi ontem
-    const yesterday = new Date(nowBrasil);
+    const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
     if (yesterday.toDateString() === lastAccess.toDateString()) {
       return { text: `Ontem às ${format(lastAccess, 'HH:mm', { locale: ptBR })}`, color: 'text-yellow-400' };
