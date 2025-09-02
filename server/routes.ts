@@ -4873,9 +4873,12 @@ Como posso ajudar você hoje?
           if (apiUser.last_access === null) {
             // Limpar o último acesso se estava preenchido incorretamente
             if (ponto.ultimoAcesso !== null) {
-              await storage.updatePonto(ponto.id, { ultimoAcesso: null });
+              const updatedPonto = await storage.updatePonto(ponto.id, { ultimoAcesso: null });
               updatedCount++;
               console.log(`🔄 Ponto ${ponto.id} limpo: nunca acessado`);
+              
+              // Enviar atualização em tempo real via WebSocket
+              broadcastMessage('ponto_updated', updatedPonto);
             }
           } else if (apiUser.last_access) {
             // Salvar o horário exatamente como vem da API, sem conversão
@@ -4887,9 +4890,12 @@ Como posso ajudar você hoje?
             
             // Update if no current access or if difference is more than 1 minute
             if (!currentLastAccess || Math.abs(apiLastAccess.getTime() - currentLastAccess.getTime()) > 60000) {
-              await storage.updatePonto(ponto.id, { ultimoAcesso: apiLastAccess });
+              const updatedPonto = await storage.updatePonto(ponto.id, { ultimoAcesso: apiLastAccess });
               updatedCount++;
               console.log(`✅ Ponto ${ponto.id} atualizado: ${apiLastAccessStr}`);
+              
+              // Enviar atualização em tempo real via WebSocket
+              broadcastMessage('ponto_updated', updatedPonto);
             }
           }
         }
@@ -4904,7 +4910,7 @@ Como posso ajudar você hoje?
   
   // Run sync on startup and periodically
   setTimeout(syncPontosLastAccess, 5000); // Wait 5 seconds after startup
-  setInterval(syncPontosLastAccess, 5 * 60 * 1000); // Every 5 minutes for more frequent updates
+  setInterval(syncPontosLastAccess, 10 * 1000); // Every 10 seconds for real-time updates
   
   // Manual sync endpoint for testing
   app.post('/api/pontos/sync-access', async (req, res) => {

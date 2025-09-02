@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from 'wouter';
+import { useWebSocket } from "@/contexts/websocket-context";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +58,9 @@ interface Ponto {
 export default function Acessos() {
   const [, setLocation] = useLocation();
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const queryClient = useQueryClient();
+  const { registerHandler, unregisterHandler } = useWebSocket();
 
   // Fetch pontos data
   const { data: pontos = [], isLoading: isLoadingPontos } = useQuery<Ponto[]>({
@@ -72,6 +76,32 @@ export default function Acessos() {
   const { data: sistemas = [] } = useQuery<any[]>({
     queryKey: ['/api/sistemas'],
   });
+
+  // Setup WebSocket listener for real-time updates
+  useEffect(() => {
+    const handlePontoUpdate = (data: any) => {
+      // Show updating indicator
+      setIsUpdating(true);
+      
+      // Update the specific ponto in the cache
+      queryClient.setQueryData(['/api/pontos'], (oldData: Ponto[] | undefined) => {
+        if (!oldData) return oldData;
+        
+        return oldData.map(ponto => 
+          ponto.id === data.id ? { ...ponto, ...data } : ponto
+        );
+      });
+      
+      // Hide updating indicator after a short delay
+      setTimeout(() => setIsUpdating(false), 1000);
+    };
+
+    registerHandler('ponto_updated', handlePontoUpdate);
+
+    return () => {
+      unregisterHandler('ponto_updated', handlePontoUpdate);
+    };
+  }, [registerHandler, unregisterHandler, queryClient]);
 
   // Calculate simplified metrics
   const metrics = {
@@ -229,9 +259,17 @@ export default function Acessos() {
               <Activity className="w-10 h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Central de Acessos
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  Central de Acessos
+                </h1>
+                {isUpdating && (
+                  <div className="flex items-center gap-2 text-green-400 animate-pulse">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Atualizando...</span>
+                  </div>
+                )}
+              </div>
               <p className="text-sm text-slate-400 mt-1">
                 Monitoramento de pontos de acesso em tempo real
               </p>
