@@ -4,7 +4,6 @@ import { useLocation } from 'wouter';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Activity, 
   Clock, 
@@ -186,80 +185,75 @@ export default function Acessos() {
 
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="bg-dark-gradient border-b border-slate-700 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white">Central de Acessos</h1>
+      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <Activity className="w-10 h-10 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Central de Acessos
+              </h1>
+              <p className="text-sm text-slate-400 mt-1">
+                Monitoramento de pontos de acesso em tempo real
+              </p>
+            </div>
+          </div>
           
-          {/* Sort Toggle Button */}
           <Button
-            variant="outline"
-            size="sm"
             onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-            className="border-slate-600 hover:bg-slate-800"
+            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
           >
             <ArrowUpDown className="w-4 h-4 mr-2" />
             {sortOrder === 'desc' ? 'Mais recente primeiro' : 'Mais antigo primeiro'}
           </Button>
         </div>
-        
-        {/* Simple Metrics */}
-        <div className="grid grid-cols-3 gap-4">
-          <Card className="bg-gradient-to-br from-green-500/10 to-green-600/10 border-green-500/20">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-green-400 font-medium">Online Agora</p>
-                  <p className="text-2xl font-bold text-white">{metrics.pontosOnlineAgora}</p>
-                </div>
-                <CheckCircle className="w-8 h-8 text-green-400 opacity-50" />
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/10 border-blue-500/20">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-blue-400 font-medium">Online Hoje</p>
-                  <p className="text-2xl font-bold text-white">{metrics.acessosHoje}</p>
-                </div>
-                <Clock className="w-8 h-8 text-blue-400 opacity-50" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-slate-500/10 to-slate-600/10 border-slate-500/20">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-slate-400 font-medium">Total de Pontos</p>
-                  <p className="text-2xl font-bold text-white">{metrics.totalPontos}</p>
-                </div>
-                <Users className="w-8 h-8 text-slate-400 opacity-50" />
-              </div>
-            </CardContent>
-          </Card>
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mt-6">
+          <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-400">Online Agora</span>
+              <CheckCircle className="w-4 h-4 text-green-400" />
+            </div>
+            <p className="text-2xl font-bold text-green-400 mt-1">{metrics.pontosOnlineAgora}</p>
+          </div>
+          
+          <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-400">Online Hoje</span>
+              <Clock className="w-4 h-4 text-blue-400" />
+            </div>
+            <p className="text-2xl font-bold text-blue-400 mt-1">{metrics.acessosHoje}</p>
+          </div>
+          
+          <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-400">Total de Pontos</span>
+              <Users className="w-4 h-4 text-slate-400" />
+            </div>
+            <p className="text-2xl font-bold text-slate-300 mt-1">{metrics.totalPontos}</p>
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <ScrollArea className="flex-1">
-        <div className="p-6">
-          {isLoadingPontos ? (
-            <div className="flex items-center justify-center h-64">
-              <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
-            </div>
-          ) : sortedPontos.length === 0 ? (
-            <Card className="bg-dark-card border-slate-700">
-              <CardContent className="p-12 text-center">
-                <Users className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                <p className="text-lg text-slate-400">Nenhum ponto de acesso encontrado</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="bg-dark-card border-slate-700">
+      {isLoadingPontos ? (
+        <div className="flex items-center justify-center h-64">
+          <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
+        </div>
+      ) : sortedPontos.length === 0 ? (
+        <Card className="bg-dark-card border-slate-600">
+          <CardContent className="p-12 text-center">
+            <Users className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+            <p className="text-lg text-slate-400">Nenhum ponto de acesso encontrado</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="bg-dark-card border-slate-600">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="border-b border-slate-700 bg-slate-800/50">
@@ -349,10 +343,8 @@ export default function Acessos() {
                   </tbody>
                 </table>
               </div>
-            </Card>
-          )}
-        </div>
-      </ScrollArea>
+        </Card>
+      )}
     </div>
   );
 }
