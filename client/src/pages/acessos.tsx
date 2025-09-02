@@ -165,11 +165,22 @@ export default function Acessos() {
       return { text: 'Nunca acessado', color: 'text-gray-400' };
     }
 
-    // Usar o horário direto da API sem conversão
+    // Extrair o horário direto da string ISO sem conversão de timezone
+    // Formato esperado: "2025-09-02T00:21:13.000Z"
+    const match = ultimoAcesso.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+    if (!match) {
+      return { text: 'Horário inválido', color: 'text-gray-400' };
+    }
+
+    const [_, year, month, day, hours, minutes] = match;
+    const timeStr = `${hours}:${minutes}`;
+    const dateStr = `${day}/${month}`;
+    
+    // Para calcular diferença, usar Date normal
     const now = new Date();
     const lastAccess = new Date(ultimoAcesso);
     const minutesDiff = (now.getTime() - lastAccess.getTime()) / (1000 * 60);
-
+    
     if (minutesDiff <= 10) {
       return { text: 'Online agora', color: 'text-green-400' };
     }
@@ -177,25 +188,34 @@ export default function Acessos() {
     const hoursDiff = minutesDiff / 60;
     const daysDiff = hoursDiff / 24;
     
+    // Comparar datas no mesmo formato
+    const nowDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const accessDate = `${year}-${month}-${day}`;
+    
     // Se foi hoje
-    if (now.toDateString() === lastAccess.toDateString()) {
-      return { text: `Hoje às ${format(lastAccess, 'HH:mm', { locale: ptBR })}`, color: 'text-blue-400' };
+    if (nowDate === accessDate) {
+      return { text: `Hoje às ${timeStr}`, color: 'text-blue-400' };
     }
     
     // Se foi ontem
     const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    if (yesterday.toDateString() === lastAccess.toDateString()) {
-      return { text: `Ontem às ${format(lastAccess, 'HH:mm', { locale: ptBR })}`, color: 'text-yellow-400' };
+    const yesterdayDate = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+    
+    if (yesterdayDate === accessDate) {
+      return { text: `Ontem às ${timeStr}`, color: 'text-yellow-400' };
     }
     
     // Se foi nos últimos 7 dias
     if (daysDiff < 7) {
-      return { text: format(lastAccess, "EEEE 'às' HH:mm", { locale: ptBR }), color: 'text-yellow-400' };
+      // Usar o nome do dia da semana em português
+      const weekDays = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+      const dayOfWeek = weekDays[lastAccess.getDay()];
+      return { text: `${dayOfWeek} às ${timeStr}`, color: 'text-yellow-400' };
     }
     
     // Mais de 7 dias
-    return { text: format(lastAccess, "dd/MM 'às' HH:mm", { locale: ptBR }), color: 'text-gray-400' };
+    return { text: `${dateStr} às ${timeStr}`, color: 'text-gray-400' };
   };
 
 

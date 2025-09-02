@@ -4869,14 +4869,19 @@ Como posso ajudar você hoje?
         }
         
         if (apiUser && apiUser.last_access) {
-          const apiLastAccess = new Date(apiUser.last_access);
+          // Salvar o horário exatamente como vem da API, sem conversão
+          // Se vier "2025-09-02T00:21:13.000Z", mantém esse valor
+          const apiLastAccessStr = apiUser.last_access;
+          
+          // Para comparação, usar os timestamps
+          const apiLastAccess = new Date(apiLastAccessStr);
           const currentLastAccess = ponto.ultimoAcesso ? new Date(ponto.ultimoAcesso) : null;
           
           // Update if no current access or if difference is more than 1 minute
           if (!currentLastAccess || Math.abs(apiLastAccess.getTime() - currentLastAccess.getTime()) > 60000) {
             await storage.updatePonto(ponto.id, { ultimoAcesso: apiLastAccess });
             updatedCount++;
-            console.log(`✅ Ponto ${ponto.id} atualizado: ${apiLastAccess.toISOString()}`);
+            console.log(`✅ Ponto ${ponto.id} atualizado: ${apiLastAccessStr}`);
           }
         }
       }
