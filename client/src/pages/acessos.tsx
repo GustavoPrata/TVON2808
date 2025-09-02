@@ -173,39 +173,12 @@ export default function Acessos() {
     }
 
     const [_, year, month, day, hours, minutes] = match;
+    const timeStr = `${hours}:${minutes}`;
+    const dateStr = `${day}/${month}`;
     
-    // Adicionar 4 horas ao horário extraído
-    let adjustedHours = parseInt(hours) + 4;
-    let adjustedDay = parseInt(day);
-    let adjustedMonth = parseInt(month);
-    let adjustedYear = parseInt(year);
-    
-    // Se passar de 24 horas, ajustar o dia
-    if (adjustedHours >= 24) {
-      adjustedHours = adjustedHours - 24;
-      adjustedDay++;
-      
-      // Verificar se precisa ajustar o mês
-      const daysInMonth = new Date(adjustedYear, adjustedMonth, 0).getDate();
-      if (adjustedDay > daysInMonth) {
-        adjustedDay = 1;
-        adjustedMonth++;
-        
-        // Verificar se precisa ajustar o ano
-        if (adjustedMonth > 12) {
-          adjustedMonth = 1;
-          adjustedYear++;
-        }
-      }
-    }
-    
-    const timeStr = `${String(adjustedHours).padStart(2, '0')}:${minutes}`;
-    const dateStr = `${String(adjustedDay).padStart(2, '0')}/${String(adjustedMonth).padStart(2, '0')}`;
-    
-    // Para calcular diferença, usar Date normal mas adicionar 4 horas
+    // Para calcular diferença, usar Date normal
     const now = new Date();
     const lastAccess = new Date(ultimoAcesso);
-    lastAccess.setHours(lastAccess.getHours() + 4);
     const minutesDiff = (now.getTime() - lastAccess.getTime()) / (1000 * 60);
     
     if (minutesDiff <= 10) {
@@ -217,7 +190,7 @@ export default function Acessos() {
     
     // Comparar datas no mesmo formato
     const nowDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const accessDate = `${adjustedYear}-${String(adjustedMonth).padStart(2, '0')}-${String(adjustedDay).padStart(2, '0')}`;
+    const accessDate = `${year}-${month}-${day}`;
     
     // Se foi hoje
     if (nowDate === accessDate) {
