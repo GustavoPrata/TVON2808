@@ -174,13 +174,27 @@ export default function Acessos() {
     }
     
     const hoursDiff = minutesDiff / 60;
-    if (hoursDiff < 24) {
-      return { text: 'Hoje', color: 'text-blue-400' };
+    const daysDiff = hoursDiff / 24;
+    
+    // Se foi hoje
+    if (now.toDateString() === lastAccess.toDateString()) {
+      return { text: `Hoje às ${format(lastAccess, 'HH:mm', { locale: ptBR })}`, color: 'text-blue-400' };
     }
-    if (hoursDiff < 168) {
-      return { text: formatDistanceToNow(lastAccess, { addSuffix: true, locale: ptBR }), color: 'text-yellow-400' };
+    
+    // Se foi ontem
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (yesterday.toDateString() === lastAccess.toDateString()) {
+      return { text: `Ontem às ${format(lastAccess, 'HH:mm', { locale: ptBR })}`, color: 'text-yellow-400' };
     }
-    return { text: formatDistanceToNow(lastAccess, { addSuffix: true, locale: ptBR }), color: 'text-gray-400' };
+    
+    // Se foi nos últimos 7 dias
+    if (daysDiff < 7) {
+      return { text: format(lastAccess, "EEEE 'às' HH:mm", { locale: ptBR }), color: 'text-yellow-400' };
+    }
+    
+    // Mais de 7 dias
+    return { text: format(lastAccess, "dd/MM 'às' HH:mm", { locale: ptBR }), color: 'text-gray-400' };
   };
 
 
