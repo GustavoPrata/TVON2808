@@ -37,7 +37,8 @@ import {
   ExternalLink,
   Globe,
   Server,
-  Cpu
+  Cpu,
+  Key
 } from "lucide-react";
 import { format, formatDistanceToNow, isAfter, isBefore, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -511,248 +512,171 @@ export default function Acessos() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-              {sortedPontos.map((ponto) => {
-                const accessStatus = getAccessStatus(ponto.ultimoAcesso);
-                const isExpanded = expandedCard === ponto.id;
+            <Card className="bg-dark-card border-slate-700">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-slate-700 bg-slate-800/50">
+                    <tr>
+                      <th className="text-left p-3 font-medium text-slate-300">Status</th>
+                      <th className="text-left p-3 font-medium text-slate-300">Cliente/Usuário</th>
+                      <th className="text-left p-3 font-medium text-slate-300">Aplicativo</th>
+                      <th className="text-left p-3 font-medium text-slate-300">Dispositivo</th>
+                      <th className="text-left p-3 font-medium text-slate-300">Sistema</th>
+                      <th className="text-left p-3 font-medium text-slate-300">MAC Address</th>
+                      <th className="text-left p-3 font-medium text-slate-300">Último Acesso</th>
+                      <th className="text-left p-3 font-medium text-slate-300">Expiração</th>
+                      <th className="text-left p-3 font-medium text-slate-300">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedPontos.map((ponto) => {
+                      const accessStatus = getAccessStatus(ponto.ultimoAcesso);
+                      const isExpanded = expandedCard === ponto.id;
 
-                return (
-                  <Card 
-                    key={ponto.id} 
-                    className={cn(
-                      "bg-dark-card border-slate-700 hover:border-slate-600 transition-all cursor-pointer",
-                      isExpanded && "lg:col-span-2 xl:col-span-2"
-                    )}
-                    onClick={() => setExpandedCard(isExpanded ? null : ponto.id)}
-                    data-testid={`card-access-${ponto.id}`}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "p-2 rounded-lg",
-                            getStatusColor(ponto)
-                          )}>
-                            {getAppIcon(ponto.aplicativo)}
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-white">
-                              {ponto.cliente?.nome || 'Cliente não identificado'}
-                            </h3>
-                            <p className="text-sm text-slate-400">
-                              {ponto.cliente?.telefone || 'Sem telefone'}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge className={cn("text-xs", getStatusColor(ponto))}>
-                          {ponto.status === 'ativo' && !isBefore(new Date(ponto.expiracao), new Date()) ? 'Ativo' :
-                           ponto.status === 'inativo' ? 'Inativo' : 'Expirado'}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {/* Access Info */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-slate-400" />
-                          <span className="text-sm text-slate-400">Último acesso:</span>
-                        </div>
-                        <span className={cn("text-sm font-medium", accessStatus.color)}>
-                          {accessStatus.text}
-                        </span>
-                      </div>
-
-                      {/* App and Device */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {getDeviceIcon(ponto.dispositivo)}
-                          <span className="text-sm text-slate-400">
-                            {ponto.dispositivo.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </span>
-                        </div>
-                        <span className="text-sm text-slate-300">
-                          {ponto.aplicativo === 'ibo_pro' ? 'IBO Pro' :
-                           ponto.aplicativo === 'ibo_player' ? 'IBO Player' : 'Shamel'}
-                        </span>
-                      </div>
-
-                      {/* System */}
-                      {ponto.sistema && (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Server className="w-4 h-4 text-slate-400" />
-                            <span className="text-sm text-slate-400">Sistema:</span>
-                          </div>
-                          <span className="text-sm text-slate-300">
-                            {ponto.sistema.systemId} ({ponto.sistema.pontosAtivos}/{ponto.sistema.maxPontosAtivos})
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Credentials */}
-                      <Separator className="bg-slate-700" />
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-slate-400">Usuário:</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-mono text-slate-300">{ponto.usuario}</span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                copyToClipboard(ponto.usuario, 'Usuário');
-                              }}
-                              data-testid={`button-copy-user-${ponto.id}`}
-                            >
-                              <Copy className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-slate-400">Senha:</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-mono text-slate-300">
-                              {showPasswords ? ponto.senha : '••••••••'}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 w-6 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                copyToClipboard(ponto.senha, 'Senha');
-                              }}
-                              data-testid={`button-copy-password-${ponto.id}`}
-                            >
-                              <Copy className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Expanded content */}
-                      {isExpanded && (
-                        <>
-                          <Separator className="bg-slate-700" />
+                      return (
+                        <tr 
+                          key={ponto.id} 
+                          className="border-b border-slate-700 hover:bg-slate-800/30 transition-colors"
+                          data-testid={`row-access-${ponto.id}`}
+                        >
+                          {/* Status Column */}
+                          <td className="p-3">
+                            <Badge className={cn("text-xs", getStatusColor(ponto))}>
+                              {ponto.status === 'ativo' && !isBefore(new Date(ponto.expiracao), new Date()) ? 'Ativo' :
+                               ponto.status === 'inativo' ? 'Inativo' : 'Expirado'}
+                            </Badge>
+                          </td>
                           
-                          {/* MAC Address */}
-                          {ponto.macAddress && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-slate-400">MAC Address:</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-mono text-slate-300">{ponto.macAddress}</span>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    copyToClipboard(ponto.macAddress!, 'MAC Address');
-                                  }}
-                                >
-                                  <Copy className="w-3 h-3" />
-                                </Button>
+                          {/* Cliente/Usuário Column */}
+                          <td className="p-3">
+                            <div>
+                              <div className="font-medium text-white">
+                                {ponto.cliente?.nome || 'Cliente não identificado'}
+                              </div>
+                              <div className="text-sm text-slate-400">
+                                {ponto.usuario}
                               </div>
                             </div>
-                          )}
-
-                          {/* Device Key */}
-                          {ponto.deviceKey && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-slate-400">Device Key:</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-mono text-slate-300 truncate max-w-[200px]">
-                                  {ponto.deviceKey}
-                                </span>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    copyToClipboard(ponto.deviceKey!, 'Device Key');
-                                  }}
-                                >
-                                  <Copy className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Expiration */}
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-slate-400">Expira em:</span>
-                            <span className={cn(
-                              "text-sm font-medium",
-                              differenceInDays(new Date(ponto.expiracao), new Date()) <= 7 
-                                ? "text-amber-400" 
-                                : "text-slate-300"
-                            )}>
-                              {format(new Date(ponto.expiracao), "dd/MM/yyyy")}
-                              {' '}({differenceInDays(new Date(ponto.expiracao), new Date())} dias)
-                            </span>
-                          </div>
-
-                          {/* Value */}
-                          {ponto.valor && parseFloat(ponto.valor) > 0 && (
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-slate-400">Valor:</span>
-                              <span className="text-sm font-medium text-green-400">
-                                R$ {parseFloat(ponto.valor).toFixed(2)}
+                          </td>
+                          {/* Aplicativo Column */}
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              {getAppIcon(ponto.aplicativo)}
+                              <span className="text-sm text-slate-300">
+                                {ponto.aplicativo === 'ibo_pro' ? 'IBO Pro' :
+                                 ponto.aplicativo === 'ibo_player' ? 'IBO Player' : 'Shamel'}
                               </span>
                             </div>
-                          )}
-
-                          {/* Description */}
-                          {ponto.descricao && (
-                            <div className="pt-2">
-                              <p className="text-sm text-slate-400">Descrição:</p>
-                              <p className="text-sm text-slate-300 mt-1">{ponto.descricao}</p>
+                          </td>
+                          
+                          {/* Dispositivo Column */}
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              {getDeviceIcon(ponto.dispositivo)}
+                              <span className="text-sm text-slate-300">
+                                {ponto.dispositivo.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                              </span>
                             </div>
-                          )}
+                          </td>
 
-                          {/* Actions */}
-                          <div className="flex gap-2 pt-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 border-slate-600"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                refreshAccessMutation.mutate(ponto.id);
-                              }}
-                              disabled={refreshAccessMutation.isPending}
-                              data-testid={`button-refresh-${ponto.id}`}
-                            >
-                              <RefreshCw className={cn(
-                                "w-3 h-3 mr-1",
-                                refreshAccessMutation.isPending && "animate-spin"
-                              )} />
-                              Atualizar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 border-slate-600"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                window.location.href = `/clientes/${ponto.clienteId}`;
-                              }}
-                              data-testid={`button-view-client-${ponto.id}`}
-                            >
-                              <User className="w-3 h-3 mr-1" />
-                              Ver Cliente
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                          {/* Sistema Column */}
+                          <td className="p-3">
+                            {ponto.sistema ? (
+                              <span className="text-sm text-slate-300">
+                                {ponto.sistema.systemId}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-slate-500">-</span>
+                            )}
+                          </td>
+
+                          {/* MAC Address Column */}
+                          <td className="p-3">
+                            {ponto.macAddress ? (
+                              <span className="text-xs font-mono text-slate-300">
+                                {ponto.macAddress}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-slate-500">-</span>
+                            )}
+                          </td>
+                          
+                          {/* Último Acesso Column */}
+                          <td className="p-3">
+                            <span className={cn("text-sm", accessStatus.color)}>
+                              {accessStatus.text}
+                            </span>
+                          </td>
+                          
+                          {/* Expiração Column */}
+                          <td className="p-3">
+                            <div>
+                              <div className={cn(
+                                "text-sm",
+                                differenceInDays(new Date(ponto.expiracao), new Date()) <= 7 
+                                  ? "text-amber-400" 
+                                  : "text-slate-300"
+                              )}>
+                                {format(new Date(ponto.expiracao), "dd/MM/yyyy")}
+                              </div>
+                              <div className="text-xs text-slate-400">
+                                {differenceInDays(new Date(ponto.expiracao), new Date())} dias
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Ações Column */}
+                          <td className="p-3">
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={() => copyToClipboard(ponto.usuario, 'Usuário')}
+                                data-testid={`button-copy-user-${ponto.id}`}
+                              >
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={() => copyToClipboard(ponto.senha, 'Senha')}
+                                data-testid={`button-copy-password-${ponto.id}`}
+                              >
+                                <Key className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={() => refreshAccessMutation.mutate(ponto.id)}
+                                disabled={refreshAccessMutation.isPending}
+                                data-testid={`button-refresh-${ponto.id}`}
+                              >
+                                <RefreshCw className={cn(
+                                  "w-3 h-3",
+                                  refreshAccessMutation.isPending && "animate-spin"
+                                )} />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                                onClick={() => window.location.href = `/clientes/${ponto.clienteId}`}
+                                data-testid={`button-view-client-${ponto.id}`}
+                              >
+                                <User className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           )}
 
           {/* Top Usage Statistics */}
