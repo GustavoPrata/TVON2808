@@ -635,9 +635,9 @@ export default function Clientes() {
                           )}
                         </td>
                         <td className="py-5 px-6">
-                          <Badge className={getStatusBadge(ponto.status)}>
-                            {getStatusIcon(ponto.status)}
-                            <span className="ml-1 capitalize">{ponto.status}</span>
+                          <Badge className={`${getStatusBadge(ponto.status)} flex items-center gap-1 w-fit px-3 py-1 font-semibold border-0`}>
+                            {React.createElement(getStatusIcon(ponto.status), { size: 16 })}
+                            {ponto.status}
                           </Badge>
                         </td>
                         <td className="py-5 px-6">
