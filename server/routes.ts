@@ -1241,6 +1241,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/pontos", async (req, res) => {
     try {
       const pontos = await storage.getAllPontos();
+      
+      // Try to sync last_access from external API
+      try {
+        const apiUsers = await externalApiService.getUsers();
+        const apiUsersMap = new Map(apiUsers.map(u => [u.id, u]));
+        
+        // Update pontos with last_access from API
+        for (const ponto of pontos) {
+          if (ponto.apiUserId && apiUsersMap.has(ponto.apiUserId)) {
+            const apiUser = apiUsersMap.get(ponto.apiUserId);
+            if (apiUser && apiUser.last_access) {
+              // Update the ponto's ultimoAcesso if different
+              const apiLastAccess = new Date(apiUser.last_access);
+              if (!ponto.ultimoAcesso || apiLastAccess.getTime() !== ponto.ultimoAcesso.getTime()) {
+                await storage.updatePonto(ponto.id, { ultimoAcesso: apiLastAccess });
+                ponto.ultimoAcesso = apiLastAccess;
+              }
+            }
+          }
+        }
+      } catch (apiError) {
+        console.error("Erro ao sincronizar last_access da API:", apiError);
+        // Continue even if API sync fails
+      }
+      
       // Enrich pontos with cliente data
       const pontosWithClientes = await Promise.all(
         pontos.map(async (ponto) => {
