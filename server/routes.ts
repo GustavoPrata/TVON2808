@@ -4868,20 +4868,29 @@ Como posso ajudar você hoje?
           noMatch++;
         }
         
-        if (apiUser && apiUser.last_access) {
-          // Salvar o horário exatamente como vem da API, sem conversão
-          // Se vier "2025-09-02T00:21:13.000Z", mantém esse valor
-          const apiLastAccessStr = apiUser.last_access;
-          
-          // Para comparação, usar os timestamps
-          const apiLastAccess = new Date(apiLastAccessStr);
-          const currentLastAccess = ponto.ultimoAcesso ? new Date(ponto.ultimoAcesso) : null;
-          
-          // Update if no current access or if difference is more than 1 minute
-          if (!currentLastAccess || Math.abs(apiLastAccess.getTime() - currentLastAccess.getTime()) > 60000) {
-            await storage.updatePonto(ponto.id, { ultimoAcesso: apiLastAccess });
-            updatedCount++;
-            console.log(`✅ Ponto ${ponto.id} atualizado: ${apiLastAccessStr}`);
+        if (apiUser) {
+          // Se a API retorna null, significa que nunca foi acessado
+          if (apiUser.last_access === null) {
+            // Limpar o último acesso se estava preenchido incorretamente
+            if (ponto.ultimoAcesso !== null) {
+              await storage.updatePonto(ponto.id, { ultimoAcesso: null });
+              updatedCount++;
+              console.log(`🔄 Ponto ${ponto.id} limpo: nunca acessado`);
+            }
+          } else if (apiUser.last_access) {
+            // Salvar o horário exatamente como vem da API, sem conversão
+            const apiLastAccessStr = apiUser.last_access;
+            
+            // Para comparação, usar os timestamps
+            const apiLastAccess = new Date(apiLastAccessStr);
+            const currentLastAccess = ponto.ultimoAcesso ? new Date(ponto.ultimoAcesso) : null;
+            
+            // Update if no current access or if difference is more than 1 minute
+            if (!currentLastAccess || Math.abs(apiLastAccess.getTime() - currentLastAccess.getTime()) > 60000) {
+              await storage.updatePonto(ponto.id, { ultimoAcesso: apiLastAccess });
+              updatedCount++;
+              console.log(`✅ Ponto ${ponto.id} atualizado: ${apiLastAccessStr}`);
+            }
           }
         }
       }
