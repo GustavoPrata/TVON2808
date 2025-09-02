@@ -23,7 +23,8 @@ import {
   Server,
   Cpu,
   Key,
-  Users
+  Users,
+  ArrowUpDown
 } from "lucide-react";
 import { format, formatDistanceToNow, isAfter, isBefore, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -65,6 +66,7 @@ export default function Acessos() {
   const { toast } = useToast();
   const [showPasswords, setShowPasswords] = useState(false);
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Fetch pontos data
   const { data: pontos = [], isLoading: isLoadingPontos } = useQuery<Ponto[]>({
@@ -110,12 +112,16 @@ export default function Acessos() {
     sistema: sistemas.find((s: any) => s.id === ponto.sistemaId)
   }));
 
-  // Sort pontos by most recent access
+  // Sort pontos by access time based on sortOrder
   const sortedPontos = [...enrichedPontos].sort((a, b) => {
     if (!a.ultimoAcesso && !b.ultimoAcesso) return 0;
     if (!a.ultimoAcesso) return 1;
     if (!b.ultimoAcesso) return -1;
-    return new Date(b.ultimoAcesso).getTime() - new Date(a.ultimoAcesso).getTime();
+    
+    const timeA = new Date(a.ultimoAcesso).getTime();
+    const timeB = new Date(b.ultimoAcesso).getTime();
+    
+    return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
   });
 
   const copyToClipboard = (text: string, label: string) => {
@@ -213,7 +219,20 @@ export default function Acessos() {
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="bg-dark-gradient border-b border-slate-700 p-6">
-        <h1 className="text-2xl font-bold text-white mb-6">Central de Acessos</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-white">Central de Acessos</h1>
+          
+          {/* Sort Toggle Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+            className="border-slate-600 hover:bg-slate-800"
+          >
+            <ArrowUpDown className="w-4 h-4 mr-2" />
+            {sortOrder === 'desc' ? 'Mais recente primeiro' : 'Mais antigo primeiro'}
+          </Button>
+        </div>
         
         {/* Simple Metrics */}
         <div className="grid grid-cols-3 gap-4">
