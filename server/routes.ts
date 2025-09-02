@@ -1242,51 +1242,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const pontos = await storage.getAllPontos();
       
-      // Try to sync last_access from external API
-      try {
-        const apiUsers = await externalApiService.getUsers();
-        const apiUsersMap = new Map(apiUsers.map(u => [u.id, u]));
-        
-        // Update pontos with last_access from API
-        for (const ponto of pontos) {
-          if (ponto.apiUserId && apiUsersMap.has(ponto.apiUserId)) {
-            const apiUser = apiUsersMap.get(ponto.apiUserId);
-            if (apiUser && apiUser.last_access) {
-              // Update the ponto's ultimoAcesso if different
-              const apiLastAccess = new Date(apiUser.last_access);
-              
-              // Convert ponto.ultimoAcesso to Date for proper comparison
-              const currentLastAccess = ponto.ultimoAcesso ? new Date(ponto.ultimoAcesso) : null;
-              
-              // Only update if the times are actually different (ignore millisecond differences)
-              const shouldUpdate = !currentLastAccess || 
-                Math.abs(apiLastAccess.getTime() - currentLastAccess.getTime()) > 1000;
-              
-              if (shouldUpdate) {
-                console.log(`Atualizando último acesso do ponto ${ponto.id}: ${apiUser.last_access}`);
-                await storage.updatePonto(ponto.id, { ultimoAcesso: apiLastAccess });
-                ponto.ultimoAcesso = apiLastAccess;
-              }
-            }
-          }
-        }
-      } catch (apiError) {
-        console.error("Erro ao sincronizar last_access da API:", apiError);
-        // Continue even if API sync fails
-      }
-      
-      // Enrich pontos with cliente data
-      const pontosWithClientes = await Promise.all(
-        pontos.map(async (ponto) => {
-          const cliente = await storage.getClienteById(ponto.clienteId);
-          return {
-            ...ponto,
-            clienteNome: cliente?.nome || 'Cliente não encontrado',
-            clienteTelefone: cliente?.telefone || ''
-          };
-        })
-      );
-      res.json(pontosWithClientes);
+      // Return pontos immediately without external API sync to avoid timeouts
+      // The sync can be done in a background job if needed
+      res.json(pontos);
     } catch (error) {
       console.error("Erro ao buscar todos os pontos:", error);
       res
@@ -4848,6 +4806,39 @@ Como posso ajudar você hoje?
       });
     }
   });
+
+  // Background sync for pontos last access from external API
+  const syncPontosLastAccess = async () => {
+    try {
+      console.log('🔄 Sincronizando último acesso dos pontos...');
+      const pontos = await storage.getAllPontos();
+      const apiUsers = await externalApiService.getUsers();
+      const apiUsersMap = new Map(apiUsers.map(u => [u.id, u]));
+      
+      let updatedCount = 0;
+      for (const ponto of pontos) {
+        if (ponto.apiUserId && apiUsersMap.has(ponto.apiUserId)) {
+          const apiUser = apiUsersMap.get(ponto.apiUserId);
+          if (apiUser && apiUser.last_access) {
+            const apiLastAccess = new Date(apiUser.last_access);
+            const currentLastAccess = ponto.ultimoAcesso ? new Date(ponto.ultimoAcesso) : null;
+            
+            if (!currentLastAccess || Math.abs(apiLastAccess.getTime() - currentLastAccess.getTime()) > 60000) {
+              await storage.updatePonto(ponto.id, { ultimoAcesso: apiLastAccess });
+              updatedCount++;
+            }
+          }
+        }
+      }
+      console.log(`✅ Sincronização concluída: ${updatedCount} pontos atualizados`);
+    } catch (error) {
+      console.error('❌ Erro na sincronização de último acesso:', error);
+    }
+  };
+  
+  // Run sync on startup and periodically
+  setTimeout(syncPontosLastAccess, 10000); // Wait 10 seconds after startup
+  setInterval(syncPontosLastAccess, 30 * 60 * 1000); // Every 30 minutes
 
   return httpServer;
 }
