@@ -1254,7 +1254,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (apiUser && apiUser.last_access) {
               // Update the ponto's ultimoAcesso if different
               const apiLastAccess = new Date(apiUser.last_access);
-              if (!ponto.ultimoAcesso || apiLastAccess.getTime() !== ponto.ultimoAcesso.getTime()) {
+              
+              // Convert ponto.ultimoAcesso to Date for proper comparison
+              const currentLastAccess = ponto.ultimoAcesso ? new Date(ponto.ultimoAcesso) : null;
+              
+              // Only update if the times are actually different (ignore millisecond differences)
+              const shouldUpdate = !currentLastAccess || 
+                Math.abs(apiLastAccess.getTime() - currentLastAccess.getTime()) > 1000;
+              
+              if (shouldUpdate) {
+                console.log(`Atualizando último acesso do ponto ${ponto.id}: ${apiUser.last_access}`);
                 await storage.updatePonto(ponto.id, { ultimoAcesso: apiLastAccess });
                 ponto.ultimoAcesso = apiLastAccess;
               }
