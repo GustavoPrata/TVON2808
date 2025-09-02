@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+import { useLocation } from 'wouter';
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
 import { 
   Activity, 
   Clock, 
@@ -13,18 +12,12 @@ import {
   Smartphone, 
   Tv2, 
   Laptop,
-  User,
-  RefreshCw,
   CheckCircle,
-  Eye,
-  EyeOff,
-  Copy,
   Globe,
-  Server,
   Cpu,
-  Key,
   Users,
-  ArrowUpDown
+  ArrowUpDown,
+  RefreshCw
 } from "lucide-react";
 import { format, formatDistanceToNow, isAfter, isBefore, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -63,9 +56,7 @@ interface Ponto {
 }
 
 export default function Acessos() {
-  const { toast } = useToast();
-  const [showPasswords, setShowPasswords] = useState(false);
-  const [expandedCard, setExpandedCard] = useState<number | null>(null);
+  const [, setLocation] = useLocation();
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Fetch pontos data
@@ -124,13 +115,6 @@ export default function Acessos() {
     return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
   });
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: `${label} copiado!`,
-      description: "Conteúdo copiado para a área de transferência",
-    });
-  };
 
   const getAppIcon = (aplicativo: string) => {
     switch (aplicativo) {
@@ -200,20 +184,6 @@ export default function Acessos() {
     return { text: formatDistanceToNow(lastAccess, { addSuffix: true, locale: ptBR }), color: 'text-gray-400' };
   };
 
-  const refreshAccessMutation = useMutation({
-    mutationFn: async (pontoId: number) => {
-      // Simulate access refresh
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return { success: true };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
-      toast({
-        title: "Acesso atualizado",
-        description: "As informações de acesso foram atualizadas com sucesso",
-      });
-    }
-  });
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -299,10 +269,7 @@ export default function Acessos() {
                       <th className="text-left p-3 font-medium text-slate-300">Aplicativo</th>
                       <th className="text-left p-3 font-medium text-slate-300">Dispositivo</th>
                       <th className="text-left p-3 font-medium text-slate-300">Sistema</th>
-                      <th className="text-left p-3 font-medium text-slate-300">MAC Address</th>
                       <th className="text-left p-3 font-medium text-slate-300">Último Acesso</th>
-                      <th className="text-left p-3 font-medium text-slate-300">Expiração</th>
-                      <th className="text-left p-3 font-medium text-slate-300">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -326,7 +293,10 @@ export default function Acessos() {
                           {/* Cliente/Usuário Column */}
                           <td className="p-3">
                             <div>
-                              <div className="font-medium text-white">
+                              <div 
+                                className="font-medium text-white hover:text-blue-400 cursor-pointer transition-colors"
+                                onClick={() => ponto.clienteId && setLocation(`/clientes/${ponto.clienteId}`)}
+                              >
                                 {ponto.cliente?.nome || 'Cliente não identificado'}
                               </div>
                               <div className="text-sm text-slate-400">
@@ -366,86 +336,12 @@ export default function Acessos() {
                               <span className="text-sm text-slate-500">-</span>
                             )}
                           </td>
-
-                          {/* MAC Address Column */}
-                          <td className="p-3">
-                            {ponto.macAddress ? (
-                              <span className="text-xs font-mono text-slate-300">
-                                {ponto.macAddress}
-                              </span>
-                            ) : (
-                              <span className="text-sm text-slate-500">-</span>
-                            )}
-                          </td>
                           
                           {/* Último Acesso Column */}
                           <td className="p-3">
                             <span className={cn("text-sm", accessStatus.color)}>
                               {accessStatus.text}
                             </span>
-                          </td>
-                          
-                          {/* Expiração Column */}
-                          <td className="p-3">
-                            <div>
-                              <div className={cn(
-                                "text-sm",
-                                differenceInDays(new Date(ponto.expiracao), new Date()) <= 7 
-                                  ? "text-amber-400" 
-                                  : "text-slate-300"
-                              )}>
-                                {format(new Date(ponto.expiracao), "dd/MM/yyyy")}
-                              </div>
-                              <div className="text-xs text-slate-400">
-                                {differenceInDays(new Date(ponto.expiracao), new Date())} dias
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Ações Column */}
-                          <td className="p-3">
-                            <div className="flex gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0"
-                                onClick={() => copyToClipboard(ponto.usuario, 'Usuário')}
-                                data-testid={`button-copy-user-${ponto.id}`}
-                              >
-                                <Copy className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0"
-                                onClick={() => copyToClipboard(ponto.senha, 'Senha')}
-                                data-testid={`button-copy-password-${ponto.id}`}
-                              >
-                                <Key className="w-3 h-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0"
-                                onClick={() => refreshAccessMutation.mutate(ponto.id)}
-                                disabled={refreshAccessMutation.isPending}
-                                data-testid={`button-refresh-${ponto.id}`}
-                              >
-                                <RefreshCw className={cn(
-                                  "w-3 h-3",
-                                  refreshAccessMutation.isPending && "animate-spin"
-                                )} />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0"
-                                onClick={() => window.location.href = `/clientes/${ponto.clienteId}`}
-                                data-testid={`button-view-client-${ponto.id}`}
-                              >
-                                <User className="w-3 h-3" />
-                              </Button>
-                            </div>
                           </td>
                         </tr>
                       );
