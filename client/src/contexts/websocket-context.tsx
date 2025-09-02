@@ -22,6 +22,22 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   const ws = useRef<WebSocket | null>(null);
   const messageHandlers = useRef<Map<string, (data: any) => void>>(new Map());
   const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Function to play notification sound
+  const playNotificationSound = () => {
+    try {
+      if (!audioRef.current) {
+        audioRef.current = new Audio('/notification.mp3');
+        audioRef.current.volume = 0.7;
+      }
+      audioRef.current.play().catch((error) => {
+        console.log('Error playing notification sound:', error);
+      });
+    } catch (error) {
+      console.log('Error initializing notification sound:', error);
+    }
+  };
 
   // Function to connect WebSocket
   const connectWebSocket = () => {
@@ -62,7 +78,25 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         // Auto-invalidate queries based on message type to keep UI in sync
         switch (message.type) {
           case 'whatsapp_message':
+            // Play notification sound for client messages
+            if (message.data?.remetente === 'cliente') {
+              playNotificationSound();
+            }
+            queryClient.invalidateQueries({ queryKey: ['/api/conversas'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/whatsapp/conversations'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/conversas/', message.data?.conversaId] });
+            break;
+          
           case 'conversation_created':
+            // Play notification sound for new conversations from clients
+            if (message.data?.remetente === 'cliente') {
+              playNotificationSound();
+            }
+            queryClient.invalidateQueries({ queryKey: ['/api/conversas'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/whatsapp/conversations'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/conversas/', message.data?.conversaId] });
+            break;
+            
           case 'conversation_updated':
             queryClient.invalidateQueries({ queryKey: ['/api/conversas'] });
             queryClient.invalidateQueries({ queryKey: ['/api/whatsapp/conversations'] });
