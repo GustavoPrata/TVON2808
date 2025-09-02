@@ -4821,62 +4821,121 @@ Como posso ajudar você hoje?
   // Background sync for pontos last access from external API
   const syncPontosLastAccess = async () => {
     try {
-      console.log('🔄 Sincronizando último acesso dos pontos...');
+      console.log('🔄 Sincronizando último acesso dos pontos da API externa...');
       const pontos = await storage.getAllPontos();
+      const apiUsers = await externalApiService.getUsers();
       
-      // For now, set test data for all pontos without ultimoAcesso
-      let updatedCount = 0;
-      for (const ponto of pontos) {
-        if (!ponto.ultimoAcesso) {
-          // Set a random recent date for testing
-          const randomHours = Math.floor(Math.random() * 72); // Random between 0-72 hours ago
-          const testDate = new Date();
-          testDate.setHours(testDate.getHours() - randomHours);
-          
-          await storage.updatePonto(ponto.id, { ultimoAcesso: testDate });
-          updatedCount++;
-          console.log(`Updated ponto ${ponto.id} with test date: ${testDate.toISOString()}`);
-        }
-      }
+      console.log(`📊 Encontrados ${pontos.length} pontos e ${apiUsers.length} usuários da API`);
       
-      if (updatedCount > 0) {
-        console.log(`✅ Test data applied: ${updatedCount} pontos updated with test dates`);
-      }
-      
-      // Try to sync from external API if available
-      try {
-        const apiUsers = await externalApiService.getUsers();
-        const apiUsersMap = new Map(apiUsers.map(u => [u.id, u]));
+      // Debug: Show first few API user IDs
+      if (apiUsers.length > 0) {
+        const sampleIds = apiUsers.slice(0, 5).map(u => u.id);
+        console.log(`🔍 Primeiros IDs da API: ${sampleIds.join(', ')}`);
         
-        let apiUpdatedCount = 0;
-        for (const ponto of pontos) {
-          if (ponto.apiUserId && apiUsersMap.has(ponto.apiUserId)) {
-            const apiUser = apiUsersMap.get(ponto.apiUserId);
-            if (apiUser && apiUser.last_access) {
-              const apiLastAccess = new Date(apiUser.last_access);
-              const currentLastAccess = ponto.ultimoAcesso ? new Date(ponto.ultimoAcesso) : null;
-              
-              if (!currentLastAccess || Math.abs(apiLastAccess.getTime() - currentLastAccess.getTime()) > 60000) {
-                await storage.updatePonto(ponto.id, { ultimoAcesso: apiLastAccess });
-                apiUpdatedCount++;
-              }
-            }
+        // Check if we need to match by username instead of ID
+        const firstApiUser = apiUsers[0];
+        console.log(`🔍 Estrutura do primeiro usuário da API:`, {
+          id: firstApiUser.id,
+          username: firstApiUser.username,
+          app_name: firstApiUser.app_name,
+          last_access: firstApiUser.last_access
+        });
+      }
+      
+      // Try to match by username if IDs don't match
+      const apiUsersByUsername = new Map(apiUsers.map(u => [u.username, u]));
+      const apiUsersById = new Map(apiUsers.map(u => [u.id, u]));
+      
+      let updatedCount = 0;
+      let matchedByUsername = 0;
+      let matchedById = 0;
+      let noMatch = 0;
+      
+      for (const ponto of pontos) {
+        let apiUser = null;
+        
+        // First try to match by apiUserId
+        if (ponto.apiUserId && apiUsersById.has(ponto.apiUserId)) {
+          apiUser = apiUsersById.get(ponto.apiUserId);
+          matchedById++;
+        }
+        // If no match by ID, try to match by username
+        else if (ponto.usuario && apiUsersByUsername.has(ponto.usuario)) {
+          apiUser = apiUsersByUsername.get(ponto.usuario);
+          matchedByUsername++;
+          console.log(`📎 Ponto ${ponto.id} (usuario: ${ponto.usuario}) matched by username`);
+        } else {
+          noMatch++;
+        }
+        
+        if (apiUser && apiUser.last_access) {
+          const apiLastAccess = new Date(apiUser.last_access);
+          const currentLastAccess = ponto.ultimoAcesso ? new Date(ponto.ultimoAcesso) : null;
+          
+          // Update if no current access or if difference is more than 1 minute
+          if (!currentLastAccess || Math.abs(apiLastAccess.getTime() - currentLastAccess.getTime()) > 60000) {
+            await storage.updatePonto(ponto.id, { ultimoAcesso: apiLastAccess });
+            updatedCount++;
+            console.log(`✅ Ponto ${ponto.id} atualizado: ${apiLastAccess.toISOString()}`);
           }
         }
-        if (apiUpdatedCount > 0) {
-          console.log(`✅ API sync: ${apiUpdatedCount} pontos updated from external API`);
-        }
-      } catch (apiError) {
-        console.log('⚠️ External API sync failed, but test data is applied');
       }
+      
+      console.log(`✅ Sincronização concluída: ${updatedCount} pontos atualizados`);
+      console.log(`📊 Estatísticas: ${matchedById} por ID, ${matchedByUsername} por username, ${noMatch} sem correspondência`);
     } catch (error) {
       console.error('❌ Erro na sincronização de último acesso:', error);
     }
   };
   
   // Run sync on startup and periodically
-  setTimeout(syncPontosLastAccess, 10000); // Wait 10 seconds after startup
-  setInterval(syncPontosLastAccess, 30 * 60 * 1000); // Every 30 minutes
+  setTimeout(syncPontosLastAccess, 5000); // Wait 5 seconds after startup
+  setInterval(syncPontosLastAccess, 5 * 60 * 1000); // Every 5 minutes for more frequent updates
+  
+  // Manual sync endpoint for testing
+  app.post('/api/pontos/sync-access', async (req, res) => {
+    try {
+      await syncPontosLastAccess();
+      res.json({ success: true, message: 'Sincronização de último acesso iniciada' });
+    } catch (error) {
+      console.error('Erro ao sincronizar acesso:', error);
+      res.status(500).json({ error: 'Erro ao sincronizar último acesso' });
+    }
+  });
+  
+  // Endpoint to check API users for debugging
+  app.get('/api/pontos/check-api-users', async (req, res) => {
+    try {
+      const apiUsers = await externalApiService.getUsers();
+      const pontos = await storage.getAllPontos();
+      
+      // Get first 5 API users to see their structure
+      const sampleApiUsers = apiUsers.slice(0, 5);
+      
+      // Get pontos with apiUserId to check mapping
+      const pontosWithApiUser = pontos.filter(p => p.apiUserId).slice(0, 5);
+      
+      res.json({
+        totalApiUsers: apiUsers.length,
+        sampleApiUsers: sampleApiUsers.map(u => ({
+          id: u.id,
+          username: u.username,
+          last_access: u.last_access,
+          app_name: u.app_name
+        })),
+        pontosWithApiUser: pontosWithApiUser.map(p => ({
+          id: p.id,
+          apiUserId: p.apiUserId,
+          usuario: p.usuario,
+          aplicativo: p.aplicativo
+        })),
+        apiUserIds: apiUsers.map(u => u.id).sort((a, b) => a - b)
+      });
+    } catch (error) {
+      console.error('Erro ao verificar usuários da API:', error);
+      res.status(500).json({ error: 'Erro ao verificar usuários da API' });
+    }
+  });
 
   return httpServer;
 }
