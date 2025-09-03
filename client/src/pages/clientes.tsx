@@ -552,8 +552,9 @@ export default function Clientes() {
                       <td className="py-5 px-6">
                         <div className="flex items-center gap-3">
                           <Avatar 
-                            className="w-12 h-12 shadow-md"
+                            className="w-12 h-12 shadow-md cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
                             key={`${cliente.id}-${phoneToProfilePicture.get(cliente.telefone) || 'no-pic'}`}
+                            onClick={() => handleViewClient(cliente.id)}
                           >
                             {showPhotosClientes && phoneToProfilePicture.get(cliente.telefone) ? (
                               <AvatarImage 
@@ -570,7 +571,10 @@ export default function Clientes() {
                               {cliente.nome.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
+                          <div 
+                            className="cursor-pointer hover:text-blue-400 transition-colors"
+                            onClick={() => handleViewClient(cliente.id)}
+                          >
                             <p className="font-medium text-white text-base">{cliente.nome}</p>
                             {cliente.email && (
                               <p className="text-xs text-slate-400">{cliente.email}</p>
@@ -620,16 +624,7 @@ export default function Clientes() {
                         </Badge>
                       </td>
                       <td className="py-5 px-6">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleOpenModal(cliente)}
-                            className="h-8 w-8 text-slate-400 hover:text-white"
-                            data-testid={`button-edit-cliente-${cliente.id}`}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
+                        <div className="flex justify-end">
                           <Button
                             size="icon"
                             onClick={() => handleViewClient(cliente.id)}
