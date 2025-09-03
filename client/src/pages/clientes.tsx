@@ -185,11 +185,8 @@ export default function Clientes() {
   
   // Filter pontos locally based on search term and filters
   const filteredPontos = pontos?.filter((ponto: any) => {
-    // First check if ponto has valid cliente (from backend or clienteId)
+    // Get cliente from backend or find by ID
     const cliente = ponto.cliente || allClientes?.find((c: any) => c.id === ponto.clienteId);
-    
-    // Skip pontos without valid cliente
-    if (!cliente) return false;
     
     // Search filter
     const searchLower = searchTerm.toLowerCase();
@@ -197,7 +194,7 @@ export default function Clientes() {
       ponto.usuario?.toLowerCase().includes(searchLower) ||
       ponto.aplicativo?.toLowerCase().includes(searchLower) ||
       ponto.dispositivo?.toLowerCase().includes(searchLower) ||
-      cliente.nome?.toLowerCase().includes(searchLower)
+      cliente?.nome?.toLowerCase().includes(searchLower)
     );
     
     // Sistema filter  
@@ -210,8 +207,8 @@ export default function Clientes() {
       (selectedApp === 'iboplayer' && (ponto.aplicativo?.toLowerCase() === 'iboplayer' || ponto.aplicativo?.toLowerCase() === 'ibo_player')) ||
       (selectedApp === 'shamel' && ponto.aplicativo?.toLowerCase() === 'shamel');
     
-    // Client type filter
-    const matchesType = cliente.tipo === pontosType;
+    // Client type filter - only apply if cliente exists
+    const matchesType = !cliente ? true : cliente.tipo === pontosType;
     
     return matchesSearch && matchesSistema && matchesApp && matchesType;
   });
@@ -734,7 +731,7 @@ export default function Clientes() {
                           {React.createElement(Monitor, { size: 32, className: 'text-white' })}
                         </div>
                         <div>
-                          <h3 className="text-lg font-bold text-white">{cliente?.nome || 'Sem cliente'}</h3>
+                          <h3 className="text-lg font-bold text-white">{cliente?.nome || ponto.usuario || 'Ponto sem cliente'}</h3>
                           <p className="text-xs text-slate-400 mt-0.5">ID do Ponto: #{ponto.id}</p>
                         </div>
                       </div>
