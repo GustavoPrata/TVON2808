@@ -550,12 +550,6 @@ export default function Chat() {
     const handleNewMessage = (messageData: any) => {
       // New message received - removed console logs
       
-      // Only process messages with whatsappMessageId to avoid duplicates
-      if (!messageData.whatsappMessageId && !messageData.metadados?.whatsappMessageId) {
-        console.log('Skipping message without whatsappMessageId to avoid duplicates');
-        return;
-      }
-      
       // Update the conversation in the cache with new last message and timestamp
       // Also move the conversation to the top of the list
       queryClient.setQueryData(
@@ -665,12 +659,6 @@ export default function Chat() {
       
       if (!messageData || !messageData.conversaId) {
         console.error('Invalid message data received:', messageData);
-        return;
-      }
-      
-      // Skip messages without whatsappMessageId - they will come through whatsapp_message event
-      if (!messageData.whatsappMessageId && !messageData.metadados?.whatsappMessageId) {
-        console.log('Skipping message_sent without whatsappMessageId - will wait for whatsapp_message event');
         return;
       }
       
@@ -1099,13 +1087,32 @@ export default function Chat() {
   useEffect(() => {
     if (mensagens && Array.isArray(mensagens)) {
       // Initial messages loaded - mensagens comes directly from React Query
-      // Filter to only show messages with whatsappMessageId to avoid duplicates
-      const uniqueMessages = mensagens.filter((msg: any) => {
-        // Only show messages that have whatsappMessageId (these are the actual WhatsApp messages)
-        // This prevents showing duplicate messages that don't have whatsappMessageId
-        return msg.whatsappMessageId !== null && msg.whatsappMessageId !== undefined;
+      // Remove duplicates - keep the one with whatsappMessageId when both exist
+      const messageMap = new Map();
+      
+      mensagens.forEach((msg: any) => {
+        // Create a key based on content, sender and approximate time
+        const timeWindow = Math.floor(new Date(msg.timestamp).getTime() / 2000); // 2 second window
+        const key = `${msg.conteudo}-${msg.remetente}-${timeWindow}`;
+        
+        // If we haven't seen this message, add it
+        if (!messageMap.has(key)) {
+          messageMap.set(key, msg);
+        } else {
+          // If we've seen it, keep the one with whatsappMessageId
+          const existing = messageMap.get(key);
+          if (msg.whatsappMessageId && !existing.whatsappMessageId) {
+            messageMap.set(key, msg); // Replace with the one that has whatsappMessageId
+          } else if (!msg.whatsappMessageId && existing.whatsappMessageId) {
+            // Keep the existing one with whatsappMessageId
+          } else if (msg.id > existing.id) {
+            // If both have or both don't have whatsappMessageId, keep the newer one
+            messageMap.set(key, msg);
+          }
+        }
       });
       
+      const uniqueMessages = Array.from(messageMap.values());
       setAllMessages(uniqueMessages);
       // Only show "load more" button if we got exactly 30 messages (meaning there might be more)
       setHasMoreMessages(uniqueMessages.length === 30);
