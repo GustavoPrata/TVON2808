@@ -620,15 +620,6 @@ export class WhatsAppService extends EventEmitter {
     }
 
     const phone = extractPhoneFromJid(remoteJid);
-    
-    // Skip messages from ourselves to ourselves (self-messages that create unnecessary chats)
-    if (isFromMe && this.sock?.user?.id) {
-      const myNumber = extractPhoneFromJid(this.sock.user.id);
-      if (myNumber === phone) {
-        console.log("Skipping self-message to prevent unnecessary chat creation:", phone);
-        return;
-      }
-    }
     const pushName = message.pushName || ""; // Get contact's display name
     let messageText =
       message.message?.conversation ||
@@ -732,6 +723,15 @@ export class WhatsAppService extends EventEmitter {
       mediaUrl,
       metadados: replyMetadata,
     };
+
+    // Check if this is a self-message (sent to ourselves)
+    if (isFromMe && this.sock?.user?.id) {
+      const myNumber = extractPhoneFromJid(this.sock.user.id);
+      if (myNumber === phone) {
+        console.log("Skipping self-message to prevent unnecessary chat creation:", phone);
+        return; // Skip processing self-messages
+      }
+    }
 
     // Process the message differently based on who sent it
     if (isFromMe) {
