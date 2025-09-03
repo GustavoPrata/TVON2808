@@ -284,7 +284,7 @@ export default function Clientes() {
         macAddress: ponto.macAddress || '',
         deviceKey: ponto.deviceKey || '',
         observacoes: ponto.observacoes || '',
-        valorMensal: ponto.valorMensal || '',
+        valor: ponto.valor || '',
         expiracao: ponto.expiracao ? new Date(ponto.expiracao).toISOString().split('T')[0] : ''
       });
       setIsPontoModalOpen(true);
@@ -796,7 +796,7 @@ export default function Clientes() {
                         <span className="text-xs text-slate-400">Valor</span>
                       </div>
                       <p className="font-semibold text-sm text-green-400 truncate">
-                        R$ {ponto.valorMensal || '29.90'}
+                        R$ {ponto.valor || '0.00'}
                       </p>
                     </div>
                   </div>
@@ -978,13 +978,13 @@ function PontoEditModal({ ponto, formData, setFormData, isOpen, onClose, sistema
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="valorMensal" className="text-slate-200">Valor Mensal (R$)</Label>
+            <Label htmlFor="valor" className="text-slate-200">Valor Mensal (R$)</Label>
             <Input
-              id="valorMensal"
+              id="valor"
               type="number"
               step="0.01"
-              value={formData.valorMensal}
-              onChange={(e) => setFormData({ ...formData, valorMensal: e.target.value })}
+              value={formData.valor}
+              onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
               className="bg-slate-800 border-slate-700 text-white"
             />
           </div>
