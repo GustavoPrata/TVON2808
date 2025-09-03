@@ -929,29 +929,6 @@ export default function Clientes() {
 
                     <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
                       <div className="flex items-center gap-1.5 mb-1">
-                        <DollarSign className="w-3.5 h-3.5 text-green-400" />
-                        <span className="text-xs text-slate-400">Valor</span>
-                      </div>
-                      {editingPonto === ponto.id ? (
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={editedPonto.valor}
-                          onChange={(e) => setEditedPonto({ ...editedPonto, valor: e.target.value })}
-                          className="h-7 bg-slate-700/50 border-slate-600 text-green-400 text-sm font-semibold"
-                        />
-                      ) : (
-                        <p className="font-semibold text-sm text-green-400 truncate">
-                          R$ {ponto.valor || '0.00'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Additional fields row */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
-                      <div className="flex items-center gap-1.5 mb-1">
                         <Monitor className="w-3.5 h-3.5 text-indigo-400" />
                         <span className="text-xs text-slate-400">Dispositivo</span>
                       </div>
@@ -973,6 +950,29 @@ export default function Clientes() {
                       ) : (
                         <p className="font-semibold text-sm text-white capitalize">
                           {ponto.dispositivo?.replace('_', ' ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Additional fields row */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <DollarSign className="w-3.5 h-3.5 text-green-400" />
+                        <span className="text-xs text-slate-400">Valor</span>
+                      </div>
+                      {editingPonto === ponto.id ? (
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={editedPonto.valor}
+                          onChange={(e) => setEditedPonto({ ...editedPonto, valor: e.target.value })}
+                          className="h-7 bg-slate-700/50 border-slate-600 text-green-400 text-sm font-semibold"
+                        />
+                      ) : (
+                        <p className="font-semibold text-sm text-green-400 truncate">
+                          R$ {ponto.valor || '0.00'}
                         </p>
                       )}
                     </div>
