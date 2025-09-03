@@ -656,12 +656,20 @@ export default function Clientes() {
                           {ponto.ultimoAcesso ? new Date(ponto.ultimoAcesso).toLocaleString('pt-BR') : 'Sem acesso'}
                         </p>
                       </div>
-                      <Button
-                        onClick={() => setLocation(`/pontos/${ponto.id}`)}
-                        className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2 rounded-lg font-medium shadow-lg shadow-blue-500/30"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => setLocation(`/pontos/${ponto.id}`)}
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2 rounded-lg font-medium shadow-lg shadow-blue-500/30"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          onClick={() => handleEditPonto(ponto.id)}
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2 rounded-lg font-medium shadow-lg shadow-blue-500/30"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
@@ -764,7 +772,7 @@ export default function Clientes() {
                   </div>
 
                   {ponto.observacoes && (
-                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50 mb-4">
+                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
                       <div className="flex items-center gap-2 mb-1">
                         <FileText className="w-4 h-4 text-amber-400" />
                         <span className="text-xs text-slate-400">Observação</span>
@@ -772,18 +780,6 @@ export default function Clientes() {
                       <p className="text-sm text-white">{ponto.observacoes}</p>
                     </div>
                   )}
-
-                  <div className="flex items-center justify-end pt-4 border-t border-slate-700/50">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditPonto(ponto.id)}
-                      className="bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300"
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Editar
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
             );
