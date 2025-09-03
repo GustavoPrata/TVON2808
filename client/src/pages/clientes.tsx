@@ -887,10 +887,10 @@ function PontoEditModal({ ponto, formData, setFormData, isOpen, onClose, sistema
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-2xl">
+      <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-2xl" aria-describedby="ponto-edit-description">
         <DialogHeader>
           <DialogTitle className="text-white">Editar Ponto de Acesso</DialogTitle>
-          <DialogDescription className="text-slate-400">
+          <DialogDescription id="ponto-edit-description" className="text-slate-400">
             Edite as informações do ponto de acesso
           </DialogDescription>
         </DialogHeader>
