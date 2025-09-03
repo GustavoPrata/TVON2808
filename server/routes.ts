@@ -468,6 +468,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         telefone,
         conteudo,
         replyMessage,
+        true, // skipSaveMessage - message already saved by WebSocket handler
       );
       console.log("WhatsApp Message ID:", whatsappMessageId);
 
@@ -601,7 +602,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
 
-    // Notificar todos os clientes conectados (incluindo o remetente)
+    // Notificar todos os clientes conectados sobre o envio bem-sucedido
+    // NOTA: A mensagem já foi salva no banco de dados (linha 415)
+    // Este evento é apenas para notificar o frontend que a mensagem foi enviada
     const responseMessage = JSON.stringify({
       type: "message_sent",
       data: mensagem,

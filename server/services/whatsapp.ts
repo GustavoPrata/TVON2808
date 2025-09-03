@@ -4867,6 +4867,7 @@ export class WhatsAppService extends EventEmitter {
     to: string,
     message: string,
     replyTo?: any,
+    skipSaveMessage = false,
   ): Promise<string | null> {
     if (!this.sock) {
       console.error("Socket WhatsApp não está conectado");
@@ -4908,34 +4909,37 @@ export class WhatsAppService extends EventEmitter {
         timestamp: new Date().toISOString(),
       });
 
-      // Save message to database like a normal message
+      // Save message to database unless skipped (when already saved by WebSocket handler)
       const whatsappMessageId = result?.key?.id || null;
-      const savedMessage = await storage.createMensagem({
-        conversaId: conversa.id,
-        conteudo: message,
-        tipo: "text",
-        remetente: "sistema",
-        lida: true,
-        metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
-        whatsappMessageId: whatsappMessageId, // Also save as whatsappMessageId field
-      });
+      
+      if (!skipSaveMessage) {
+        const savedMessage = await storage.createMensagem({
+          conversaId: conversa.id,
+          conteudo: message,
+          tipo: "text",
+          remetente: "sistema",
+          lida: true,
+          metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
+          whatsappMessageId: whatsappMessageId, // Also save as whatsappMessageId field
+        });
 
-      // Update conversation last message
-      await storage.updateConversa(conversa.id, {
-        ultimaMensagem: message,
-        ultimoRemetente: "sistema",
-        tipoUltimaMensagem: "text",
-        dataUltimaMensagem: new Date(),
-      });
+        // Update conversation last message
+        await storage.updateConversa(conversa.id, {
+          ultimaMensagem: message,
+          ultimoRemetente: "sistema",
+          tipoUltimaMensagem: "text",
+          dataUltimaMensagem: new Date(),
+        });
 
-      // Notify WebSocket clients about the new message
-      // Add ehRemetente field to indicate this is a sent message
-      const messageWithSenderFlag = {
-        ...savedMessage,
-        conversaId: conversa.id, // Ensure conversaId is included
-        ehRemetente: true, // Indicates message was sent by system
-      };
-      this.notifyWebSocketClients("whatsapp_message", messageWithSenderFlag);
+        // Notify WebSocket clients about the new message
+        // Add ehRemetente field to indicate this is a sent message
+        const messageWithSenderFlag = {
+          ...savedMessage,
+          conversaId: conversa.id, // Ensure conversaId is included
+          ehRemetente: true, // Indicates message was sent by system
+        };
+        this.notifyWebSocketClients("whatsapp_message", messageWithSenderFlag);
+      }
 
       await this.logActivity("info", "WhatsApp", `Mensagem enviada para ${to}`);
       return whatsappMessageId;
