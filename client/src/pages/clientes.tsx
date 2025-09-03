@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
@@ -130,6 +130,15 @@ export default function Clientes() {
     return map;
   }, [conversas]);
 
+  // Create a map of sistema IDs to systemIds
+  const sistemasMap = useMemo(() => {
+    const map = new Map();
+    sistemas?.forEach((sistema: any) => {
+      map.set(sistema.id, sistema.systemId);
+    });
+    return map;
+  }, [sistemas]);
+
   // Filter clients locally based on search term
   const clientes = allClientes?.filter(cliente => {
     if (!searchTerm) return true;
@@ -152,7 +161,8 @@ export default function Clientes() {
     );
     
     // Sistema filter  
-    const matchesSistema = selectedSistema === 'all' || ponto.sistema === selectedSistema || ponto.systemId === selectedSistema;
+    const sistemaId = sistemasMap.get(ponto.sistemaId);
+    const matchesSistema = selectedSistema === 'all' || sistemaId === selectedSistema;
     
     // App filter
     const matchesApp = selectedApp === 'all' || 
@@ -696,8 +706,8 @@ export default function Clientes() {
                         <span className="text-xs text-slate-400">Sistema</span>
                       </div>
                       <p className="font-semibold text-sm text-white truncate">
-                        {ponto.sistema ? `Sistema ${ponto.sistema}` : 
-                         ponto.systemId ? `Sistema ${ponto.systemId}` : 
+                        {ponto.sistemaId && sistemasMap.get(ponto.sistemaId) ? 
+                         `Sistema ${sistemasMap.get(ponto.sistemaId)}` : 
                          'Sem Sistema'}
                       </p>
                     </div>
