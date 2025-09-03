@@ -2,25 +2,18 @@ import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
+import { format, addYears } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClientModal } from '@/components/modals/client-modal';
-import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Edit, Copy } from 'lucide-react';
+import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Edit, Copy, Save, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Cliente } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useSettings } from '@/contexts/settings-context';
 import { Switch } from '@/components/ui/switch';
@@ -30,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function Clientes() {
   const [, setLocation] = useLocation();
   const { showPhotosClientes } = useSettings();
+  const { toast } = useToast();
   
   // Initialize from localStorage or defaults
   const [searchTerm, setSearchTerm] = useState(() => 
@@ -54,9 +48,10 @@ export default function Clientes() {
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [isPontoModalOpen, setIsPontoModalOpen] = useState(false);
-  const [selectedPonto, setSelectedPonto] = useState<any>(null);
-  const [pontoFormData, setPontoFormData] = useState<any>({});
+  
+  // States for inline editing
+  const [editingPonto, setEditingPonto] = useState<number | null>(null);
+  const [editedPonto, setEditedPonto] = useState<any>({});
   
   // Persist filters to localStorage
   useEffect(() => {
@@ -117,7 +112,29 @@ export default function Clientes() {
     refetchOnWindowFocus: false,
   });
 
-
+  // Update ponto mutation for inline editing
+  const updatePontoMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { id, ...updateData } = data;
+      return apiRequest('PUT', `/api/pontos/${id}`, updateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
+      toast({
+        title: 'Sucesso',
+        description: 'Ponto atualizado com sucesso!',
+      });
+      setEditingPonto(null);
+      setEditedPonto({});
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao atualizar ponto',
+        variant: 'destructive',
+      });
+    },
+  });
 
   // Create a map of phone numbers to profile pictures from conversations
   const phoneToProfilePicture = React.useMemo(() => {
@@ -186,7 +203,6 @@ export default function Clientes() {
     
     return matchesSearch && matchesSistema && matchesApp;
   });
-  
 
   const handleOpenModal = (cliente?: Cliente) => {
     setSelectedCliente(cliente || null);
@@ -268,29 +284,6 @@ export default function Clientes() {
 
   const handleViewClient = (clienteId: number) => {
     setLocation(`/clientes/${clienteId}`);
-  };
-  
-  const handleEditPonto = async (pontoId: number) => {
-    try {
-      const ponto = pontos?.find((p: any) => p.id === pontoId);
-      if (!ponto) return;
-      
-      setSelectedPonto(ponto);
-      setPontoFormData({
-        usuario: ponto.usuario || '',
-        dispositivo: ponto.dispositivo || '',
-        aplicativo: ponto.aplicativo || '',
-        sistemaId: ponto.sistemaId || '',
-        macAddress: ponto.macAddress || '',
-        deviceKey: ponto.deviceKey || '',
-        observacoes: ponto.observacoes || '',
-        valor: ponto.valor || '',
-        expiracao: ponto.expiracao ? new Date(ponto.expiracao).toISOString().split('T')[0] : ''
-      });
-      setIsPontoModalOpen(true);
-    } catch (error) {
-      console.error('Error opening ponto for edit:', error);
-    }
   };
 
   if ((viewMode === 'clientes' && isLoading) || (viewMode === 'pontos' && isLoadingPontos)) {
@@ -573,46 +566,50 @@ export default function Clientes() {
                                 }}
                               />
                             ) : null}
-                            <AvatarFallback className="bg-gradient-to-br from-blue-500/20 to-purple-500/20">
-                              <span className="text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-lg font-bold">
-                                {cliente.nome && cliente.nome.length > 0 ? cliente.nome.charAt(0).toUpperCase() : '?'}
-                              </span>
+                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-lg font-semibold">
+                              {cliente.nome.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <span className="font-semibold text-white text-lg">{cliente.nome}</span>
-                            <p className="text-sm text-slate-400 capitalize">{cliente.tipo}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-5 px-6">
-                        <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4 text-green-400" />
-                          <span className="font-medium text-slate-300">
-                            {formatPhoneNumber(cliente.telefone)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-5 px-6">
-                        <span className="font-bold text-lg text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text">
-                          R$ {cliente.valorTotal}
-                        </span>
-                      </td>
-                      <td className="py-5 px-6">
-                        {cliente.vencimento ? (
-                          <div className="space-y-1">
-                            <span className={`font-medium ${getExpiryColor(daysUntilExpiry || 0)}`}>
-                              {new Date(cliente.vencimento).toLocaleDateString('pt-BR')}
-                            </span>
-                            {daysUntilExpiry !== null && (
-                              <p className={`text-xs font-semibold ${daysUntilExpiry <= 0 ? 'text-red-400' : daysUntilExpiry <= 5 ? 'text-yellow-400' : 'text-green-400'}`}>
-                                {daysUntilExpiry <= 0 ? '⚠️ Vencido' : `${daysUntilExpiry} dias restantes`}
-                              </p>
+                            <p className="font-medium text-white text-base">{cliente.nome}</p>
+                            {cliente.email && (
+                              <p className="text-xs text-slate-400">{cliente.email}</p>
                             )}
                           </div>
-                        ) : (
-                          <span className="text-slate-500">Não definido</span>
+                        </div>
+                      </td>
+                      <td className="py-5 px-6">
+                        <p className="font-medium text-slate-300">{formatPhoneNumber(cliente.telefone)}</p>
+                      </td>
+                      <td className="py-5 px-6">
+                        <p className="font-bold text-green-400 text-lg">
+                          R$ {cliente.valorTotal?.toFixed(2) || '0.00'}
+                        </p>
+                        {clienteType === 'familia' && cliente.pontosAtivos && (
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {cliente.pontosAtivos} {cliente.pontosAtivos === 1 ? 'ponto' : 'pontos'}
+                          </p>
                         )}
+                      </td>
+                      <td className="py-5 px-6">
+                        <div>
+                          <p className="font-medium text-slate-300">
+                            {cliente.vencimento 
+                              ? new Date(cliente.vencimento).toLocaleDateString('pt-BR')
+                              : '-'
+                            }
+                          </p>
+                          {daysUntilExpiry !== null && (
+                            <p className={`text-xs font-medium mt-0.5 ${getExpiryColor(daysUntilExpiry)}`}>
+                              {daysUntilExpiry === 0 
+                                ? 'Vence hoje' 
+                                : daysUntilExpiry < 0
+                                  ? `Vencido há ${Math.abs(daysUntilExpiry)} dias`
+                                  : `Faltam ${daysUntilExpiry} dias`
+                              }
+                            </p>
+                          )}
+                        </div>
                       </td>
                       <td className="py-5 px-6">
                         <Badge className={`${getStatusBadge(cliente.status)} flex items-center gap-1 w-fit px-3 py-1 font-semibold border-0`}>
@@ -620,64 +617,85 @@ export default function Clientes() {
                           {cliente.status}
                         </Badge>
                       </td>
-                      <td className="py-5 px-6 text-right">
-                        <Button
-                          onClick={() => handleViewClient(cliente.id)}
-                          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2 rounded-lg font-medium shadow-lg shadow-blue-500/30"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
+                      <td className="py-5 px-6">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleOpenModal(cliente)}
+                            className="h-8 w-8 text-slate-400 hover:text-white"
+                            data-testid={`button-edit-cliente-${cliente.id}`}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            onClick={() => handleViewClient(cliente.id)}
+                            className="h-8 w-8 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30"
+                            data-testid={`button-view-cliente-${cliente.id}`}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          </div>
-          
-          {!clientes?.length && (
-            <div className="flex flex-col items-center justify-center py-16 px-4">
-              <div className="p-4 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl mb-4">
-                <Users className="w-12 h-12 text-slate-500" />
+            {(!clientes || clientes.filter(cliente => {
+              const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   cliente.telefone.includes(searchTerm);
+              const matchesStatus = showCanceled ? cliente.status === 'cancelado' : cliente.status !== 'cancelado';
+              return matchesSearch && matchesStatus;
+            }).length === 0) && (
+              <div className="py-16 px-6">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="p-4 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl mb-4">
+                    <Users className="w-12 h-12 text-slate-500" />
+                  </div>
+                  <p className="text-slate-400 text-lg font-medium">
+                    {searchTerm 
+                      ? 'Nenhum cliente encontrado com esses critérios' 
+                      : 'Nenhum cliente cadastrado ainda'
+                    }
+                  </p>
+                  <p className="text-slate-500 text-sm mt-2">
+                    {searchTerm 
+                      ? 'Tente ajustar os filtros de busca' 
+                      : 'Clique no botão acima para adicionar o primeiro cliente'
+                    }
+                  </p>
+                </div>
               </div>
-              <p className="text-slate-400 text-lg font-medium">Nenhum cliente encontrado</p>
-              <p className="text-slate-500 text-sm mt-2">Clique no botão "Novo Cliente" para adicionar o primeiro cliente</p>
-            </div>
-          )}
+            )}
+          </div>
           </CardContent>
         </Card>
       ) : (
-        /* Pontos Grid */
-        <div className="space-y-4">
+        /* Pontos Table */
+        <div className="grid gap-6">
           {filteredPontos?.map((ponto: any) => {
-            const cliente = allClientes?.find(c => c.id === ponto.clienteId);
-            const daysUntilExpiry = ponto.expiracao ? getDaysUntilExpiry(ponto.expiracao) : null;
+            const cliente = allClientes?.find((c: any) => c.id === ponto.clienteId);
             
             return (
-              <Card 
-                key={ponto.id}
-                className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-purple-500/30"
-              >
+              <Card key={ponto.id} className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:shadow-xl hover:shadow-blue-500/10 transition-all">
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl shadow-lg shadow-purple-500/30">
-                        <Monitor className="w-8 h-8 text-white" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-xl font-bold text-white">
-                            {cliente?.nome || 'Cliente não encontrado'}
-                          </h3>
-                          <span className="text-sm text-slate-400">
-                            {cliente?.telefone ? formatPhoneNumber(cliente.telefone) : 'Sem telefone'}
-                          </span>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+                          {React.createElement(Monitor, { size: 32, className: 'text-white' })}
                         </div>
-                        <Badge className={`${getStatusBadge(ponto.status)} flex items-center gap-1 w-fit px-3 py-1 font-semibold border-0 mt-1`}>
-                          {React.createElement(getStatusIcon(ponto.status), { size: 16 })}
-                          {ponto.status}
-                        </Badge>
+                        <div>
+                          <h3 className="text-lg font-bold text-white">{cliente?.nome || 'Cliente não encontrado'}</h3>
+                          <p className="text-xs text-slate-400 mt-0.5">ID do Ponto: #{ponto.id}</p>
+                        </div>
                       </div>
+                      <Badge className={`${getStatusBadge(ponto.status)} flex items-center gap-1 w-fit px-3 py-1 font-semibold border-0 mt-1`}>
+                        {React.createElement(getStatusIcon(ponto.status), { size: 16 })}
+                        {ponto.status}
+                      </Badge>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
@@ -693,11 +711,51 @@ export default function Clientes() {
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
+                        {editingPonto === ponto.id && (
+                          <Button
+                            onClick={() => {
+                              setEditingPonto(null);
+                              setEditedPonto({});
+                            }}
+                            className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 py-2 rounded-lg font-medium"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Button
-                          onClick={() => handleEditPonto(ponto.id)}
-                          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2 rounded-lg font-medium shadow-lg shadow-blue-500/30"
+                          onClick={() => {
+                            if (editingPonto === ponto.id) {
+                              // Save changes
+                              updatePontoMutation.mutate({ id: ponto.id, ...editedPonto });
+                            } else {
+                              // Start editing
+                              setEditingPonto(ponto.id);
+                              setEditedPonto({
+                                usuario: ponto.usuario,
+                                senha: ponto.senha || 'tvon1@',
+                                valor: ponto.valor || '0',
+                                macAddress: ponto.macAddress || '',
+                                deviceKey: ponto.deviceKey || '',
+                                expiracao: ponto.expiracao ? format(new Date(ponto.expiracao), 'yyyy-MM-dd') : '',
+                                dispositivo: ponto.dispositivo,
+                                status: ponto.status,
+                                aplicativo: ponto.aplicativo,
+                                observacoes: ponto.observacoes || '',
+                                sistemaId: ponto.sistemaId
+                              });
+                            }
+                          }}
+                          className={`px-3 py-2 rounded-lg font-medium ${
+                            editingPonto === ponto.id 
+                              ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400' 
+                              : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30'
+                          }`}
                         >
-                          <Edit className="w-4 h-4" />
+                          {editingPonto === ponto.id ? (
+                            <Save className="w-4 h-4" />
+                          ) : (
+                            <Edit className="w-4 h-4" />
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -709,7 +767,15 @@ export default function Clientes() {
                         <Users className="w-3.5 h-3.5 text-blue-400" />
                         <span className="text-xs text-slate-400">Usuário</span>
                       </div>
-                      <p className="font-semibold text-sm text-white truncate">{ponto.usuario}</p>
+                      {editingPonto === ponto.id ? (
+                        <Input
+                          value={editedPonto.usuario}
+                          onChange={(e) => setEditedPonto({ ...editedPonto, usuario: e.target.value })}
+                          className="h-7 bg-slate-700/50 border-slate-600 font-mono text-white text-sm"
+                        />
+                      ) : (
+                        <p className="font-semibold text-sm text-white truncate">{ponto.usuario}</p>
+                      )}
                     </div>
 
                     <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
@@ -717,7 +783,15 @@ export default function Clientes() {
                         <KeyRound className="w-3.5 h-3.5 text-purple-400" />
                         <span className="text-xs text-slate-400">Senha</span>
                       </div>
-                      <p className="font-semibold text-sm text-white truncate">{ponto.senha || 'tvon1@'}</p>
+                      {editingPonto === ponto.id ? (
+                        <Input
+                          value={editedPonto.senha}
+                          onChange={(e) => setEditedPonto({ ...editedPonto, senha: e.target.value })}
+                          className="h-7 bg-slate-700/50 border-slate-600 font-mono text-white text-sm"
+                        />
+                      ) : (
+                        <p className="font-semibold text-sm text-white truncate">{ponto.senha || 'tvon1@'}</p>
+                      )}
                     </div>
 
                     <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
@@ -725,11 +799,32 @@ export default function Clientes() {
                         <Settings className="w-3.5 h-3.5 text-purple-400" />
                         <span className="text-xs text-slate-400">Sistema</span>
                       </div>
-                      <p className="font-semibold text-sm text-white truncate">
-                        {ponto.sistemaId && sistemasMap.get(ponto.sistemaId) ? 
-                         `Sistema ${sistemasMap.get(ponto.sistemaId)}` : 
-                         'Sem Sistema'}
-                      </p>
+                      {editingPonto === ponto.id ? (
+                        <Select
+                          value={editedPonto.sistemaId?.toString() || ''}
+                          onValueChange={(value) => setEditedPonto({ ...editedPonto, sistemaId: parseInt(value) })}
+                        >
+                          <SelectTrigger className="h-7 bg-slate-700/50 border-slate-600 text-white text-sm">
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sistemas.map((sistema: any) => (
+                              <SelectItem 
+                                key={sistema.id} 
+                                value={sistema.id.toString()}
+                              >
+                                Sistema {sistema.systemId}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="font-semibold text-sm text-white truncate">
+                          {ponto.sistemaId && sistemasMap.get(ponto.sistemaId) ? 
+                           `Sistema ${sistemasMap.get(ponto.sistemaId)}` : 
+                           'Sem Sistema'}
+                        </p>
+                      )}
                     </div>
 
                     <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
@@ -737,13 +832,29 @@ export default function Clientes() {
                         <Package className="w-3.5 h-3.5 text-green-400" />
                         <span className="text-xs text-slate-400">Aplicativo</span>
                       </div>
-                      <p className="font-semibold text-sm text-white truncate">
-                        {ponto.aplicativo?.toLowerCase() === 'ibo_player' || ponto.aplicativo?.toLowerCase() === 'iboplayer' ? 'Ibo Player' : 
-                         ponto.aplicativo?.toLowerCase() === 'ibo_pro' || ponto.aplicativo?.toLowerCase() === 'ibopro' ? 'Ibo Pro' : 
-                         ponto.aplicativo?.toLowerCase() === 'shamel' ? 'Shamel' : 
-                         ponto.aplicativo?.toLowerCase() === 'smartone' || ponto.aplicativo?.toLowerCase() === 'smart_one' ? 'Smart One' : 
-                         ponto.aplicativo}
-                      </p>
+                      {editingPonto === ponto.id ? (
+                        <Select
+                          value={editedPonto.aplicativo}
+                          onValueChange={(value) => setEditedPonto({ ...editedPonto, aplicativo: value })}
+                        >
+                          <SelectTrigger className="h-7 bg-slate-700/50 border-slate-600 text-white text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ibo_pro">IBO Pro</SelectItem>
+                            <SelectItem value="ibo_player">IBO Player</SelectItem>
+                            <SelectItem value="shamel">Shamel</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="font-semibold text-sm text-white truncate">
+                          {ponto.aplicativo?.toLowerCase() === 'ibo_player' || ponto.aplicativo?.toLowerCase() === 'iboplayer' ? 'Ibo Player' : 
+                           ponto.aplicativo?.toLowerCase() === 'ibo_pro' || ponto.aplicativo?.toLowerCase() === 'ibopro' ? 'Ibo Pro' : 
+                           ponto.aplicativo?.toLowerCase() === 'shamel' ? 'Shamel' : 
+                           ponto.aplicativo?.toLowerCase() === 'smartone' || ponto.aplicativo?.toLowerCase() === 'smart_one' ? 'Smart One' : 
+                           ponto.aplicativo}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -761,7 +872,16 @@ export default function Clientes() {
                           <Copy className="w-2.5 h-2.5 text-slate-400" />
                         </Button>
                       </div>
-                      <p className="font-mono text-xs text-white truncate">{ponto.macAddress || 'fb:5a:b2:fc:d4:84'}</p>
+                      {editingPonto === ponto.id ? (
+                        <Input
+                          value={editedPonto.macAddress}
+                          onChange={(e) => setEditedPonto({ ...editedPonto, macAddress: e.target.value })}
+                          className="h-7 bg-slate-700/50 border-slate-600 font-mono text-white text-xs"
+                          placeholder="00:00:00:00:00:00"
+                        />
+                      ) : (
+                        <p className="font-mono text-xs text-white truncate">{ponto.macAddress || 'fb:5a:b2:fc:d4:84'}</p>
+                      )}
                     </div>
 
                     <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
@@ -777,7 +897,15 @@ export default function Clientes() {
                           <Copy className="w-2.5 h-2.5 text-slate-400" />
                         </Button>
                       </div>
-                      <p className="font-mono text-xs text-white truncate">{ponto.deviceKey || '760469'}</p>
+                      {editingPonto === ponto.id ? (
+                        <Input
+                          value={editedPonto.deviceKey}
+                          onChange={(e) => setEditedPonto({ ...editedPonto, deviceKey: e.target.value })}
+                          className="h-7 bg-slate-700/50 border-slate-600 font-mono text-white text-xs"
+                        />
+                      ) : (
+                        <p className="font-mono text-xs text-white truncate">{ponto.deviceKey || '760469'}</p>
+                      )}
                     </div>
 
                     <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
@@ -785,9 +913,18 @@ export default function Clientes() {
                         <Calendar className="w-3.5 h-3.5 text-orange-400" />
                         <span className="text-xs text-slate-400">Expira em</span>
                       </div>
-                      <p className="font-semibold text-sm text-white truncate">
-                        {ponto.expiracao ? new Date(ponto.expiracao).toLocaleDateString('pt-BR') : 'Não definido'}
-                      </p>
+                      {editingPonto === ponto.id ? (
+                        <Input
+                          type="date"
+                          value={editedPonto.expiracao}
+                          onChange={(e) => setEditedPonto({ ...editedPonto, expiracao: e.target.value })}
+                          className="h-7 bg-slate-700/50 border-slate-600 text-white text-xs"
+                        />
+                      ) : (
+                        <p className="font-semibold text-sm text-white truncate">
+                          {ponto.expiracao ? new Date(ponto.expiracao).toLocaleDateString('pt-BR') : 'Não definido'}
+                        </p>
+                      )}
                     </div>
 
                     <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
@@ -795,19 +932,97 @@ export default function Clientes() {
                         <DollarSign className="w-3.5 h-3.5 text-green-400" />
                         <span className="text-xs text-slate-400">Valor</span>
                       </div>
-                      <p className="font-semibold text-sm text-green-400 truncate">
-                        R$ {ponto.valor || '0.00'}
-                      </p>
+                      {editingPonto === ponto.id ? (
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={editedPonto.valor}
+                          onChange={(e) => setEditedPonto({ ...editedPonto, valor: e.target.value })}
+                          className="h-7 bg-slate-700/50 border-slate-600 text-green-400 text-sm font-semibold"
+                        />
+                      ) : (
+                        <p className="font-semibold text-sm text-green-400 truncate">
+                          R$ {ponto.valor || '0.00'}
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  {ponto.observacoes && (
+                  {/* Additional fields row */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Monitor className="w-3.5 h-3.5 text-indigo-400" />
+                        <span className="text-xs text-slate-400">Dispositivo</span>
+                      </div>
+                      {editingPonto === ponto.id ? (
+                        <Select
+                          value={editedPonto.dispositivo}
+                          onValueChange={(value) => setEditedPonto({ ...editedPonto, dispositivo: value })}
+                        >
+                          <SelectTrigger className="h-7 bg-slate-700/50 border-slate-600 text-white text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="smart_tv">Smart TV</SelectItem>
+                            <SelectItem value="tv_box">TV Box</SelectItem>
+                            <SelectItem value="celular">Celular</SelectItem>
+                            <SelectItem value="notebook">Notebook</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="font-semibold text-sm text-white capitalize">
+                          {ponto.dispositivo?.replace('_', ' ')}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        {ponto.status === 'ativo' ? (
+                          <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5 text-red-400" />
+                        )}
+                        <span className="text-xs text-slate-400">Status</span>
+                      </div>
+                      {editingPonto === ponto.id ? (
+                        <Select
+                          value={editedPonto.status}
+                          onValueChange={(value) => setEditedPonto({ ...editedPonto, status: value })}
+                        >
+                          <SelectTrigger className="h-7 bg-slate-700/50 border-slate-600 text-white text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ativo">Ativo</SelectItem>
+                            <SelectItem value="inativo">Inativo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className={`font-semibold text-sm ${ponto.status === 'ativo' ? 'text-green-400' : 'text-red-400'}`}>
+                          {ponto.status.toUpperCase()}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {(ponto.observacoes || editingPonto === ponto.id) && (
                     <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
                       <div className="flex items-center gap-2 mb-1">
                         <FileText className="w-4 h-4 text-amber-400" />
                         <span className="text-xs text-slate-400">Observação</span>
                       </div>
-                      <p className="text-sm text-white">{ponto.observacoes}</p>
+                      {editingPonto === ponto.id ? (
+                        <Textarea
+                          value={editedPonto.observacoes}
+                          onChange={(e) => setEditedPonto({ ...editedPonto, observacoes: e.target.value })}
+                          className="bg-slate-700/50 border-slate-600 text-white text-sm min-h-[60px]"
+                          placeholder="Adicionar observação..."
+                        />
+                      ) : (
+                        <p className="text-sm text-white">{ponto.observacoes}</p>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -837,206 +1052,6 @@ export default function Clientes() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
       />
-
-      {/* Ponto Edit Modal */}
-      <PontoEditModal
-        ponto={selectedPonto}
-        formData={pontoFormData}
-        setFormData={setPontoFormData}
-        isOpen={isPontoModalOpen}
-        onClose={() => {
-          setIsPontoModalOpen(false);
-          setSelectedPonto(null);
-        }}
-        sistemas={sistemas}
-      />
     </div>
-  );
-}
-
-// Ponto Edit Modal Component
-function PontoEditModal({ ponto, formData, setFormData, isOpen, onClose, sistemas }: any) {
-  const { toast } = useToast();
-  
-  const updatePontoMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return apiRequest('PUT', `/api/pontos/${ponto.id}`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
-      toast({
-        title: 'Sucesso',
-        description: 'Ponto atualizado com sucesso!',
-      });
-      onClose();
-    },
-    onError: (error) => {
-      toast({
-        title: 'Erro',
-        description: 'Erro ao atualizar ponto',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const handleSubmit = () => {
-    updatePontoMutation.mutate(formData);
-  };
-
-  if (!ponto) return null;
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-2xl" aria-describedby="ponto-edit-description">
-        <DialogHeader>
-          <DialogTitle className="text-white">Editar Ponto de Acesso</DialogTitle>
-          <DialogDescription id="ponto-edit-description" className="text-slate-400">
-            Edite as informações do ponto de acesso
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid grid-cols-2 gap-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="usuario" className="text-slate-200">Usuário</Label>
-            <Input
-              id="usuario"
-              value={formData.usuario}
-              onChange={(e) => setFormData({ ...formData, usuario: e.target.value })}
-              className="bg-slate-800 border-slate-700 text-white"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="dispositivo" className="text-slate-200">Dispositivo</Label>
-            <Select
-              value={formData.dispositivo}
-              onValueChange={(value) => setFormData({ ...formData, dispositivo: value })}
-            >
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                <SelectValue placeholder="Selecione o dispositivo" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700">
-                <SelectItem value="smart_tv" className="text-white hover:bg-slate-800">Smart TV</SelectItem>
-                <SelectItem value="tv_box" className="text-white hover:bg-slate-800">TV Box</SelectItem>
-                <SelectItem value="celular" className="text-white hover:bg-slate-800">Celular</SelectItem>
-                <SelectItem value="notebook" className="text-white hover:bg-slate-800">Notebook</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="aplicativo" className="text-slate-200">Aplicativo</Label>
-            <Select
-              value={formData.aplicativo}
-              onValueChange={(value) => setFormData({ ...formData, aplicativo: value })}
-            >
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                <SelectValue placeholder="Selecione o aplicativo" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700">
-                <SelectItem value="ibopro" className="text-white hover:bg-slate-800">Ibo Pro</SelectItem>
-                <SelectItem value="iboplayer" className="text-white hover:bg-slate-800">Ibo Player</SelectItem>
-                <SelectItem value="shamel" className="text-white hover:bg-slate-800">Shamel</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="sistema" className="text-slate-200">Sistema</Label>
-            <Select
-              value={formData.sistemaId?.toString()}
-              onValueChange={(value) => setFormData({ ...formData, sistemaId: parseInt(value) })}
-            >
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                <SelectValue placeholder="Selecione o sistema" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700">
-                {sistemas?.map((sistema: any) => (
-                  <SelectItem 
-                    key={sistema.id} 
-                    value={sistema.id.toString()}
-                    className="text-white hover:bg-slate-800"
-                  >
-                    Sistema {sistema.systemId}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="macAddress" className="text-slate-200">MAC Address</Label>
-            <Input
-              id="macAddress"
-              value={formData.macAddress}
-              onChange={(e) => setFormData({ ...formData, macAddress: e.target.value })}
-              className="bg-slate-800 border-slate-700 text-white"
-              placeholder="00:00:00:00:00:00"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="deviceKey" className="text-slate-200">Device Key</Label>
-            <Input
-              id="deviceKey"
-              value={formData.deviceKey}
-              onChange={(e) => setFormData({ ...formData, deviceKey: e.target.value })}
-              className="bg-slate-800 border-slate-700 text-white"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="valor" className="text-slate-200">Valor Mensal (R$)</Label>
-            <Input
-              id="valor"
-              type="number"
-              step="0.01"
-              value={formData.valor}
-              onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
-              className="bg-slate-800 border-slate-700 text-white"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="expiracao" className="text-slate-200">Data de Expiração</Label>
-            <Input
-              id="expiracao"
-              type="date"
-              value={formData.expiracao}
-              onChange={(e) => setFormData({ ...formData, expiracao: e.target.value })}
-              className="bg-slate-800 border-slate-700 text-white"
-            />
-          </div>
-
-          <div className="col-span-2 space-y-2">
-            <Label htmlFor="observacoes" className="text-slate-200">Observações</Label>
-            <Textarea
-              id="observacoes"
-              value={formData.observacoes}
-              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-              className="bg-slate-800 border-slate-700 text-white min-h-[80px]"
-              placeholder="Observações sobre este ponto de acesso..."
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button
-            onClick={onClose}
-            variant="outline"
-            className="border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white"
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={updatePontoMutation.isPending}
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
-          >
-            {updatePontoMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
