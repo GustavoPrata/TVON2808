@@ -89,6 +89,13 @@ export default function Clientes() {
     enabled: viewMode === 'pontos', // Only fetch when in pontos mode
   });
 
+  // Fetch sistemas data
+  const { data: sistemas = [] } = useQuery<any[]>({
+    queryKey: ['/api/sistemas'],
+    staleTime: 5000,
+    refetchOnWindowFocus: false,
+  });
+
   // Fetch conversations to get profile pictures
   const { data: conversas, isLoading: isLoadingConversas } = useQuery<any[]>({
     queryKey: ['/api/conversas'],
@@ -145,7 +152,7 @@ export default function Clientes() {
     );
     
     // Sistema filter  
-    const matchesSistema = selectedSistema === 'all' || ponto.sistema === selectedSistema;
+    const matchesSistema = selectedSistema === 'all' || ponto.sistema === selectedSistema || ponto.systemId === selectedSistema;
     
     // App filter
     const matchesApp = selectedApp === 'all' || 
@@ -156,8 +163,6 @@ export default function Clientes() {
     return matchesSearch && matchesSistema && matchesApp;
   });
   
-  // Get unique sistemas from pontos
-  const sistemas = Array.from(new Set(pontos?.map((p: any) => p.sistema).filter(Boolean) || [])).sort();
 
   const handleOpenModal = (cliente?: Cliente) => {
     setSelectedCliente(cliente || null);
@@ -365,16 +370,13 @@ export default function Clientes() {
                   <SelectItem value="all" className="text-white hover:bg-slate-800">
                     Todos os Sistemas
                   </SelectItem>
-                  {sistemas.map((sistema: string) => (
+                  {sistemas.map((sistema: any) => (
                     <SelectItem 
-                      key={sistema} 
-                      value={sistema}
+                      key={sistema.id} 
+                      value={sistema.systemId}
                       className="text-white hover:bg-slate-800"
                     >
-                      {sistema === 'Sistema 1' ? 'Sistema 1' : 
-                       sistema === 'Sistema 2' ? 'Sistema 2' :
-                       sistema === 'Sistema 3' ? 'Sistema 3' :
-                       sistema === 'Sistema 4' ? 'Sistema 4' : sistema}
+                      Sistema {sistema.systemId}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -685,7 +687,11 @@ export default function Clientes() {
                         <Settings className="w-3.5 h-3.5 text-purple-400" />
                         <span className="text-xs text-slate-400">Sistema</span>
                       </div>
-                      <p className="font-semibold text-sm text-white truncate">{ponto.sistema || 'Sistema 2'}</p>
+                      <p className="font-semibold text-sm text-white truncate">
+                        {ponto.sistema ? `Sistema ${ponto.sistema}` : 
+                         ponto.systemId ? `Sistema ${ponto.systemId}` : 
+                         'Sem Sistema'}
+                      </p>
                     </div>
 
                     <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
