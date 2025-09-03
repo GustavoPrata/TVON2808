@@ -585,19 +585,30 @@ export default function Chat() {
         // Check if message already exists (avoid duplicates)
         setAllMessages(prev => {
           const exists = prev.some(msg => {
+            // Check by database ID first (most reliable)
+            if (msg.id && messageData.id && msg.id === messageData.id) {
+              return true;
+            }
+            
             // Check by WhatsApp ID
             if (msg.whatsappMessageId && messageData.whatsappMessageId && 
                 msg.whatsappMessageId === messageData.whatsappMessageId) {
               return true;
             }
             
-            // Check by content + remetente + time window (within 5 seconds)
+            // Check by metadados.whatsappMessageId
+            if (msg.metadados?.whatsappMessageId && messageData.metadados?.whatsappMessageId &&
+                msg.metadados.whatsappMessageId === messageData.metadados.whatsappMessageId) {
+              return true;
+            }
+            
+            // Check by content + remetente + time window (within 2 seconds)
             if (msg.conteudo === messageData.conteudo && 
                 msg.remetente === messageData.remetente) {
               const msgTime = new Date(msg.timestamp).getTime();
               const newTime = new Date(messageData.timestamp || Date.now()).getTime();
               const timeDiff = Math.abs(msgTime - newTime);
-              return timeDiff < 5000; // Within 5 seconds
+              return timeDiff < 2000; // Within 2 seconds
             }
             
             return false;
@@ -685,7 +696,7 @@ export default function Chat() {
         // Check if message already exists (avoid duplicates)
         setAllMessages(prev => {
           const exists = prev.some(msg => {
-            // Check by database ID if available
+            // Check by database ID if available (most reliable)
             if (msg.id && newMessage.id && msg.id === newMessage.id) {
               return true;
             }
@@ -702,7 +713,7 @@ export default function Chat() {
               return true;
             }
             
-            // Check by content + remetente + time window (within 3 seconds)
+            // Check by content + remetente + time window (within 2 seconds)
             // Ensure both messages are from the same sender
             const sameRemetente = (msg.remetente === 'sistema' && (newMessage.remetente === 'sistema' || newMessage.ehRemetente)) ||
                                  (msg.remetente === 'cliente' && newMessage.remetente === 'cliente');
@@ -711,7 +722,7 @@ export default function Chat() {
               const msgTime = new Date(msg.timestamp).getTime();
               const newTime = new Date(newMessage.timestamp || Date.now()).getTime();
               const timeDiff = Math.abs(msgTime - newTime);
-              return timeDiff < 3000; // Within 3 seconds
+              return timeDiff < 2000; // Within 2 seconds
             }
             
             return false;
@@ -1076,9 +1087,23 @@ export default function Chat() {
   useEffect(() => {
     if (mensagens && Array.isArray(mensagens)) {
       // Initial messages loaded - mensagens comes directly from React Query
-      setAllMessages(mensagens);
+      // Remove duplicates by checking unique IDs
+      const uniqueMessages = mensagens.filter((msg: any, index: number, self: any[]) => {
+        // Remove duplicates by checking ID
+        if (msg.id) {
+          return self.findIndex(m => m.id === msg.id) === index;
+        }
+        // For messages without ID, check by content, sender and timestamp (within 1 second)
+        return self.findIndex(m => 
+          m.conteudo === msg.conteudo && 
+          m.remetente === msg.remetente &&
+          Math.abs(new Date(m.timestamp).getTime() - new Date(msg.timestamp).getTime()) < 1000
+        ) === index;
+      });
+      
+      setAllMessages(uniqueMessages);
       // Only show "load more" button if we got exactly 30 messages (meaning there might be more)
-      setHasMoreMessages(mensagens.length === 30);
+      setHasMoreMessages(uniqueMessages.length === 30);
     } else if (selectedConversa?.id === -1) {
       // For temporary conversations, start with empty messages
       setAllMessages([]);
