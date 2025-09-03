@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClientModal } from '@/components/modals/client-modal';
-import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Copy } from 'lucide-react';
+import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Copy, Edit } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Cliente } from '@/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useSettings } from '@/contexts/settings-context';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function Clientes() {
   const [, setLocation] = useLocation();
@@ -31,6 +32,12 @@ export default function Clientes() {
   );
   const [showCanceled, setShowCanceled] = useState(() => 
     localStorage.getItem('clientes-show-canceled') === 'true'
+  );
+  const [selectedSistema, setSelectedSistema] = useState<string>(() => 
+    localStorage.getItem('pontos-sistema-filter') || 'all'
+  );
+  const [selectedApp, setSelectedApp] = useState<string>(() => 
+    localStorage.getItem('pontos-app-filter') || 'all'
   );
   
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
@@ -53,6 +60,14 @@ export default function Clientes() {
   useEffect(() => {
     localStorage.setItem('view-mode', viewMode);
   }, [viewMode]);
+  
+  useEffect(() => {
+    localStorage.setItem('pontos-sistema-filter', selectedSistema);
+  }, [selectedSistema]);
+  
+  useEffect(() => {
+    localStorage.setItem('pontos-app-filter', selectedApp);
+  }, [selectedApp]);
 
   // Fetch all clients without search filter
   const { data: allClientes, isLoading, refetch } = useQuery({
@@ -118,17 +133,31 @@ export default function Clientes() {
     );
   });
   
-  // Filter pontos locally based on search term
+  // Filter pontos locally based on search term and filters
   const filteredPontos = pontos?.filter((ponto: any) => {
-    if (!searchTerm) return true;
+    // Search filter
     const searchLower = searchTerm.toLowerCase();
-    return (
+    const matchesSearch = !searchTerm || (
       ponto.usuario?.toLowerCase().includes(searchLower) ||
       ponto.aplicativo?.toLowerCase().includes(searchLower) ||
       ponto.dispositivo?.toLowerCase().includes(searchLower) ||
       ponto.cliente?.nome?.toLowerCase().includes(searchLower)
     );
+    
+    // Sistema filter  
+    const matchesSistema = selectedSistema === 'all' || ponto.sistema === selectedSistema;
+    
+    // App filter
+    const matchesApp = selectedApp === 'all' || 
+      (selectedApp === 'ibopro' && ponto.aplicativo?.toLowerCase() === 'ibopro') ||
+      (selectedApp === 'iboplayer' && ponto.aplicativo?.toLowerCase() === 'iboplayer') ||
+      (selectedApp === 'shamel' && ponto.aplicativo?.toLowerCase() === 'shamel');
+    
+    return matchesSearch && matchesSistema && matchesApp;
   });
+  
+  // Get unique sistemas from pontos
+  const sistemas = Array.from(new Set(pontos?.map(p => p.sistema).filter(Boolean) || [])).sort();
 
   const handleOpenModal = (cliente?: Cliente) => {
     setSelectedCliente(cliente || null);
@@ -310,6 +339,59 @@ export default function Clientes() {
               spellCheck={false}
             />
           </div>
+          
+          {viewMode === 'pontos' && (
+            <>
+              <Select
+                value={selectedSistema}
+                onValueChange={setSelectedSistema}
+              >
+                <SelectTrigger className="w-40 bg-slate-900 border-slate-700 text-white">
+                  <SelectValue placeholder="Sistema" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-700">
+                  <SelectItem value="all" className="text-white hover:bg-slate-800">
+                    Todos os Sistemas
+                  </SelectItem>
+                  {sistemas.map(sistema => (
+                    <SelectItem 
+                      key={sistema} 
+                      value={sistema}
+                      className="text-white hover:bg-slate-800"
+                    >
+                      {sistema === 'Sistema 1' ? 'Sistema 1' : 
+                       sistema === 'Sistema 2' ? 'Sistema 2' :
+                       sistema === 'Sistema 3' ? 'Sistema 3' :
+                       sistema === 'Sistema 4' ? 'Sistema 4' : sistema}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select
+                value={selectedApp}
+                onValueChange={setSelectedApp}
+              >
+                <SelectTrigger className="w-40 bg-slate-900 border-slate-700 text-white">
+                  <SelectValue placeholder="Aplicativo" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-700">
+                  <SelectItem value="all" className="text-white hover:bg-slate-800">
+                    Todos os Apps
+                  </SelectItem>
+                  <SelectItem value="ibopro" className="text-white hover:bg-slate-800">
+                    Ibo Pro
+                  </SelectItem>
+                  <SelectItem value="iboplayer" className="text-white hover:bg-slate-800">
+                    Ibo Player
+                  </SelectItem>
+                  <SelectItem value="shamel" className="text-white hover:bg-slate-800">
+                    Shamel
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
           
           {viewMode === 'clientes' && (
             <>
