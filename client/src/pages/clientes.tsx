@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClientModal } from '@/components/modals/client-modal';
-import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Copy, Edit } from 'lucide-react';
+import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Edit, Copy } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Cliente } from '@/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -82,7 +82,7 @@ export default function Clientes() {
   });
 
   // Fetch pontos data when in pontos mode
-  const { data: pontos, isLoading: isLoadingPontos } = useQuery({
+  const { data: pontos, isLoading: isLoadingPontos } = useQuery<any[]>({
     queryKey: ['/api/pontos'],
     staleTime: 5000,
     refetchOnWindowFocus: true,
@@ -90,7 +90,7 @@ export default function Clientes() {
   });
 
   // Fetch conversations to get profile pictures
-  const { data: conversas, isLoading: isLoadingConversas } = useQuery({
+  const { data: conversas, isLoading: isLoadingConversas } = useQuery<any[]>({
     queryKey: ['/api/conversas'],
     staleTime: 5000,
     refetchOnWindowFocus: false,
@@ -157,7 +157,7 @@ export default function Clientes() {
   });
   
   // Get unique sistemas from pontos
-  const sistemas = Array.from(new Set(pontos?.map(p => p.sistema).filter(Boolean) || [])).sort();
+  const sistemas = Array.from(new Set(pontos?.map((p: any) => p.sistema).filter(Boolean) || [])).sort();
 
   const handleOpenModal = (cliente?: Cliente) => {
     setSelectedCliente(cliente || null);
@@ -241,9 +241,21 @@ export default function Clientes() {
     setLocation(`/clientes/${clienteId}`);
   };
   
-  const handleEditPonto = (pontoId: number) => {
-    // Implement ponto edit modal here
-    console.log('Edit ponto:', pontoId);
+  const handleEditPonto = async (pontoId: number) => {
+    try {
+      const ponto = pontos?.find((p: any) => p.id === pontoId);
+      if (!ponto) return;
+      
+      // Find the cliente associated with this ponto
+      const cliente = allClientes?.find(c => c.id === ponto.clienteId);
+      if (cliente) {
+        setSelectedCliente(cliente);
+        setIsCreating(false);
+        setIsModalOpen(true);
+      }
+    } catch (error) {
+      console.error('Error opening ponto for edit:', error);
+    }
   };
 
   if ((viewMode === 'clientes' && isLoading) || (viewMode === 'pontos' && isLoadingPontos)) {
@@ -353,7 +365,7 @@ export default function Clientes() {
                   <SelectItem value="all" className="text-white hover:bg-slate-800">
                     Todos os Sistemas
                   </SelectItem>
-                  {sistemas.map(sistema => (
+                  {sistemas.map((sistema: string) => (
                     <SelectItem 
                       key={sistema} 
                       value={sistema}
@@ -736,7 +748,7 @@ export default function Clientes() {
                         <span className="text-xs text-slate-400">Valor</span>
                       </div>
                       <p className="font-semibold text-sm text-green-400 truncate">
-                        R$ {ponto.valorMensal || cliente?.valorTotal || '29.90'}
+                        R$ {ponto.valorMensal || '29.90'}
                       </p>
                     </div>
                   </div>
@@ -800,26 +812,6 @@ export default function Clientes() {
                       >
                         <Edit className="w-4 h-4 mr-2" />
                         Editar
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setLocation(`/pontos/${ponto.id}`)}
-                        className="bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        Detalhes
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigator.clipboard.writeText(
-                          `Usuário: ${ponto.usuario}\nSenha: ${ponto.senha || 'tvon1@'}\nMAC: ${ponto.macAddress || 'fb:5a:b2:fc:d4:84'}\nDevice Key: ${ponto.deviceKey || '760469'}`
-                        )}
-                        className="bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300"
-                      >
-                        <Copy className="w-4 h-4 mr-2" />
-                        Copiar Tudo
                       </Button>
                     </div>
                   </div>
