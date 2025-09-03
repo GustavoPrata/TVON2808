@@ -550,6 +550,12 @@ export default function Chat() {
     const handleNewMessage = (messageData: any) => {
       // New message received - removed console logs
       
+      // Only process messages with whatsappMessageId to avoid duplicates
+      if (!messageData.whatsappMessageId && !messageData.metadados?.whatsappMessageId) {
+        console.log('Skipping message without whatsappMessageId to avoid duplicates');
+        return;
+      }
+      
       // Update the conversation in the cache with new last message and timestamp
       // Also move the conversation to the top of the list
       queryClient.setQueryData(
@@ -659,6 +665,12 @@ export default function Chat() {
       
       if (!messageData || !messageData.conversaId) {
         console.error('Invalid message data received:', messageData);
+        return;
+      }
+      
+      // Skip messages without whatsappMessageId - they will come through whatsapp_message event
+      if (!messageData.whatsappMessageId && !messageData.metadados?.whatsappMessageId) {
+        console.log('Skipping message_sent without whatsappMessageId - will wait for whatsapp_message event');
         return;
       }
       
@@ -1087,18 +1099,11 @@ export default function Chat() {
   useEffect(() => {
     if (mensagens && Array.isArray(mensagens)) {
       // Initial messages loaded - mensagens comes directly from React Query
-      // Remove duplicates by checking unique IDs
-      const uniqueMessages = mensagens.filter((msg: any, index: number, self: any[]) => {
-        // Remove duplicates by checking ID
-        if (msg.id) {
-          return self.findIndex(m => m.id === msg.id) === index;
-        }
-        // For messages without ID, check by content, sender and timestamp (within 1 second)
-        return self.findIndex(m => 
-          m.conteudo === msg.conteudo && 
-          m.remetente === msg.remetente &&
-          Math.abs(new Date(m.timestamp).getTime() - new Date(msg.timestamp).getTime()) < 1000
-        ) === index;
+      // Filter to only show messages with whatsappMessageId to avoid duplicates
+      const uniqueMessages = mensagens.filter((msg: any) => {
+        // Only show messages that have whatsappMessageId (these are the actual WhatsApp messages)
+        // This prevents showing duplicate messages that don't have whatsappMessageId
+        return msg.whatsappMessageId !== null && msg.whatsappMessageId !== undefined;
       });
       
       setAllMessages(uniqueMessages);
