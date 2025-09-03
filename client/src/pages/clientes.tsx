@@ -735,10 +735,18 @@ export default function Clientes() {
                           <p className="text-xs text-slate-400 mt-0.5">ID do Ponto: #{ponto.id}</p>
                         </div>
                       </div>
-                      <Badge className={`${getStatusBadge(ponto.status)} flex items-center gap-1 w-fit px-3 py-1 font-semibold border-0 mt-1`}>
-                        {React.createElement(getStatusIcon(ponto.status), { size: 16 })}
-                        {ponto.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className={`${cliente?.tipo === 'familia' 
+                          ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' 
+                          : 'bg-blue-500/20 text-blue-400 border-blue-500/30'} 
+                          flex items-center gap-1 w-fit px-3 py-1 font-semibold border`}>
+                          {cliente?.tipo === 'familia' ? 'Família' : 'Regular'}
+                        </Badge>
+                        <Badge className={`${getStatusBadge(ponto.status)} flex items-center gap-1 w-fit px-3 py-1 font-semibold border-0`}>
+                          {React.createElement(getStatusIcon(ponto.status), { size: 16 })}
+                          {ponto.status}
+                        </Badge>
+                      </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
