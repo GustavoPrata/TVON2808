@@ -185,13 +185,19 @@ export default function Clientes() {
   
   // Filter pontos locally based on search term and filters
   const filteredPontos = pontos?.filter((ponto: any) => {
+    // First check if ponto has valid cliente (from backend or clienteId)
+    const cliente = ponto.cliente || allClientes?.find((c: any) => c.id === ponto.clienteId);
+    
+    // Skip pontos without valid cliente
+    if (!cliente) return false;
+    
     // Search filter
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = !searchTerm || (
       ponto.usuario?.toLowerCase().includes(searchLower) ||
       ponto.aplicativo?.toLowerCase().includes(searchLower) ||
       ponto.dispositivo?.toLowerCase().includes(searchLower) ||
-      ponto.cliente?.nome?.toLowerCase().includes(searchLower)
+      cliente.nome?.toLowerCase().includes(searchLower)
     );
     
     // Sistema filter  
@@ -205,8 +211,7 @@ export default function Clientes() {
       (selectedApp === 'shamel' && ponto.aplicativo?.toLowerCase() === 'shamel');
     
     // Client type filter
-    const cliente = allClientes?.find((c: any) => c.id === ponto.clienteId);
-    const matchesType = cliente ? cliente.tipo === pontosType : true;
+    const matchesType = cliente.tipo === pontosType;
     
     return matchesSearch && matchesSistema && matchesApp && matchesType;
   });
@@ -717,7 +722,7 @@ export default function Clientes() {
         /* Pontos Table */
         <div className="grid gap-6">
           {filteredPontos?.map((ponto: any) => {
-            const cliente = allClientes?.find((c: any) => c.id === ponto.clienteId);
+            const cliente = ponto.cliente || allClientes?.find((c: any) => c.id === ponto.clienteId);
             
             return (
               <Card key={ponto.id} className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:shadow-xl hover:shadow-blue-500/10 transition-all">
@@ -729,7 +734,7 @@ export default function Clientes() {
                           {React.createElement(Monitor, { size: 32, className: 'text-white' })}
                         </div>
                         <div>
-                          <h3 className="text-lg font-bold text-white">{cliente?.nome || 'Cliente não encontrado'}</h3>
+                          <h3 className="text-lg font-bold text-white">{cliente?.nome || 'Sem cliente'}</h3>
                           <p className="text-xs text-slate-400 mt-0.5">ID do Ponto: #{ponto.id}</p>
                         </div>
                       </div>
