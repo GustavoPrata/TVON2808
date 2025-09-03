@@ -560,6 +560,17 @@ export class WhatsAppService extends EventEmitter {
       this.emit("connected");
       await this.logActivity("info", "WhatsApp", "Conectado com sucesso");
 
+      // Clean up self-conversations (conversations with our own number)
+      if (this.sock?.user?.id) {
+        const myNumber = extractPhoneFromJid(this.sock.user.id);
+        const selfConversation = await storage.getConversaByTelefone(myNumber);
+        if (selfConversation) {
+          console.log(`Removing self-conversation with number: ${myNumber}`);
+          await storage.deleteConversa(selfConversation.id);
+          console.log("Self-conversation removed successfully");
+        }
+      }
+
       // Apply settings when connected
       await this.applySettings(this.settings);
 
@@ -609,6 +620,15 @@ export class WhatsAppService extends EventEmitter {
     }
 
     const phone = extractPhoneFromJid(remoteJid);
+    
+    // Skip messages from ourselves to ourselves (self-messages that create unnecessary chats)
+    if (isFromMe && this.sock?.user?.id) {
+      const myNumber = extractPhoneFromJid(this.sock.user.id);
+      if (myNumber === phone) {
+        console.log("Skipping self-message to prevent unnecessary chat creation:", phone);
+        return;
+      }
+    }
     const pushName = message.pushName || ""; // Get contact's display name
     let messageText =
       message.message?.conversation ||
