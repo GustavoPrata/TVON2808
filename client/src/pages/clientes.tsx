@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,17 @@ import { ClientModal } from '@/components/modals/client-modal';
 import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Edit, Copy } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Cliente } from '@/types';
+import { Textarea } from '@/components/ui/textarea';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useSettings } from '@/contexts/settings-context';
 import { Switch } from '@/components/ui/switch';
@@ -43,6 +54,9 @@ export default function Clientes() {
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isPontoModalOpen, setIsPontoModalOpen] = useState(false);
+  const [selectedPonto, setSelectedPonto] = useState<any>(null);
+  const [pontoFormData, setPontoFormData] = useState<any>({});
   
   // Persist filters to localStorage
   useEffect(() => {
@@ -261,13 +275,19 @@ export default function Clientes() {
       const ponto = pontos?.find((p: any) => p.id === pontoId);
       if (!ponto) return;
       
-      // Find the cliente associated with this ponto
-      const cliente = allClientes?.find(c => c.id === ponto.clienteId);
-      if (cliente) {
-        setSelectedCliente(cliente);
-        setIsCreating(false);
-        setIsModalOpen(true);
-      }
+      setSelectedPonto(ponto);
+      setPontoFormData({
+        usuario: ponto.usuario || '',
+        dispositivo: ponto.dispositivo || '',
+        aplicativo: ponto.aplicativo || '',
+        sistemaId: ponto.sistemaId || '',
+        macAddress: ponto.macAddress || '',
+        deviceKey: ponto.deviceKey || '',
+        observacoes: ponto.observacoes || '',
+        valorMensal: ponto.valorMensal || '',
+        expiracao: ponto.expiracao ? new Date(ponto.expiracao).toISOString().split('T')[0] : ''
+      });
+      setIsPontoModalOpen(true);
     } catch (error) {
       console.error('Error opening ponto for edit:', error);
     }
@@ -817,6 +837,198 @@ export default function Clientes() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
       />
+
+      {/* Ponto Edit Modal */}
+      <PontoEditModal
+        ponto={selectedPonto}
+        formData={pontoFormData}
+        setFormData={setPontoFormData}
+        isOpen={isPontoModalOpen}
+        onClose={() => {
+          setIsPontoModalOpen(false);
+          setSelectedPonto(null);
+        }}
+        sistemas={sistemas}
+      />
     </div>
+  );
+}
+
+// Ponto Edit Modal Component
+function PontoEditModal({ ponto, formData, setFormData, isOpen, onClose, sistemas }: any) {
+  const { toast } = useToast();
+  
+  const updatePontoMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest('PUT', `/api/pontos/${ponto.id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
+      toast({
+        title: 'Sucesso',
+        description: 'Ponto atualizado com sucesso!',
+      });
+      onClose();
+    },
+    onError: (error) => {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao atualizar ponto',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSubmit = () => {
+    updatePontoMutation.mutate(formData);
+  };
+
+  if (!ponto) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-white">Editar Ponto de Acesso</DialogTitle>
+          <DialogDescription className="text-slate-400">
+            Edite as informações do ponto de acesso
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="usuario" className="text-slate-200">Usuário</Label>
+            <Input
+              id="usuario"
+              value={formData.usuario}
+              onChange={(e) => setFormData({ ...formData, usuario: e.target.value })}
+              className="bg-slate-800 border-slate-700 text-white"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="dispositivo" className="text-slate-200">Dispositivo</Label>
+            <Input
+              id="dispositivo"
+              value={formData.dispositivo}
+              onChange={(e) => setFormData({ ...formData, dispositivo: e.target.value })}
+              className="bg-slate-800 border-slate-700 text-white"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="aplicativo" className="text-slate-200">Aplicativo</Label>
+            <Select
+              value={formData.aplicativo}
+              onValueChange={(value) => setFormData({ ...formData, aplicativo: value })}
+            >
+              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectValue placeholder="Selecione o aplicativo" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-700">
+                <SelectItem value="ibopro" className="text-white hover:bg-slate-800">Ibo Pro</SelectItem>
+                <SelectItem value="iboplayer" className="text-white hover:bg-slate-800">Ibo Player</SelectItem>
+                <SelectItem value="shamel" className="text-white hover:bg-slate-800">Shamel</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="sistema" className="text-slate-200">Sistema</Label>
+            <Select
+              value={formData.sistemaId?.toString()}
+              onValueChange={(value) => setFormData({ ...formData, sistemaId: parseInt(value) })}
+            >
+              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectValue placeholder="Selecione o sistema" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-700">
+                {sistemas?.map((sistema: any) => (
+                  <SelectItem 
+                    key={sistema.id} 
+                    value={sistema.id.toString()}
+                    className="text-white hover:bg-slate-800"
+                  >
+                    Sistema {sistema.systemId}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="macAddress" className="text-slate-200">MAC Address</Label>
+            <Input
+              id="macAddress"
+              value={formData.macAddress}
+              onChange={(e) => setFormData({ ...formData, macAddress: e.target.value })}
+              className="bg-slate-800 border-slate-700 text-white"
+              placeholder="00:00:00:00:00:00"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="deviceKey" className="text-slate-200">Device Key</Label>
+            <Input
+              id="deviceKey"
+              value={formData.deviceKey}
+              onChange={(e) => setFormData({ ...formData, deviceKey: e.target.value })}
+              className="bg-slate-800 border-slate-700 text-white"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="valorMensal" className="text-slate-200">Valor Mensal (R$)</Label>
+            <Input
+              id="valorMensal"
+              type="number"
+              step="0.01"
+              value={formData.valorMensal}
+              onChange={(e) => setFormData({ ...formData, valorMensal: e.target.value })}
+              className="bg-slate-800 border-slate-700 text-white"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="expiracao" className="text-slate-200">Data de Expiração</Label>
+            <Input
+              id="expiracao"
+              type="date"
+              value={formData.expiracao}
+              onChange={(e) => setFormData({ ...formData, expiracao: e.target.value })}
+              className="bg-slate-800 border-slate-700 text-white"
+            />
+          </div>
+
+          <div className="col-span-2 space-y-2">
+            <Label htmlFor="observacoes" className="text-slate-200">Observações</Label>
+            <Textarea
+              id="observacoes"
+              value={formData.observacoes}
+              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+              className="bg-slate-800 border-slate-700 text-white min-h-[80px]"
+              placeholder="Observações sobre este ponto de acesso..."
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={updatePontoMutation.isPending}
+            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+          >
+            {updatePontoMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
