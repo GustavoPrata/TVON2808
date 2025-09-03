@@ -556,87 +556,87 @@ export default function Clientes() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Users className="w-4 h-4 text-blue-400" />
+                  <div className="grid grid-cols-4 gap-3 mb-4">
+                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Users className="w-3.5 h-3.5 text-blue-400" />
                         <span className="text-xs text-slate-400">Usuário</span>
                       </div>
-                      <p className="font-semibold text-white">{ponto.usuario}</p>
+                      <p className="font-semibold text-sm text-white truncate">{ponto.usuario}</p>
                     </div>
 
-                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <KeyRound className="w-4 h-4 text-purple-400" />
+                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <KeyRound className="w-3.5 h-3.5 text-purple-400" />
                         <span className="text-xs text-slate-400">Senha</span>
                       </div>
-                      <p className="font-semibold text-white">{ponto.senha || 'tvon1@'}</p>
+                      <p className="font-semibold text-sm text-white truncate">{ponto.senha || 'tvon1@'}</p>
                     </div>
 
-                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Wifi className="w-4 h-4 text-cyan-400" />
+                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Settings className="w-3.5 h-3.5 text-purple-400" />
+                        <span className="text-xs text-slate-400">Sistema</span>
+                      </div>
+                      <p className="font-semibold text-sm text-white truncate">{ponto.sistema || 'Sistema 2'}</p>
+                    </div>
+
+                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Package className="w-3.5 h-3.5 text-green-400" />
+                        <span className="text-xs text-slate-400">Aplicativo</span>
+                      </div>
+                      <p className="font-semibold text-sm text-white truncate">{ponto.aplicativo}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-3 mb-4">
+                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Wifi className="w-3.5 h-3.5 text-cyan-400" />
                         <span className="text-xs text-slate-400">MAC Address</span>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => navigator.clipboard.writeText(ponto.macAddress || 'fb:5a:b2:fc:d4:84')}
-                          className="ml-auto p-0 h-5 w-5"
+                          className="ml-auto p-0 h-4 w-4"
                         >
-                          <Copy className="w-3 h-3 text-slate-400" />
+                          <Copy className="w-2.5 h-2.5 text-slate-400" />
                         </Button>
                       </div>
-                      <p className="font-mono text-sm text-white">{ponto.macAddress || 'fb:5a:b2:fc:d4:84'}</p>
+                      <p className="font-mono text-xs text-white truncate">{ponto.macAddress || 'fb:5a:b2:fc:d4:84'}</p>
                     </div>
 
-                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Lock className="w-4 h-4 text-red-400" />
+                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Lock className="w-3.5 h-3.5 text-red-400" />
                         <span className="text-xs text-slate-400">Device Key</span>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => navigator.clipboard.writeText(ponto.deviceKey || '760469')}
-                          className="ml-auto p-0 h-5 w-5"
+                          className="ml-auto p-0 h-4 w-4"
                         >
-                          <Copy className="w-3 h-3 text-slate-400" />
+                          <Copy className="w-2.5 h-2.5 text-slate-400" />
                         </Button>
                       </div>
-                      <p className="font-mono text-sm text-white">{ponto.deviceKey || '760469'}</p>
+                      <p className="font-mono text-xs text-white truncate">{ponto.deviceKey || '760469'}</p>
                     </div>
 
-                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Settings className="w-4 h-4 text-purple-400" />
-                        <span className="text-xs text-slate-400">Sistema</span>
-                      </div>
-                      <p className="font-semibold text-white">{ponto.sistema || 'Sistema 2'}</p>
-                    </div>
-
-                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Package className="w-4 h-4 text-green-400" />
-                        <span className="text-xs text-slate-400">Aplicativo</span>
-                      </div>
-                      <p className="font-semibold text-white">{ponto.aplicativo}</p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Monitor className="w-4 h-4 text-yellow-400" />
+                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Monitor className="w-3.5 h-3.5 text-yellow-400" />
                         <span className="text-xs text-slate-400">Dispositivo</span>
                       </div>
-                      <p className="font-semibold text-white">{ponto.dispositivo}</p>
+                      <p className="font-semibold text-sm text-white truncate">{ponto.dispositivo}</p>
                     </div>
 
-                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Phone className="w-4 h-4 text-green-400" />
+                    <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Phone className="w-3.5 h-3.5 text-green-400" />
                         <span className="text-xs text-slate-400">Telefone</span>
                       </div>
-                      <p className="font-semibold text-white">
+                      <p className="font-semibold text-sm text-white truncate">
                         {cliente?.telefone ? formatPhoneNumber(cliente.telefone) : 'Não informado'}
                       </p>
                     </div>
