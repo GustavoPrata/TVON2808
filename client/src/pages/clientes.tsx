@@ -668,7 +668,7 @@ export default function Clientes() {
                       </div>
                       <div className="flex gap-2">
                         <Button
-                          onClick={() => setLocation(`/pontos/${ponto.id}`)}
+                          onClick={() => setLocation(`/clientes/${ponto.clienteId}`)}
                           className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2 rounded-lg font-medium shadow-lg shadow-blue-500/30"
                         >
                           <Eye className="w-4 h-4" />
