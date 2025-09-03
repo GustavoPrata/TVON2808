@@ -1087,32 +1087,20 @@ export default function Chat() {
   useEffect(() => {
     if (mensagens && Array.isArray(mensagens)) {
       // Initial messages loaded - mensagens comes directly from React Query
-      // Remove duplicates - keep the one with whatsappMessageId when both exist
-      const messageMap = new Map();
-      
-      mensagens.forEach((msg: any) => {
-        // Create a key based on content, sender and approximate time
-        const timeWindow = Math.floor(new Date(msg.timestamp).getTime() / 2000); // 2 second window
-        const key = `${msg.conteudo}-${msg.remetente}-${timeWindow}`;
-        
-        // If we haven't seen this message, add it
-        if (!messageMap.has(key)) {
-          messageMap.set(key, msg);
-        } else {
-          // If we've seen it, keep the one with whatsappMessageId
-          const existing = messageMap.get(key);
-          if (msg.whatsappMessageId && !existing.whatsappMessageId) {
-            messageMap.set(key, msg); // Replace with the one that has whatsappMessageId
-          } else if (!msg.whatsappMessageId && existing.whatsappMessageId) {
-            // Keep the existing one with whatsappMessageId
-          } else if (msg.id > existing.id) {
-            // If both have or both don't have whatsappMessageId, keep the newer one
-            messageMap.set(key, msg);
-          }
+      // Remove duplicates by checking unique IDs
+      const uniqueMessages = mensagens.filter((msg: any, index: number, self: any[]) => {
+        // Remove duplicates by checking ID
+        if (msg.id) {
+          return self.findIndex(m => m.id === msg.id) === index;
         }
+        // For messages without ID, check by content, sender and timestamp (within 1 second)
+        return self.findIndex(m => 
+          m.conteudo === msg.conteudo && 
+          m.remetente === msg.remetente &&
+          Math.abs(new Date(m.timestamp).getTime() - new Date(msg.timestamp).getTime()) < 1000
+        ) === index;
       });
       
-      const uniqueMessages = Array.from(messageMap.values());
       setAllMessages(uniqueMessages);
       // Only show "load more" button if we got exactly 30 messages (meaning there might be more)
       setHasMoreMessages(uniqueMessages.length === 30);
