@@ -69,7 +69,7 @@ export default function Clientes() {
     localStorage.setItem('pontos-app-filter', selectedApp);
   }, [selectedApp]);
 
-  // Fetch all clients without search filter
+  // Fetch all clients without search filter - needed for both modes
   const { data: allClientes, isLoading, refetch } = useQuery({
     queryKey: ['/api/clientes', { tipo: clienteType }],
     queryFn: () => api.getClientes({
@@ -78,7 +78,7 @@ export default function Clientes() {
     refetchInterval: 10000, // Auto-refresh every 10 seconds
     staleTime: 0,
     refetchOnWindowFocus: true, // Refetch on window focus for fresh data
-    enabled: viewMode === 'clientes', // Only fetch when in clients mode
+    // Always fetch clients - needed for pontos view too
   });
 
   // Fetch pontos data when in pontos mode
@@ -635,13 +635,11 @@ export default function Clientes() {
                       <div>
                         <div className="flex items-center gap-3">
                           <h3 className="text-xl font-bold text-white">
-                            {cliente?.nome || 'Sem Cliente'}
+                            {cliente?.nome || 'Cliente não encontrado'}
                           </h3>
-                          {cliente?.telefone && (
-                            <span className="text-sm text-slate-400">
-                              {formatPhoneNumber(cliente.telefone)}
-                            </span>
-                          )}
+                          <span className="text-sm text-slate-400">
+                            {cliente?.telefone ? formatPhoneNumber(cliente.telefone) : 'Sem telefone'}
+                          </span>
                         </div>
                         <Badge className={`${getStatusBadge(ponto.status)} flex items-center gap-1 w-fit px-3 py-1 font-semibold border-0 mt-1`}>
                           {React.createElement(getStatusIcon(ponto.status), { size: 16 })}
