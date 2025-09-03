@@ -35,6 +35,9 @@ export default function Clientes() {
   const [clienteType, setClienteType] = useState<'regular' | 'familia'>(() => 
     (localStorage.getItem('clientes-type') as 'regular' | 'familia') || 'regular'
   );
+  const [pontosType, setPontosType] = useState<'regular' | 'familia'>(() => 
+    (localStorage.getItem('pontos-type') as 'regular' | 'familia') || 'regular'
+  );
   const [showCanceled, setShowCanceled] = useState(() => 
     localStorage.getItem('clientes-show-canceled') === 'true'
   );
@@ -201,7 +204,11 @@ export default function Clientes() {
       (selectedApp === 'iboplayer' && (ponto.aplicativo?.toLowerCase() === 'iboplayer' || ponto.aplicativo?.toLowerCase() === 'ibo_player')) ||
       (selectedApp === 'shamel' && ponto.aplicativo?.toLowerCase() === 'shamel');
     
-    return matchesSearch && matchesSistema && matchesApp;
+    // Client type filter
+    const cliente = allClientes?.find((c: any) => c.id === ponto.clienteId);
+    const matchesType = cliente ? cliente.tipo === pontosType : true;
+    
+    return matchesSearch && matchesSistema && matchesApp && matchesType;
   });
 
   const handleOpenModal = (cliente?: Cliente) => {
@@ -382,6 +389,43 @@ export default function Clientes() {
           
           {viewMode === 'pontos' && (
             <>
+              <div className="flex bg-dark-bg border border-slate-700 rounded-lg p-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setPontosType('regular');
+                    localStorage.setItem('pontos-type', 'regular');
+                  }}
+                  className={`
+                    transition-all duration-200 font-medium rounded-l-md rounded-r-none
+                    ${pontosType === 'regular' 
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' 
+                      : 'text-slate-400'
+                    }
+                  `}
+                >
+                  Regulares
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setPontosType('familia');
+                    localStorage.setItem('pontos-type', 'familia');
+                  }}
+                  className={`
+                    transition-all duration-200 font-medium rounded-r-md rounded-l-none
+                    ${pontosType === 'familia' 
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' 
+                      : 'text-slate-400'
+                    }
+                  `}
+                >
+                  Família
+                </Button>
+              </div>
+              
               <Select
                 value={selectedSistema}
                 onValueChange={setSelectedSistema}
