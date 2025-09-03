@@ -761,57 +761,16 @@ export default function Clientes() {
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg px-4 py-2 border border-green-500/30">
-                        <div className="flex items-center gap-2 mb-1">
-                          <DollarSign className="w-4 h-4 text-green-400" />
-                          <span className="text-xs text-green-400">Valor Mensal</span>
-                        </div>
-                        <p className="font-bold text-lg text-green-400">
-                          R$ {ponto.valorMensal || '29.90'}
-                        </p>
-                      </div>
-
-                      <div className={`rounded-lg px-4 py-2 border ${
-                        daysUntilExpiry && daysUntilExpiry <= 0 
-                          ? 'bg-red-500/20 border-red-500/30' 
-                          : daysUntilExpiry && daysUntilExpiry <= 5
-                          ? 'bg-yellow-500/20 border-yellow-500/30'
-                          : 'bg-orange-500/20 border-orange-500/30'
-                      }`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <Calendar className="w-4 h-4 text-orange-400" />
-                          <span className="text-xs text-orange-400">Data de Expiração</span>
-                        </div>
-                        {ponto.expiracao ? (
-                          <div>
-                            <p className={`font-bold text-lg ${getExpiryColor(daysUntilExpiry || 0)}`}>
-                              {new Date(ponto.expiracao).toLocaleDateString('pt-BR')}
-                            </p>
-                            {daysUntilExpiry !== null && (
-                              <p className={`text-xs font-semibold ${daysUntilExpiry <= 0 ? 'text-red-400' : daysUntilExpiry <= 5 ? 'text-yellow-400' : 'text-green-400'}`}>
-                                {daysUntilExpiry <= 0 ? '⚠️ Vencido' : `${daysUntilExpiry} dias restantes`}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="font-bold text-lg text-slate-400">Não definido</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditPonto(ponto.id)}
-                        className="bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300"
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Editar
-                      </Button>
-                    </div>
+                  <div className="flex items-center justify-end pt-4 border-t border-slate-700/50">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditPonto(ponto.id)}
+                      className="bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Editar
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
