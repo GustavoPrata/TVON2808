@@ -583,7 +583,9 @@ export default function Clientes() {
                       </td>
                       <td className="py-5 px-6">
                         <p className="font-bold text-green-400 text-lg">
-                          R$ {cliente.valorTotal?.toFixed(2) || '0.00'}
+                          R$ {typeof cliente.valorTotal === 'number' 
+                            ? cliente.valorTotal.toFixed(2) 
+                            : parseFloat(cliente.valorTotal || '0').toFixed(2)}
                         </p>
                         {clienteType === 'familia' && cliente.pontosAtivos && (
                           <p className="text-xs text-slate-400 mt-0.5">
@@ -725,15 +727,19 @@ export default function Clientes() {
                         <Button
                           onClick={() => {
                             if (editingPonto === ponto.id) {
-                              // Save changes
-                              updatePontoMutation.mutate({ id: ponto.id, ...editedPonto });
+                              // Save changes (ensure valor is sent as string)
+                              updatePontoMutation.mutate({ 
+                                id: ponto.id, 
+                                ...editedPonto,
+                                valor: String(editedPonto.valor || '0')
+                              });
                             } else {
                               // Start editing
                               setEditingPonto(ponto.id);
                               setEditedPonto({
                                 usuario: ponto.usuario,
                                 senha: ponto.senha || 'tvon1@',
-                                valor: ponto.valor || '0',
+                                valor: ponto.valor || '0.00',
                                 macAddress: ponto.macAddress || '',
                                 deviceKey: ponto.deviceKey || '',
                                 expiracao: ponto.expiracao ? format(new Date(ponto.expiracao), 'yyyy-MM-dd') : '',
@@ -972,7 +978,7 @@ export default function Clientes() {
                         />
                       ) : (
                         <p className="font-semibold text-sm text-green-400 truncate">
-                          R$ {ponto.valor || '0.00'}
+                          R$ {parseFloat(ponto.valor || '0').toFixed(2)}
                         </p>
                       )}
                     </div>

@@ -1011,7 +1011,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         return {
           ...cliente,
-          valorTotal: valorTotal.toFixed(2)
+          valorTotal: valorTotal  // Return as number, not string
         };
       });
 
@@ -1434,7 +1434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("PUT /api/pontos/:id - Body recebido:", req.body);
 
       // Separa os campos que não estão no schema
-      const { valor, expiracao, ...restData } = req.body;
+      const { valor, expiracao, observacoes, ...restData } = req.body;
 
       // Cria objeto de atualização diretamente sem validação do schema
       const updateData: any = {};
@@ -1448,6 +1448,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.deviceKey = restData.deviceKey;
       if (restData.descricao !== undefined)
         updateData.descricao = restData.descricao;
+      if (restData.observacoes !== undefined)
+        updateData.observacoes = restData.observacoes;
       if (restData.status !== undefined) updateData.status = restData.status;
       if (restData.aplicativo !== undefined)
         updateData.aplicativo = restData.aplicativo;
@@ -1456,9 +1458,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (restData.sistemaId !== undefined)
         updateData.sistemaId = restData.sistemaId;
 
-      // Adiciona valor se fornecido
+      // Adiciona valor se fornecido (garantir que seja string)
       if (valor !== undefined) {
-        updateData.valor = valor;
+        updateData.valor = String(valor);
+      }
+      
+      // Adiciona observações se fornecido
+      if (observacoes !== undefined) {
+        updateData.observacoes = observacoes;
       }
 
       // Adiciona expiracao se fornecido
