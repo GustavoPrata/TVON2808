@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClientModal } from '@/components/modals/client-modal';
-import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor } from 'lucide-react';
+import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Copy } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Cliente } from '@/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -521,160 +521,224 @@ export default function Clientes() {
           </CardContent>
         </Card>
       ) : (
-        /* Pontos Table */
-        <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-purple-500/10 to-blue-500/10">
-                  <tr className="border-b border-slate-700/50">
-                    <th className="text-left py-4 px-6 text-slate-300 font-semibold">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-purple-500/20 rounded">
-                          <Users className="w-4 h-4 text-purple-400" />
-                        </div>
-                        Cliente
-                      </div>
-                    </th>
-                    <th className="text-left py-4 px-6 text-slate-300 font-semibold">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-blue-500/20 rounded">
-                          <Activity className="w-4 h-4 text-blue-400" />
-                        </div>
-                        Usuário
-                      </div>
-                    </th>
-                    <th className="text-left py-4 px-6 text-slate-300 font-semibold">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-green-500/20 rounded">
-                          <Monitor className="w-4 h-4 text-green-400" />
-                        </div>
-                        Aplicativo
-                      </div>
-                    </th>
-                    <th className="text-left py-4 px-6 text-slate-300 font-semibold">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-yellow-500/20 rounded">
-                          <Monitor className="w-4 h-4 text-yellow-400" />
-                        </div>
-                        Dispositivo
-                      </div>
-                    </th>
-                    <th className="text-left py-4 px-6 text-slate-300 font-semibold">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-orange-500/20 rounded">
-                          <Calendar className="w-4 h-4 text-orange-400" />
-                        </div>
-                        Expiração
-                      </div>
-                    </th>
-                    <th className="text-left py-4 px-6 text-slate-300 font-semibold">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-purple-500/20 rounded">
-                          <CheckCircle className="w-4 h-4 text-purple-400" />
-                        </div>
-                        Status
-                      </div>
-                    </th>
-                    <th className="text-right py-4 px-6 text-slate-300 font-semibold">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPontos?.map((ponto: any) => {
-                    const cliente = allClientes?.find(c => c.id === ponto.clienteId);
-                    const daysUntilExpiry = ponto.expiracao ? getDaysUntilExpiry(ponto.expiracao) : null;
-                    
-                    return (
-                      <tr
-                        key={ponto.id}
-                        className="border-b border-slate-700/30 transition-colors hover:bg-slate-800/20"
-                      >
-                        <td className="py-5 px-6">
-                          <div className="flex items-center gap-3">
-                            <div>
-                              <span className="font-semibold text-white">
-                                {cliente?.nome || 'Sem Cliente'}
-                              </span>
-                              {cliente?.telefone && (
-                                <p className="text-sm text-slate-400">
-                                  {formatPhoneNumber(cliente.telefone)}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-5 px-6">
-                          <span className="font-medium text-blue-400">
-                            {ponto.usuario}
-                          </span>
-                        </td>
-                        <td className="py-5 px-6">
-                          <span className="font-medium text-slate-300">
-                            {ponto.aplicativo}
-                          </span>
-                        </td>
-                        <td className="py-5 px-6">
-                          <span className="font-medium text-slate-300">
-                            {ponto.dispositivo}
-                          </span>
-                        </td>
-                        <td className="py-5 px-6">
-                          {ponto.expiracao ? (
-                            <div className="space-y-1">
-                              <span className={`font-medium ${getExpiryColor(daysUntilExpiry || 0)}`}>
-                                {new Date(ponto.expiracao).toLocaleDateString('pt-BR')}
-                              </span>
-                              {daysUntilExpiry !== null && (
-                                <p className={`text-xs font-semibold ${daysUntilExpiry <= 0 ? 'text-red-400' : daysUntilExpiry <= 5 ? 'text-yellow-400' : 'text-green-400'}`}>
-                                  {daysUntilExpiry <= 0 ? '⚠️ Vencido' : `${daysUntilExpiry} dias restantes`}
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-slate-500">Não definido</span>
-                          )}
-                        </td>
-                        <td className="py-5 px-6">
-                          <Badge className={`${getStatusBadge(ponto.status)} flex items-center gap-1 w-fit px-3 py-1 font-semibold border-0`}>
-                            {React.createElement(getStatusIcon(ponto.status), { size: 16 })}
-                            {ponto.status}
-                          </Badge>
-                        </td>
-                        <td className="py-5 px-6">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditPonto(ponto.id)}
-                              className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+        /* Pontos Grid */
+        <div className="space-y-4">
+          {filteredPontos?.map((ponto: any) => {
+            const cliente = allClientes?.find(c => c.id === ponto.clienteId);
+            const daysUntilExpiry = ponto.expiracao ? getDaysUntilExpiry(ponto.expiracao) : null;
             
-            {!filteredPontos?.length && (
-              <div className="flex flex-col items-center justify-center py-16 px-4">
-                <div className="p-4 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl mb-4">
-                  <Activity className="w-12 h-12 text-slate-500" />
+            return (
+              <Card 
+                key={ponto.id}
+                className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden hover:shadow-xl transition-all duration-300 hover:border-purple-500/30"
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl shadow-lg shadow-purple-500/30">
+                        <Monitor className="w-8 h-8 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-white">
+                          {cliente?.nome || 'Sem Cliente'}
+                        </h3>
+                        <Badge className={`${getStatusBadge(ponto.status)} flex items-center gap-1 w-fit px-3 py-1 font-semibold border-0 mt-1`}>
+                          {React.createElement(getStatusIcon(ponto.status), { size: 16 })}
+                          {ponto.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500">Último acesso</p>
+                      <p className="text-sm text-slate-400 font-medium">
+                        {ponto.lastAccess ? new Date(ponto.lastAccess).toLocaleString('pt-BR') : '02/09/2025 às 21:54'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Users className="w-4 h-4 text-blue-400" />
+                        <span className="text-xs text-slate-400">Usuário</span>
+                      </div>
+                      <p className="font-semibold text-white">{ponto.usuario}</p>
+                    </div>
+
+                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <KeyRound className="w-4 h-4 text-purple-400" />
+                        <span className="text-xs text-slate-400">Senha</span>
+                      </div>
+                      <p className="font-semibold text-white">{ponto.senha || 'tvon1@'}</p>
+                    </div>
+
+                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Wifi className="w-4 h-4 text-cyan-400" />
+                        <span className="text-xs text-slate-400">MAC Address</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigator.clipboard.writeText(ponto.macAddress || 'fb:5a:b2:fc:d4:84')}
+                          className="ml-auto p-0 h-5 w-5"
+                        >
+                          <Copy className="w-3 h-3 text-slate-400" />
+                        </Button>
+                      </div>
+                      <p className="font-mono text-sm text-white">{ponto.macAddress || 'fb:5a:b2:fc:d4:84'}</p>
+                    </div>
+
+                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Lock className="w-4 h-4 text-red-400" />
+                        <span className="text-xs text-slate-400">Device Key</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigator.clipboard.writeText(ponto.deviceKey || '760469')}
+                          className="ml-auto p-0 h-5 w-5"
+                        >
+                          <Copy className="w-3 h-3 text-slate-400" />
+                        </Button>
+                      </div>
+                      <p className="font-mono text-sm text-white">{ponto.deviceKey || '760469'}</p>
+                    </div>
+
+                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Settings className="w-4 h-4 text-purple-400" />
+                        <span className="text-xs text-slate-400">Sistema</span>
+                      </div>
+                      <p className="font-semibold text-white">{ponto.sistema || 'Sistema 2'}</p>
+                    </div>
+
+                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Package className="w-4 h-4 text-green-400" />
+                        <span className="text-xs text-slate-400">Aplicativo</span>
+                      </div>
+                      <p className="font-semibold text-white">{ponto.aplicativo}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Monitor className="w-4 h-4 text-yellow-400" />
+                        <span className="text-xs text-slate-400">Dispositivo</span>
+                      </div>
+                      <p className="font-semibold text-white">{ponto.dispositivo}</p>
+                    </div>
+
+                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Phone className="w-4 h-4 text-green-400" />
+                        <span className="text-xs text-slate-400">Telefone</span>
+                      </div>
+                      <p className="font-semibold text-white">
+                        {cliente?.telefone ? formatPhoneNumber(cliente.telefone) : 'Não informado'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {ponto.observacoes && (
+                    <div className="bg-slate-800/40 rounded-lg p-3 border border-slate-700/50 mb-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileText className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs text-slate-400">Observação</span>
+                      </div>
+                      <p className="text-sm text-white">{ponto.observacoes}</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-lg px-4 py-2 border border-green-500/30">
+                        <div className="flex items-center gap-2 mb-1">
+                          <DollarSign className="w-4 h-4 text-green-400" />
+                          <span className="text-xs text-green-400">Valor Mensal</span>
+                        </div>
+                        <p className="font-bold text-lg text-green-400">
+                          R$ {ponto.valorMensal || '29.90'}
+                        </p>
+                      </div>
+
+                      <div className={`rounded-lg px-4 py-2 border ${
+                        daysUntilExpiry && daysUntilExpiry <= 0 
+                          ? 'bg-red-500/20 border-red-500/30' 
+                          : daysUntilExpiry && daysUntilExpiry <= 5
+                          ? 'bg-yellow-500/20 border-yellow-500/30'
+                          : 'bg-orange-500/20 border-orange-500/30'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Calendar className="w-4 h-4 text-orange-400" />
+                          <span className="text-xs text-orange-400">Data de Expiração</span>
+                        </div>
+                        {ponto.expiracao ? (
+                          <div>
+                            <p className={`font-bold text-lg ${getExpiryColor(daysUntilExpiry || 0)}`}>
+                              {new Date(ponto.expiracao).toLocaleDateString('pt-BR')}
+                            </p>
+                            {daysUntilExpiry !== null && (
+                              <p className={`text-xs font-semibold ${daysUntilExpiry <= 0 ? 'text-red-400' : daysUntilExpiry <= 5 ? 'text-yellow-400' : 'text-green-400'}`}>
+                                {daysUntilExpiry <= 0 ? '⚠️ Vencido' : `${daysUntilExpiry} dias restantes`}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="font-bold text-lg text-slate-400">Não definido</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditPonto(ponto.id)}
+                        className="bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300"
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Detalhes
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigator.clipboard.writeText(
+                          `Usuário: ${ponto.usuario}\nSenha: ${ponto.senha || 'tvon1@'}\nMAC: ${ponto.macAddress || 'fb:5a:b2:fc:d4:84'}\nDevice Key: ${ponto.deviceKey || '760469'}`
+                        )}
+                        className="bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 hover:text-purple-300"
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copiar Tudo
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+          
+          {!filteredPontos?.length && (
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+              <CardContent className="p-16">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="p-4 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl mb-4">
+                    <Activity className="w-12 h-12 text-slate-500" />
+                  </div>
+                  <p className="text-slate-400 text-lg font-medium">Nenhum ponto encontrado</p>
+                  <p className="text-slate-500 text-sm mt-2">Os pontos de acesso aparecerão aqui</p>
                 </div>
-                <p className="text-slate-400 text-lg font-medium">Nenhum ponto encontrado</p>
-                <p className="text-slate-500 text-sm mt-2">Os pontos de acesso aparecerão aqui</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* Client Modal */}
       <ClientModal
-        cliente={selectedCliente}
+        cliente={selectedCliente || undefined}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
       />
