@@ -539,20 +539,35 @@ export default function Clientes() {
                         <Monitor className="w-8 h-8 text-white" />
                       </div>
                       <div>
-                        <h3 className="text-xl font-bold text-white">
-                          {cliente?.nome || 'Sem Cliente'}
-                        </h3>
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-xl font-bold text-white">
+                            {cliente?.nome || 'Sem Cliente'}
+                          </h3>
+                          {cliente?.telefone && (
+                            <span className="text-sm text-slate-400">
+                              {formatPhoneNumber(cliente.telefone)}
+                            </span>
+                          )}
+                        </div>
                         <Badge className={`${getStatusBadge(ponto.status)} flex items-center gap-1 w-fit px-3 py-1 font-semibold border-0 mt-1`}>
                           {React.createElement(getStatusIcon(ponto.status), { size: 16 })}
                           {ponto.status}
                         </Badge>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-slate-500">Último acesso</p>
-                      <p className="text-sm text-slate-400 font-medium">
-                        {ponto.lastAccess ? new Date(ponto.lastAccess).toLocaleString('pt-BR') : '02/09/2025 às 21:54'}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-xs text-slate-500">Último acesso</p>
+                        <p className="text-sm text-slate-400 font-medium">
+                          {ponto.ultimoAcesso ? new Date(ponto.ultimoAcesso).toLocaleString('pt-BR') : 'Sem acesso'}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => setLocation(`/pontos/${ponto.id}`)}
+                        className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-2 rounded-lg font-medium shadow-lg shadow-blue-500/30"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
 
@@ -586,7 +601,7 @@ export default function Clientes() {
                         <Package className="w-3.5 h-3.5 text-green-400" />
                         <span className="text-xs text-slate-400">Aplicativo</span>
                       </div>
-                      <p className="font-semibold text-sm text-white truncate">{ponto.aplicativo}</p>
+                      <p className="font-semibold text-sm text-white truncate">{ponto.aplicativo === 'shamel' ? 'Shamel' : ponto.aplicativo === 'smartone' ? 'Smart One' : ponto.aplicativo}</p>
                     </div>
                   </div>
 
@@ -625,19 +640,21 @@ export default function Clientes() {
 
                     <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
                       <div className="flex items-center gap-1.5 mb-1">
-                        <Monitor className="w-3.5 h-3.5 text-yellow-400" />
-                        <span className="text-xs text-slate-400">Dispositivo</span>
+                        <Calendar className="w-3.5 h-3.5 text-orange-400" />
+                        <span className="text-xs text-slate-400">Expira em</span>
                       </div>
-                      <p className="font-semibold text-sm text-white truncate">{ponto.dispositivo}</p>
+                      <p className="font-semibold text-sm text-white truncate">
+                        {ponto.expiracao ? new Date(ponto.expiracao).toLocaleDateString('pt-BR') : 'Não definido'}
+                      </p>
                     </div>
 
                     <div className="bg-slate-800/40 rounded-lg p-2.5 border border-slate-700/50">
                       <div className="flex items-center gap-1.5 mb-1">
-                        <Phone className="w-3.5 h-3.5 text-green-400" />
-                        <span className="text-xs text-slate-400">Telefone</span>
+                        <DollarSign className="w-3.5 h-3.5 text-green-400" />
+                        <span className="text-xs text-slate-400">Valor</span>
                       </div>
-                      <p className="font-semibold text-sm text-white truncate">
-                        {cliente?.telefone ? formatPhoneNumber(cliente.telefone) : 'Não informado'}
+                      <p className="font-semibold text-sm text-green-400 truncate">
+                        R$ {ponto.valorMensal || cliente?.valorTotal || '29.90'}
                       </p>
                     </div>
                   </div>
@@ -698,6 +715,15 @@ export default function Clientes() {
                         size="sm"
                         onClick={() => handleEditPonto(ponto.id)}
                         className="bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Editar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLocation(`/pontos/${ponto.id}`)}
+                        className="bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-300"
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         Detalhes
