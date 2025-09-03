@@ -908,12 +908,20 @@ function PontoEditModal({ ponto, formData, setFormData, isOpen, onClose, sistema
 
           <div className="space-y-2">
             <Label htmlFor="dispositivo" className="text-slate-200">Dispositivo</Label>
-            <Input
-              id="dispositivo"
+            <Select
               value={formData.dispositivo}
-              onChange={(e) => setFormData({ ...formData, dispositivo: e.target.value })}
-              className="bg-slate-800 border-slate-700 text-white"
-            />
+              onValueChange={(value) => setFormData({ ...formData, dispositivo: value })}
+            >
+              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                <SelectValue placeholder="Selecione o dispositivo" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-700">
+                <SelectItem value="smart_tv" className="text-white hover:bg-slate-800">Smart TV</SelectItem>
+                <SelectItem value="tv_box" className="text-white hover:bg-slate-800">TV Box</SelectItem>
+                <SelectItem value="celular" className="text-white hover:bg-slate-800">Celular</SelectItem>
+                <SelectItem value="notebook" className="text-white hover:bg-slate-800">Notebook</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
