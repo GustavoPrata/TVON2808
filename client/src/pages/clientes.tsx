@@ -149,8 +149,8 @@ export default function Clientes() {
     
     // App filter
     const matchesApp = selectedApp === 'all' || 
-      (selectedApp === 'ibopro' && ponto.aplicativo?.toLowerCase() === 'ibopro') ||
-      (selectedApp === 'iboplayer' && ponto.aplicativo?.toLowerCase() === 'iboplayer') ||
+      (selectedApp === 'ibopro' && (ponto.aplicativo?.toLowerCase() === 'ibopro' || ponto.aplicativo?.toLowerCase() === 'ibo_pro')) ||
+      (selectedApp === 'iboplayer' && (ponto.aplicativo?.toLowerCase() === 'iboplayer' || ponto.aplicativo?.toLowerCase() === 'ibo_player')) ||
       (selectedApp === 'shamel' && ponto.aplicativo?.toLowerCase() === 'shamel');
     
     return matchesSearch && matchesSistema && matchesApp;
@@ -693,7 +693,13 @@ export default function Clientes() {
                         <Package className="w-3.5 h-3.5 text-green-400" />
                         <span className="text-xs text-slate-400">Aplicativo</span>
                       </div>
-                      <p className="font-semibold text-sm text-white truncate">{ponto.aplicativo === 'shamel' ? 'Shamel' : ponto.aplicativo === 'smartone' ? 'Smart One' : ponto.aplicativo}</p>
+                      <p className="font-semibold text-sm text-white truncate">
+                        {ponto.aplicativo?.toLowerCase() === 'ibo_player' || ponto.aplicativo?.toLowerCase() === 'iboplayer' ? 'Ibo Player' : 
+                         ponto.aplicativo?.toLowerCase() === 'ibo_pro' || ponto.aplicativo?.toLowerCase() === 'ibopro' ? 'Ibo Pro' : 
+                         ponto.aplicativo?.toLowerCase() === 'shamel' ? 'Shamel' : 
+                         ponto.aplicativo?.toLowerCase() === 'smartone' || ponto.aplicativo?.toLowerCase() === 'smart_one' ? 'Smart One' : 
+                         ponto.aplicativo}
+                      </p>
                     </div>
                   </div>
 
