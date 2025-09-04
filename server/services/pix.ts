@@ -487,8 +487,7 @@ export class PixService {
       // Atualizar status do pagamento para pago na tabela correta
       if (isPagamentoManual) {
         await storage.updatePagamentoManualByChargeId(chargeId, {
-          status: 'pago',
-          dataPagamento: new Date()
+          status: 'pago'
         });
       } else {
         await storage.updatePagamento(pagamento.id, {
@@ -502,9 +501,8 @@ export class PixService {
         // Pagamento de conversa sem cliente cadastrado
         console.log('💬 Pagamento de conversa sem cliente cadastrado');
         
-        // Obter telefone do metadata
-        const metadata = pagamento.metadata as any;
-        const telefone = metadata?.telefone;
+        // Para pagamentos manuais, o telefone está diretamente no registro
+        const telefone = pagamento.telefone;
         
         if (telefone) {
           // Formatar valor para exibição
@@ -532,26 +530,24 @@ export class PixService {
         // Buscar e atualizar cliente normal
         const cliente = await storage.getClienteById(pagamento.clienteId);
         if (cliente) {
-          // Verificar se o pagamento tem metadados sobre período de renovação
-          const metadata = pagamento.metadata as any;
+          // Por padrão, marcar cliente como ativo
           let updateData: any = { status: 'ativo' };
           
-          // Se tem informação de meses de renovação nos metadados
-          if (metadata?.meses) {
-            const meses = parseInt(metadata.meses);
-            const baseDate = cliente.vencimento && new Date(cliente.vencimento) > new Date() 
-              ? new Date(cliente.vencimento) 
-              : new Date();
-            
-            const novoVencimento = new Date(baseDate);
-            novoVencimento.setMonth(novoVencimento.getMonth() + meses);
-            // Ajustar para 23:59:59 do dia de vencimento
-            novoVencimento.setHours(23, 59, 59, 999);
-            
-            updateData.vencimento = novoVencimento;
-            
-            console.log(`Atualizando vencimento do cliente ${cliente.nome} para ${novoVencimento.toLocaleDateString('pt-BR')}`);
-          }
+          // Por enquanto, adicionar 30 dias ao vencimento do cliente
+          // Futuramente, podemos adicionar lógica para diferentes planos
+          const baseDate = cliente.vencimento && new Date(cliente.vencimento) > new Date() 
+            ? new Date(cliente.vencimento) 
+            : new Date();
+          
+          const novoVencimento = new Date(baseDate);
+          novoVencimento.setMonth(novoVencimento.getMonth() + 1); // Adicionar 1 mês
+          // Ajustar para 23:59:59 do dia de vencimento
+          novoVencimento.setHours(23, 59, 59, 999);
+          
+          updateData.vencimento = novoVencimento;
+          
+          console.log(`Atualizando vencimento do cliente ${cliente.nome} para ${novoVencimento.toLocaleDateString('pt-BR')}`);
+          
           
           // Atualizar cliente com status e vencimento (se aplicável)
           await storage.updateCliente(pagamento.clienteId, updateData);
