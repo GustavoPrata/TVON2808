@@ -1321,7 +1321,7 @@ export class WhatsAppService extends EventEmitter {
       // Salvar mensagem
       const mensagem = await storage.createMensagem({
         conversaId: conversa.id,
-        conteudo: message.message || "Visualização única", // Ensure view-once messages have text
+        conteudo: message.message || "",
         tipo: message.type,
         remetente: "cliente",
         lida: this.settings?.markMessagesRead || false, // Auto-mark as read if setting is enabled
