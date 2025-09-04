@@ -244,6 +244,15 @@ export default function Chat() {
     }
   }, [autoCloseActive, autoCloseCountdown]);
 
+  // Auto-resize textarea when message text changes
+  useEffect(() => {
+    const textarea = document.querySelector('textarea[placeholder="Digite sua mensagem..."]') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+    }
+  }, [messageText]);
+
   // Check timer status when selecting a conversation with open ticket
   useEffect(() => {
     if (selectedConversa?.hasOpenTicket && selectedConversa?.ticket?.id) {
@@ -2915,24 +2924,42 @@ export default function Chat() {
                   )}
                   
                   {/* Input Area */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-end gap-2">
                     <AttachmentMenu onAttachmentSelect={handleAttachment} />
                     
-                    <div className="flex-1 relative flex items-center">
-                      <Input
+                    <div className="flex-1 relative">
+                      <textarea
                         value={messageText}
-                        onChange={(e) => setMessageText(e.target.value)}
+                        onChange={(e) => {
+                          setMessageText(e.target.value);
+                          // Auto-resize
+                          e.target.style.height = 'auto';
+                          e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                        }}
+                        onPaste={(e) => {
+                          // Preserve formatting when pasting
+                          setTimeout(() => {
+                            const textarea = e.target as HTMLTextAreaElement;
+                            textarea.style.height = 'auto';
+                            textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+                          }, 0);
+                        }}
                         placeholder="Digite sua mensagem..."
-                        className="h-10 bg-dark-card border-slate-600 text-white placeholder:text-slate-500 pr-10"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
+                        className="w-full min-h-[40px] max-h-[200px] px-3 py-2 bg-dark-card border border-slate-600 rounded-lg text-white placeholder:text-slate-500 pr-12 resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
                             handleSendMessage();
                           }
                         }}
                         disabled={sendMessageMutation.isPending}
+                        style={{
+                          lineHeight: '1.5',
+                          scrollbarWidth: 'thin',
+                          scrollbarColor: '#475569 transparent'
+                        }}
                       />
-                      <div className="absolute right-2">
+                      <div className="absolute right-2 bottom-2">
                         <EmojiPicker onEmojiSelect={(emoji) => setMessageText(prev => prev + emoji)} />
                       </div>
                     </div>
