@@ -175,24 +175,23 @@ export class PixService {
         // Pagamentos sem cliente vão para tabela separada
         pagamento = await storage.createPagamentoManual({
           telefone: telefone, // Campo telefone obrigatório
-          nome_cliente: cliente.nome, // Nome do cliente temporário
           valor: amount.toString(),
           status: 'pendente',
-          data_vencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
-          pix_id: '', // Será preenchido depois
-          chargeId: '', // Será preenchido depois
-          qr_code: '', // Será preenchido depois
-          pix_copia_e_cola: '', // Será preenchido depois
-          descricao: description,
-          observacao: `Pagamento de conversa ${telefone}`,
           metadata: {
             ...metadata,
             isTemporaryClient: true,
             conversaId: metadata?.conversaId,
-            telefone: telefone
+            telefone: telefone,
+            nomeCliente: cliente.nome,
+            descricao: description
           }
         });
-        console.log('💾 Pagamento manual criado na tabela pagamentos_manual:', pagamento.id);
+        
+        if (!pagamento) {
+          throw new Error('Falha ao criar pagamento manual no banco de dados');
+        }
+        
+        console.log('💾 Pagamento manual criado na tabela pagamentos_manual:', pagamento?.id || 'ID não disponível');
       } else {
         cliente = await storage.getClienteById(clienteId);
         if (!cliente) {

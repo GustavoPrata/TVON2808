@@ -419,8 +419,24 @@ export class DatabaseStorage implements IStorage {
 
   // Métodos para Pagamentos Manuais
   async createPagamentoManual(pagamento: any): Promise<any> {
-    const result = await db.insert(pagamentosManual).values(pagamento).returning();
-    return result[0];
+    console.log('🔧 Criando pagamento manual com dados:', pagamento);
+    
+    try {
+      // Usar SQL direto para evitar problemas de mapeamento
+      const result = await db.execute(sql`
+        INSERT INTO pagamentos_manual (telefone, valor, status)
+        VALUES (${pagamento.telefone}, ${pagamento.valor}, ${pagamento.status})
+        RETURNING *
+      `);
+      
+      // O Drizzle retorna um array direto, não um objeto com rows
+      const inserted = Array.isArray(result) ? result[0] : result;
+      console.log('✅ Pagamento manual criado:', inserted);
+      return inserted;
+    } catch (error) {
+      console.error('❌ Erro ao criar pagamento manual:', error);
+      throw error;
+    }
   }
 
   async getPagamentoManualById(id: number): Promise<any | undefined> {
