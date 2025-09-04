@@ -3759,14 +3759,13 @@ Como posso ajudar você hoje?
 
       let cliente = null;
       let nomeIdentificacao = "";
-      let idParaPix = null;
+      let idParaPix = clienteId;
 
       // Se tem clienteId, usa ele
       if (clienteId) {
         cliente = await storage.getClienteById(clienteId);
         if (cliente) {
           nomeIdentificacao = cliente.nome;
-          idParaPix = cliente.id;
         }
       }
       
@@ -3786,18 +3785,11 @@ Como posso ajudar você hoje?
           idParaPix = -Math.abs(telefoneNormalizado.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0));
         }
       }
-      
-      // Se ainda não temos idParaPix, usar ID de emergência baseado no timestamp
-      if (!idParaPix) {
-        // ID de emergência: negativo baseado no timestamp para garantir unicidade
-        idParaPix = -Math.abs(Date.now() % 1000000);
-        nomeIdentificacao = "Pagamento Manual";
-      }
 
-      // Garantir que idParaPix nunca seja null
+      // Se nem cliente nem telefone foram fornecidos
       if (!idParaPix) {
         return res.status(400).json({ 
-          error: "Erro ao gerar identificação para o pagamento" 
+          error: "Cliente ID ou telefone é obrigatório" 
         });
       }
 
@@ -3805,106 +3797,33 @@ Como posso ajudar você hoje?
 
       // Generate PIX
       console.log("[PIX API] Chamando pixService.generatePix...");
+      const pixResult = await pixService.generatePix(
+        idParaPix,
+        valor,
+        descricao || `Pagamento - ${nomeIdentificacao}`,
+        { manual: true, telefone: telefone }
+      );
       
-      try {
-        const pixResult = await pixService.generatePix(
-          idParaPix,
-          valor,
-          descricao || `Pagamento - ${nomeIdentificacao}`,
-          { manual: true, telefone: telefone }
-        );
-        
-        console.log("[PIX API] Resultado do pixService:", pixResult ? "OK" : "FALHOU");
+      console.log("[PIX API] Resultado do pixService:", pixResult ? "OK" : "FALHOU");
+      console.log("[PIX API] pixResult.pixKey:", pixResult?.pixKey ? "EXISTE" : "NÃO EXISTE");
 
-        if (pixResult && (pixResult.qrCode || pixResult.pixCopiaCola)) {
-          const response = {
-            success: true,
-            pixData: {
-              qrCode: pixResult.qrCode,
-              pixCopiaCola: pixResult.pixCopiaCola,
-              chargeId: (pixResult as any).chargeId,
-              expiresIn: (pixResult as any).expiresIn || '30 minutos'
-            }
-          };
-          console.log("[PIX API] Enviando resposta de sucesso");
-          res.json(response);
-        } else {
-          // Se falhar com Woovi, gerar PIX local como fallback
-          console.log("[PIX API] Gerando PIX local como fallback");
-          
-          // Criar pagamento no banco - usar ID fictício se não houver cliente
-          const clienteIdFallback = cliente?.id || idParaPix || -1;
-          const pagamento = await storage.createPagamento({
-            clienteId: clienteIdFallback,
-            valor: valor.toString(),
-            status: 'pendente',
-            dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000),
-            metadata: { telefone, manual: true }
-          });
-          
-          // Gerar código PIX de teste/fallback
-          const pixCode = `00020126580014BR.GOV.BCB.PIX0136${telefone || '14999999999'}5204000053039865802BR5925TV ON${nomeIdentificacao ? ` ${nomeIdentificacao.substring(0, 15)}` : ''}6009SAO PAULO62070503***6304`;
-          
-          // Atualizar pagamento com código PIX
-          await storage.updatePagamento(pagamento.id, {
-            pixId: `PIX-${pagamento.id}`,
-            qrCode: pixCode,
-            pixCopiaECola: pixCode
-          });
-          
-          const response = {
-            success: true,
-            pixData: {
-              qrCode: pixCode,
-              pixCopiaCola: pixCode,
-              chargeId: `PIX-${pagamento.id}`,
-              expiresIn: '24 horas'
-            }
-          };
-          
-          console.log("[PIX API] PIX local gerado com sucesso");
-          res.json(response);
-        }
-      } catch (error: any) {
-        console.error("[PIX API] Erro ao gerar PIX:", error.message);
-        
-        // Mesmo com erro, tentar gerar PIX local
-        try {
-          const clienteIdFallback = cliente?.id || idParaPix || -1;
-          const pagamento = await storage.createPagamento({
-            clienteId: clienteIdFallback,
-            valor: valor.toString(),
-            status: 'pendente',
-            dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000),
-            metadata: { telefone, manual: true, erro: error.message }
-          });
-          
-          const pixCode = `00020126580014BR.GOV.BCB.PIX0136${telefone || '14999999999'}5204000053039865802BR5925TV ON${nomeIdentificacao ? ` ${nomeIdentificacao.substring(0, 15)}` : ''}6009SAO PAULO62070503***6304`;
-          
-          await storage.updatePagamento(pagamento.id, {
-            pixId: `PIX-${pagamento.id}`,
-            qrCode: pixCode,
-            pixCopiaECola: pixCode
-          });
-          
-          const response = {
-            success: true,
-            pixData: {
-              qrCode: pixCode,
-              pixCopiaCola: pixCode,
-              chargeId: `PIX-${pagamento.id}`,
-              expiresIn: '24 horas'
-            }
-          };
-          
-          console.log("[PIX API] PIX local gerado como fallback após erro");
-          res.json(response);
-        } catch (fallbackError) {
-          console.error("[PIX API] Erro no fallback:", fallbackError);
-          res.status(500).json({ 
-            error: "Erro ao gerar PIX" 
-          });
-        }
+      if (pixResult && pixResult.pixKey) {
+        const response = {
+          success: true,
+          pixData: {
+            qrCode: pixResult.qrCode,
+            pixCopiaCola: pixResult.pixCopiaCola,
+            chargeId: (pixResult as any).chargeId,
+            expiresIn: (pixResult as any).expiresIn || '30 minutos'
+          }
+        };
+        console.log("[PIX API] Enviando resposta de sucesso");
+        res.json(response);
+      } else {
+        console.log("[PIX API] PIX falhou, sem pixKey");
+        res.status(500).json({ 
+          error: "Erro ao gerar PIX - sem dados retornados" 
+        });
       }
     } catch (error: any) {
       console.error("[PIX API] Error generating manual PIX:", error);

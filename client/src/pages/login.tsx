@@ -77,42 +77,6 @@ export default function Login() {
     }
   };
 
-  // Função temporária para login rápido
-  const handleQuickLogin = async () => {
-    setUser("gustavoprtt");
-    setPassword("Gustavoprata1@");
-    setIsLoading(true);
-    
-    try {
-      const response = await apiRequest("POST", "/api/login", { 
-        user: "gustavoprtt", 
-        password: "Gustavoprata1@", 
-        rememberMe: false 
-      });
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({
-          title: "Sucesso",
-          description: "Login realizado com sucesso!",
-        });
-        
-        // Redirect to home page
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 500);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Erro ao fazer login",
-        description: error.message || "Usuário ou senha inválidos",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 p-4">
       {/* Animated background gradient */}
@@ -227,28 +191,6 @@ export default function Login() {
               )}
             </Button>
           </form>
-          
-          {/* Botão temporário de login rápido - REMOVER DEPOIS */}
-          <div className="mt-4">
-            <Button
-              type="button"
-              onClick={handleQuickLogin}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-4 transition-all duration-300"
-              disabled={isLoading}
-              data-testid="button-quick-login"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Fazendo login rápido...
-                </>
-              ) : (
-                <>
-                  ⚡ Login Rápido (TEMPORÁRIO - gustavoprtt)
-                </>
-              )}
-            </Button>
-          </div>
         </CardContent>
       </Card>
     </div>

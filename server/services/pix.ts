@@ -158,32 +158,20 @@ export class PixService {
         // Cliente temporário para conversa sem cadastro
         isTemporaryClient = true;
         const telefone = metadata?.telefone || 'sem_telefone';
+        cliente = {
+          id: clienteId,
+          nome: `Conversa ${telefone}`,
+          telefone: telefone,
+          email: `${telefone}@temp.com`,
+          cpf: '00000000000',
+          status: 'ativo'
+        };
+        console.log('👤 Cliente temporário criado:', cliente.nome);
         
-        // Primeiro, verificar se já existe um cliente temporário com esse ID
-        let clienteTemp = await storage.getClienteById(clienteId);
-        
-        if (!clienteTemp) {
-          // Criar cliente temporário no banco de dados
-          console.log('🔄 Criando cliente temporário no banco:', clienteId);
-          clienteTemp = await storage.createCliente({
-            id: clienteId, // Usar o ID negativo fornecido
-            nome: `Conversa ${telefone}`,
-            telefone: telefone,
-            email: `${telefone}@temp.com`,
-            cpf: '00000000000',
-            status: 'ativo',
-            vencimento: null,
-            observacoes: 'Cliente temporário criado automaticamente para PIX'
-          });
-          console.log('✅ Cliente temporário criado no banco:', clienteTemp.nome);
-        }
-        
-        cliente = clienteTemp;
-        console.log('👤 Usando cliente temporário:', cliente.nome);
-        
-        // Agora criar o pagamento com o cliente já existente no banco
+        // IMPORTANTE: Sempre criar pagamento no banco, mesmo para conversas
+        // Usar clienteId NULL para conversas sem cliente cadastrado
         pagamento = await storage.createPagamento({
-          clienteId: clienteId, // Agora o ID existe na tabela clientes
+          clienteId: null, // NULL para conversas sem cliente
           valor: amount.toString(),
           status: 'pendente',
           dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
@@ -256,21 +244,14 @@ export class PixService {
           id: wooviCharge.id,
           amount,
           description,
-          pixKey: wooviCharge.pixKey || this.appId || 'default',
-          qrCode: wooviCharge.qrCodeImage || '',
+          pixKey: wooviCharge.pixKey || this.appId,
+          qrCode: wooviCharge.qrCodeImage,
           pixCopiaCola: wooviCharge.brCode || wooviCharge.pixQrCode || '',
           paymentLinkUrl: wooviCharge.paymentLinkUrl || wooviCharge.paymentLink || '',
           status: 'pending',
           createdAt: new Date(),
           expiresAt: expirationDate
         };
-        
-        console.log('💳 PIX Payment object criado:', {
-          hasQrCode: !!pixPayment.qrCode,
-          hasPixCopiaCola: !!pixPayment.pixCopiaCola,
-          hasPaymentLink: !!pixPayment.paymentLinkUrl,
-          pixKey: pixPayment.pixKey
-        });
 
         await this.logActivity('info', `PIX criado para cliente ${cliente.nome}`, { 
           paymentId: pagamento.id, 
@@ -280,10 +261,7 @@ export class PixService {
         
         return pixPayment;
       } catch (wooviError: any) {
-        console.error('❌ Erro ao criar charge no Woovi:');
-        console.error('Status:', wooviError.response?.status);
-        console.error('Data:', wooviError.response?.data);
-        console.error('Message:', wooviError.message);
+        console.error('❌ Erro ao criar charge no Woovi:', wooviError.response?.data || wooviError.message);
         
         // Mesmo com erro no Woovi, manter o pagamento no banco como pendente
         await this.logActivity('error', `Erro ao criar charge no Woovi: ${wooviError.message}`, { 
