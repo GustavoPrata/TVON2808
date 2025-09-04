@@ -339,18 +339,19 @@ export function MessageBubble({
               <>
                 {renderMedia()}
                 {/* Only show text content for non-media messages */}
-                {message.conteudo && 
+                {((message.conteudo || (!message.conteudo && message.tipo === 'text')) && 
                  message.tipo !== 'audio' && 
                  message.tipo !== 'image' && 
                  message.tipo !== 'video' &&
                  message.tipo !== 'sticker' &&
-                 message.tipo !== 'document' && (
+                 message.tipo !== 'document') && (
                   <p className={cn(
                     "text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere",
                     "max-w-[280px] overflow-hidden",
-                    message.mediaUrl && "mt-2"
+                    message.mediaUrl && "mt-2",
+                    !message.conteudo && "italic opacity-70"
                   )} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                    {formatMessageText(message.conteudo)}
+                    {message.conteudo || "🔒 Visualização única"}
                   </p>
                 )}
               </>
