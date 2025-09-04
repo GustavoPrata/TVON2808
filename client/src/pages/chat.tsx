@@ -1542,6 +1542,18 @@ export default function Chat() {
       number = digits.substring(2);
     }
     
+    // For numbers longer than 11 digits, try to extract just the phone part
+    // Some numbers might have extra IDs concatenated
+    if (number.length > 11) {
+      // Try to extract the first 11 digits (mobile) or 10 digits (landline)
+      // Check if starts with area code (2 digits) + 9 (mobile indicator)
+      if (number[2] === '9') {
+        number = number.slice(0, 11); // Mobile number
+      } else {
+        number = number.slice(0, 10); // Landline
+      }
+    }
+    
     // Format as (xx) xxxxx-xxxx for 11 digits
     if (number.length === 11) {
       return `(${number.slice(0, 2)}) ${number.slice(2, 7)}-${number.slice(7)}`;
@@ -1552,7 +1564,15 @@ export default function Chat() {
       return `(${number.slice(0, 2)}) ${number.slice(2, 6)}-${number.slice(6)}`;
     }
     
-    // Return original if format doesn't match
+    // If still doesn't match, try to format what we have
+    if (number.length >= 10) {
+      const areaCode = number.slice(0, 2);
+      const firstPart = number.slice(2, number.length > 10 ? 7 : 6);
+      const secondPart = number.slice(number.length > 10 ? 7 : 6, 11);
+      return `(${areaCode}) ${firstPart}-${secondPart}`;
+    }
+    
+    // Return original if nothing works
     return phone;
   };
 
