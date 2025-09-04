@@ -2789,8 +2789,8 @@ export default function Chat() {
 
 
 
-            {/* Quick Messages for Open Tickets - Beautiful Design */}
-            {selectedConversa?.hasOpenTicket && quickMessages.length > 0 && (
+            {/* Quick Messages - Beautiful Design */}
+            {quickMessages.length > 0 && (
               <div className={cn(
                 "border-t border-slate-700/50 bg-gradient-to-b from-slate-800/30 to-slate-900/30 backdrop-blur-sm transition-all duration-300",
                 showQuickMessages ? "max-h-48" : "max-h-12"
