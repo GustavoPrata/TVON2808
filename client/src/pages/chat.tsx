@@ -648,6 +648,34 @@ export default function Chat() {
           // Show new message indicator
           setShowNewMessageIndicator(true);
         }
+        
+        // NOVO: Marcar automaticamente como lida se estiver visualizando a conversa
+        // e a mensagem for do cliente (não do sistema)
+        if (messageData.remetente === 'cliente' && !messageData.lida) {
+          // Marcar como lida no servidor
+          apiRequest('POST', `/api/whatsapp/conversations/${selectedConversa.id}/read`)
+            .then(() => {
+              // Atualizar o contador local para 0
+              queryClient.setQueryData(
+                ['/api/whatsapp/conversations'],
+                (oldData: any) => {
+                  if (!oldData) return [];
+                  return oldData.map((conv: any) => 
+                    conv.id === selectedConversa.id 
+                      ? { ...conv, mensagensNaoLidas: 0 }
+                      : conv
+                  );
+                }
+              );
+
+              // Atualizar a conversa selecionada
+              setSelectedConversa(prev => prev ? {
+                ...prev,
+                mensagensNaoLidas: 0
+              } : null);
+            })
+            .catch(error => console.error('Erro ao marcar automaticamente como lida:', error));
+        }
       } else {
         // Message is for different conversation or no conversation selected
       }
