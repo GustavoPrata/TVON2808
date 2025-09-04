@@ -450,51 +450,84 @@ export class PixService {
         dataPagamento: new Date()
       });
       
-      // Buscar e atualizar cliente
-      const cliente = await storage.getClienteById(pagamento.clienteId);
-      if (cliente) {
-        // Verificar se o pagamento tem metadados sobre período de renovação
+      // Verificar se é um pagamento de conversa (clienteId negativo) ou cliente cadastrado
+      if (pagamento.clienteId < 0) {
+        // Pagamento de conversa sem cliente cadastrado
+        console.log('💬 Pagamento de conversa sem cliente cadastrado');
+        
+        // Obter telefone do metadata
         const metadata = pagamento.metadata as any;
-        let updateData: any = { status: 'ativo' };
+        const telefone = metadata?.telefone;
         
-        // Se tem informação de meses de renovação nos metadados
-        if (metadata?.meses) {
-          const meses = parseInt(metadata.meses);
-          const baseDate = cliente.vencimento && new Date(cliente.vencimento) > new Date() 
-            ? new Date(cliente.vencimento) 
-            : new Date();
+        if (telefone) {
+          // Formatar valor para exibição
+          const valorFormatado = value ? (value / 100).toFixed(2).replace('.', ',') : pagamento.valor;
           
-          const novoVencimento = new Date(baseDate);
-          novoVencimento.setMonth(novoVencimento.getMonth() + meses);
-          // Ajustar para 23:59:59 do dia de vencimento
-          novoVencimento.setHours(23, 59, 59, 999);
+          // Enviar mensagem simples de confirmação
+          const mensagem = `✅ Pagamento concluído com sucesso!`;
           
-          updateData.vencimento = novoVencimento;
+          try {
+            await whatsappService.sendMessage(telefone, mensagem);
+            console.log(`✅ Mensagem de confirmação enviada para ${telefone}`);
+          } catch (whatsError) {
+            console.error('Erro ao enviar mensagem WhatsApp:', whatsError);
+          }
           
-          console.log(`Atualizando vencimento do cliente ${cliente.nome} para ${novoVencimento.toLocaleDateString('pt-BR')}`);
+          await this.logActivity('info', `Pagamento confirmado para conversa ${telefone}`, {
+            chargeId,
+            value: value ? value / 100 : pagamento.valor,
+            telefone
+          });
+        } else {
+          console.warn('Telefone não encontrado no metadata do pagamento');
         }
-        
-        // Atualizar cliente com status e vencimento (se aplicável)
-        await storage.updateCliente(pagamento.clienteId, updateData);
-        
-        // Formatar valor para exibição
-        const valorFormatado = value ? (value / 100).toFixed(2).replace('.', ',') : pagamento.valor;
-        
-        // Enviar mensagem de confirmação via WhatsApp
-        const mensagem = `✅ *Pagamento Confirmado!*\n\nOlá ${cliente.nome}! 👋\n\nSeu pagamento PIX no valor de *R$ ${valorFormatado}* foi confirmado com sucesso.\n\n🎉 *Seu acesso está liberado!*\n\nObrigado pela confiança!\n\n_TV ON Sistema_`;
-        
-        try {
-          await whatsappService.sendMessage(cliente.telefone, mensagem);
-        } catch (whatsError) {
-          console.error('Erro ao enviar mensagem WhatsApp:', whatsError);
-          // Não interromper o processo se WhatsApp falhar
+      } else {
+        // Buscar e atualizar cliente normal
+        const cliente = await storage.getClienteById(pagamento.clienteId);
+        if (cliente) {
+          // Verificar se o pagamento tem metadados sobre período de renovação
+          const metadata = pagamento.metadata as any;
+          let updateData: any = { status: 'ativo' };
+          
+          // Se tem informação de meses de renovação nos metadados
+          if (metadata?.meses) {
+            const meses = parseInt(metadata.meses);
+            const baseDate = cliente.vencimento && new Date(cliente.vencimento) > new Date() 
+              ? new Date(cliente.vencimento) 
+              : new Date();
+            
+            const novoVencimento = new Date(baseDate);
+            novoVencimento.setMonth(novoVencimento.getMonth() + meses);
+            // Ajustar para 23:59:59 do dia de vencimento
+            novoVencimento.setHours(23, 59, 59, 999);
+            
+            updateData.vencimento = novoVencimento;
+            
+            console.log(`Atualizando vencimento do cliente ${cliente.nome} para ${novoVencimento.toLocaleDateString('pt-BR')}`);
+          }
+          
+          // Atualizar cliente com status e vencimento (se aplicável)
+          await storage.updateCliente(pagamento.clienteId, updateData);
+          
+          // Formatar valor para exibição
+          const valorFormatado = value ? (value / 100).toFixed(2).replace('.', ',') : pagamento.valor;
+          
+          // Enviar mensagem de confirmação via WhatsApp
+          const mensagem = `✅ *Pagamento Confirmado!*\n\nOlá ${cliente.nome}! 👋\n\nSeu pagamento PIX no valor de *R$ ${valorFormatado}* foi confirmado com sucesso.\n\n🎉 *Seu acesso está liberado!*\n\nObrigado pela confiança!\n\n_TV ON Sistema_`;
+          
+          try {
+            await whatsappService.sendMessage(cliente.telefone, mensagem);
+          } catch (whatsError) {
+            console.error('Erro ao enviar mensagem WhatsApp:', whatsError);
+            // Não interromper o processo se WhatsApp falhar
+          }
+          
+          await this.logActivity('info', `Pagamento confirmado para cliente ${cliente.nome}`, {
+            chargeId,
+            value: value ? value / 100 : pagamento.valor,
+            clienteId: pagamento.clienteId
+          });
         }
-        
-        await this.logActivity('info', `Pagamento confirmado para cliente ${cliente.nome}`, {
-          chargeId,
-          value: value ? value / 100 : pagamento.valor,
-          clienteId: pagamento.clienteId
-        });
       }
     } catch (error) {
       console.error('Erro ao processar confirmação de pagamento:', error);
