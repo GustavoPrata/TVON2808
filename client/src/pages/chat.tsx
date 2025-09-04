@@ -202,7 +202,7 @@ export default function Chat() {
   // Get quick messages
   const { data: quickMessages = [] } = useQuery<any[]>({
     queryKey: ['/api/mensagens-rapidas/ativas'],
-    enabled: !!selectedConversa?.hasOpenTicket,
+    enabled: !!selectedConversa,
   });
 
   // Update when conversations or tickets change
