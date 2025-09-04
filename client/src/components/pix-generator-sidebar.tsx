@@ -586,53 +586,53 @@ export function PixGeneratorSidebar({
 
               {/* Ações */}
               {selectedPayment.status === 'pendente' && (
-                <div className="grid grid-cols-2 gap-2 mt-3">
+                <div className="grid grid-cols-4 gap-2 mt-3">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={copyPixCode}
-                    className="h-8 text-[11px] font-bold border-slate-600 hover:bg-slate-700"
+                    className="h-8 border-slate-600 hover:bg-slate-700"
                     disabled={!selectedPayment.pix_copia_e_cola}
+                    title="Copiar PIX"
                   >
-                    <Copy className="w-3.5 h-3.5 mr-1" />
-                    Copiar PIX
+                    <Copy className="w-3.5 h-3.5" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={resendPixToWhatsApp}
-                    className="h-8 text-[11px] font-bold border-slate-600 hover:bg-slate-700"
+                    className="h-8 border-slate-600 hover:bg-slate-700"
+                    title="Reenviar"
                   >
-                    <Send className="w-3.5 h-3.5 mr-1" />
-                    Reenviar
+                    <Send className="w-3.5 h-3.5" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => checkPaymentStatus(selectedPayment.charge_id)}
                     disabled={isCheckingStatus}
-                    className="h-8 text-[11px] font-bold border-blue-600/50 hover:bg-blue-950/30 text-blue-400"
+                    className="h-8 border-blue-600/50 hover:bg-blue-950/30 text-blue-400"
+                    title="Verificar"
                   >
                     {isCheckingStatus ? (
-                      <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
-                      <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                      <RefreshCw className="w-3.5 h-3.5" />
                     )}
-                    Verificar
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={cancelCurrentPix}
                     disabled={isCancelling}
-                    className="h-8 text-[11px] font-bold border-red-600/50 hover:bg-red-950/30 text-red-400"
+                    className="h-8 border-red-600/50 hover:bg-red-950/30 text-red-400"
+                    title="Cancelar"
                   >
                     {isCancelling ? (
-                      <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
-                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     )}
-                    Cancelar
                   </Button>
                 </div>
               )}
