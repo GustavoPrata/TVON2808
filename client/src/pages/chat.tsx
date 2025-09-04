@@ -2933,19 +2933,19 @@ export default function Chat() {
                         onChange={(e) => {
                           setMessageText(e.target.value);
                           // Auto-resize
-                          e.target.style.height = 'auto';
+                          e.target.style.height = '40px'; // Reset to single line height
                           e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
                         }}
                         onPaste={(e) => {
                           // Preserve formatting when pasting
                           setTimeout(() => {
                             const textarea = e.target as HTMLTextAreaElement;
-                            textarea.style.height = 'auto';
+                            textarea.style.height = '40px'; // Reset to single line height
                             textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
                           }, 0);
                         }}
                         placeholder="Digite sua mensagem..."
-                        className="w-full min-h-[40px] max-h-[200px] px-3 py-2 bg-dark-card border border-slate-600 rounded-lg text-white placeholder:text-slate-500 pr-12 resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="w-full h-[40px] max-h-[200px] px-3 py-2 bg-dark-card border border-slate-600 rounded-lg text-white placeholder:text-slate-500 pr-12 resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
@@ -2954,6 +2954,7 @@ export default function Chat() {
                         }}
                         disabled={sendMessageMutation.isPending}
                         style={{
+                          height: '40px', // Start with single line height
                           lineHeight: '1.5',
                           scrollbarWidth: 'thin',
                           scrollbarColor: '#475569 transparent'
