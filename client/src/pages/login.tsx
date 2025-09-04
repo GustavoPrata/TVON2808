@@ -77,6 +77,48 @@ export default function Login() {
     }
   };
 
+  // TEMPORÁRIO: Auto-login para desenvolvimento
+  const handleAutoLogin = async () => {
+    setUser("gustavoprtt");
+    setPassword("Gustavoprata1@");
+    setRememberMe(true);
+    
+    // Aguarda um momento para os campos serem preenchidos
+    setTimeout(async () => {
+      setIsLoading(true);
+      try {
+        const response = await apiRequest("POST", "/api/login", { 
+          user: "gustavoprtt", 
+          password: "Gustavoprata1@", 
+          rememberMe: true 
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          localStorage.setItem("rememberedUser", "gustavoprtt");
+          localStorage.setItem("rememberMe", "true");
+          
+          toast({
+            title: "Sucesso",
+            description: "Login automático realizado!",
+          });
+          
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 500);
+        }
+      } catch (error: any) {
+        toast({
+          title: "Erro no auto-login",
+          description: error.message || "Erro ao fazer login automático",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }, 100);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 p-4">
       {/* Animated background gradient */}
@@ -187,6 +229,26 @@ export default function Login() {
                 <>
                   <Lock className="mr-2 h-5 w-5" />
                   Entrar no Sistema
+                </>
+              )}
+            </Button>
+
+            {/* TEMPORÁRIO: Botão de auto-login para desenvolvimento */}
+            <Button
+              type="button"
+              onClick={handleAutoLogin}
+              className="w-full mt-2 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-semibold py-3 transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/25"
+              disabled={isLoading}
+              data-testid="button-autologin"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Fazendo auto-login...
+                </>
+              ) : (
+                <>
+                  ⚡ Login Rápido (DEV)
                 </>
               )}
             </Button>
