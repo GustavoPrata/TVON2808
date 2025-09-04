@@ -656,46 +656,56 @@ export class WhatsAppService extends EventEmitter {
     // Process media messages
     const messageType = this.getMessageType(message);
     if (messageType !== "text") {
-      try {
-        mediaUrl = await this.downloadMedia(message);
-        
-        // Get the actual message content based on message type
-        let actualMessage = message.message;
-        
-        // Extract from view-once messages
-        if (message.message?.viewOnceMessage) {
-          actualMessage = message.message.viewOnceMessage.message;
-        } else if (message.message?.viewOnceMessageV2) {
-          actualMessage = message.message.viewOnceMessageV2.message;
-        } else if (message.message?.ephemeralMessage) {
-          actualMessage = message.message.ephemeralMessage.message;
+      // Check if it's a view-once message
+      const isViewOnce = !!message.message?.viewOnceMessage || !!message.message?.viewOnceMessageV2;
+      
+      // For view-once messages from clients, just show "Visualização única"
+      if (isViewOnce && !message.key.fromMe) {
+        messageText = "Visualização única";
+        // Don't try to download media for view-once messages from clients
+      } else {
+        try {
+          mediaUrl = await this.downloadMedia(message);
+          
+          // Get the actual message content based on message type
+          let actualMessage = message.message;
+          
+          // Extract from ephemeral messages
+          if (message.message?.ephemeralMessage) {
+            actualMessage = message.message.ephemeralMessage.message;
+          }
+          
+          if (messageType === "image") {
+            const caption = actualMessage?.imageMessage?.caption || "";
+            messageText = caption;
+          } else if (messageType === "video") {
+            const caption = actualMessage?.videoMessage?.caption || "";
+            messageText = caption;
+          } else if (messageType === "audio") {
+            // For audio, extract duration properly
+            const duration = actualMessage?.audioMessage?.seconds || 0;
+            // Don't store as JSON - store as readable text
+            messageText = `[Áudio ${duration}s]`;
+            // Store duration in metadata instead
+            replyMetadata = { ...replyMetadata, duration };
+          } else if (messageType === "document") {
+            const fileName = actualMessage?.documentMessage?.fileName || "documento";
+            // Store filename as text, not JSON
+            messageText = fileName;
+          } else if (messageType === "sticker") {
+            messageText = "[Sticker]"; // Store as readable text
+          }
+        } catch (error) {
+          console.error("Erro ao baixar mídia:", error);
+          // If media download fails, show appropriate message
+          if (messageType === "image") {
+            messageText = "[Imagem não disponível]";
+          } else if (messageType === "video") {
+            messageText = "[Vídeo não disponível]";
+          } else if (messageType === "audio") {
+            messageText = "[Áudio não disponível]";
+          }
         }
-        
-        if (messageType === "image") {
-          // For view-once photos, mark with special prefix
-          const isViewOnce = !!message.message?.viewOnceMessage || !!message.message?.viewOnceMessageV2;
-          const caption = actualMessage?.imageMessage?.caption || "";
-          messageText = isViewOnce ? "[Foto de visualização única]" + (caption ? " " + caption : "") : caption;
-        } else if (messageType === "video") {
-          const isViewOnce = !!message.message?.viewOnceMessage || !!message.message?.viewOnceMessageV2;
-          const caption = actualMessage?.videoMessage?.caption || "";
-          messageText = isViewOnce ? "[Vídeo de visualização única]" + (caption ? " " + caption : "") : caption;
-        } else if (messageType === "audio") {
-          // For audio, extract duration properly
-          const duration = actualMessage?.audioMessage?.seconds || 0;
-          // Don't store as JSON - store as readable text
-          messageText = `[Áudio ${duration}s]`;
-          // Store duration in metadata instead
-          replyMetadata = { ...replyMetadata, duration };
-        } else if (messageType === "document") {
-          const fileName = actualMessage?.documentMessage?.fileName || "documento";
-          // Store filename as text, not JSON
-          messageText = fileName;
-        } else if (messageType === "sticker") {
-          messageText = "[Sticker]"; // Store as readable text
-        }
-      } catch (error) {
-        console.error("Erro ao baixar mídia:", error);
       }
     }
 
