@@ -337,8 +337,8 @@ export function MessageBubble({
               </div>
             ) : (
               <>
-                {/* Check for view-once messages - including empty messages */}
-                {(message.conteudo === 'Visualização única' || message.conteudo === '') ? (
+                {/* Check for view-once messages */}
+                {(message.conteudo === 'Visualização única' && message.remetente === 'cliente') ? (
                   <div className="flex items-center gap-2 py-1">
                     <div className="p-2 rounded-full bg-white/10">
                       <EyeOff className="w-5 h-5 text-current" />
