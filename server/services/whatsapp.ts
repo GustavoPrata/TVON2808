@@ -672,10 +672,20 @@ export class WhatsAppService extends EventEmitter {
         }
       }
     }
-    let messageText =
-      message.message?.conversation ||
-      message.message?.extendedTextMessage?.text ||
-      "";
+    // Extract text from different message types
+    let messageText = "";
+    
+    // Try to extract text from various message formats
+    if (message.message?.conversation) {
+      messageText = message.message.conversation;
+    } else if (message.message?.extendedTextMessage?.text) {
+      messageText = message.message.extendedTextMessage.text;
+    } else if (message.message?.ephemeralMessage?.message?.conversation) {
+      messageText = message.message.ephemeralMessage.message.conversation;
+    } else if (message.message?.ephemeralMessage?.message?.extendedTextMessage?.text) {
+      messageText = message.message.ephemeralMessage.message.extendedTextMessage.text;
+    }
+    
     let mediaUrl: string | undefined;
     let replyMetadata: any = undefined;
 
@@ -788,13 +798,16 @@ export class WhatsAppService extends EventEmitter {
 
     // Get the message type (but use "text" for view-once messages)
     const messageType = isViewOnce && !message.key.fromMe ? "text" : this.getMessageType(message);
-
-    // Check if this is an empty message - treat as view-once
-    if (!messageText && !mediaUrl && messageType === "text") {
-      console.log("Empty message detected - treating as view-once message");
-      messageText = "Visualização única";
-      // Add metadata to indicate it's a view-once with unknown type
-      replyMetadata = { ...replyMetadata, viewOnceType: "mídia" };
+    
+    // Log when we receive an empty text message for debugging
+    if (!messageText && !mediaUrl && messageType === "text" && !isViewOnce) {
+      console.log("Empty text message received - might be unsupported message type:", {
+        key: message.key,
+        messageKeys: message.message ? Object.keys(message.message) : [],
+        fullMessage: JSON.stringify(message.message, null, 2)
+      });
+      // Set a placeholder for empty messages (NOT view-once)
+      messageText = "[Mensagem não suportada]";
     }
 
     const whatsappMessage: WhatsAppMessage = {

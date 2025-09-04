@@ -26,7 +26,7 @@ import {
   login,
 } from "@shared/schema";
 import { z } from "zod";
-import { asc, sql, eq } from "drizzle-orm";
+import { asc, sql, eq, and } from "drizzle-orm";
 import ffmpeg from "fluent-ffmpeg";
 import { promises as fs } from "fs";
 import path from "path";
@@ -4856,6 +4856,40 @@ Como posso ajudar você hoje?
       res
         .status(500)
         .json({ error: "Erro ao verificar status de sincronização" });
+    }
+  });
+
+  // Route to fix messages incorrectly marked as "Visualização única"
+  app.post("/api/fix-view-once-messages", async (req, res) => {
+    try {
+      console.log("Starting fix for incorrectly marked view-once messages...");
+      
+      // Find all messages with "Visualização única" content
+      const result = await db
+        .update(mensagens)
+        .set({ 
+          conteudo: "[Mensagem não suportada]"
+        })
+        .where(
+          and(
+            eq(mensagens.conteudo, "Visualização única"),
+            sql`${mensagens.metadados}->>'viewOnceType' IS NULL`
+          )
+        );
+      
+      console.log(`Fixed incorrectly marked messages`);
+      
+      res.json({ 
+        success: true, 
+        message: `Mensagens corrigidas com sucesso`
+      });
+    } catch (error) {
+      console.error("Error fixing view-once messages:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Erro ao corrigir mensagens",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

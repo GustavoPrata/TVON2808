@@ -59,6 +59,26 @@ export default function Logs() {
     },
   });
 
+  const fixViewOnceMessagesMutation = useMutation({
+    mutationFn: () => fetch('/api/fix-view-once-messages', { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }).then(res => res.json()),
+    onSuccess: (data) => {
+      toast({ 
+        title: 'Correção concluída!',
+        description: data.message || 'Mensagens corrigidas com sucesso.'
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: 'Erro ao corrigir mensagens', 
+        description: 'Não foi possível corrigir as mensagens de visualização única.',
+        variant: 'destructive' 
+      });
+    },
+  });
+
   const filteredLogs = logs?.filter(log => {
     const matchesLevel = filterLevel === 'all' || log.nivel === filterLevel;
     const matchesSearch = !searchTerm || 
@@ -222,6 +242,18 @@ export default function Logs() {
           >
             <Wrench className="w-4 h-4 mr-2" />
             Corrigir LIDs
+          </Button>
+          <Button 
+            variant="secondary" 
+            onClick={() => {
+              if (window.confirm('Deseja corrigir mensagens incorretamente marcadas como "Visualização única"? Isso mudará essas mensagens para "[Mensagem não suportada]".')) {
+                fixViewOnceMessagesMutation.mutate();
+              }
+            }}
+            disabled={fixViewOnceMessagesMutation.isPending}
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            Corrigir View-Once
           </Button>
           <Button 
             variant="destructive" 
