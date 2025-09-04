@@ -168,15 +168,21 @@ export class PixService {
         };
         console.log('👤 Cliente temporário criado:', cliente.nome);
         
-        // Para clientes temporários, criar um pagamento fictício
-        pagamento = {
-          id: Math.abs(clienteId),
-          clienteId,
+        // IMPORTANTE: Sempre criar pagamento no banco, mesmo para conversas
+        // Usar clienteId NULL para conversas sem cliente cadastrado
+        pagamento = await storage.createPagamento({
+          clienteId: null, // NULL para conversas sem cliente
           valor: amount.toString(),
           status: 'pendente',
-          dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          metadata: metadata || {}
-        };
+          dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
+          metadata: {
+            ...metadata,
+            isTemporaryClient: true,
+            conversaId: metadata?.conversaId,
+            telefone: telefone
+          }
+        });
+        console.log('💾 Pagamento criado no banco para conversa:', pagamento.id);
       } else {
         cliente = await storage.getClienteById(clienteId);
         if (!cliente) {
@@ -184,7 +190,7 @@ export class PixService {
         }
         console.log('👤 Cliente encontrado:', cliente.nome);
         
-        // Criar pagamento no banco local com metadata - apenas para clientes reais
+        // Criar pagamento no banco local com metadata
         pagamento = await storage.createPagamento({
           clienteId,
           valor: amount.toString(),
@@ -226,17 +232,13 @@ export class PixService {
         
         console.log('🔄 Atualizando pagamento com dados do Woovi:', updateData);
         
-        // Atualizar com dados do Woovi - apenas para clientes reais
-        if (!isTemporaryClient) {
-          const result = await db.update(pagamentos)
-            .set(updateData)
-            .where(eq(pagamentos.id, pagamento.id))
-            .returning();
-            
-          console.log('✅ Pagamento atualizado:', result[0]);
-        } else {
-          console.log('✅ PIX gerado para conversa temporária (não salvo no banco)');
-        }
+        // SEMPRE atualizar pagamento com dados do Woovi - tanto para clientes quanto conversas
+        const result = await db.update(pagamentos)
+          .set(updateData)
+          .where(eq(pagamentos.id, pagamento.id))
+          .returning();
+          
+        console.log('✅ Pagamento atualizado no banco:', result[0]);
 
         const pixPayment: PixPayment = {
           id: wooviCharge.id,
@@ -450,8 +452,8 @@ export class PixService {
         dataPagamento: new Date()
       });
       
-      // Verificar se é um pagamento de conversa (clienteId negativo) ou cliente cadastrado
-      if (pagamento.clienteId < 0) {
+      // Verificar se é um pagamento de conversa (clienteId null) ou cliente cadastrado
+      if (pagamento.clienteId === null) {
         // Pagamento de conversa sem cliente cadastrado
         console.log('💬 Pagamento de conversa sem cliente cadastrado');
         
