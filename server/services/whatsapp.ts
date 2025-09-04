@@ -660,6 +660,25 @@ export class WhatsAppService extends EventEmitter {
     if (isViewOnce && !message.key.fromMe) {
       console.log("View-once message detected from client, setting text to 'Visualização única'");
       messageText = "Visualização única";
+      
+      // Detect media type within view-once message
+      const viewOnceContent = message.message?.viewOnceMessage?.message || message.message?.viewOnceMessageV2?.message;
+      if (viewOnceContent) {
+        // Store media type in metadata for display purposes
+        let viewOnceType = "mídia";
+        if (viewOnceContent.imageMessage) {
+          viewOnceType = "foto";
+          console.log("View-once image detected");
+        } else if (viewOnceContent.videoMessage) {
+          viewOnceType = "vídeo";
+          console.log("View-once video detected");
+        } else if (viewOnceContent.audioMessage) {
+          viewOnceType = "áudio";
+          console.log("View-once audio detected");
+        }
+        // Store type in metadata
+        replyMetadata = { ...replyMetadata, viewOnceType };
+      }
       // Don't process further - we don't download or extract content from view-once
     } else {
       // Process media messages normally

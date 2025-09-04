@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Check, CheckCheck, Clock, Reply, Forward, Copy, Trash2, Download, MoreVertical, FileText, Edit } from 'lucide-react';
+import { Check, CheckCheck, Clock, Reply, Forward, Copy, Trash2, Download, MoreVertical, FileText, Edit, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -337,21 +337,40 @@ export function MessageBubble({
               </div>
             ) : (
               <>
-                {renderMedia()}
-                {/* Only show text content for non-media messages */}
-                {message.conteudo && 
-                 message.tipo !== 'audio' && 
-                 message.tipo !== 'image' && 
-                 message.tipo !== 'video' &&
-                 message.tipo !== 'sticker' &&
-                 message.tipo !== 'document' && (
-                  <p className={cn(
-                    "text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere",
-                    "max-w-[280px] overflow-hidden",
-                    message.mediaUrl && "mt-2"
-                  )} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                    {formatMessageText(message.conteudo)}
-                  </p>
+                {/* Check for view-once messages */}
+                {message.conteudo === 'Visualização única' ? (
+                  <div className="flex items-center gap-2 py-1">
+                    <div className="p-2 rounded-full bg-white/10">
+                      <EyeOff className="w-5 h-5 text-current" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">Visualização única</span>
+                      <span className="text-xs opacity-70">
+                        {message.metadados?.viewOnceType 
+                          ? `${message.metadados.viewOnceType.charAt(0).toUpperCase() + message.metadados.viewOnceType.slice(1)} enviada uma vez`
+                          : 'Mídia enviada uma vez'}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {renderMedia()}
+                    {/* Only show text content for non-media messages */}
+                    {message.conteudo && 
+                     message.tipo !== 'audio' && 
+                     message.tipo !== 'image' && 
+                     message.tipo !== 'video' &&
+                     message.tipo !== 'sticker' &&
+                     message.tipo !== 'document' && (
+                      <p className={cn(
+                        "text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere",
+                        "max-w-[280px] overflow-hidden",
+                        message.mediaUrl && "mt-2"
+                      )} style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                        {formatMessageText(message.conteudo)}
+                      </p>
+                    )}
+                  </>
                 )}
               </>
             )}
