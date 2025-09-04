@@ -158,20 +158,32 @@ export class PixService {
         // Cliente temporário para conversa sem cadastro
         isTemporaryClient = true;
         const telefone = metadata?.telefone || 'sem_telefone';
-        cliente = {
-          id: clienteId,
-          nome: `Conversa ${telefone}`,
-          telefone: telefone,
-          email: `${telefone}@temp.com`,
-          cpf: '00000000000',
-          status: 'ativo'
-        };
-        console.log('👤 Cliente temporário criado:', cliente.nome);
         
-        // IMPORTANTE: Sempre criar pagamento no banco, mesmo para conversas
-        // Usar o próprio clienteId negativo para conversas sem cliente cadastrado
+        // Primeiro, verificar se já existe um cliente temporário com esse ID
+        let clienteTemp = await storage.getClienteById(clienteId);
+        
+        if (!clienteTemp) {
+          // Criar cliente temporário no banco de dados
+          console.log('🔄 Criando cliente temporário no banco:', clienteId);
+          clienteTemp = await storage.createCliente({
+            id: clienteId, // Usar o ID negativo fornecido
+            nome: `Conversa ${telefone}`,
+            telefone: telefone,
+            email: `${telefone}@temp.com`,
+            cpf: '00000000000',
+            status: 'ativo',
+            vencimento: null,
+            observacoes: 'Cliente temporário criado automaticamente para PIX'
+          });
+          console.log('✅ Cliente temporário criado no banco:', clienteTemp.nome);
+        }
+        
+        cliente = clienteTemp;
+        console.log('👤 Usando cliente temporário:', cliente.nome);
+        
+        // Agora criar o pagamento com o cliente já existente no banco
         pagamento = await storage.createPagamento({
-          clienteId: clienteId, // Usar o próprio clienteId negativo
+          clienteId: clienteId, // Agora o ID existe na tabela clientes
           valor: amount.toString(),
           status: 'pendente',
           dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas

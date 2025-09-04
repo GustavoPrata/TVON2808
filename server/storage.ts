@@ -24,7 +24,7 @@ export interface IStorage {
   getClienteById(id: number): Promise<Cliente | undefined>;
   getClienteByTelefone(telefone: string): Promise<Cliente | undefined>;
   getClienteByNome(nome: string): Promise<Cliente | undefined>;
-  createCliente(cliente: InsertCliente): Promise<Cliente>;
+  createCliente(cliente: InsertCliente & {id?: number}): Promise<Cliente>;
   updateCliente(id: number, cliente: Partial<InsertCliente>): Promise<Cliente>;
   deleteCliente(id: number): Promise<void>;
   searchClientes(term: string, tipo?: string): Promise<Cliente[]>;
@@ -249,13 +249,18 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async createCliente(cliente: InsertCliente): Promise<Cliente> {
+  async createCliente(cliente: InsertCliente & {id?: number}): Promise<Cliente> {
     // Ajustar vencimento para 23:59:59 se fornecido
-    const clienteData = { ...cliente };
+    const clienteData = { ...cliente } as any;
     if (clienteData.vencimento) {
       const vencimentoDate = new Date(clienteData.vencimento);
       vencimentoDate.setHours(23, 59, 59, 999);
       clienteData.vencimento = vencimentoDate;
+    }
+    
+    // Se um ID específico foi fornecido (incluindo negativos), usá-lo
+    if (cliente.id !== undefined) {
+      clienteData.id = cliente.id;
     }
     
     const result = await db.insert(clientes).values(clienteData).returning();
