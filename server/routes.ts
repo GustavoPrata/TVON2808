@@ -3824,9 +3824,10 @@ Como posso ajudar você hoje?
           // Se falhar com Woovi, gerar PIX local como fallback
           console.log("[PIX API] Gerando PIX local como fallback");
           
-          // Criar pagamento no banco
+          // Criar pagamento no banco - usar ID fictício se não houver cliente
+          const clienteIdFallback = cliente?.id || idParaPix || -1;
           const pagamento = await storage.createPagamento({
-            clienteId: cliente?.id || null,
+            clienteId: clienteIdFallback,
             valor: valor.toString(),
             status: 'pendente',
             dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000),
@@ -3861,8 +3862,9 @@ Como posso ajudar você hoje?
         
         // Mesmo com erro, tentar gerar PIX local
         try {
+          const clienteIdFallback = cliente?.id || idParaPix || -1;
           const pagamento = await storage.createPagamento({
-            clienteId: cliente?.id || null,
+            clienteId: clienteIdFallback,
             valor: valor.toString(),
             status: 'pendente',
             dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000),
