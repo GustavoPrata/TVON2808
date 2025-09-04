@@ -3759,13 +3759,14 @@ Como posso ajudar você hoje?
 
       let cliente = null;
       let nomeIdentificacao = "";
-      let idParaPix = clienteId;
+      let idParaPix = null;
 
       // Se tem clienteId, usa ele
       if (clienteId) {
         cliente = await storage.getClienteById(clienteId);
         if (cliente) {
           nomeIdentificacao = cliente.nome;
+          idParaPix = cliente.id;
         }
       }
       
@@ -3785,11 +3786,18 @@ Como posso ajudar você hoje?
           idParaPix = -Math.abs(telefoneNormalizado.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0));
         }
       }
+      
+      // Se ainda não temos idParaPix, usar ID de emergência baseado no timestamp
+      if (!idParaPix) {
+        // ID de emergência: negativo baseado no timestamp para garantir unicidade
+        idParaPix = -Math.abs(Date.now() % 1000000);
+        nomeIdentificacao = "Pagamento Manual";
+      }
 
-      // Se nem cliente nem telefone foram fornecidos
+      // Garantir que idParaPix nunca seja null
       if (!idParaPix) {
         return res.status(400).json({ 
-          error: "Cliente ID ou telefone é obrigatório" 
+          error: "Erro ao gerar identificação para o pagamento" 
         });
       }
 
