@@ -3807,7 +3807,7 @@ Como posso ajudar você hoje?
       console.log("[PIX API] Resultado do pixService:", pixResult ? "OK" : "FALHOU");
       console.log("[PIX API] pixResult.pixKey:", pixResult?.pixKey ? "EXISTE" : "NÃO EXISTE");
 
-      if (pixResult && pixResult.pixKey) {
+      if (pixResult && (pixResult.qrCode || pixResult.pixCopiaCola)) {
         const response = {
           success: true,
           pixData: {
@@ -3818,9 +3818,11 @@ Como posso ajudar você hoje?
           }
         };
         console.log("[PIX API] Enviando resposta de sucesso");
+        console.log("[PIX API] Response:", response);
         res.json(response);
       } else {
-        console.log("[PIX API] PIX falhou, sem pixKey");
+        console.log("[PIX API] PIX falhou - sem QR Code ou código Pix");
+        console.log("[PIX API] pixResult:", pixResult);
         res.status(500).json({ 
           error: "Erro ao gerar PIX - sem dados retornados" 
         });

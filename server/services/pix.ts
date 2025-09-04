@@ -244,14 +244,21 @@ export class PixService {
           id: wooviCharge.id,
           amount,
           description,
-          pixKey: wooviCharge.pixKey || this.appId,
-          qrCode: wooviCharge.qrCodeImage,
+          pixKey: wooviCharge.pixKey || this.appId || 'default',
+          qrCode: wooviCharge.qrCodeImage || '',
           pixCopiaCola: wooviCharge.brCode || wooviCharge.pixQrCode || '',
           paymentLinkUrl: wooviCharge.paymentLinkUrl || wooviCharge.paymentLink || '',
           status: 'pending',
           createdAt: new Date(),
           expiresAt: expirationDate
         };
+        
+        console.log('💳 PIX Payment object criado:', {
+          hasQrCode: !!pixPayment.qrCode,
+          hasPixCopiaCola: !!pixPayment.pixCopiaCola,
+          hasPaymentLink: !!pixPayment.paymentLinkUrl,
+          pixKey: pixPayment.pixKey
+        });
 
         await this.logActivity('info', `PIX criado para cliente ${cliente.nome}`, { 
           paymentId: pagamento.id, 
@@ -261,7 +268,10 @@ export class PixService {
         
         return pixPayment;
       } catch (wooviError: any) {
-        console.error('❌ Erro ao criar charge no Woovi:', wooviError.response?.data || wooviError.message);
+        console.error('❌ Erro ao criar charge no Woovi:');
+        console.error('Status:', wooviError.response?.status);
+        console.error('Data:', wooviError.response?.data);
+        console.error('Message:', wooviError.message);
         
         // Mesmo com erro no Woovi, manter o pagamento no banco como pendente
         await this.logActivity('error', `Erro ao criar charge no Woovi: ${wooviError.message}`, { 
