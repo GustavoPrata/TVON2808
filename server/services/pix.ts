@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import { storage } from '../storage';
 import { whatsappService } from './whatsapp';
 import { db } from '../db';
-import { pagamentos } from '@shared/schema';
+import { pagamentos, pagamentosManual } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 export interface PixPayment {
@@ -168,13 +168,18 @@ export class PixService {
         };
         console.log('👤 Cliente temporário criado:', cliente.nome);
         
-        // IMPORTANTE: Sempre criar pagamento no banco, mesmo para conversas
-        // Usar clienteId NULL para conversas sem cliente cadastrado
-        pagamento = await storage.createPagamento({
+        // IMPORTANTE: Para pagamentos manuais sem cliente, usar tabela pagamentos_manual
+        // Pagamentos sem cliente vão para tabela separada
+        pagamento = await storage.createPagamentoManual({
           clienteId: null, // NULL para conversas sem cliente
+          telefone: telefone, // Adicionar campo telefone
           valor: amount.toString(),
           status: 'pendente',
           dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
+          pixId: '', // Será preenchido depois
+          chargeId: '', // Será preenchido depois
+          qrCode: '', // Será preenchido depois
+          pixCopiaECola: '', // Será preenchido depois
           metadata: {
             ...metadata,
             isTemporaryClient: true,
@@ -182,7 +187,7 @@ export class PixService {
             telefone: telefone
           }
         });
-        console.log('💾 Pagamento criado no banco para conversa:', pagamento.id);
+        console.log('💾 Pagamento manual criado na tabela pagamentos_manual:', pagamento.id);
       } else {
         cliente = await storage.getClienteById(clienteId);
         if (!cliente) {
@@ -232,13 +237,23 @@ export class PixService {
         
         console.log('🔄 Atualizando pagamento com dados do Woovi:', updateData);
         
-        // SEMPRE atualizar pagamento com dados do Woovi - tanto para clientes quanto conversas
-        const result = await db.update(pagamentos)
-          .set(updateData)
-          .where(eq(pagamentos.id, pagamento.id))
-          .returning();
-          
-        console.log('✅ Pagamento atualizado no banco:', result[0]);
+        // Atualizar na tabela correta baseado no tipo de pagamento
+        let result;
+        if (isTemporaryClient) {
+          // Pagamentos manuais vão para tabela pagamentos_manual
+          result = await db.update(pagamentosManual)
+            .set(updateData)
+            .where(eq(pagamentosManual.id, pagamento.id))
+            .returning();
+          console.log('✅ Pagamento manual atualizado na tabela pagamentos_manual:', result[0]);
+        } else {
+          // Pagamentos de clientes cadastrados vão para tabela pagamentos
+          result = await db.update(pagamentos)
+            .set(updateData)
+            .where(eq(pagamentos.id, pagamento.id))
+            .returning();
+          console.log('✅ Pagamento atualizado na tabela pagamentos:', result[0]);
+        }
 
         const pixPayment: PixPayment = {
           id: wooviCharge.id,
@@ -424,15 +439,24 @@ export class PixService {
       }
       
       // Buscar pagamento pelo chargeId ou correlationID
-      let pagamento = await storage.getPagamentoByChargeId(chargeId);
+      let pagamento: any = await storage.getPagamentoByChargeId(chargeId);
+      let isPagamentoManual = false;
       
       // Se não encontrar por chargeId, tentar por correlationID/pixId
       if (!pagamento && correlationId) {
         pagamento = await storage.getPagamentoByPixId(correlationId);
       }
       
+      // Se ainda não encontrou, verificar na tabela pagamentos_manual
       if (!pagamento) {
-        console.warn('Pagamento não encontrado no banco de dados');
+        pagamento = await storage.getPagamentoManualByChargeId(chargeId);
+        if (pagamento) {
+          isPagamentoManual = true;
+        }
+      }
+      
+      if (!pagamento) {
+        console.warn('Pagamento não encontrado em nenhuma das tabelas');
         console.log('Procurado por chargeId:', chargeId);
         console.log('Procurado por correlationId:', correlationId);
         
@@ -446,11 +470,18 @@ export class PixService {
         return;
       }
       
-      // Atualizar status do pagamento para pago
-      await storage.updatePagamento(pagamento.id, {
-        status: 'pago',
-        dataPagamento: new Date()
-      });
+      // Atualizar status do pagamento para pago na tabela correta
+      if (isPagamentoManual) {
+        await storage.updatePagamentoManualByChargeId(chargeId, {
+          status: 'pago',
+          dataPagamento: new Date()
+        });
+      } else {
+        await storage.updatePagamento(pagamento.id, {
+          status: 'pago',
+          dataPagamento: new Date()
+        });
+      }
       
       // Verificar se é um pagamento de conversa (clienteId null) ou cliente cadastrado
       if (pagamento.clienteId === null) {

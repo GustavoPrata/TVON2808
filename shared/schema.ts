@@ -110,6 +110,27 @@ export const pagamentos = pgTable("pagamentos", {
   dataVencimento: timestamp("data_vencimento"),
 });
 
+// Tabela para pagamentos gerados manualmente (sem cliente associado)
+export const pagamentosManual = pgTable("pagamentos_manual", {
+  id: serial("id").primaryKey(),
+  clienteId: integer("cliente_id").references(() => clientes.id, { onDelete: "set null" }), // Opcional
+  telefone: varchar("telefone", { length: 20 }).notNull(), // Telefone de quem é o pagamento
+  valor: numeric("valor", { precision: 10, scale: 2 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pendente"), // pendente, pago, confirmado, cancelado, expirado, devolvido
+  tipo: varchar("tipo", { length: 20 }).default("manual"), // manual, teste, outros
+  pixId: varchar("pix_id", { length: 100 }),
+  pixCopiaECola: text("pix_copia_e_cola"),
+  qrCode: text("qr_code"),
+  chargeId: varchar("charge_id", { length: 100 }), // ID da cobrança no Woovi
+  paymentLinkUrl: text("payment_link_url"), // Link de pagamento do Woovi
+  expiresIn: integer("expires_in"), // Tempo de expiração em segundos
+  metadata: json("metadata"), // Informações adicionais
+  dataCriacao: timestamp("data_criacao").notNull().defaultNow(),
+  dataPagamento: timestamp("data_pagamento"),
+  dataVencimento: timestamp("data_vencimento"),
+  origem: varchar("origem", { length: 20 }).notNull().default("chat"), // chat, admin, api
+});
+
 // Estado do PIX por conversa
 export const pixState = pgTable("pix_state", {
   id: serial("id").primaryKey(),

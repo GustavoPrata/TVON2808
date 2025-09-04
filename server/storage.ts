@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { 
-  clientes, pontos, pagamentos, conversas, mensagens, tickets, 
+  clientes, pontos, pagamentos, pagamentosManual, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
   avisosVencimento, configAvisos, anotacoes,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
@@ -44,6 +44,12 @@ export interface IStorage {
   updatePagamento(id: number, pagamento: Partial<InsertPagamento>): Promise<Pagamento>;
   getPagamentoByPixId(pixId: string): Promise<Pagamento | undefined>;
   getPagamentosWithClientes(): Promise<(Pagamento & { cliente?: Cliente })[]>;
+  
+  // Pagamentos Manuais
+  createPagamentoManual(pagamento: any): Promise<any>;
+  getPagamentoManualById(id: number): Promise<any | undefined>;
+  getPagamentoManualByChargeId(chargeId: string): Promise<any | undefined>;
+  updatePagamentoManualByChargeId(chargeId: string, pagamento: any): Promise<any | undefined>;
 
   // Conversas
   getConversas(): Promise<Conversa[]>;
@@ -408,6 +414,27 @@ export class DatabaseStorage implements IStorage {
       .where(eq(pagamentos.clienteId, clienteId))
       .orderBy(desc(pagamentos.dataCriacao))
       .limit(1);
+    return result[0];
+  }
+
+  // Métodos para Pagamentos Manuais
+  async createPagamentoManual(pagamento: any): Promise<any> {
+    const result = await db.insert(pagamentosManual).values(pagamento).returning();
+    return result[0];
+  }
+
+  async getPagamentoManualById(id: number): Promise<any | undefined> {
+    const result = await db.select().from(pagamentosManual).where(eq(pagamentosManual.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getPagamentoManualByChargeId(chargeId: string): Promise<any | undefined> {
+    const result = await db.select().from(pagamentosManual).where(eq(pagamentosManual.chargeId, chargeId)).limit(1);
+    return result[0];
+  }
+
+  async updatePagamentoManualByChargeId(chargeId: string, pagamento: any): Promise<any | undefined> {
+    const result = await db.update(pagamentosManual).set(pagamento).where(eq(pagamentosManual.chargeId, chargeId)).returning();
     return result[0];
   }
 
