@@ -198,7 +198,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply auth middleware to all API routes except login routes
   app.use("/api/*", (req, res, next) => {
     const publicPaths = ['/api/login', '/api/logout', '/api/auth/status', '/api/pix/webhook'];
-    if (publicPaths.includes(req.path)) {
+    // Use originalUrl to get the full path including /api prefix
+    const fullPath = req.originalUrl.split('?')[0]; // Remove query params if any
+    if (publicPaths.includes(fullPath)) {
       return next();
     }
     return checkAuth(req, res, next);
