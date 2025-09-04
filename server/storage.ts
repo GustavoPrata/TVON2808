@@ -411,18 +411,37 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async getConversas(): Promise<Conversa[]> {
-    return await db.select().from(conversas).orderBy(desc(conversas.dataUltimaMensagem));
+  async getConversas(limit: number = 50): Promise<Conversa[]> {
+    try {
+      return await db.select()
+        .from(conversas)
+        .orderBy(desc(conversas.dataUltimaMensagem))
+        .limit(limit);
+    } catch (error) {
+      console.error('Error fetching conversas:', error);
+      // Return empty array on error to avoid blocking the UI
+      return [];
+    }
   }
 
   async getConversaById(id: number): Promise<Conversa | undefined> {
-    const result = await db.select().from(conversas).where(eq(conversas.id, id)).limit(1);
-    return result[0];
+    try {
+      const result = await db.select().from(conversas).where(eq(conversas.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error fetching conversa by id:', error);
+      return undefined;
+    }
   }
 
   async getConversaByTelefone(telefone: string): Promise<Conversa | undefined> {
-    const result = await db.select().from(conversas).where(eq(conversas.telefone, telefone)).limit(1);
-    return result[0];
+    try {
+      const result = await db.select().from(conversas).where(eq(conversas.telefone, telefone)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error('Error fetching conversa by telefone:', error);
+      return undefined;
+    }
   }
 
   async createConversa(conversa: InsertConversa): Promise<Conversa> {

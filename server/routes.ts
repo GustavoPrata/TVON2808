@@ -2687,39 +2687,45 @@ Como posso ajudar você hoje?
   // Get all WhatsApp conversations with client status
   app.get("/api/whatsapp/conversations", async (req, res) => {
     try {
-      const conversas = await storage.getConversas();
-      console.log("Conversas do banco:", conversas);
+      // Get conversations with limit to avoid timeout
+      const { limit = 50 } = req.query;
+      const conversas = await storage.getConversas(parseInt(limit as string));
+
+      // Get all tests once to avoid repeated queries
+      const testes = await storage.getTestes();
+      
+      // Create a set of test phone numbers for O(1) lookup
+      const testPhones = new Set(testes.map(teste => teste.telefone));
 
       // Enrich conversations with client info and fix null messages
       const conversasEnriquecidas = await Promise.all(
         conversas.map(async (conversa) => {
-          const cliente = await storage.getClienteByTelefone(conversa.telefone);
+          // Run these operations in parallel
+          const [cliente, lastMessageData] = await Promise.all([
+            storage.getClienteByTelefone(conversa.telefone),
+            // Only fetch last message if needed
+            !conversa.ultimaMensagem 
+              ? storage.getMensagensByConversaId(conversa.id, 1, 0)
+              : Promise.resolve([])
+          ]);
 
           // Check if this phone number has a test (active or inactive)
           const cleanPhone = conversa.telefone.replace(/^55/, ""); // Remove country code
-          const testes = await storage.getTestes();
-          const isTeste = testes.some((teste) => teste.telefone === cleanPhone);
+          const isTeste = testPhones.has(cleanPhone);
 
-          // If ultimaMensagem is null, try to get the last message
+          // If ultimaMensagem is null, use the fetched message
           let ultimaMensagem = conversa.ultimaMensagem;
           let tipoUltimaMensagem = conversa.tipoUltimaMensagem;
 
-          if (!ultimaMensagem) {
-            const messages = await storage.getMensagensByConversaId(
-              conversa.id,
-              1,
-              0,
-            );
-            if (messages.length > 0) {
-              ultimaMensagem = messages[0].conteudo;
-              tipoUltimaMensagem = messages[0].tipo;
-              // Update the conversation in the database
-              await storage.updateConversa(conversa.id, {
-                ultimaMensagem: ultimaMensagem,
-                tipoUltimaMensagem: tipoUltimaMensagem,
-                dataUltimaMensagem: messages[0].timestamp,
-              });
-            }
+          if (!ultimaMensagem && lastMessageData.length > 0) {
+            ultimaMensagem = lastMessageData[0].conteudo;
+            tipoUltimaMensagem = lastMessageData[0].tipo;
+            // Update the conversation in the database (don't await to avoid blocking)
+            storage.updateConversa(conversa.id, {
+              ultimaMensagem: ultimaMensagem,
+              tipoUltimaMensagem: tipoUltimaMensagem,
+              dataUltimaMensagem: lastMessageData[0].timestamp,
+            }).catch(err => console.error("Failed to update conversation:", err));
           }
 
           return {
@@ -2735,7 +2741,6 @@ Como posso ajudar você hoje?
         }),
       );
 
-      console.log("Conversas enriquecidas:", conversasEnriquecidas);
       res.json(conversasEnriquecidas);
     } catch (error) {
       console.error("Error in /api/whatsapp/conversations:", error);
