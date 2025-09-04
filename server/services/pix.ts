@@ -2,11 +2,8 @@ import axios, { AxiosInstance } from 'axios';
 import { storage } from '../storage';
 import { db } from '../db';
 import { pagamentosManual, pagamentos } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { whatsappService } from './whatsapp';
-import { db } from '../db';
-import { pagamentos, pagamentosManual } from '@shared/schema';
-import { eq } from 'drizzle-orm';
 
 export interface PixPayment {
   id: string;
@@ -176,15 +173,7 @@ export class PixService {
         pagamento = await storage.createPagamentoManual({
           telefone: telefone, // Campo telefone obrigatório
           valor: amount.toString(),
-          status: 'pendente',
-          metadata: {
-            ...metadata,
-            isTemporaryClient: true,
-            conversaId: metadata?.conversaId,
-            telefone: telefone,
-            nomeCliente: cliente.nome,
-            descricao: description
-          }
+          status: 'pendente'
         });
         
         if (!pagamento) {
@@ -199,13 +188,12 @@ export class PixService {
         }
         console.log('👤 Cliente encontrado:', cliente.nome);
         
-        // Criar pagamento no banco local com metadata
+        // Criar pagamento no banco local
         pagamento = await storage.createPagamento({
           clienteId,
           valor: amount.toString(),
           status: 'pendente',
-          dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
-          metadata: metadata || {}
+          dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 horas
         });
       }
 
@@ -227,13 +215,18 @@ export class PixService {
         // Calcular data de expiração
         const expirationDate = new Date(wooviCharge.expirationDate || Date.now() + (this.expiresIn * 1000));
         
+        // Extrair chargeId do brCode (últimos 32 caracteres antes do checksum)
+        const brCode = wooviCharge.brCode || wooviCharge.pixQrCode || '';
+        const chargeIdMatch = brCode.match(/([a-f0-9]{32})[0-9]{4}[A-F0-9]{4}$/);
+        const extractedChargeId = chargeIdMatch ? chargeIdMatch[1] : '';
+        
         // Preparar dados para atualização baseado no tipo de pagamento
         const updateData = isTemporaryClient ? {
           // Campos para pagamentos_manual (com underscore)
           pix_id: wooviCharge.correlationID || `TVON_${pagamento.id}`,
-          chargeId: wooviCharge.id || wooviCharge.transactionID || '',
+          chargeId: extractedChargeId || wooviCharge.id || wooviCharge.transactionID || wooviCharge.correlationID || '',
           qr_code: wooviCharge.qrCodeImage || wooviCharge.qrCode?.imageLinkURL || '',
-          pix_copia_e_cola: wooviCharge.brCode || wooviCharge.pixQrCode || '',
+          pix_copia_e_cola: brCode,
           data_vencimento: expirationDate,
           status: wooviCharge.status === 'ACTIVE' ? 'pendente' : 'expirado'
         } : {
@@ -253,11 +246,19 @@ export class PixService {
         // Atualizar na tabela correta baseado no tipo de pagamento
         let result;
         if (isTemporaryClient) {
-          // Pagamentos manuais vão para tabela pagamentos_manual
-          result = await db.update(pagamentosManual)
-            .set(updateData)
-            .where(eq(pagamentosManual.id, pagamento.id))
-            .returning();
+          // Usar SQL direto para pagamentos_manual para evitar problemas de mapeamento
+          result = await db.execute(sql`
+            UPDATE pagamentos_manual
+            SET 
+              pix_id = ${updateData.pix_id || ''},
+              charge_id = ${updateData.chargeId || ''},
+              qr_code = ${updateData.qr_code || ''},
+              pix_copia_e_cola = ${updateData.pix_copia_e_cola || ''},
+              data_vencimento = ${updateData.data_vencimento.toISOString()},
+              status = ${updateData.status || 'pendente'}
+            WHERE id = ${pagamento.id}
+            RETURNING *
+          `);
           console.log('✅ Pagamento manual atualizado na tabela pagamentos_manual:', result[0]);
         } else {
           // Pagamentos de clientes cadastrados vão para tabela pagamentos
