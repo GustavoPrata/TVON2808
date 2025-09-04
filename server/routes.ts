@@ -3836,9 +3836,24 @@ Como posso ajudar você hoje?
   // Webhook do Woovi
   app.post("/api/pix/webhook", async (req, res) => {
     try {
-      console.log("🔔 Webhook recebido do Woovi");
-      console.log("Headers:", req.headers);
-      console.log("Body:", JSON.stringify(req.body, null, 2));
+      console.log("🔔 ==================================================");
+      console.log("🔔 WEBHOOK PIX RECEBIDO DO WOOVI");
+      console.log("🔔 ==================================================");
+      console.log("📅 Data/Hora:", new Date().toISOString());
+      console.log("📨 Headers:", JSON.stringify(req.headers, null, 2));
+      console.log("📦 Body completo:", JSON.stringify(req.body, null, 2));
+      
+      // Extrair informações importantes para log
+      const event = req.body?.event || req.body?.type || 'UNKNOWN';
+      const charge = req.body?.charge || req.body?.data || req.body;
+      const chargeId = charge?.identifier || charge?.id || charge?.correlationID;
+      
+      console.log("🎯 Informações principais:");
+      console.log("  - Evento:", event);
+      console.log("  - ChargeId/Identifier:", chargeId);
+      console.log("  - CorrelationID:", charge?.correlationID);
+      console.log("  - Status:", charge?.status);
+      console.log("  - Valor:", charge?.value || charge?.amount);
 
       // O Woovi autentica webhooks usando a própria API Key, não precisa validar assinatura adicional
       // A segurança vem do endpoint único e da validação dos dados
@@ -3846,9 +3861,13 @@ Como posso ajudar você hoje?
       // Processar evento do webhook
       await pixService.processWebhook(req.body);
 
+      console.log("✅ Webhook processado com sucesso!");
+      console.log("🔔 ==================================================");
+      
       res.status(200).json({ received: true });
     } catch (error) {
-      console.error("Erro ao processar webhook:", error);
+      console.error("❌ ERRO AO PROCESSAR WEBHOOK:", error);
+      console.log("🔔 ==================================================");
       res.status(500).json({ error: "Erro ao processar webhook" });
     }
   });

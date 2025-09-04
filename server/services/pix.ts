@@ -215,16 +215,26 @@ export class PixService {
         // Calcular data de expiração
         const expirationDate = new Date(wooviCharge.expirationDate || Date.now() + (this.expiresIn * 1000));
         
-        // Extrair chargeId do brCode (últimos 32 caracteres antes do checksum)
+        // Extrair chargeId - priorizar o ID do Woovi, depois tentar extrair do brCode
         const brCode = wooviCharge.brCode || wooviCharge.pixQrCode || '';
         const chargeIdMatch = brCode.match(/([a-f0-9]{32})[0-9]{4}[A-F0-9]{4}$/);
         const extractedChargeId = chargeIdMatch ? chargeIdMatch[1] : '';
+        // Usar o ID direto do Woovi como prioridade, senão usar o extraído do brCode
+        const finalChargeId = wooviCharge.id || wooviCharge.identifier || extractedChargeId || wooviCharge.correlationID || '';
+        
+        console.log('🔑 ChargeId identificado:', {
+          wooviId: wooviCharge.id,
+          identifier: wooviCharge.identifier, 
+          extractedFromBrCode: extractedChargeId,
+          correlationId: wooviCharge.correlationID,
+          finalChargeId: finalChargeId
+        });
         
         // Preparar dados para atualização baseado no tipo de pagamento
         const updateData = isTemporaryClient ? {
           // Campos para pagamentos_manual (com underscore)
           pix_id: wooviCharge.correlationID || `TVON_${pagamento.id}`,
-          chargeId: extractedChargeId || wooviCharge.id || wooviCharge.transactionID || wooviCharge.correlationID || '',
+          chargeId: finalChargeId,
           qr_code: wooviCharge.qrCodeImage || wooviCharge.qrCode?.imageLinkURL || '',
           pix_copia_e_cola: brCode,
           data_vencimento: expirationDate,
@@ -232,7 +242,7 @@ export class PixService {
         } : {
           // Campos para pagamentos (sem underscore)
           pixId: wooviCharge.correlationID || `TVON_${pagamento.id}`,
-          chargeId: wooviCharge.id || wooviCharge.transactionID || '',
+          chargeId: finalChargeId,
           qrCode: wooviCharge.qrCodeImage || wooviCharge.qrCode?.imageLinkURL || '',
           pixCopiaECola: wooviCharge.brCode || wooviCharge.pixQrCode || '',
           paymentLinkUrl: wooviCharge.paymentLinkUrl || wooviCharge.paymentLink || '',
@@ -259,7 +269,11 @@ export class PixService {
             WHERE id = ${pagamento.id}
             RETURNING *
           `);
-          console.log('✅ Pagamento manual atualizado na tabela pagamentos_manual:', result[0]);
+          console.log('✅ Pagamento manual atualizado na tabela pagamentos_manual:', {
+            id: result[0]?.id,
+            chargeId: result[0]?.charge_id,
+            status: result[0]?.status
+          });
         } else {
           // Pagamentos de clientes cadastrados vão para tabela pagamentos
           result = await db.update(pagamentos)
@@ -284,8 +298,9 @@ export class PixService {
 
         await this.logActivity('info', `PIX criado para cliente ${cliente.nome}`, { 
           paymentId: pagamento.id, 
-          chargeId: wooviCharge.id,
-          amount 
+          chargeId: finalChargeId,
+          amount,
+          isManual: isTemporaryClient
         });
         
         return pixPayment;
@@ -438,7 +453,7 @@ export class PixService {
 
   private async handlePaymentConfirmed(charge: any) {
     try {
-      console.log('🎉 Pagamento PIX confirmado - dados recebidos:', charge);
+      console.log('🎉 Pagamento PIX confirmado - dados recebidos:', JSON.stringify(charge, null, 2));
       
       // Extrair informações do charge - Woovi usa 'identifier' como ID principal
       const chargeId = charge?.identifier || charge?.id || charge?.correlationID;
@@ -446,58 +461,101 @@ export class PixService {
       const value = charge?.value || charge?.amount;
       const payer = charge?.payer || charge?.customer;
       
-      if (!chargeId) {
-        console.error('ID da transação não encontrado no webhook');
+      console.log('🔍 Procurando pagamento com chargeId:', chargeId, 'ou correlationId:', correlationId);
+      
+      if (!chargeId && !correlationId) {
+        console.error('⚠️ ID da transação não encontrado no webhook');
         console.log('Estrutura completa recebida:', JSON.stringify(charge, null, 2));
         return;
       }
       
-      // Buscar pagamento pelo chargeId ou correlationID
-      let pagamento: any = await storage.getPagamentoByChargeId(chargeId);
+      // Buscar pagamento em diferentes abordagens
+      let pagamento: any = null;
       let isPagamentoManual = false;
       
-      // Se não encontrar por chargeId, tentar por correlationID/pixId
-      if (!pagamento && correlationId) {
-        pagamento = await storage.getPagamentoByPixId(correlationId);
-      }
-      
-      // Se ainda não encontrou, verificar na tabela pagamentos_manual
-      if (!pagamento) {
+      // 1. Tentar buscar na tabela pagamentos_manual pelo chargeId
+      if (chargeId) {
+        console.log('🔎 Buscando na tabela pagamentos_manual por chargeId:', chargeId);
         pagamento = await storage.getPagamentoManualByChargeId(chargeId);
         if (pagamento) {
           isPagamentoManual = true;
+          console.log('✅ Pagamento encontrado na tabela pagamentos_manual!');
+        }
+      }
+      
+      // 2. Se não encontrou, tentar buscar na tabela pagamentos pelo chargeId
+      if (!pagamento && chargeId) {
+        console.log('🔎 Buscando na tabela pagamentos por chargeId:', chargeId);
+        pagamento = await storage.getPagamentoByChargeId(chargeId);
+        if (pagamento) {
+          console.log('✅ Pagamento encontrado na tabela pagamentos!');
+        }
+      }
+      
+      // 3. Se não encontrou, tentar por correlationID/pixId na tabela pagamentos
+      if (!pagamento && correlationId) {
+        console.log('🔎 Buscando na tabela pagamentos por correlationId/pixId:', correlationId);
+        pagamento = await storage.getPagamentoByPixId(correlationId);
+        if (pagamento) {
+          console.log('✅ Pagamento encontrado na tabela pagamentos por pixId!');
+        }
+      }
+      
+      // 4. Tentar buscar por identifier como chargeId
+      if (!pagamento && charge?.identifier) {
+        console.log('🔎 Buscando usando identifier como chargeId:', charge.identifier);
+        pagamento = await storage.getPagamentoManualByChargeId(charge.identifier);
+        if (pagamento) {
+          isPagamentoManual = true;
+          console.log('✅ Pagamento encontrado usando identifier!');
         }
       }
       
       if (!pagamento) {
-        console.warn('Pagamento não encontrado em nenhuma das tabelas');
+        console.warn('❌ Pagamento não encontrado em nenhuma das tabelas');
         console.log('Procurado por chargeId:', chargeId);
         console.log('Procurado por correlationId:', correlationId);
+        console.log('Procurado por identifier:', charge?.identifier);
         
         // Log adicional para debug
         await this.logActivity('warn', 'Webhook recebido para pagamento não encontrado', {
           identifier: chargeId,
           correlationId,
           value,
-          payer
+          payer,
+          chargeData: charge
         });
         return;
       }
       
       // Atualizar status do pagamento para pago na tabela correta
+      console.log('💾 Atualizando status do pagamento para PAGO...');
       if (isPagamentoManual) {
-        await storage.updatePagamentoManualByChargeId(chargeId, {
+        const chargeIdToUpdate = pagamento.charge_id || pagamento.chargeId || chargeId;
+        console.log('🔄 Atualizando na tabela pagamentos_manual, chargeId:', chargeIdToUpdate);
+        const updateResult = await storage.updatePagamentoManualByChargeId(chargeIdToUpdate, {
           status: 'pago'
         });
+        if (updateResult) {
+          console.log('✅ Status atualizado com sucesso na tabela pagamentos_manual!');
+        } else {
+          console.error('❌ Falha ao atualizar status na tabela pagamentos_manual');
+        }
       } else {
+        console.log('🔄 Atualizando na tabela pagamentos, ID:', pagamento.id);
         await storage.updatePagamento(pagamento.id, {
           status: 'pago',
           dataPagamento: new Date()
         });
+        console.log('✅ Status atualizado com sucesso na tabela pagamentos!');
       }
       
       // Verificar se é um pagamento de conversa (clienteId null) ou cliente cadastrado
-      if (pagamento.clienteId === null) {
+      console.log('📤 Verificando tipo de pagamento...');
+      console.log('ClienteId:', pagamento.clienteId || pagamento.cliente_id);
+      console.log('Telefone:', pagamento.telefone);
+      
+      if (pagamento.clienteId === null || pagamento.cliente_id === null) {
         // Pagamento de conversa sem cliente cadastrado
         console.log('💬 Pagamento de conversa sem cliente cadastrado');
         
@@ -505,17 +563,21 @@ export class PixService {
         const telefone = pagamento.telefone;
         
         if (telefone) {
+          console.log('📨 Preparando para enviar mensagem WhatsApp para:', telefone);
+          
           // Formatar valor para exibição
           const valorFormatado = value ? (value / 100).toFixed(2).replace('.', ',') : pagamento.valor;
           
           // Enviar mensagem simples de confirmação
-          const mensagem = `✅ Pagamento concluído com sucesso!`;
+          const mensagem = `✅ Pagamento concluído com sucesso!\n\nValor: R$ ${valorFormatado}\n\n🙏 Obrigado pela preferência!`;
           
           try {
+            console.log('📨 Enviando mensagem WhatsApp...');
             await whatsappService.sendMessage(telefone, mensagem);
-            console.log(`✅ Mensagem de confirmação enviada para ${telefone}`);
+            console.log(`✅ Mensagem de confirmação enviada com sucesso para ${telefone}`);
           } catch (whatsError) {
-            console.error('Erro ao enviar mensagem WhatsApp:', whatsError);
+            console.error('❌ Erro ao enviar mensagem WhatsApp:', whatsError);
+            console.error('Detalhes do erro:', whatsError.message);
           }
           
           await this.logActivity('info', `Pagamento confirmado para conversa ${telefone}`, {

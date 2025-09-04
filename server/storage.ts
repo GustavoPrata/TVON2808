@@ -422,16 +422,42 @@ export class DatabaseStorage implements IStorage {
     console.log('🔧 Criando pagamento manual com dados:', pagamento);
     
     try {
-      // Usar SQL direto para evitar problemas de mapeamento
+      // Usar SQL direto para incluir todos os campos necessários
       const result = await db.execute(sql`
-        INSERT INTO pagamentos_manual (telefone, valor, status)
-        VALUES (${pagamento.telefone}, ${pagamento.valor}, ${pagamento.status})
+        INSERT INTO pagamentos_manual (
+          telefone, 
+          valor, 
+          status, 
+          charge_id, 
+          pix_id,
+          pix_copia_e_cola,
+          qr_code,
+          payment_link_url,
+          expires_in,
+          metadata,
+          data_vencimento,
+          origem
+        )
+        VALUES (
+          ${pagamento.telefone}, 
+          ${pagamento.valor}, 
+          ${pagamento.status || 'pendente'},
+          ${pagamento.chargeId || null},
+          ${pagamento.pixId || null},
+          ${pagamento.pixCopiaECola || null},
+          ${pagamento.qrCode || null},
+          ${pagamento.paymentLinkUrl || null},
+          ${pagamento.expiresIn || null},
+          ${pagamento.metadata ? JSON.stringify(pagamento.metadata) : null},
+          ${pagamento.dataVencimento || null},
+          ${pagamento.origem || 'chat'}
+        )
         RETURNING *
       `);
       
       // O Drizzle retorna um array direto, não um objeto com rows
       const inserted = Array.isArray(result) ? result[0] : result;
-      console.log('✅ Pagamento manual criado:', inserted);
+      console.log('✅ Pagamento manual criado com ID:', inserted?.id, 'e chargeId:', inserted?.charge_id);
       return inserted;
     } catch (error) {
       console.error('❌ Erro ao criar pagamento manual:', error);
@@ -445,12 +471,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPagamentoManualByChargeId(chargeId: string): Promise<any | undefined> {
+    console.log('🔍 Buscando pagamento manual por chargeId:', chargeId);
     const result = await db.select().from(pagamentosManual).where(eq(pagamentosManual.chargeId, chargeId)).limit(1);
+    console.log('📦 Pagamento encontrado:', result[0] ? `ID ${result[0].id}, Status: ${result[0].status}` : 'Não encontrado');
     return result[0];
   }
 
   async updatePagamentoManualByChargeId(chargeId: string, pagamento: any): Promise<any | undefined> {
-    const result = await db.update(pagamentosManual).set(pagamento).where(eq(pagamentosManual.chargeId, chargeId)).returning();
+    console.log('🔄 Atualizando pagamento manual com chargeId:', chargeId, 'Dados:', pagamento);
+    const result = await db.update(pagamentosManual)
+      .set({
+        ...pagamento,
+        dataPagamento: pagamento.status === 'pago' ? new Date() : undefined
+      })
+      .where(eq(pagamentosManual.chargeId, chargeId))
+      .returning();
+    console.log('✅ Pagamento atualizado:', result[0] ? `ID ${result[0].id}, Novo status: ${result[0].status}` : 'Falha na atualização');
     return result[0];
   }
 
