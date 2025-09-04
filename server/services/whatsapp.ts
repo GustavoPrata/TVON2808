@@ -653,17 +653,18 @@ export class WhatsAppService extends EventEmitter {
       };
     }
 
-    // Process media messages
-    const messageType = this.getMessageType(message);
-    if (messageType !== "text") {
-      // Check if it's a view-once message
-      const isViewOnce = !!message.message?.viewOnceMessage || !!message.message?.viewOnceMessageV2;
-      
-      // For view-once messages from clients, just show "Visualização única"
-      if (isViewOnce && !message.key.fromMe) {
-        messageText = "Visualização única";
-        // Don't try to download media for view-once messages from clients
-      } else {
+    // Check FIRST if it's a view-once message (before processing type)
+    const isViewOnce = !!message.message?.viewOnceMessage || !!message.message?.viewOnceMessageV2;
+    
+    // For view-once messages from clients, always show "Visualização única"
+    if (isViewOnce && !message.key.fromMe) {
+      console.log("View-once message detected from client, setting text to 'Visualização única'");
+      messageText = "Visualização única";
+      // Don't process further - we don't download or extract content from view-once
+    } else {
+      // Process media messages normally
+      const messageType = this.getMessageType(message);
+      if (messageType !== "text") {
         try {
           mediaUrl = await this.downloadMedia(message);
           
@@ -708,6 +709,15 @@ export class WhatsAppService extends EventEmitter {
         }
       }
     }
+
+    // For view-once messages, ensure we always have text
+    if (isViewOnce && !message.key.fromMe && !messageText) {
+      console.log("Forcing view-once text for empty message");
+      messageText = "Visualização única";
+    }
+
+    // Get the message type (but use "text" for view-once messages)
+    const messageType = isViewOnce && !message.key.fromMe ? "text" : this.getMessageType(message);
 
     // Check if this is an empty message (likely from an edit)
     if (!messageText && !mediaUrl && messageType === "text") {
