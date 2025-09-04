@@ -2684,90 +2684,63 @@ Como posso ajudar você hoje?
     }
   });
 
-  // Simple cache for conversations (TTL: 5 seconds)
-  const conversationCache: { data: any; timestamp: number; } | null = { data: null, timestamp: 0 };
-  const CACHE_TTL = 5000; // 5 seconds
-  
-  // Get all WhatsApp conversations with client status - OPTIMIZED
+  // Get all WhatsApp conversations with client status
   app.get("/api/whatsapp/conversations", async (req, res) => {
     try {
-      // Check cache first
-      const now = Date.now();
-      if (conversationCache.data && (now - conversationCache.timestamp) < CACHE_TTL) {
-        return res.json(conversationCache.data);
-      }
-      
-      // Get conversations with smaller limit to avoid timeout
-      const { limit = 30 } = req.query;  // Reduced from 50 to 30
+      // Get conversations with limit to avoid timeout
+      const { limit = 50 } = req.query;
       const conversas = await storage.getConversas(parseInt(limit as string));
 
-      // Get all tests and clients in parallel once
-      const [testes, clientes] = await Promise.all([
-        storage.getTestes(),
-        storage.getClientes()
-      ]);
+      // Get all tests once to avoid repeated queries
+      const testes = await storage.getTestes();
       
-      // Create maps for O(1) lookup
+      // Create a set of test phone numbers for O(1) lookup
       const testPhones = new Set(testes.map(teste => teste.telefone));
-      const clienteMap = new Map<string, typeof clientes[0]>();
-      clientes.forEach(cliente => {
-        clienteMap.set(cliente.telefone, cliente);
-      });
 
-      // Process conversations in batches to avoid blocking
-      const batchSize = 10;
-      const conversasEnriquecidas = [];
-      
-      for (let i = 0; i < conversas.length; i += batchSize) {
-        const batch = conversas.slice(i, i + batchSize);
-        
-        const batchResults = await Promise.all(
-          batch.map(async (conversa) => {
-            // Get client from map (no database query needed)
-            const cliente = clienteMap.get(conversa.telefone);
-            
-            // Check if this phone number has a test
-            const cleanPhone = conversa.telefone.replace(/^55/, "");
-            const isTeste = testPhones.has(cleanPhone);
+      // Enrich conversations with client info and fix null messages
+      const conversasEnriquecidas = await Promise.all(
+        conversas.map(async (conversa) => {
+          // Run these operations in parallel
+          const [cliente, lastMessageData] = await Promise.all([
+            storage.getClienteByTelefone(conversa.telefone),
+            // Only fetch last message if needed
+            !conversa.ultimaMensagem 
+              ? storage.getMensagensByConversaId(conversa.id, 1, 0)
+              : Promise.resolve([])
+          ]);
 
-            // Only fetch last message if absolutely needed
-            let ultimaMensagem = conversa.ultimaMensagem;
-            let tipoUltimaMensagem = conversa.tipoUltimaMensagem;
+          // Check if this phone number has a test (active or inactive)
+          const cleanPhone = conversa.telefone.replace(/^55/, ""); // Remove country code
+          const isTeste = testPhones.has(cleanPhone);
 
-            if (!ultimaMensagem) {
-              const lastMessageData = await storage.getMensagensByConversaId(conversa.id, 1, 0);
-              if (lastMessageData.length > 0) {
-                ultimaMensagem = lastMessageData[0].conteudo;
-                tipoUltimaMensagem = lastMessageData[0].tipo;
-                // Update async without blocking
-                storage.updateConversa(conversa.id, {
-                  ultimaMensagem: ultimaMensagem,
-                  tipoUltimaMensagem: tipoUltimaMensagem,
-                  dataUltimaMensagem: lastMessageData[0].timestamp,
-                }).catch(err => console.error("Failed to update conversation:", err));
-              }
-            }
+          // If ultimaMensagem is null, use the fetched message
+          let ultimaMensagem = conversa.ultimaMensagem;
+          let tipoUltimaMensagem = conversa.tipoUltimaMensagem;
 
-            return {
-              ...conversa,
+          if (!ultimaMensagem && lastMessageData.length > 0) {
+            ultimaMensagem = lastMessageData[0].conteudo;
+            tipoUltimaMensagem = lastMessageData[0].tipo;
+            // Update the conversation in the database (don't await to avoid blocking)
+            storage.updateConversa(conversa.id, {
               ultimaMensagem: ultimaMensagem,
               tipoUltimaMensagem: tipoUltimaMensagem,
-              isCliente: !!cliente,
-              isTeste: isTeste,
-              clienteId: cliente?.id || null,
-              clienteNome: cliente?.nome || null,
-              clienteStatus: cliente?.status || null,
-            };
-          })
-        );
-        
-        conversasEnriquecidas.push(...batchResults);
-      }
+              dataUltimaMensagem: lastMessageData[0].timestamp,
+            }).catch(err => console.error("Failed to update conversation:", err));
+          }
 
-      // Save to cache
-      conversationCache.data = conversasEnriquecidas;
-      conversationCache.timestamp = Date.now();
-      
+          return {
+            ...conversa,
+            ultimaMensagem: ultimaMensagem,
+            tipoUltimaMensagem: tipoUltimaMensagem,
+            isCliente: !!cliente,
+            isTeste: isTeste,
+            clienteId: cliente?.id || null,
+            clienteNome: cliente?.nome || null,
+            clienteStatus: cliente?.status || null,
+          };
+        }),
+      );
+
       res.json(conversasEnriquecidas);
     } catch (error) {
       console.error("Error in /api/whatsapp/conversations:", error);
