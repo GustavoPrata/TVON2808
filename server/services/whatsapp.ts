@@ -993,11 +993,47 @@ export class WhatsAppService extends EventEmitter {
     }
   }
 
+  private isValidPhoneNumber(phone: string): boolean {
+    // Remove non-digits for validation
+    const cleanPhone = phone.replace(/\D/g, '');
+    
+    // Check if it's a valid Brazilian phone number
+    // Should start with 55 (Brazil code) and have 10-11 digits for the number itself
+    // Total: 12-13 digits
+    if (cleanPhone.startsWith('55')) {
+      return cleanPhone.length >= 12 && cleanPhone.length <= 13;
+    }
+    
+    // For non-Brazilian numbers, should be at least 10 digits
+    return cleanPhone.length >= 10 && cleanPhone.length <= 15;
+  }
+
   private async getOrCreateConversation(
     phone: string,
     pushName?: string,
     message?: WhatsAppMessage,
   ): Promise<any> {
+    // Validate phone number before creating conversation
+    if (!this.isValidPhoneNumber(phone)) {
+      console.error(`❌ INVALID PHONE NUMBER DETECTED: ${phone}`);
+      console.error(`This appears to be an internal WhatsApp ID, not a phone number`);
+      
+      // If this is from a message, try to extract the real phone from the key
+      if (message?.from) {
+        const realPhone = message.from.split('@')[0];
+        if (this.isValidPhoneNumber(realPhone)) {
+          console.log(`✅ Extracted valid phone from message.from: ${realPhone}`);
+          phone = realPhone;
+        } else {
+          console.error(`Could not extract valid phone from message.from: ${message.from}`);
+          return null;
+        }
+      } else {
+        // Cannot proceed with invalid phone number
+        return null;
+      }
+    }
+
     // Check if we already have a lock for this phone number
     const existingLock = this.conversationCreationLocks.get(phone);
     if (existingLock) {

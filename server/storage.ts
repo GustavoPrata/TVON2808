@@ -193,6 +193,9 @@ export interface IStorage {
   updateAnotacao(id: number, anotacao: Partial<InsertAnotacao>): Promise<Anotacao>;
   deleteAnotacao(id: number): Promise<void>;
   reorderAnotacoes(ids: number[]): Promise<void>;
+  
+  // Conversas - Correção
+  corrigirTelefoneConversa(telefoneIncorreto: string, telefoneCorreto: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -677,6 +680,31 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMessagesByConversaId(conversaId: number): Promise<void> {
     await db.delete(mensagens).where(eq(mensagens.conversaId, conversaId));
+  }
+
+  async corrigirTelefoneConversa(telefoneIncorreto: string, telefoneCorreto: string): Promise<number> {
+    try {
+      const result = await db
+        .update(conversas)
+        .set({ telefone: telefoneCorreto })
+        .where(eq(conversas.telefone, telefoneIncorreto))
+        .returning();
+      
+      if (result.length > 0) {
+        console.log(`Corrigido telefone de conversa: ${telefoneIncorreto} -> ${telefoneCorreto}`);
+        
+        // Also update messages if necessary
+        await db
+          .update(mensagens)
+          .set({ remetente: telefoneCorreto })
+          .where(eq(mensagens.remetente, telefoneIncorreto));
+      }
+      
+      return result.length;
+    } catch (error) {
+      console.error('Error fixing phone number:', error);
+      throw error;
+    }
   }
 
   async markConversationMessagesAsRead(conversaId: number): Promise<void> {

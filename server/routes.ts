@@ -1805,11 +1805,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/conversas", async (req, res) => {
     try {
       const conversas = await storage.getConversas();
-      // Debug log temporário
-      if (conversas && conversas.length > 0) {
-        console.log("DEBUG - Primeira conversa telefone:", conversas[0].telefone);
-        console.log("DEBUG - Primeira conversa completa:", JSON.stringify(conversas[0], null, 2));
-      }
       res.json(conversas);
     } catch (error) {
       console.error("Error in /api/conversas:", error);
@@ -1829,6 +1824,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error cleaning duplicate conversations:", error);
       res.status(500).json({ error: "Erro ao limpar conversas duplicadas" });
+    }
+  });
+
+  // Corrigir números de telefone incorretos
+  app.post("/api/conversas/corrigir-telefones", checkAuth, async (req, res) => {
+    try {
+      // Correção específica para o número incorreto conhecido
+      const correcoesEspecificas = [
+        { numeroIncorreto: "192354539552794", numeroCorreto: "5514998618158" }
+      ];
+      
+      let totalCorrigido = 0;
+      
+      for (const correcao of correcoesEspecificas) {
+        const conversasCorrigidas = await storage.corrigirTelefoneConversa(
+          correcao.numeroIncorreto,
+          correcao.numeroCorreto
+        );
+        totalCorrigido += conversasCorrigidas;
+        
+        if (conversasCorrigidas > 0) {
+          console.log(`Corrigido número ${correcao.numeroIncorreto} para ${correcao.numeroCorreto} em ${conversasCorrigidas} conversas`);
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `${totalCorrigido} conversas corrigidas com sucesso`,
+        totalCorrigido 
+      });
+    } catch (error) {
+      console.error("Error fixing phone numbers:", error);
+      res.status(500).json({ error: "Erro ao corrigir números de telefone" });
     }
   });
 
