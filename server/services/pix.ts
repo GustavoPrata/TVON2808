@@ -1,5 +1,8 @@
 import axios, { AxiosInstance } from 'axios';
 import { storage } from '../storage';
+import { db } from '../db';
+import { pagamentosManual, pagamentos } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 import { whatsappService } from './whatsapp';
 import { db } from '../db';
 import { pagamentos, pagamentosManual } from '@shared/schema';
@@ -171,15 +174,17 @@ export class PixService {
         // IMPORTANTE: Para pagamentos manuais sem cliente, usar tabela pagamentos_manual
         // Pagamentos sem cliente vão para tabela separada
         pagamento = await storage.createPagamentoManual({
-          clienteId: null, // NULL para conversas sem cliente
-          telefone: telefone, // Adicionar campo telefone
+          telefone: telefone, // Campo telefone obrigatório
+          nome_cliente: cliente.nome, // Nome do cliente temporário
           valor: amount.toString(),
           status: 'pendente',
-          dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
-          pixId: '', // Será preenchido depois
+          data_vencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
+          pix_id: '', // Será preenchido depois
           chargeId: '', // Será preenchido depois
-          qrCode: '', // Será preenchido depois
-          pixCopiaECola: '', // Será preenchido depois
+          qr_code: '', // Será preenchido depois
+          pix_copia_e_cola: '', // Será preenchido depois
+          descricao: description,
+          observacao: `Pagamento de conversa ${telefone}`,
           metadata: {
             ...metadata,
             isTemporaryClient: true,
@@ -223,8 +228,17 @@ export class PixService {
         // Calcular data de expiração
         const expirationDate = new Date(wooviCharge.expirationDate || Date.now() + (this.expiresIn * 1000));
         
-        // Preparar dados para atualização
-        const updateData = {
+        // Preparar dados para atualização baseado no tipo de pagamento
+        const updateData = isTemporaryClient ? {
+          // Campos para pagamentos_manual (com underscore)
+          pix_id: wooviCharge.correlationID || `TVON_${pagamento.id}`,
+          chargeId: wooviCharge.id || wooviCharge.transactionID || '',
+          qr_code: wooviCharge.qrCodeImage || wooviCharge.qrCode?.imageLinkURL || '',
+          pix_copia_e_cola: wooviCharge.brCode || wooviCharge.pixQrCode || '',
+          data_vencimento: expirationDate,
+          status: wooviCharge.status === 'ACTIVE' ? 'pendente' : 'expirado'
+        } : {
+          // Campos para pagamentos (sem underscore)
           pixId: wooviCharge.correlationID || `TVON_${pagamento.id}`,
           chargeId: wooviCharge.id || wooviCharge.transactionID || '',
           qrCode: wooviCharge.qrCodeImage || wooviCharge.qrCode?.imageLinkURL || '',
