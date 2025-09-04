@@ -1805,6 +1805,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/conversas", async (req, res) => {
     try {
       const conversas = await storage.getConversas();
+      // Debug log temporário
+      if (conversas && conversas.length > 0) {
+        console.log("DEBUG - Primeira conversa telefone:", conversas[0].telefone);
+        console.log("DEBUG - Primeira conversa completa:", JSON.stringify(conversas[0], null, 2));
+      }
       res.json(conversas);
     } catch (error) {
       console.error("Error in /api/conversas:", error);
