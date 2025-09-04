@@ -71,6 +71,7 @@ export interface IStorage {
   // Tickets
   getTickets(): Promise<Ticket[]>;
   getTicketById(id: number): Promise<Ticket | undefined>;
+  getTicketsByConversaId(conversaId: number): Promise<Ticket[]>;
   createTicket(ticket: InsertTicket): Promise<Ticket>;
   updateTicket(id: number, ticket: Partial<InsertTicket>): Promise<Ticket>;
 
@@ -734,6 +735,13 @@ export class DatabaseStorage implements IStorage {
   async updateTicket(id: number, ticket: Partial<InsertTicket>): Promise<Ticket> {
     const result = await db.update(tickets).set(ticket).where(eq(tickets.id, id)).returning();
     return result[0];
+  }
+
+  async getTicketsByConversaId(conversaId: number): Promise<Ticket[]> {
+    return await db
+      .select()
+      .from(tickets)
+      .where(eq(tickets.conversaId, conversaId));
   }
   
   async getOpenTicketByConversaId(conversaId: number): Promise<Ticket | undefined> {

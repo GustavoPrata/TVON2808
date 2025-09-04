@@ -39,9 +39,29 @@ function formatPhoneNumber(phone: string) {
   return phone;
 }
 
+// Helper function to check if JID is a LID (Local ID)
+function isLidJid(jid: string | undefined): boolean {
+  if (!jid) return false;
+  return jid.includes('@lid');
+}
+
+// Helper function to check if phone number is valid (not a LID)
+function isValidBrazilianPhone(phone: string): boolean {
+  // Brazilian phones should start with 55 and have 12-13 digits
+  // Format: 55 + DDD (2 digits) + number (8-9 digits)
+  return /^55\d{10,11}$/.test(phone);
+}
+
 // Helper function to extract phone number from WhatsApp JID
 function extractPhoneFromJid(jid: string | undefined): string {
   if (!jid) return "";
+  
+  // Log the JID for debugging
+  if (isLidJid(jid)) {
+    console.log(`⚠️ WARNING: Received LID format JID: ${jid}`);
+    // LIDs are internal WhatsApp IDs, not real phone numbers
+    // We should not process them as phone numbers
+  }
   
   // Remove any WhatsApp suffixes (@s.whatsapp.net, @g.us, @lid, etc.)
   const phone = jid.split('@')[0] || "";
@@ -78,6 +98,7 @@ export class WhatsAppService extends EventEmitter {
   private keepAliveInterval: NodeJS.Timeout | null = null;
   private conversationCreationLocks: Map<string, Promise<any>> = new Map(); // Prevent duplicate conversation creation
   private processedMessagesOnStartup: Set<string> = new Set(); // Track processed messages during startup
+  private lidToPhoneMap: Map<string, string> = new Map(); // LID to real phone number mapping
 
   constructor() {
     super();
@@ -612,15 +633,45 @@ export class WhatsAppService extends EventEmitter {
     }
 
     const isFromMe = message.key.fromMe;
-    const remoteJid = message.key.remoteJid;
+    let remoteJid = message.key.remoteJid;
 
     // Skip broadcast messages but process our own messages now
     if (isJidBroadcast(remoteJid) || isJidStatusBroadcast(remoteJid)) {
       return;
     }
 
-    const phone = extractPhoneFromJid(remoteJid);
+    let phone = extractPhoneFromJid(remoteJid);
     const pushName = message.pushName || ""; // Get contact's display name
+    
+    // Handle LID format - map to real phone number
+    if (isLidJid(remoteJid)) {
+      console.log(`🔄 LID detected for ${pushName}: ${remoteJid}`);
+      
+      // Check if we have a stored mapping
+      if (this.lidToPhoneMap.has(phone)) {
+        const realPhone = this.lidToPhoneMap.get(phone)!;
+        console.log(`✅ Found stored mapping: ${phone} -> ${realPhone}`);
+        phone = realPhone;
+      } else if (pushName) {
+        // Try to find real number from existing conversation by pushName
+        console.log(`🔍 Searching for real number using pushName: ${pushName}`);
+        const conversas = await storage.getConversas();
+        const existingConversa = conversas.find(c => 
+          c.nome === pushName && 
+          c.telefone !== phone &&
+          isValidBrazilianPhone(c.telefone)
+        );
+        
+        if (existingConversa) {
+          console.log(`✅ Found real number from existing conversation: ${existingConversa.telefone}`);
+          this.lidToPhoneMap.set(phone, existingConversa.telefone);
+          phone = existingConversa.telefone;
+        } else {
+          console.warn(`⚠️ Could not find real number for LID ${phone} with pushName ${pushName}`);
+          // Still allow the message to process, but it might create a duplicate conversation
+        }
+      }
+    }
     let messageText =
       message.message?.conversation ||
       message.message?.extendedTextMessage?.text ||

@@ -1967,6 +1967,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rota para corrigir conversas com LIDs incorretos do WhatsApp
+  app.post("/api/conversas/fix-lids", async (req, res) => {
+    try {
+      console.log("=== INICIANDO CORREÇÃO DE LIDs ===");
+      
+      // Helper para validar se é número brasileiro válido
+      const isValidBrazilianPhone = (phone: string): boolean => {
+        return /^55\d{10,11}$/.test(phone);
+      };
+      
+      // Helper para detectar se parece ser um LID
+      const looksLikeLID = (phone: string): boolean => {
+        // LIDs geralmente são números grandes que não seguem formato brasileiro
+        return phone.length > 13 || !isValidBrazilianPhone(phone);
+      };
+      
+      const allConversas = await storage.getConversas();
+      const conversasByName = new Map<string, typeof allConversas>();
+      const lidsFixed: any[] = [];
+      let totalFixed = 0;
+      
+      // Agrupar conversas por nome
+      allConversas.forEach(conversa => {
+        const nome = conversa.nome;
+        if (!conversasByName.has(nome)) {
+          conversasByName.set(nome, []);
+        }
+        conversasByName.get(nome)!.push(conversa);
+      });
+      
+      // Processar conversas com mesmo nome
+      for (const [nome, conversas] of conversasByName.entries()) {
+        if (conversas.length > 1) {
+          // Separar conversas válidas e com LID
+          const validPhoneConversas = conversas.filter(c => isValidBrazilianPhone(c.telefone));
+          const lidConversas = conversas.filter(c => looksLikeLID(c.telefone));
+          
+          if (validPhoneConversas.length > 0 && lidConversas.length > 0) {
+            // Temos conversas duplicadas: uma com número real e outra com LID
+            console.log(`\n📱 Encontradas conversas duplicadas para "${nome}":`);
+            console.log(`  - Conversas com número válido: ${validPhoneConversas.length}`);
+            console.log(`  - Conversas com LID: ${lidConversas.length}`);
+            
+            // Usar a conversa com número válido como principal
+            const mainConversa = validPhoneConversas[0];
+            console.log(`  ✅ Conversa principal: ID ${mainConversa.id}, telefone ${mainConversa.telefone}`);
+            
+            // Mesclar conversas com LID
+            for (const lidConversa of lidConversas) {
+              console.log(`  🔄 Mesclando conversa LID: ID ${lidConversa.id}, LID ${lidConversa.telefone}`);
+              
+              // Mover mensagens da conversa LID para a principal
+              const mensagens = await storage.getMensagensByConversaId(lidConversa.id);
+              console.log(`    - Movendo ${mensagens.length} mensagens...`);
+              
+              for (const mensagem of mensagens) {
+                // Verificar se mensagem já existe na conversa principal (evitar duplicatas)
+                if (mensagem.whatsappMessageId) {
+                  const existingMessage = await storage.getMensagemByWhatsappId(mensagem.whatsappMessageId);
+                  if (existingMessage && existingMessage.conversaId === mainConversa.id) {
+                    console.log(`    - Mensagem ${mensagem.whatsappMessageId} já existe na conversa principal, pulando...`);
+                    continue;
+                  }
+                }
+                
+                // Atualizar mensagem para apontar para conversa principal
+                await storage.updateMensagem(mensagem.id, {
+                  conversaId: mainConversa.id
+                });
+              }
+              
+              // Mover tickets
+              const tickets = await storage.getTicketsByConversaId(lidConversa.id);
+              console.log(`    - Movendo ${tickets.length} tickets...`);
+              for (const ticket of tickets) {
+                await storage.updateTicket(ticket.id, {
+                  conversaId: mainConversa.id
+                });
+              }
+              
+              // Registrar correção
+              lidsFixed.push({
+                nome,
+                lidRemovido: lidConversa.telefone,
+                numeroCorreto: mainConversa.telefone,
+                mensagensMovidas: mensagens.length,
+                ticketsMovidos: tickets.length,
+                conversaIdRemovida: lidConversa.id,
+                conversaIdPrincipal: mainConversa.id
+              });
+              
+              // Deletar conversa com LID
+              console.log(`    - Deletando conversa LID ${lidConversa.id}...`);
+              await storage.deleteConversa(lidConversa.id);
+              totalFixed++;
+            }
+          }
+        }
+      }
+      
+      console.log(`\n=== CORREÇÃO CONCLUÍDA ===`);
+      console.log(`Total de conversas LID corrigidas: ${totalFixed}`);
+      
+      res.json({
+        success: true,
+        message: `Correção concluída. ${totalFixed} conversas com LID foram mescladas.`,
+        totalFixed,
+        details: lidsFixed
+      });
+    } catch (error) {
+      console.error("Erro ao corrigir conversas com LID:", error);
+      res.status(500).json({ error: "Erro ao corrigir conversas com LID" });
+    }
+  });
+
   // Rota para buscar mensagens de teste
   app.get("/api/mensagens/conversa/teste/:telefone", async (req, res) => {
     try {
