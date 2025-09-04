@@ -169,9 +169,9 @@ export class PixService {
         console.log('👤 Cliente temporário criado:', cliente.nome);
         
         // IMPORTANTE: Sempre criar pagamento no banco, mesmo para conversas
-        // Usar clienteId NULL para conversas sem cliente cadastrado
+        // Usar o próprio clienteId negativo para conversas sem cliente cadastrado
         pagamento = await storage.createPagamento({
-          clienteId: null, // NULL para conversas sem cliente
+          clienteId: clienteId, // Usar o próprio clienteId negativo
           valor: amount.toString(),
           status: 'pendente',
           dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
