@@ -544,9 +544,6 @@ export function PixGeneratorSidebar({
                 </button>
               ))}
             </div>
-            <div className="border-t border-slate-700/50 pt-2">
-              <span className="text-[10px] text-slate-500">Ou gere um novo pagamento:</span>
-            </div>
           </div>
         ) : null}
         
