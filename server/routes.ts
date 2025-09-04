@@ -197,7 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Apply auth middleware to all API routes except login routes
   app.use("/api/*", (req, res, next) => {
-    const publicPaths = ['/api/login', '/api/logout', '/api/auth/status', '/api/pix/webhook'];
+    const publicPaths = ['/api/login', '/api/logout', '/api/auth/status', '/api/pix/webhook', '/api/pix/debug/pagamentos-manual', '/api/pix/test-webhook'];
     // Use originalUrl to get the full path including /api prefix
     const fullPath = req.originalUrl.split('?')[0]; // Remove query params if any
     if (publicPaths.includes(fullPath)) {
@@ -3946,7 +3946,7 @@ Como posso ajudar você hoje?
       const result = await db.execute(sql`
         SELECT * FROM pagamentos_manual 
         WHERE telefone = ${telefone}
-        ORDER BY created_at DESC
+        ORDER BY data_criacao DESC
         LIMIT 5
       `);
       
@@ -3959,7 +3959,7 @@ Como posso ajudar você hoje?
           return vencimento > now; // Só mostrar pendentes não expirados
         }
         // Se não tem vencimento, considera 24h desde a criação
-        const criacao = new Date(p.created_at);
+        const criacao = new Date(p.data_criacao);
         const expiracaoDefault = new Date(criacao.getTime() + 24 * 60 * 60 * 1000);
         return expiracaoDefault > now;
       });
@@ -3969,6 +3969,66 @@ Como posso ajudar você hoje?
     } catch (error) {
       console.error("Erro ao buscar pagamentos:", error);
       res.status(500).json({ error: "Erro ao buscar pagamentos" });
+    }
+  });
+  
+  // DEBUG: Endpoint para verificar todos os pagamentos manuais
+  app.get("/api/pix/debug/pagamentos-manual", async (req, res) => {
+    try {
+      const result = await db.execute(sql`
+        SELECT id, telefone, valor, status, charge_id, pix_id, data_criacao, data_pagamento 
+        FROM pagamentos_manual 
+        ORDER BY id DESC 
+        LIMIT 20
+      `);
+      
+      console.log('[DEBUG PIX] Pagamentos manuais no banco:', result.length);
+      result.forEach((p: any) => {
+        console.log(`[DEBUG PIX] ID: ${p.id}, ChargeId: ${p.charge_id}, Status: ${p.status}, Telefone: ${p.telefone}`);
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao buscar pagamentos para debug:", error);
+      res.status(500).json({ error: "Erro ao buscar pagamentos para debug" });
+    }
+  });
+  
+  // TEST: Endpoint para testar webhook do PIX
+  app.post("/api/pix/test-webhook", async (req, res) => {
+    try {
+      console.log("🧪 TEST WEBHOOK - Simulando webhook do Woovi");
+      
+      const { chargeId } = req.body;
+      if (!chargeId) {
+        return res.status(400).json({ error: "ChargeId é obrigatório" });
+      }
+      
+      // Simular estrutura do webhook do Woovi
+      const mockWebhook = {
+        event: "OPENPIX:CHARGE_COMPLETED",
+        charge: {
+          identifier: chargeId,
+          id: chargeId,
+          correlationID: `TVON_PIX_TEST_${Date.now()}`,
+          status: "COMPLETED",
+          value: 100, // 1 real em centavos
+          customer: {
+            phone: "5514991949280",
+            name: "Cliente Teste"
+          }
+        }
+      };
+      
+      console.log("🧪 Enviando webhook simulado:", JSON.stringify(mockWebhook, null, 2));
+      
+      // Processar webhook simulado
+      await pixService.processWebhook(mockWebhook);
+      
+      res.json({ success: true, message: "Webhook simulado processado" });
+    } catch (error: any) {
+      console.error("❌ Erro no teste do webhook:", error);
+      res.status(500).json({ error: error.message });
     }
   });
 
