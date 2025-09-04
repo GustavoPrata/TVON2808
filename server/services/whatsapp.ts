@@ -738,35 +738,12 @@ export class WhatsAppService extends EventEmitter {
     // Get the message type (but use "text" for view-once messages)
     const messageType = isViewOnce && !message.key.fromMe ? "text" : this.getMessageType(message);
 
-    // Check if this is an empty message (likely from an edit)
+    // Check if this is an empty message - treat as view-once
     if (!messageText && !mediaUrl && messageType === "text") {
-      console.log("Empty message detected, checking if it's from an edit...");
-
-      // Get recent messages from this phone number
-      const conversa = await storage.getConversaByTelefone(phone);
-      if (conversa) {
-        const messages = await storage.getMensagensByConversaId(conversa.id);
-        const recentMessages = messages
-          .filter((msg) => msg.remetente === "cliente")
-          .sort(
-            (a, b) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-          )
-          .slice(0, 3); // Get last 3 messages
-
-        // If the last message was sent within 30 seconds, it's likely an edit artifact
-        if (recentMessages.length > 0) {
-          const lastMessage = recentMessages[0];
-          const timeDiff =
-            Date.now() - new Date(lastMessage.timestamp).getTime();
-
-          if (timeDiff < 30000) {
-            // 30 seconds
-            console.log("Ignoring empty message - likely edit artifact");
-            return; // Skip processing this empty message
-          }
-        }
-      }
+      console.log("Empty message detected - treating as view-once message");
+      messageText = "Visualização única";
+      // Add metadata to indicate it's a view-once with unknown type
+      replyMetadata = { ...replyMetadata, viewOnceType: "mídia" };
     }
 
     const whatsappMessage: WhatsAppMessage = {
