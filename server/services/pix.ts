@@ -264,7 +264,7 @@ export class PixService {
               charge_id = ${updateData.chargeId || ''},
               qr_code = ${updateData.qr_code || ''},
               pix_copia_e_cola = ${updateData.pix_copia_e_cola || ''},
-              data_vencimento = ${updateData.data_vencimento.toISOString()},
+              data_vencimento = ${updateData.data_vencimento?.toISOString() || new Date().toISOString()},
               status = ${updateData.status || 'pendente'}
             WHERE id = ${pagamento.id}
             RETURNING *
@@ -420,32 +420,43 @@ export class PixService {
 
   async processWebhook(data: any): Promise<void> {
     try {
+      console.log('🔔 ==================================================');
+      console.log('🔔 WEBHOOK PIX RECEBIDO DO WOOVI');
+      console.log('🔔 ==================================================');
       console.log('📦 Payload completo do webhook:', JSON.stringify(data, null, 2));
       
       // O Woovi pode enviar a estrutura de diferentes formas
       const event = data.event || data.type;
       const charge = data.charge || data.data || data;
       
-      console.log(`Webhook recebido do Woovi: ${event}`);
+      console.log(`📌 Tipo de evento: ${event}`);
+      console.log('📊 Estrutura do charge:', {
+        id: charge?.id,
+        identifier: charge?.identifier,
+        correlationID: charge?.correlationID,
+        status: charge?.status
+      });
       
       // Processar eventos específicos
       switch (event) {
         case 'OPENPIX:CHARGE_COMPLETED':
+          console.log('✅ Processando pagamento CONCLUÍDO...');
           await this.handlePaymentConfirmed(charge);
           break;
           
         case 'OPENPIX:CHARGE_EXPIRED':
+          console.log('⏰ Processando pagamento EXPIRADO...');
           await this.handlePaymentExpired(charge);
           break;
           
         default:
-          console.log(`Evento ignorado: ${event}`);
+          console.log(`⚠️ Evento não processado: ${event}`);
           await this.logActivity('info', `Evento de webhook ignorado: ${event}`, { data });
       }
       
       await this.logActivity('info', `Webhook processado: ${event}`, { data });
     } catch (error) {
-      console.error('Erro ao processar webhook:', error);
+      console.error('❌ Erro ao processar webhook:', error);
       await this.logActivity('error', `Erro ao processar webhook: ${error}`, data);
       throw error;
     }
@@ -455,17 +466,35 @@ export class PixService {
     try {
       console.log('🎉 Pagamento PIX confirmado - dados recebidos:', JSON.stringify(charge, null, 2));
       
-      // Extrair informações do charge - Woovi usa 'identifier' como ID principal
-      const chargeId = charge?.identifier || charge?.id || charge?.correlationID;
-      const correlationId = charge?.correlationID;
+      // Coletar TODOS os possíveis identificadores
+      const possibleIds = [
+        charge?.identifier,
+        charge?.id,
+        charge?.correlationID,
+        charge?.chargeId,
+        charge?.transactionId,
+        charge?.transaction?.id,
+        charge?.reference,
+        charge?.externalReference
+      ].filter(Boolean);
+      
+      // Se tiver brCode, extrair o chargeId dele também
+      if (charge?.brCode) {
+        const match = charge.brCode.match(/([a-f0-9]{32})/);
+        if (match) {
+          possibleIds.push(match[1]);
+        }
+      }
+      
+      console.log('🔍 Identificadores encontrados no webhook:', possibleIds);
+      
       const value = charge?.value || charge?.amount;
       const payer = charge?.payer || charge?.customer;
       
-      console.log('🔍 Procurando pagamento com chargeId:', chargeId, 'ou correlationId:', correlationId);
-      
-      if (!chargeId && !correlationId) {
-        console.error('⚠️ ID da transação não encontrado no webhook');
+      if (possibleIds.length === 0) {
+        console.error('⚠️ Nenhum ID de transação encontrado no webhook');
         console.log('Estrutura completa recebida:', JSON.stringify(charge, null, 2));
+        await this.logActivity('error', 'Webhook recebido sem identificadores', { charge });
         return;
       }
       
@@ -473,54 +502,88 @@ export class PixService {
       let pagamento: any = null;
       let isPagamentoManual = false;
       
-      // 1. Tentar buscar na tabela pagamentos_manual pelo chargeId
-      if (chargeId) {
-        console.log('🔎 Buscando na tabela pagamentos_manual por chargeId:', chargeId);
-        pagamento = await storage.getPagamentoManualByChargeId(chargeId);
-        if (pagamento) {
-          isPagamentoManual = true;
-          console.log('✅ Pagamento encontrado na tabela pagamentos_manual!');
+      console.log('🔍 Iniciando busca do pagamento em todas as tabelas...');
+      
+      // Tentar com cada identificador possível
+      for (const id of possibleIds) {
+        console.log(`\n🔎 Tentando com identificador: ${id}`);
+        
+        // 1. Tentar na tabela pagamentos_manual
+        if (!pagamento) {
+          console.log('  📋 Buscando na tabela pagamentos_manual...');
+          pagamento = await storage.getPagamentoManualByChargeId(id);
+          if (pagamento) {
+            isPagamentoManual = true;
+            console.log('  ✅ Encontrado na tabela pagamentos_manual!');
+            break;
+          }
+        }
+        
+        // 2. Tentar na tabela pagamentos por chargeId
+        if (!pagamento) {
+          console.log('  📋 Buscando na tabela pagamentos por chargeId...');
+          pagamento = await storage.getPagamentoByChargeId(id);
+          if (pagamento) {
+            console.log('  ✅ Encontrado na tabela pagamentos por chargeId!');
+            break;
+          }
+        }
+        
+        // 3. Tentar na tabela pagamentos por pixId
+        if (!pagamento) {
+          console.log('  📋 Buscando na tabela pagamentos por pixId...');
+          pagamento = await storage.getPagamentoByPixId(id);
+          if (pagamento) {
+            console.log('  ✅ Encontrado na tabela pagamentos por pixId!');
+            break;
+          }
         }
       }
       
-      // 2. Se não encontrou, tentar buscar na tabela pagamentos pelo chargeId
-      if (!pagamento && chargeId) {
-        console.log('🔎 Buscando na tabela pagamentos por chargeId:', chargeId);
-        pagamento = await storage.getPagamentoByChargeId(chargeId);
-        if (pagamento) {
-          console.log('✅ Pagamento encontrado na tabela pagamentos!');
-        }
-      }
-      
-      // 3. Se não encontrou, tentar por correlationID/pixId na tabela pagamentos
-      if (!pagamento && correlationId) {
-        console.log('🔎 Buscando na tabela pagamentos por correlationId/pixId:', correlationId);
-        pagamento = await storage.getPagamentoByPixId(correlationId);
-        if (pagamento) {
-          console.log('✅ Pagamento encontrado na tabela pagamentos por pixId!');
-        }
-      }
-      
-      // 4. Tentar buscar por identifier como chargeId
-      if (!pagamento && charge?.identifier) {
-        console.log('🔎 Buscando usando identifier como chargeId:', charge.identifier);
-        pagamento = await storage.getPagamentoManualByChargeId(charge.identifier);
-        if (pagamento) {
-          isPagamentoManual = true;
-          console.log('✅ Pagamento encontrado usando identifier!');
+      // Se ainda não encontrou, tentar busca direta no banco com SQL
+      if (!pagamento) {
+        console.log('\n🔍 Tentando busca direta no banco de dados...');
+        
+        for (const id of possibleIds) {
+          // Buscar em pagamentos_manual
+          const resultManual = await db.execute(sql`
+            SELECT * FROM pagamentos_manual 
+            WHERE charge_id = ${id} 
+               OR pix_id = ${id}
+            LIMIT 1
+          `);
+          
+          if (resultManual.length > 0) {
+            pagamento = resultManual[0];
+            isPagamentoManual = true;
+            console.log('✅ Encontrado via SQL na tabela pagamentos_manual!');
+            break;
+          }
+          
+          // Buscar em pagamentos
+          const resultPagamentos = await db.execute(sql`
+            SELECT * FROM pagamentos 
+            WHERE charge_id = ${id} 
+               OR pix_id = ${id}
+            LIMIT 1
+          `);
+          
+          if (resultPagamentos.length > 0) {
+            pagamento = resultPagamentos[0];
+            console.log('✅ Encontrado via SQL na tabela pagamentos!');
+            break;
+          }
         }
       }
       
       if (!pagamento) {
-        console.warn('❌ Pagamento não encontrado em nenhuma das tabelas');
-        console.log('Procurado por chargeId:', chargeId);
-        console.log('Procurado por correlationId:', correlationId);
-        console.log('Procurado por identifier:', charge?.identifier);
+        console.error('❌ PAGAMENTO NÃO ENCONTRADO EM NENHUMA TABELA!');
+        console.log('Identificadores testados:', possibleIds);
+        console.log('Estrutura completa do webhook:', JSON.stringify(charge, null, 2));
         
         // Log adicional para debug
-        await this.logActivity('warn', 'Webhook recebido para pagamento não encontrado', {
-          identifier: chargeId,
-          correlationId,
+        await this.logActivity('error', 'Webhook recebido para pagamento não encontrado', {
+          identificadores: possibleIds,
           value,
           payer,
           chargeData: charge
@@ -531,7 +594,7 @@ export class PixService {
       // Atualizar status do pagamento para pago na tabela correta
       console.log('💾 Atualizando status do pagamento para PAGO...');
       if (isPagamentoManual) {
-        const chargeIdToUpdate = pagamento.charge_id || pagamento.chargeId || chargeId;
+        const chargeIdToUpdate = pagamento.charge_id || pagamento.chargeId || possibleIds[0];
         console.log('🔄 Atualizando na tabela pagamentos_manual, chargeId:', chargeIdToUpdate);
         const updateResult = await storage.updatePagamentoManualByChargeId(chargeIdToUpdate, {
           status: 'pago'
@@ -581,7 +644,7 @@ export class PixService {
           }
           
           await this.logActivity('info', `Pagamento confirmado para conversa ${telefone}`, {
-            chargeId,
+            chargeId: pagamento.charge_id || pagamento.chargeId || possibleIds[0],
             value: value ? value / 100 : pagamento.valor,
             telefone
           });
@@ -622,13 +685,13 @@ export class PixService {
           
           try {
             await whatsappService.sendMessage(cliente.telefone, mensagem);
-          } catch (whatsError) {
+          } catch (whatsError: any) {
             console.error('Erro ao enviar mensagem WhatsApp:', whatsError);
             // Não interromper o processo se WhatsApp falhar
           }
           
           await this.logActivity('info', `Pagamento confirmado para cliente ${cliente.nome}`, {
-            chargeId,
+            chargeId: pagamento.charge_id || pagamento.chargeId || possibleIds[0],
             value: value ? value / 100 : pagamento.valor,
             clienteId: pagamento.clienteId
           });
@@ -686,7 +749,7 @@ export class PixService {
         }
         
         await this.logActivity('info', `PIX expirado para cliente ${cliente.nome}`, {
-          chargeId,
+          chargeId: chargeId || '',
           clienteId: pagamento.clienteId
         });
       }
