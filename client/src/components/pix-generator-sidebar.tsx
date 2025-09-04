@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,10 +6,13 @@ import { cn } from '@/lib/utils';
 import { 
   DollarSign, Loader2, Copy, RefreshCw, QrCode,
   CheckCircle, Clock, XCircle, X, AlertCircle,
-  Send, Timer, Trash2
+  Send, Timer, Trash2, CheckCircle2, AlertTriangle,
+  ChevronRight
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface PixGeneratorSidebarProps {
   clienteId?: number;  // Opcional - para suportar conversas sem cliente
@@ -35,26 +38,83 @@ export function PixGeneratorSidebar({
   const [pixDescription, setPixDescription] = useState(initialState?.pixDescription || '');
   const [isGeneratingPix, setIsGeneratingPix] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [pixConfig, setPixConfig] = useState<{ expiresIn: number }>({ expiresIn: 86400 }); // 24h padrão
-  const [activePixData, setActivePixData] = useState<{
-    status: string;
-    valor: string;
-    qrCode?: string;
-    pixCopiaCola?: string;
-    chargeId?: string;
-    expiresIn?: string;
-    timestamp?: Date;
-    descricao?: string;
-  } | null>(initialState?.activePixData || null);
+  const [existingPayments, setExistingPayments] = useState<any[]>([]);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [isLoadingPayments, setIsLoadingPayments] = useState(true);
   const [quickValues] = useState([29.90, 19.90]);
   const [timeRemaining, setTimeRemaining] = useState('');
   const [pixHistory, setPixHistory] = useState<any[]>(initialState?.pixHistory || []);
   
-  // Use initialState directly in useState to avoid extra renders
-  // Component is already recreated when conversation changes due to key prop
+  // Função para buscar pagamentos existentes
+  const fetchExistingPayments = useCallback(async () => {
+    if (!telefone) return;
+    
+    setIsLoadingPayments(true);
+    try {
+      const response = await fetch(`/api/pix/conversa/${telefone}`);
+      if (response.ok) {
+        const payments = await response.json();
+        setExistingPayments(payments);
+        
+        // Se houver pagamento pendente, selecionar automaticamente
+        const pendingPayment = payments.find((p: any) => p.status === 'pendente');
+        if (pendingPayment) {
+          setSelectedPayment(pendingPayment);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar pagamentos:', error);
+    } finally {
+      setIsLoadingPayments(false);
+    }
+  }, [telefone]);
   
-  // Buscar configuração PIX ao montar
+  // Função para verificar status do pagamento
+  const checkPaymentStatus = useCallback(async (chargeId: string) => {
+    if (!chargeId) return;
+    
+    setIsCheckingStatus(true);
+    try {
+      const response = await fetch(`/api/pix/status/${chargeId}`);
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Atualizar pagamento selecionado
+        if (selectedPayment?.charge_id === chargeId) {
+          setSelectedPayment((prev: any) => prev ? { ...prev, status: data.status } : null);
+          
+          // Atualizar lista de pagamentos existentes
+          setExistingPayments(prev => prev.map(p => 
+            p.charge_id === chargeId ? { ...p, status: data.status } : p
+          ));
+          
+          // Se foi pago, mostrar mensagem de sucesso
+          if (data.status === 'pago') {
+            toast({
+              title: "✅ Pagamento Confirmado!",
+              description: "O pagamento foi processado com sucesso.",
+            });
+            
+            // Limpar seleção após 3 segundos
+            setTimeout(() => {
+              setSelectedPayment(null);
+              fetchExistingPayments();
+            }, 3000);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao verificar status:', error);
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  }, [selectedPayment, toast, fetchExistingPayments]);
+  
+  // Buscar configuração PIX e pagamentos ao montar
   useEffect(() => {
+    // Buscar configuração
     fetch('/api/pix/config')
       .then(res => res.json())
       .then(data => {
@@ -63,7 +123,21 @@ export function PixGeneratorSidebar({
         }
       })
       .catch(err => console.error('Erro ao buscar configuração PIX:', err));
-  }, []);
+    
+    // Buscar pagamentos existentes
+    fetchExistingPayments();
+  }, [fetchExistingPayments]);
+  
+  // Polling para verificar status de pagamento pendente
+  useEffect(() => {
+    if (!selectedPayment || selectedPayment.status !== 'pendente') return;
+    
+    const interval = setInterval(() => {
+      checkPaymentStatus(selectedPayment.charge_id);
+    }, 5000); // Verificar a cada 5 segundos
+    
+    return () => clearInterval(interval);
+  }, [selectedPayment, checkPaymentStatus]);
   
   // Salvar estado quando mudar (com debounce para evitar loops)
   useEffect(() => {
@@ -71,7 +145,7 @@ export function PixGeneratorSidebar({
     
     const timer = setTimeout(() => {
       onStateChange({
-        activePixData,
+        selectedPayment,
         pixHistory,
         pixAmount,
         pixDescription
@@ -79,43 +153,43 @@ export function PixGeneratorSidebar({
     }, 300); // Debounce de 300ms
     
     return () => clearTimeout(timer);
-  }, [activePixData, pixHistory, pixAmount, pixDescription, onStateChange]);
+  }, [selectedPayment, pixHistory, pixAmount, pixDescription, onStateChange]);
 
-  // Countdown timer para PIX ativo
+  // Countdown timer para PIX selecionado
   useEffect(() => {
-    if (!activePixData || activePixData.status !== 'pendente') {
+    if (!selectedPayment || selectedPayment.status !== 'pendente') {
       setTimeRemaining('');
       return;
     }
 
     const interval = setInterval(() => {
-      if (activePixData.timestamp) {
-        const created = new Date(activePixData.timestamp).getTime();
-        const now = new Date().getTime();
-        const elapsed = now - created;
-        const maxTime = pixConfig.expiresIn * 1000; // converter segundos para milissegundos
-        const remaining = maxTime - elapsed;
+      const vencimento = selectedPayment.data_vencimento ? 
+        new Date(selectedPayment.data_vencimento).getTime() : 
+        new Date(selectedPayment.created_at).getTime() + (pixConfig.expiresIn * 1000);
+      
+      const now = new Date().getTime();
+      const remaining = vencimento - now;
 
-        if (remaining <= 0) {
-          setActivePixData(prev => prev ? { ...prev, status: 'expirado' } : null);
-          setTimeRemaining('Expirado');
-          clearInterval(interval);
+      if (remaining <= 0) {
+        setSelectedPayment((prev: any) => prev ? { ...prev, status: 'expirado' } : null);
+        setTimeRemaining('Expirado');
+        clearInterval(interval);
+        fetchExistingPayments();
+      } else {
+        const hours = Math.floor(remaining / 3600000);
+        const minutes = Math.floor((remaining % 3600000) / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        
+        if (hours > 0) {
+          setTimeRemaining(`${hours}h:${minutes.toString().padStart(2, '0')}m:${seconds.toString().padStart(2, '0')}s`);
         } else {
-          const hours = Math.floor(remaining / 3600000);
-          const minutes = Math.floor((remaining % 3600000) / 60000);
-          const seconds = Math.floor((remaining % 60000) / 1000);
-          
-          if (hours > 0) {
-            setTimeRemaining(`${hours}h:${minutes.toString().padStart(2, '0')}m:${seconds.toString().padStart(2, '0')}s`);
-          } else {
-            setTimeRemaining(`${minutes}m:${seconds.toString().padStart(2, '0')}s`);
-          }
+          setTimeRemaining(`${minutes}m:${seconds.toString().padStart(2, '0')}s`);
         }
       }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [activePixData, pixConfig.expiresIn]);
+  }, [selectedPayment, pixConfig.expiresIn, fetchExistingPayments]);
 
   const formatCurrency = (value: string) => {
     const numbers = value.replace(/\D/g, '');
@@ -139,30 +213,30 @@ export function PixGeneratorSidebar({
   };
 
   const cancelCurrentPix = async () => {
-    if (!activePixData?.chargeId) return;
+    if (!selectedPayment?.charge_id) return;
 
     setIsCancelling(true);
     try {
-      // Aqui você pode adicionar uma chamada para cancelar o PIX na API
-      // await apiRequest('POST', `/api/pix/cancel/${activePixData.chargeId}`);
+      // Cancelar PIX na API
+      await apiRequest('POST', `/api/pix/cancel/${selectedPayment.charge_id}`);
       
-      setActivePixData(prev => prev ? { ...prev, status: 'cancelado' } : null);
+      // Atualizar estado
+      setSelectedPayment((prev: any) => prev ? { ...prev, status: 'cancelado' } : null);
       
       // Adicionar ao histórico
-      if (activePixData) {
-        setPixHistory(prev => [...prev, { ...activePixData, status: 'cancelado', cancelledAt: new Date() }]);
-      }
+      setPixHistory(prev => [...prev, { ...selectedPayment, status: 'cancelado', cancelledAt: new Date() }]);
 
       toast({
         title: "✅ PIX Cancelado",
         description: "A cobrança PIX foi cancelada com sucesso",
       });
 
-      // Limpar após 2 segundos
+      // Limpar e recarregar após 2 segundos
       setTimeout(() => {
-        setActivePixData(null);
+        setSelectedPayment(null);
         setPixAmount('');
         setPixDescription('');
+        fetchExistingPayments();
       }, 2000);
 
     } catch (error) {
@@ -209,8 +283,8 @@ export function PixGeneratorSidebar({
 
     try {
       const responseRaw = await apiRequest('POST', '/api/pix/generate', {
-        clienteId: clienteId || null,  // Pode ser null para conversas sem cliente
-        telefone: telefone,  // Usar telefone como identificador adicional
+        clienteId: clienteId || null,
+        telefone: telefone,
         valor: amount,
         descricao: pixDescription || `Pagamento - ${clienteNome}`
       });
@@ -220,30 +294,39 @@ export function PixGeneratorSidebar({
       if (response.success && response.pixData) {
         const pixData = response.pixData;
         
-        const pixInfo = {
+        // Criar novo pagamento
+        const newPayment = {
+          id: Date.now(),
           status: 'pendente',
-          valor: formatCurrency(pixAmount),
-          qrCode: pixData.qrCode,
-          pixCopiaCola: pixData.pixCopiaCola,
-          chargeId: pixData.chargeId,
-          expiresIn: '30 minutos',
-          timestamp: new Date(),
-          descricao: pixDescription || `Pagamento - ${clienteNome}`
+          valor: amount,
+          descricao: pixDescription || `Pagamento - ${clienteNome}`,
+          qr_code: pixData.qrCode,
+          pix_copia_e_cola: pixData.pixCopiaCola,
+          charge_id: pixData.chargeId,
+          created_at: new Date(),
+          data_vencimento: new Date(Date.now() + pixConfig.expiresIn * 1000),
+          telefone: telefone
         };
         
-        setActivePixData(pixInfo);
+        // Atualizar estado
+        setSelectedPayment(newPayment);
+        setExistingPayments(prev => [newPayment, ...prev]);
 
         if (onPixGenerated) {
-          onPixGenerated(pixInfo);
+          onPixGenerated(newPayment);
         }
 
         // Enviar para WhatsApp
-        await sendPixToWhatsApp(pixInfo);
+        await sendPixToWhatsApp(newPayment);
 
         toast({
           title: "✅ PIX Gerado!",
           description: `Valor: R$ ${formatCurrency(pixAmount)}`,
         });
+        
+        // Limpar formulário
+        setPixAmount('');
+        setPixDescription('');
 
       } else {
         throw new Error(response.error || 'Erro ao gerar PIX');
@@ -275,7 +358,7 @@ export function PixGeneratorSidebar({
     }
   };
 
-  const sendPixToWhatsApp = async (pixInfo: any) => {
+  const sendPixToWhatsApp = async (payment: any) => {
     try {
       // Formatar tempo de validade
       const hours = Math.floor(pixConfig.expiresIn / 3600);
@@ -289,42 +372,42 @@ export function PixGeneratorSidebar({
       }
       
       // Primeira mensagem - QR Code (somente a imagem, sem caption)
-      if (pixInfo.qrCode) {
+      if (payment.qr_code) {
         sendMessage('send_message', {
           telefone: telefone,
           tipo: 'image',
-          conteudo: pixInfo.qrCode,
-          mediaUrl: pixInfo.qrCode
+          conteudo: payment.qr_code,
+          mediaUrl: payment.qr_code
         });
       }
 
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Segunda mensagem - Código PIX Copia e Cola
-      if (pixInfo.pixCopiaCola) {
+      if (payment.pix_copia_e_cola) {
         sendMessage('send_message', {
           telefone: telefone,
           tipo: 'text',
-          conteudo: pixInfo.pixCopiaCola
+          conteudo: payment.pix_copia_e_cola
         });
       }
 
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Terceira mensagem - Instruções de pagamento
+      const valorFormatado = typeof payment.valor === 'number' ? 
+        payment.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
+        payment.valor;
+        
       sendMessage('send_message', {
         telefone: telefone,
         tipo: 'text',
-        conteudo: `Valor: R$ ${pixInfo.valor}\n` +
+        conteudo: `Valor: R$ ${valorFormatado}\n` +
                  `Validade: ${validadeText}\n\n` +
                  `Como pagar:\n` +
                  `1️⃣ Abra o app do seu banco\n` +
                  `2️⃣ Escaneie o QR Code ou use o código Copia e Cola`
       });
-
-      // Limpar formulário
-      setPixAmount('');
-      setPixDescription('');
 
     } catch (error) {
       console.error('Erro ao enviar PIX:', error);
@@ -332,8 +415,8 @@ export function PixGeneratorSidebar({
   };
 
   const copyPixCode = () => {
-    if (activePixData?.pixCopiaCola) {
-      navigator.clipboard.writeText(activePixData.pixCopiaCola);
+    if (selectedPayment?.pix_copia_e_cola) {
+      navigator.clipboard.writeText(selectedPayment.pix_copia_e_cola);
       toast({
         title: "Copiado!",
         description: "Código PIX na área de transferência",
@@ -342,26 +425,75 @@ export function PixGeneratorSidebar({
   };
 
   const resetForm = () => {
-    setActivePixData(null);
+    setSelectedPayment(null);
     setPixAmount('');
     setPixDescription('');
+  };
+  
+  const resendPixToWhatsApp = async () => {
+    if (!selectedPayment) return;
+    
+    try {
+      await sendPixToWhatsApp(selectedPayment);
+      toast({
+        title: "✅ PIX Reenviado!",
+        description: "Dados enviados para o WhatsApp",
+      });
+    } catch (error) {
+      toast({
+        title: "❌ Erro",
+        description: "Não foi possível reenviar o PIX",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const formatPaymentValue = (valor: any): string => {
+    if (typeof valor === 'number') {
+      return valor.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+    return valor?.toString() || '0,00';
+  };
+  
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pendente': return <Clock className="w-3.5 h-3.5" />;
+      case 'pago': return <CheckCircle2 className="w-3.5 h-3.5" />;
+      case 'cancelado': return <XCircle className="w-3.5 h-3.5" />;
+      case 'expirado': return <Timer className="w-3.5 h-3.5" />;
+      default: return <AlertCircle className="w-3.5 h-3.5" />;
+    }
+  };
+  
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pendente': return 'bg-amber-500/20 text-amber-400 border-amber-600/40';
+      case 'pago': return 'bg-green-500/20 text-green-400 border-green-600/40';
+      case 'cancelado': return 'bg-red-500/20 text-red-400 border-red-600/40';
+      case 'expirado': return 'bg-slate-500/20 text-slate-400 border-slate-600/40';
+      default: return 'bg-slate-500/20 text-slate-400 border-slate-600/40';
+    }
   };
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-slate-900/90 to-slate-800/90 rounded-lg border border-slate-700/50">
-      {/* Header Compacto */}
+      {/* Header */}
       <div className="px-3 py-2 border-b border-slate-700/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <QrCode className="w-4 h-4 text-green-400" />
             <span className="text-xs font-bold text-slate-200">Cobrança PIX</span>
           </div>
-          {activePixData && (
+          {selectedPayment && (
             <Button
               variant="ghost"
               size="sm"
               onClick={resetForm}
               className="h-6 w-6 p-0 hover:bg-slate-700/50"
+              title="Fechar"
             >
               <X className="w-3.5 h-3.5" />
             </Button>
@@ -371,8 +503,159 @@ export function PixGeneratorSidebar({
 
       {/* Conteúdo */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {!activePixData ? (
-          <>
+        {/* Pagamentos Existentes */}
+        {isLoadingPayments ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+          </div>
+        ) : existingPayments.length > 0 && !selectedPayment ? (
+          <div className="space-y-2">
+            <h4 className="text-[11px] font-bold text-slate-400 uppercase">Pagamentos Recentes</h4>
+            <div className="space-y-1.5">
+              {existingPayments.slice(0, 3).map((payment: any) => (
+                <button
+                  key={payment.id || payment.charge_id}
+                  onClick={() => setSelectedPayment(payment)}
+                  className={cn(
+                    "w-full p-2 rounded-md border transition-all text-left",
+                    "hover:bg-slate-800/50 hover:border-slate-600",
+                    "border-slate-700 bg-slate-900/30"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(payment.status)}
+                      <div>
+                        <div className="text-xs font-bold text-white">
+                          R$ {formatPaymentValue(payment.valor)}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          {format(new Date(payment.created_at), "dd/MM às HH:mm", { locale: ptBR })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={cn(
+                      "px-2 py-0.5 rounded text-[10px] font-bold",
+                      getStatusColor(payment.status)
+                    )}>
+                      {payment.status.toUpperCase()}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="border-t border-slate-700/50 pt-2">
+              <span className="text-[10px] text-slate-500">Ou gere um novo pagamento:</span>
+            </div>
+          </div>
+        ) : null}
+        
+        {/* Pagamento Selecionado */}
+        {selectedPayment ? (
+          <div className="space-y-3">
+            <div className={cn(
+              "p-3 rounded-lg border",
+              selectedPayment.status === 'pendente' 
+                ? "bg-amber-950/30 border-amber-600/40" 
+                : selectedPayment.status === 'pago'
+                ? "bg-green-950/30 border-green-600/40"
+                : selectedPayment.status === 'cancelado'
+                ? "bg-red-950/30 border-red-600/40"
+                : "bg-slate-800/30 border-slate-600/40"
+            )}>
+              {/* Status Badge */}
+              <div className="flex items-center justify-between mb-3">
+                <div className={cn(
+                  "px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5",
+                  getStatusColor(selectedPayment.status)
+                )}>
+                  {getStatusIcon(selectedPayment.status)}
+                  {selectedPayment.status.toUpperCase()}
+                </div>
+                {timeRemaining && selectedPayment.status === 'pendente' && (
+                  <span className="text-[11px] font-mono text-amber-400">
+                    {timeRemaining}
+                  </span>
+                )}
+              </div>
+
+              {/* Valor */}
+              <div className="text-center py-2">
+                <div className="text-2xl font-black text-white">R$ {formatPaymentValue(selectedPayment.valor)}</div>
+                {selectedPayment.descricao && (
+                  <div className="text-[11px] text-slate-400 mt-1">{selectedPayment.descricao}</div>
+                )}
+              </div>
+
+              {/* Ações */}
+              {selectedPayment.status === 'pendente' && (
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={copyPixCode}
+                    className="h-8 text-[11px] font-bold border-slate-600 hover:bg-slate-700"
+                    disabled={!selectedPayment.pix_copia_e_cola}
+                  >
+                    <Copy className="w-3.5 h-3.5 mr-1" />
+                    Copiar PIX
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resendPixToWhatsApp}
+                    className="h-8 text-[11px] font-bold border-slate-600 hover:bg-slate-700"
+                  >
+                    <Send className="w-3.5 h-3.5 mr-1" />
+                    Reenviar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => checkPaymentStatus(selectedPayment.charge_id)}
+                    disabled={isCheckingStatus}
+                    className="h-8 text-[11px] font-bold border-blue-600/50 hover:bg-blue-950/30 text-blue-400"
+                  >
+                    {isCheckingStatus ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                    )}
+                    Verificar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={cancelCurrentPix}
+                    disabled={isCancelling}
+                    className="h-8 text-[11px] font-bold border-red-600/50 hover:bg-red-950/30 text-red-400"
+                  >
+                    {isCancelling ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                    )}
+                    Cancelar
+                  </Button>
+                </div>
+              )}
+              
+              {/* Botão para Novo PIX se pago ou cancelado */}
+              {(selectedPayment.status === 'pago' || selectedPayment.status === 'cancelado' || selectedPayment.status === 'expirado') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetForm}
+                  className="w-full h-8 mt-3 text-[11px] font-bold border-slate-600 hover:bg-slate-700"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                  NOVO PIX
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : !isLoadingPayments && (
+          <div className="space-y-3">
             {/* Valores Rápidos */}
             <div className="grid grid-cols-2 gap-2">
               {quickValues.map(value => (
@@ -431,96 +714,10 @@ export function PixGeneratorSidebar({
               ) : (
                 <>
                   <Send className="w-3.5 h-3.5 mr-1.5" />
-                  Gerar
+                  Gerar PIX
                 </>
               )}
             </Button>
-          </>
-        ) : (
-          <div className="space-y-3">
-            {/* Status Card */}
-            <div className={cn(
-              "p-2.5 rounded-lg border",
-              activePixData.status === 'pendente' 
-                ? "bg-amber-950/30 border-amber-600/40" 
-                : activePixData.status === 'pago'
-                ? "bg-green-950/30 border-green-600/40"
-                : activePixData.status === 'cancelado'
-                ? "bg-red-950/30 border-red-600/40"
-                : "bg-slate-800/30 border-slate-600/40"
-            )}>
-              {/* Status Badge */}
-              <div className="flex items-center justify-between mb-2">
-                <div className={cn(
-                  "px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1",
-                  activePixData.status === 'pendente' && "bg-amber-500/20 text-amber-400",
-                  activePixData.status === 'pago' && "bg-green-500/20 text-green-400",
-                  activePixData.status === 'cancelado' && "bg-red-500/20 text-red-400",
-                  activePixData.status === 'expirado' && "bg-slate-500/20 text-slate-400"
-                )}>
-                  {activePixData.status === 'pendente' && <Clock className="w-3 h-3" />}
-                  {activePixData.status === 'pago' && <CheckCircle className="w-3 h-3" />}
-                  {activePixData.status === 'cancelado' && <XCircle className="w-3 h-3" />}
-                  {activePixData.status === 'expirado' && <Timer className="w-3 h-3" />}
-                  {activePixData.status.toUpperCase()}
-                </div>
-                {timeRemaining && activePixData.status === 'pendente' && (
-                  <span className="text-[10px] font-mono text-amber-400">
-                    {timeRemaining}
-                  </span>
-                )}
-              </div>
-
-              {/* Valor */}
-              <div className="text-center py-1">
-                <div className="text-xl font-black text-white">R$ {activePixData.valor}</div>
-                <div className="text-[10px] text-slate-400">{activePixData.descricao}</div>
-              </div>
-
-              {/* Ações */}
-              {activePixData.status === 'pendente' && (
-                <div className="flex gap-1.5 mt-2">
-                  {activePixData.pixCopiaCola && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={copyPixCode}
-                      className="flex-1 h-7 border-slate-600 hover:bg-slate-700 hover:border-slate-500"
-                      title="Copiar código PIX"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={cancelCurrentPix}
-                    disabled={isCancelling}
-                    className="h-7 w-7 p-0 border-red-600/50 hover:bg-red-950/30 text-red-400"
-                    title="Cancelar PIX"
-                  >
-                    {isCancelling ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3.5 h-3.5" />
-                    )}
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Novo PIX */}
-            {activePixData.status !== 'pendente' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetForm}
-                className="w-full h-8 text-[10px] font-bold border-slate-600 hover:bg-slate-700"
-              >
-                <RefreshCw className="w-3 h-3 mr-1.5" />
-                NOVO PIX
-              </Button>
-            )}
           </div>
         )}
       </div>

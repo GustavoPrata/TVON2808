@@ -3917,6 +3917,88 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Buscar pagamentos manuais por telefone
+  app.get("/api/pix/conversa/:telefone", async (req, res) => {
+    try {
+      const { telefone } = req.params;
+      console.log('[PIX] Buscando pagamentos para telefone:', telefone);
+      
+      // Buscar últimos pagamentos manuais deste telefone
+      const result = await db.execute(sql`
+        SELECT * FROM pagamentos_manual 
+        WHERE telefone = ${telefone}
+        ORDER BY created_at DESC
+        LIMIT 5
+      `);
+      
+      // Filtrar apenas pagamentos recentes (últimas 24h)
+      const now = new Date();
+      const pagamentos = result.filter((p: any) => {
+        if (p.status === 'pago') return true; // Sempre mostrar pagamentos pagos
+        if (p.data_vencimento) {
+          const vencimento = new Date(p.data_vencimento);
+          return vencimento > now; // Só mostrar pendentes não expirados
+        }
+        // Se não tem vencimento, considera 24h desde a criação
+        const criacao = new Date(p.created_at);
+        const expiracaoDefault = new Date(criacao.getTime() + 24 * 60 * 60 * 1000);
+        return expiracaoDefault > now;
+      });
+      
+      console.log('[PIX] Pagamentos encontrados:', pagamentos.length);
+      res.json(pagamentos);
+    } catch (error) {
+      console.error("Erro ao buscar pagamentos:", error);
+      res.status(500).json({ error: "Erro ao buscar pagamentos" });
+    }
+  });
+
+  // Verificar status de pagamento PIX
+  app.get("/api/pix/status/:chargeId", async (req, res) => {
+    try {
+      const { chargeId } = req.params;
+      console.log('[PIX] Verificando status do pagamento:', chargeId);
+      
+      // Buscar pagamento manual no banco
+      const result = await db.execute(sql`
+        SELECT status FROM pagamentos_manual 
+        WHERE charge_id = ${chargeId}
+        LIMIT 1
+      `);
+      
+      if (result.length > 0) {
+        console.log('[PIX] Status encontrado:', result[0].status);
+        res.json({ status: result[0].status });
+      } else {
+        res.status(404).json({ error: "Pagamento não encontrado" });
+      }
+    } catch (error) {
+      console.error("Erro ao verificar status:", error);
+      res.status(500).json({ error: "Erro ao verificar status" });
+    }
+  });
+
+  // Cancelar pagamento PIX
+  app.post("/api/pix/cancel/:chargeId", async (req, res) => {
+    try {
+      const { chargeId } = req.params;
+      console.log('[PIX] Cancelando pagamento:', chargeId);
+      
+      // Atualizar status no banco para cancelado
+      await db.execute(sql`
+        UPDATE pagamentos_manual 
+        SET status = 'cancelado', updated_at = NOW()
+        WHERE charge_id = ${chargeId} AND status = 'pendente'
+      `);
+      
+      console.log('[PIX] Pagamento cancelado com sucesso');
+      res.json({ success: true, message: "Pagamento cancelado com sucesso" });
+    } catch (error) {
+      console.error("Erro ao cancelar pagamento:", error);
+      res.status(500).json({ error: "Erro ao cancelar pagamento" });
+    }
+  });
+
   // Config TV - Settings endpoints
   app.get("/api/external-api/settings/redirect_base_url", async (req, res) => {
     try {
