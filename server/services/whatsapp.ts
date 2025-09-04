@@ -658,21 +658,41 @@ export class WhatsAppService extends EventEmitter {
     if (messageType !== "text") {
       try {
         mediaUrl = await this.downloadMedia(message);
+        
+        // Get the actual message content based on message type
+        let actualMessage = message.message;
+        
+        // Extract from view-once messages
+        if (message.message?.viewOnceMessage) {
+          actualMessage = message.message.viewOnceMessage.message;
+        } else if (message.message?.viewOnceMessageV2) {
+          actualMessage = message.message.viewOnceMessageV2.message;
+        } else if (message.message?.ephemeralMessage) {
+          actualMessage = message.message.ephemeralMessage.message;
+        }
+        
         if (messageType === "image") {
-          messageText = message.message?.imageMessage?.caption || "";
+          // For view-once photos, mark with special prefix
+          const isViewOnce = !!message.message?.viewOnceMessage || !!message.message?.viewOnceMessageV2;
+          const caption = actualMessage?.imageMessage?.caption || "";
+          messageText = isViewOnce ? "[Foto de visualização única]" + (caption ? " " + caption : "") : caption;
         } else if (messageType === "video") {
-          messageText = message.message?.videoMessage?.caption || "";
+          const isViewOnce = !!message.message?.viewOnceMessage || !!message.message?.viewOnceMessageV2;
+          const caption = actualMessage?.videoMessage?.caption || "";
+          messageText = isViewOnce ? "[Vídeo de visualização única]" + (caption ? " " + caption : "") : caption;
         } else if (messageType === "audio") {
-          const duration = message.message?.audioMessage?.seconds || 0;
-          // Store audio metadata as JSON for proper display
-          messageText = JSON.stringify({ duration });
+          // For audio, extract duration properly
+          const duration = actualMessage?.audioMessage?.seconds || 0;
+          // Don't store as JSON - store as readable text
+          messageText = `[Áudio ${duration}s]`;
+          // Store duration in metadata instead
+          replyMetadata = { ...replyMetadata, duration };
         } else if (messageType === "document") {
-          const fileName =
-            message.message?.documentMessage?.fileName || "documento";
-          // Store document info as JSON
-          messageText = JSON.stringify({ fileName });
+          const fileName = actualMessage?.documentMessage?.fileName || "documento";
+          // Store filename as text, not JSON
+          messageText = fileName;
         } else if (messageType === "sticker") {
-          messageText = JSON.stringify({ type: "sticker" }); // Store sticker info
+          messageText = "[Sticker]"; // Store as readable text
         }
       } catch (error) {
         console.error("Erro ao baixar mídia:", error);
@@ -872,6 +892,33 @@ export class WhatsAppService extends EventEmitter {
   private getMessageType(
     message: WAMessage,
   ): "text" | "image" | "video" | "audio" | "document" | "sticker" {
+    // Check for view-once messages first
+    if (message.message?.viewOnceMessage) {
+      const viewOnce = message.message.viewOnceMessage.message;
+      if (viewOnce?.imageMessage) return "image";
+      if (viewOnce?.videoMessage) return "video";
+      if (viewOnce?.audioMessage) return "audio";
+    }
+    
+    // Check for view-once v2 messages
+    if (message.message?.viewOnceMessageV2) {
+      const viewOnce = message.message.viewOnceMessageV2.message;
+      if (viewOnce?.imageMessage) return "image";
+      if (viewOnce?.videoMessage) return "video";
+      if (viewOnce?.audioMessage) return "audio";
+    }
+
+    // Check for ephemeral messages
+    if (message.message?.ephemeralMessage) {
+      const ephemeral = message.message.ephemeralMessage.message;
+      if (ephemeral?.imageMessage) return "image";
+      if (ephemeral?.videoMessage) return "video";
+      if (ephemeral?.audioMessage) return "audio";
+      if (ephemeral?.documentMessage) return "document";
+      if (ephemeral?.stickerMessage) return "sticker";
+    }
+    
+    // Check regular messages
     if (message.message?.imageMessage) return "image";
     if (message.message?.videoMessage) return "video";
     if (message.message?.audioMessage) return "audio";
@@ -894,20 +941,32 @@ export class WhatsAppService extends EventEmitter {
 
       if (!buffer) return undefined;
 
+      // Get the actual message content for extracting mime type
+      let actualMessage = message.message;
+      
+      // Extract from view-once messages
+      if (message.message?.viewOnceMessage) {
+        actualMessage = message.message.viewOnceMessage.message;
+      } else if (message.message?.viewOnceMessageV2) {
+        actualMessage = message.message.viewOnceMessageV2.message;
+      } else if (message.message?.ephemeralMessage) {
+        actualMessage = message.message.ephemeralMessage.message;
+      }
+
       // Convert buffer to base64 data URL
       let mimeType = "image/jpeg";
-      if (message.message?.imageMessage) {
-        mimeType = message.message.imageMessage.mimetype || "image/jpeg";
-      } else if (message.message?.videoMessage) {
-        mimeType = message.message.videoMessage.mimetype || "video/mp4";
-      } else if (message.message?.audioMessage) {
-        mimeType = message.message.audioMessage.mimetype || "audio/ogg";
-      } else if (message.message?.documentMessage) {
+      if (actualMessage?.imageMessage) {
+        mimeType = actualMessage.imageMessage.mimetype || "image/jpeg";
+      } else if (actualMessage?.videoMessage) {
+        mimeType = actualMessage.videoMessage.mimetype || "video/mp4";
+      } else if (actualMessage?.audioMessage) {
+        mimeType = actualMessage.audioMessage.mimetype || "audio/ogg";
+      } else if (actualMessage?.documentMessage) {
         mimeType =
-          message.message.documentMessage.mimetype ||
+          actualMessage.documentMessage.mimetype ||
           "application/octet-stream";
-      } else if (message.message?.stickerMessage) {
-        mimeType = message.message.stickerMessage.mimetype || "image/webp";
+      } else if (actualMessage?.stickerMessage) {
+        mimeType = actualMessage.stickerMessage.mimetype || "image/webp";
       }
 
       const base64 = buffer.toString("base64");
