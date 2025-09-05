@@ -130,25 +130,122 @@ export class OfficeAutomation {
         }
       }
       
-      console.log('✅ Logado com sucesso!');
+      console.log('✅ Login processado!');
       
-      // Verificar URL atual e navegar para página de usuários IPTV se necessário
-      const loggedUrl = page.url();
-      console.log('📍 URL atual:', loggedUrl);
-
-      if (!loggedUrl.includes('users-iptv')) {
-        console.log('📍 Navegando para página de usuários IPTV...');
-        await page.goto(`${this.baseUrl}/#/users-iptv`, { 
-          waitUntil: 'networkidle2',
-          timeout: 30000 
+      // Aguardar um pouco mais para garantir que o login foi processado
+      await this.delay(3000);
+      
+      // Navegar diretamente para a página de usuários IPTV
+      console.log('📍 Navegando para página de usuários IPTV...');
+      await page.goto(`${this.baseUrl}/#/users-iptv`, { 
+        waitUntil: 'networkidle2',
+        timeout: 30000 
+      });
+      
+      // Aguardar a página carregar completamente
+      await this.delay(5000);
+      
+      // Verificar URL atual
+      const currentPageUrl = page.url();
+      console.log('🔗 URL da página atual:', currentPageUrl);
+      
+      // Verificar o título da página
+      const pageTitle = await page.title();
+      console.log('📄 Título da página:', pageTitle);
+      
+      // Verificar se há algum erro na página
+      const hasError = await page.evaluate(() => {
+        const bodyText = document.body.innerText.toLowerCase();
+        return bodyText.includes('error') || bodyText.includes('erro') || 
+               bodyText.includes('404') || bodyText.includes('not found');
+      });
+      
+      if (hasError) {
+        console.log('⚠️ Possível erro na página detectado');
+        
+        // Tentar navegar de forma diferente
+        console.log('🔄 Tentando navegação alternativa...');
+        await page.goto(this.baseUrl, { waitUntil: 'networkidle2' });
+        await this.delay(2000);
+        
+        // Clicar em link de usuários IPTV se existir
+        const linkClicked = await page.evaluate(() => {
+          const links = Array.from(document.querySelectorAll('a'));
+          const iptvLink = links.find(a => {
+            const text = a.textContent?.toLowerCase() || '';
+            const href = a.href?.toLowerCase() || '';
+            return text.includes('iptv') || text.includes('usuários') || 
+                   href.includes('users-iptv') || href.includes('iptv');
+          });
+          if (iptvLink) {
+            (iptvLink as HTMLAnchorElement).click();
+            return true;
+          }
+          return false;
         });
-        await this.delay(3000);
+        
+        if (linkClicked) {
+          console.log('✅ Link para usuários IPTV clicado');
+          await this.delay(3000);
+        } else {
+          console.log('⚠️ Link para usuários IPTV não encontrado');
+        }
       }
 
       // Aguardar carregamento completo da página
       console.log('⏳ Aguardando carregamento completo da página...');
-      await page.waitForSelector('button', { timeout: 10000 });
+      
+      try {
+        await page.waitForSelector('button', { timeout: 10000 });
+      } catch (e) {
+        console.log('⚠️ Timeout aguardando botões. Continuando...');
+      }
+      
       await this.delay(3000);
+      
+      // Salvar HTML da página para debug
+      const htmlContent = await page.evaluate(() => document.documentElement.outerHTML);
+      const htmlPath = '/tmp/office-debug.html';
+      await fs.writeFile(htmlPath, htmlContent);
+      console.log(`📝 HTML da página salvo em: ${htmlPath}`);
+      
+      // Salvar screenshot para debug
+      const screenshotPath = '/tmp/office-debug.png';
+      await page.screenshot({ path: screenshotPath, fullPage: true });
+      console.log(`📸 Screenshot salvo em: ${screenshotPath}`);
+      
+      // Verificar conteúdo da página
+      const pageInfo = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const links = Array.from(document.querySelectorAll('a'));
+        const tables = Array.from(document.querySelectorAll('table'));
+        const bodyText = document.body.innerText || '';
+        
+        return {
+          url: window.location.href,
+          title: document.title,
+          buttonCount: buttons.length,
+          linkCount: links.length,
+          tableCount: tables.length,
+          hasIPTVText: bodyText.toLowerCase().includes('iptv'),
+          hasUsuariosText: bodyText.toLowerCase().includes('usuários') || bodyText.toLowerCase().includes('usuarios'),
+          hasGerarText: bodyText.toLowerCase().includes('gerar'),
+          firstButtons: buttons.slice(0, 5).map(b => ({
+            text: b.innerText || b.textContent || '',
+            className: b.className,
+            id: b.id
+          }))
+        };
+      });
+      
+      console.log('📊 Informações da página:', JSON.stringify(pageInfo, null, 2));
+      
+      // Se não encontrar elementos esperados, tentar refresh
+      if (pageInfo.buttonCount <= 1 || !pageInfo.hasIPTVText) {
+        console.log('⚠️ Página parece não ter carregado corretamente. Tentando refresh...');
+        await page.reload({ waitUntil: 'networkidle2' });
+        await this.delay(5000);
+      }
       
       // Procurar e clicar no botão "Gerar IPTV"
       console.log('🎬 Procurando botão "Gerar IPTV"...');
@@ -159,14 +256,15 @@ export class OfficeAutomation {
         return buttons.map((btn, index) => {
           const text = btn.textContent?.trim() || '';
           const classes = btn.className || '';
-          return { index, text, classes };
+          const tagName = btn.tagName;
+          return { index, text, classes, tagName };
         });
       });
       
       console.log('📋 Botões encontrados na página:');
       buttonsInfo.forEach(btn => {
         if (btn.text) {
-          console.log(`  - Botão ${btn.index}: "${btn.text}" (classes: ${btn.classes})`);
+          console.log(`  - ${btn.tagName} ${btn.index}: "${btn.text}" (classes: ${btn.classes})`);
         }
       });
       
