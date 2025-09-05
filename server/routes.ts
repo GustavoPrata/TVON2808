@@ -4919,7 +4919,6 @@ Como posso ajudar você hoje?
         usuario: result.usuario,
         senha: result.senha,
         vencimento: result.vencimento,
-        m3u8: result.m3u8,
         message: "Teste IPTV gerado com sucesso!"
       });
     } catch (error) {
