@@ -24,10 +24,14 @@ export class OfficeAutomation {
     try {
       console.log('🚀 Iniciando automação do OnlineOffice...');
       
-      // Configurar o navegador
+      // Diretório para salvar dados do usuário (cookies, sessão, etc)
+      const userDataDir = '/tmp/puppeteer-user-data';
+      
+      // Configurar o navegador com perfil persistente
       browser = await puppeteerExtra.launch({
-        headless: true,
+        headless: false, // Mostrar navegador para permitir login manual
         executablePath: '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
+        userDataDir: userDataDir, // Salvar dados do usuário
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -38,7 +42,8 @@ export class OfficeAutomation {
           '--disable-site-isolation-trials',
           '--disable-gpu',
           '--no-first-run',
-          '--disable-default-apps'
+          '--disable-default-apps',
+          '--window-size=1280,720'
         ],
         ignoreDefaultArgs: ['--enable-automation'],
       });
@@ -54,177 +59,45 @@ export class OfficeAutomation {
         'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8'
       });
 
-      console.log('📍 Navegando para a página de login...');
-      await page.goto(`${this.baseUrl}/#/login`, { 
+      // Primeiro, verificar se já está logado (verificar URL)
+      console.log('📍 Navegando para o sistema...');
+      await page.goto(`${this.baseUrl}/#/users-iptv`, { 
         waitUntil: 'networkidle2',
         timeout: 30000 
       });
-
-      // Aguardar um pouco para a página carregar completamente
-      console.log('⏳ Aguardando página carregar...');
-      await this.delay(5000);
-      
-      // Aguardar que o Angular carregue completamente
-      try {
-        await page.waitForFunction(
-          () => {
-            // Verificar se o Angular está presente e carregado
-            return (window as any).getAllAngularRootElements !== undefined ||
-                   document.querySelector('input[placeholder]') !== null ||
-                   document.querySelector('form') !== null;
-          },
-          { timeout: 15000 }
-        );
-        console.log('✅ Angular ou formulário detectado');
-      } catch (e) {
-        console.log('⚠️ Timeout ao aguardar Angular/formulário');
-      }
       
       await this.delay(3000);
-
-      // Debug: verificar se a página carregou
-      const pageTitle = await page.title();
-      const pageUrl = page.url();
-      console.log('📄 Título da página:', pageTitle);
-      console.log('🔗 URL atual:', pageUrl);
       
-      // Debug: verificar o conteúdo HTML da página
-      const pageContent = await page.content();
-      console.log('📋 Tamanho do HTML:', pageContent.length, 'caracteres');
-      
-      // Debug: verificar se há algum formulário na página
-      const forms = await page.$$('form');
-      console.log('📝 Formulários encontrados:', forms.length);
-      
-      // Debug: listar todos os inputs encontrados
-      const inputs = await page.$$('input');
-      console.log('🔍 Inputs encontrados:', inputs.length);
-      
-      // Listar os placeholders dos inputs
-      for (let i = 0; i < inputs.length; i++) {
-        const placeholder = await inputs[i].evaluate(el => el.getAttribute('placeholder'));
-        const type = await inputs[i].evaluate(el => el.type);
-        console.log(`  Input ${i + 1}: type="${type}", placeholder="${placeholder}"`);
-      }
-      
-      // Preencher username - usando seletor específico do site
-      console.log('📝 Tentando preencher credenciais...');
-      try {
-        // Tentar múltiplos seletores
-        const usernameSelectors = [
-          'input[placeholder="Usuário"]',
-          'input[placeholder*="usuário" i]',
-          'input[placeholder*="user" i]',
-          'input[type="text"]:not([placeholder*="senha" i])',
-          'input:not([type="password"])',
-        ];
-        
-        let usernameField = null;
-        for (const selector of usernameSelectors) {
-          try {
-            const element = await page.$(selector);
-            if (element) {
-              usernameField = selector;
-              console.log(`✅ Campo username encontrado com seletor: ${selector}`);
-              break;
-            }
-          } catch (e) {
-            continue;
-          }
-        }
-        
-        if (!usernameField) {
-          throw new Error('Nenhum seletor funcionou para o campo de username');
-        }
-        
-        await page.click(usernameField);
-        await page.type(usernameField, this.username, { delay: 100 });
-        console.log('✅ Campo username preenchido');
-        await this.delay(1000);
-      } catch (e) {
-        console.error('❌ Erro ao preencher username:', e);
-        throw new Error('Campo de username não encontrado - verifique se a página carregou corretamente');
-      }
-
-      // Preencher password - usando seletor específico do site
-      try {
-        const passwordSelector = 'input[placeholder="Senha"][type="password"]';
-        await page.waitForSelector(passwordSelector, { timeout: 10000 });
-        await page.click(passwordSelector);
-        await page.type(passwordSelector, this.password, { delay: 100 });
-        console.log('✅ Campo password preenchido');
-        await this.delay(1000);
-      } catch (e) {
-        console.error('❌ Erro ao preencher password:', e);
-        throw new Error('Campo de password não encontrado - verifique se a página carregou corretamente');
-      }
-
-      // Tentar marcar o checkbox do reCAPTCHA
-      console.log('🤖 Tentando marcar checkbox "Não sou um robô"...');
-      
-      // Primeiro, procurar por frames do reCAPTCHA
-      const frames = page.frames();
-      let recaptchaFrame = frames.find(frame => frame.url().includes('recaptcha'));
-      
-      if (recaptchaFrame) {
-        try {
-          // Tentar clicar no checkbox dentro do frame
-          await recaptchaFrame.click('.recaptcha-checkbox-border');
-          console.log('✅ Checkbox marcado!');
-          await this.delay(2000);
-        } catch (e) {
-          console.log('⚠️ Não foi possível clicar no checkbox do reCAPTCHA automaticamente');
-        }
-      } else {
-        // Tentar clicar em qualquer checkbox visível
-        try {
-          await page.click('input[type="checkbox"]');
-          console.log('✅ Checkbox marcado!');
-          await this.delay(2000);
-        } catch (e) {
-          console.log('⚠️ Checkbox não encontrado ou já marcado');
-        }
-      }
-
-      // Clicar no botão de login
-      console.log('🔐 Fazendo login...');
-      try {
-        // Tentar clicar no botão usando múltiplas estratégias
-        const loginButtonSelectors = [
-          'button.btn.btn-primary',
-          'button:has-text("Logar")',
-          'button[type="button"]'
-        ];
-        
-        let clicked = false;
-        for (const selector of loginButtonSelectors) {
-          try {
-            await page.click(selector, { delay: 100 });
-            clicked = true;
-            console.log(`✅ Botão de login clicado com seletor: ${selector}`);
-            break;
-          } catch (e) {
-            continue;
-          }
-        }
-        
-        if (!clicked) {
-          throw new Error('Botão de login não encontrado');
-        }
-      } catch (e) {
-        console.error('❌ Erro ao clicar no botão de login:', e);
-        throw e;
-      }
-      
-      // Aguardar o redirecionamento
-      await this.delay(5000);
-
-      // Verificar se estamos na página correta após o login
+      // Verificar se foi redirecionado para login
       const currentUrl = page.url();
-      console.log('📍 URL atual:', currentUrl);
+      console.log('🔗 URL atual:', currentUrl);
+      
+      if (currentUrl.includes('/login')) {
+        console.log('⚠️ Não está logado. Por favor, faça login manualmente no navegador que abriu.');
+        console.log('📝 Instruções:');
+        console.log('   1. Preencha o usuário e senha');
+        console.log('   2. Resolva o captcha "Não sou um robô"');
+        console.log('   3. Clique em Logar');
+        console.log('   4. Aguarde ser redirecionado');
+        console.log('⏳ Aguardando 30 segundos para login manual...');
+        
+        // Aguardar 30 segundos para o usuário fazer login manual
+        await this.delay(30000);
+        
+        // Verificar se o login foi feito
+        const urlAfterWait = page.url();
+        if (urlAfterWait.includes('/login')) {
+          throw new Error('Login não foi realizado. Por favor, tente novamente e faça o login manualmente.');
+        }
+      }
+      
+      console.log('✅ Logado com sucesso!');
+      
+      // Verificar URL atual e navegar para página de usuários IPTV se necessário
+      const loggedUrl = page.url();
+      console.log('📍 URL atual:', loggedUrl);
 
-      // Navegar para a página de usuários IPTV se necessário
-      if (!currentUrl.includes('users-iptv')) {
+      if (!loggedUrl.includes('users-iptv')) {
         console.log('📍 Navegando para página de usuários IPTV...');
         await page.goto(`${this.baseUrl}/#/users-iptv`, { 
           waitUntil: 'networkidle2',
