@@ -135,15 +135,48 @@ export class OfficeAutomation {
       // Aguardar um pouco mais para garantir que o login foi processado
       await this.delay(3000);
       
-      // Navegar diretamente para a página de usuários IPTV
-      console.log('📍 Navegando para página de usuários IPTV...');
-      await page.goto(`${this.baseUrl}/#/users-iptv`, { 
+      // Primeiro tentar no dashboard
+      console.log('📍 Navegando para o dashboard...');
+      await page.goto(`${this.baseUrl}/#/dashboard`, { 
         waitUntil: 'networkidle2',
         timeout: 30000 
       });
       
-      // Aguardar a página carregar completamente
+      // Aguardar a página carregar
       await this.delay(5000);
+      
+      // Verificar se o botão "Gerar IPTV" está no dashboard
+      let hasGerarButton = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button, a'));
+        return buttons.some(btn => {
+          const text = (btn as HTMLElement).innerText || btn.textContent || '';
+          return text.includes('Gerar IPTV') || text.includes('Gerar iptv');
+        });
+      });
+      
+      console.log(`🔍 Botão "Gerar IPTV" no dashboard: ${hasGerarButton ? 'Encontrado ✅' : 'Não encontrado ❌'}`);
+      
+      // Se não encontrar no dashboard, tentar na página users-iptv
+      if (!hasGerarButton) {
+        console.log('📍 Navegando para página users-iptv...');
+        await page.goto(`${this.baseUrl}/#/users-iptv`, { 
+          waitUntil: 'networkidle2',
+          timeout: 30000 
+        });
+        
+        await this.delay(5000);
+        
+        // Verificar novamente
+        hasGerarButton = await page.evaluate(() => {
+          const buttons = Array.from(document.querySelectorAll('button, a'));
+          return buttons.some(btn => {
+            const text = (btn as HTMLElement).innerText || btn.textContent || '';
+            return text.includes('Gerar IPTV') || text.includes('Gerar iptv');
+          });
+        });
+        
+        console.log(`🔍 Botão "Gerar IPTV" em users-iptv: ${hasGerarButton ? 'Encontrado ✅' : 'Não encontrado ❌'}`);
+      }
       
       // Verificar URL atual
       const currentPageUrl = page.url();
@@ -202,50 +235,6 @@ export class OfficeAutomation {
       }
       
       await this.delay(3000);
-      
-      // Salvar HTML da página para debug
-      const htmlContent = await page.evaluate(() => document.documentElement.outerHTML);
-      const htmlPath = '/tmp/office-debug.html';
-      await fs.writeFile(htmlPath, htmlContent);
-      console.log(`📝 HTML da página salvo em: ${htmlPath}`);
-      
-      // Salvar screenshot para debug
-      const screenshotPath = '/tmp/office-debug.png';
-      await page.screenshot({ path: screenshotPath, fullPage: true });
-      console.log(`📸 Screenshot salvo em: ${screenshotPath}`);
-      
-      // Verificar conteúdo da página
-      const pageInfo = await page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('button'));
-        const links = Array.from(document.querySelectorAll('a'));
-        const tables = Array.from(document.querySelectorAll('table'));
-        const bodyText = document.body.innerText || '';
-        
-        return {
-          url: window.location.href,
-          title: document.title,
-          buttonCount: buttons.length,
-          linkCount: links.length,
-          tableCount: tables.length,
-          hasIPTVText: bodyText.toLowerCase().includes('iptv'),
-          hasUsuariosText: bodyText.toLowerCase().includes('usuários') || bodyText.toLowerCase().includes('usuarios'),
-          hasGerarText: bodyText.toLowerCase().includes('gerar'),
-          firstButtons: buttons.slice(0, 5).map(b => ({
-            text: b.innerText || b.textContent || '',
-            className: b.className,
-            id: b.id
-          }))
-        };
-      });
-      
-      console.log('📊 Informações da página:', JSON.stringify(pageInfo, null, 2));
-      
-      // Se não encontrar elementos esperados, tentar refresh
-      if (pageInfo.buttonCount <= 1 || !pageInfo.hasIPTVText) {
-        console.log('⚠️ Página parece não ter carregado corretamente. Tentando refresh...');
-        await page.reload({ waitUntil: 'networkidle2' });
-        await this.delay(5000);
-      }
       
       // Procurar e clicar no botão "Gerar IPTV"
       console.log('🎬 Procurando botão "Gerar IPTV"...');
