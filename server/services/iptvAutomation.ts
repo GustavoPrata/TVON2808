@@ -9,6 +9,10 @@ export class IPTVAutomationService {
   private baseUrl = 'https://onlineoffice.zip';
   private username = 'gustavoprata17';
   private password = 'iptv102030';
+  
+  private async delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
 
   async gerarUsuarioTeste(): Promise<IPTVCredentials> {
     console.log('Iniciando automação IPTV...');
@@ -42,7 +46,7 @@ export class IPTVAutomationService {
       });
       
       // Aguarda a página carregar completamente
-      await page.waitForTimeout(3000);
+      await this.delay(3000);
       
       // Procura pelo formulário de login
       console.log('Procurando formulário de login...');
@@ -60,7 +64,7 @@ export class IPTVAutomationService {
       await page.type(passwordSelector, this.password);
       
       // Pequena pausa
-      await page.waitForTimeout(1000);
+      await this.delay(1000);
       
       // Procura e clica no botão de login
       console.log('Realizando login...');
@@ -103,7 +107,7 @@ export class IPTVAutomationService {
       
       // Aguarda o redirecionamento após login
       console.log('Aguardando dashboard...');
-      await page.waitForTimeout(5000);
+      await this.delay(5000);
       
       // Procura pelo botão "Gerar IPTV"
       console.log('Procurando botão Gerar IPTV...');
@@ -144,7 +148,7 @@ export class IPTVAutomationService {
       console.log('Clicou em Gerar IPTV');
       
       // Aguarda o modal/popup aparecer
-      await page.waitForTimeout(2000);
+      await this.delay(2000);
       
       // Preenche a nota
       console.log('Preenchendo dados do teste...');
@@ -189,7 +193,7 @@ export class IPTVAutomationService {
         console.log('Não foi possível selecionar duração, usando padrão');
       }
       
-      await page.waitForTimeout(1000);
+      await this.delay(1000);
       
       // Clica em Confirmar
       console.log('Confirmando geração...');
@@ -222,7 +226,7 @@ export class IPTVAutomationService {
       
       // Aguarda as credenciais aparecerem
       console.log('Aguardando credenciais...');
-      await page.waitForTimeout(5000);
+      await this.delay(5000);
       
       // Extrai as credenciais
       const credenciais = await page.evaluate(() => {
