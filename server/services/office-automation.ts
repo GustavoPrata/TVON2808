@@ -61,20 +61,84 @@ export class OfficeAutomation {
       });
 
       // Aguardar um pouco para a página carregar completamente
+      console.log('⏳ Aguardando página carregar...');
       await this.delay(5000);
+      
+      // Aguardar que o Angular carregue completamente
+      try {
+        await page.waitForFunction(
+          () => {
+            // Verificar se o Angular está presente e carregado
+            return (window as any).getAllAngularRootElements !== undefined ||
+                   document.querySelector('input[placeholder]') !== null ||
+                   document.querySelector('form') !== null;
+          },
+          { timeout: 15000 }
+        );
+        console.log('✅ Angular ou formulário detectado');
+      } catch (e) {
+        console.log('⚠️ Timeout ao aguardar Angular/formulário');
+      }
+      
+      await this.delay(3000);
 
       // Debug: verificar se a página carregou
       const pageTitle = await page.title();
+      const pageUrl = page.url();
       console.log('📄 Título da página:', pageTitle);
+      console.log('🔗 URL atual:', pageUrl);
+      
+      // Debug: verificar o conteúdo HTML da página
+      const pageContent = await page.content();
+      console.log('📋 Tamanho do HTML:', pageContent.length, 'caracteres');
+      
+      // Debug: verificar se há algum formulário na página
+      const forms = await page.$$('form');
+      console.log('📝 Formulários encontrados:', forms.length);
+      
+      // Debug: listar todos os inputs encontrados
+      const inputs = await page.$$('input');
+      console.log('🔍 Inputs encontrados:', inputs.length);
+      
+      // Listar os placeholders dos inputs
+      for (let i = 0; i < inputs.length; i++) {
+        const placeholder = await inputs[i].evaluate(el => el.getAttribute('placeholder'));
+        const type = await inputs[i].evaluate(el => el.type);
+        console.log(`  Input ${i + 1}: type="${type}", placeholder="${placeholder}"`);
+      }
       
       // Preencher username - usando seletor específico do site
-      console.log('📝 Preenchendo credenciais...');
+      console.log('📝 Tentando preencher credenciais...');
       try {
-        // Aguardar e preencher campo de usuário
-        const usernameSelector = 'input[placeholder="Usuário"]';
-        await page.waitForSelector(usernameSelector, { timeout: 10000 });
-        await page.click(usernameSelector);
-        await page.type(usernameSelector, this.username, { delay: 100 });
+        // Tentar múltiplos seletores
+        const usernameSelectors = [
+          'input[placeholder="Usuário"]',
+          'input[placeholder*="usuário" i]',
+          'input[placeholder*="user" i]',
+          'input[type="text"]:not([placeholder*="senha" i])',
+          'input:not([type="password"])',
+        ];
+        
+        let usernameField = null;
+        for (const selector of usernameSelectors) {
+          try {
+            const element = await page.$(selector);
+            if (element) {
+              usernameField = selector;
+              console.log(`✅ Campo username encontrado com seletor: ${selector}`);
+              break;
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (!usernameField) {
+          throw new Error('Nenhum seletor funcionou para o campo de username');
+        }
+        
+        await page.click(usernameField);
+        await page.type(usernameField, this.username, { delay: 100 });
         console.log('✅ Campo username preenchido');
         await this.delay(1000);
       } catch (e) {
