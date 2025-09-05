@@ -6,140 +6,263 @@ export interface IPTVCredentials {
 }
 
 export class IPTVAutomationService {
-  private baseUrl = 'https://onlineoffice.zip/#/dashboard';
+  private baseUrl = 'https://onlineoffice.zip';
   private username = 'gustavoprata17';
   private password = 'iptv102030';
 
   async gerarUsuarioTeste(): Promise<IPTVCredentials> {
+    console.log('Iniciando automação IPTV...');
+    
     const browser = await puppeteer.launch({
       headless: 'new',
+      executablePath: '/tmp/chromium',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--disable-web-security',
+        '--disable-features=IsolateOrigins,site-per-process',
+        '--disable-blink-features=AutomationControlled',
+        '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       ]
     });
 
     try {
       const page = await browser.newPage();
       
-      // Define viewport
+      // Configura o viewport e user agent
       await page.setViewport({ width: 1280, height: 800 });
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
       
-      // Navega para a página
+      // Navega para a página de login
       console.log('Navegando para o painel IPTV...');
-      await page.goto(this.baseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      await page.goto(this.baseUrl, { 
+        waitUntil: 'networkidle2', 
+        timeout: 30000 
+      });
       
-      // Aguarda um pouco para a página carregar completamente
-      await page.waitForTimeout(2000);
-      
-      // Aguarda o formulário de login carregar
-      await page.waitForSelector('#username', { timeout: 10000 });
-      
-      // Preenche o usuário
-      console.log('Preenchendo credenciais...');
-      await page.type('#username', this.username);
-      await page.waitForTimeout(500);
-      
-      // Preenche a senha
-      await page.type('#password', this.password);
-      await page.waitForTimeout(500);
-      
-      // Tenta marcar checkbox "Não sou um robô" se existir
-      try {
-        await page.waitForSelector('input[type="checkbox"]', { timeout: 2000 });
-        await page.click('input[type="checkbox"]');
-        await page.waitForTimeout(500);
-      } catch (e) {
-        console.log('Checkbox não encontrado, continuando...');
-      }
-      
-      // Clica no botão de login
-      console.log('Realizando login...');
-      await page.waitForXPath('//button[contains(text(), "Logar")]', { timeout: 5000 });
-      await page.click('button[type="submit"]');
-      
-      // Aguarda a página carregar após login
+      // Aguarda a página carregar completamente
       await page.waitForTimeout(3000);
       
-      // Aguarda e clica no botão "Gerar IPTV"
-      console.log('Procurando botão Gerar IPTV...');
-      await page.waitForTimeout(2000);
-      const gerarButtonXPath = '//button[contains(text(), "Gerar IPTV")]';
-      await page.waitForXPath(gerarButtonXPath, { timeout: 10000 });
-      const [gerarButton] = await page.$x(gerarButtonXPath);
-      await gerarButton?.click();
+      // Procura pelo formulário de login
+      console.log('Procurando formulário de login...');
       
-      // Aguarda modal/popup aparecer
+      // Tenta encontrar e preencher o campo de usuário
+      const usernameSelector = 'input[id="username"], input[name="username"], input[type="text"]';
+      await page.waitForSelector(usernameSelector, { timeout: 10000 });
+      await page.click(usernameSelector);
+      await page.type(usernameSelector, this.username);
+      
+      // Tenta encontrar e preencher o campo de senha
+      const passwordSelector = 'input[id="password"], input[name="password"], input[type="password"]';
+      await page.waitForSelector(passwordSelector, { timeout: 5000 });
+      await page.click(passwordSelector);
+      await page.type(passwordSelector, this.password);
+      
+      // Pequena pausa
+      await page.waitForTimeout(1000);
+      
+      // Procura e clica no botão de login
+      console.log('Realizando login...');
+      
+      // Tenta várias formas de encontrar o botão de login
+      const loginButtonSelectors = [
+        'button[type="submit"]',
+        'button:contains("Logar")',
+        'button:contains("Login")',
+        'input[type="submit"]',
+        'button.btn-primary'
+      ];
+      
+      let loginClicked = false;
+      for (const selector of loginButtonSelectors) {
+        try {
+          if (selector.includes(':contains')) {
+            const [button] = await page.$x(`//button[contains(text(), "${selector.match(/:contains\("(.+)"\)/)?.[1]}")]`);
+            if (button) {
+              await button.click();
+              loginClicked = true;
+              break;
+            }
+          } else {
+            const button = await page.$(selector);
+            if (button) {
+              await button.click();
+              loginClicked = true;
+              break;
+            }
+          }
+        } catch (e) {
+          // Continua tentando outros seletores
+        }
+      }
+      
+      if (!loginClicked) {
+        throw new Error('Não foi possível encontrar o botão de login');
+      }
+      
+      // Aguarda o redirecionamento após login
+      console.log('Aguardando dashboard...');
+      await page.waitForTimeout(5000);
+      
+      // Procura pelo botão "Gerar IPTV"
+      console.log('Procurando botão Gerar IPTV...');
+      
+      // Tenta encontrar o botão através de diferentes métodos
+      let gerarButton = null;
+      
+      // Método 1: XPath com texto
+      try {
+        const [xpathButton] = await page.$x('//button[contains(text(), "Gerar IPTV")]');
+        if (xpathButton) gerarButton = xpathButton;
+      } catch (e) {}
+      
+      // Método 2: Selector CSS
+      if (!gerarButton) {
+        try {
+          gerarButton = await page.$('button.gerar-iptv, button#gerar-iptv');
+        } catch (e) {}
+      }
+      
+      // Método 3: Procura por todos os botões e verifica o texto
+      if (!gerarButton) {
+        const buttons = await page.$$('button');
+        for (const button of buttons) {
+          const text = await page.evaluate(el => el.textContent, button);
+          if (text && text.includes('Gerar IPTV')) {
+            gerarButton = button;
+            break;
+          }
+        }
+      }
+      
+      if (!gerarButton) {
+        throw new Error('Botão "Gerar IPTV" não encontrado');
+      }
+      
+      await gerarButton.click();
+      console.log('Clicou em Gerar IPTV');
+      
+      // Aguarda o modal/popup aparecer
       await page.waitForTimeout(2000);
       
       // Preenche a nota
       console.log('Preenchendo dados do teste...');
-      const notaInputXPath = '//input[contains(@placeholder, "nota")]';
-      await page.waitForXPath(notaInputXPath, { timeout: 5000 });
-      const [notaInput] = await page.$x(notaInputXPath);
-      await notaInput?.type('teste');
-      await page.waitForTimeout(500);
+      const notaSelectors = [
+        'input[placeholder*="nota" i]',
+        'input[name*="nota" i]',
+        'input#nota'
+      ];
+      
+      let notaFilled = false;
+      for (const selector of notaSelectors) {
+        try {
+          const input = await page.$(selector);
+          if (input) {
+            await input.click();
+            await input.type('teste');
+            notaFilled = true;
+            break;
+          }
+        } catch (e) {}
+      }
+      
+      if (!notaFilled) {
+        console.log('Campo de nota não encontrado, continuando...');
+      }
       
       // Seleciona "6 Horas" no dropdown
+      console.log('Selecionando duração...');
       try {
-        const selectElement = await page.waitForSelector('select', { timeout: 5000 });
+        // Tenta encontrar o select
+        const selectElement = await page.$('select');
         if (selectElement) {
           await page.select('select', '6 Horas');
+        } else {
+          // Alternativa: procura por dropdown customizado
+          const [option] = await page.$x('//option[contains(text(), "6 Horas")]');
+          if (option) {
+            await option.click();
+          }
         }
       } catch (e) {
-        // Alternativa: tenta clicar na opção diretamente
-        await page.click('select');
-        await page.waitForTimeout(500);
-        const optionXPath = '//option[contains(text(), "6 Horas")]';
-        const [option] = await page.$x(optionXPath);
-        await option?.click();
+        console.log('Não foi possível selecionar duração, usando padrão');
       }
-      await page.waitForTimeout(500);
+      
+      await page.waitForTimeout(1000);
       
       // Clica em Confirmar
       console.log('Confirmando geração...');
-      const confirmarButtonXPath = '//button[contains(text(), "Confirmar")]';
-      await page.waitForXPath(confirmarButtonXPath, { timeout: 5000 });
-      const [confirmarButton] = await page.$x(confirmarButtonXPath);
-      await confirmarButton?.click();
+      const confirmarSelectors = [
+        '//button[contains(text(), "Confirmar")]',
+        '//button[contains(text(), "Gerar")]',
+        '//button[contains(text(), "OK")]',
+        '//button[contains(@class, "confirm")]'
+      ];
       
-      // Aguarda credenciais aparecerem
-      await page.waitForTimeout(3000);
+      let confirmClicked = false;
+      for (const selector of confirmarSelectors) {
+        try {
+          const [button] = await page.$x(selector);
+          if (button) {
+            await button.click();
+            confirmClicked = true;
+            break;
+          }
+        } catch (e) {}
+      }
       
-      // Extrai usuário e senha
+      if (!confirmClicked) {
+        // Tenta clicar em qualquer botão de confirmação
+        const buttons = await page.$$('button.btn-primary, button.btn-success');
+        if (buttons.length > 0) {
+          await buttons[0].click();
+        }
+      }
+      
+      // Aguarda as credenciais aparecerem
+      console.log('Aguardando credenciais...');
+      await page.waitForTimeout(5000);
+      
+      // Extrai as credenciais
       const credenciais = await page.evaluate(() => {
         let usuario = '';
         let senha = '';
         
-        // Procura pelos elementos que contêm as credenciais
-        const elements = document.querySelectorAll('p, span, div');
+        // Procura em todos os elementos da página
+        const allText = document.body.innerText;
         
-        for (let i = 0; i < elements.length; i++) {
-          const text = elements[i].textContent || '';
-          
-          if (text.includes('USUÁRIO:') || text.includes('Usuário:')) {
-            // Tenta pegar o próximo elemento ou o texto após os dois pontos
-            if (elements[i + 1]) {
-              usuario = elements[i + 1].textContent?.trim() || '';
-            } else {
-              const match = text.match(/USU[AÁ]RIO:\s*(.+)/i);
-              if (match) usuario = match[1].trim();
+        // Regex para encontrar usuário
+        const usuarioMatch = allText.match(/USU[AÁ]RIO[:]?\s*([^\s\n]+)/i);
+        if (usuarioMatch) {
+          usuario = usuarioMatch[1].trim();
+        }
+        
+        // Regex para encontrar senha
+        const senhaMatch = allText.match(/SENHA[:]?\s*([^\s\n]+)/i);
+        if (senhaMatch) {
+          senha = senhaMatch[1].trim();
+        }
+        
+        // Se não encontrou, tenta procurar em elementos específicos
+        if (!usuario || !senha) {
+          const elements = document.querySelectorAll('p, span, div, td, h1, h2, h3, h4, h5, h6');
+          for (const element of elements) {
+            const text = element.textContent || '';
+            
+            if (!usuario && (text.includes('USUÁRIO:') || text.includes('Usuário:'))) {
+              const parts = text.split(':');
+              if (parts.length > 1) {
+                usuario = parts[1].trim();
+              }
             }
-          }
-          
-          if (text.includes('SENHA:') || text.includes('Senha:')) {
-            // Tenta pegar o próximo elemento ou o texto após os dois pontos
-            if (elements[i + 1]) {
-              senha = elements[i + 1].textContent?.trim() || '';
-            } else {
-              const match = text.match(/SENHA:\s*(.+)/i);
-              if (match) senha = match[1].trim();
+            
+            if (!senha && (text.includes('SENHA:') || text.includes('Senha:'))) {
+              const parts = text.split(':');
+              if (parts.length > 1) {
+                senha = parts[1].trim();
+              }
             }
           }
         }
@@ -147,16 +270,25 @@ export class IPTVAutomationService {
         return { usuario, senha };
       });
       
-      console.log('Credenciais extraídas:', credenciais);
+      console.log('Credenciais extraídas:', { 
+        usuario: credenciais.usuario ? '***' : 'não encontrado',
+        senha: credenciais.senha ? '***' : 'não encontrado'
+      });
       
       if (!credenciais.usuario || !credenciais.senha) {
+        // Tenta capturar screenshot para debug
+        try {
+          await page.screenshot({ path: '/tmp/iptv-error.png' });
+          console.log('Screenshot salvo em /tmp/iptv-error.png');
+        } catch (e) {}
+        
         throw new Error('Não foi possível extrair as credenciais geradas');
       }
       
       return credenciais;
       
-    } catch (error) {
-      console.error('Erro na automação:', error);
+    } catch (error: any) {
+      console.error('Erro na automação IPTV:', error);
       throw new Error(`Falha na automação IPTV: ${error.message}`);
     } finally {
       await browser.close();
