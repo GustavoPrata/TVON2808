@@ -38,9 +38,8 @@ export default function ConfigUser() {
   // Mutation para gerar novo usuário
   const generateUserMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/usuarios-gerados/gerar", {
-        method: "POST",
-      });
+      const response = await apiRequest("POST", "/api/usuarios-gerados/gerar");
+      return await response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/usuarios-gerados"] });
