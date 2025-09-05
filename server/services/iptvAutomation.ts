@@ -1,213 +1,215 @@
-import puppeteer from 'puppeteer';
+import { Builder, By, until, WebDriver } from 'selenium-webdriver';
+import chrome from 'selenium-webdriver/chrome';
+import { storage } from '../storage';
+import { addLog } from '../utils/logger';
+const chromedriver = require('chromedriver');
 
-export interface IPTVCredentials {
+interface IptvCredentials {
   usuario: string;
   senha: string;
+  nota?: string;
+  duracao: string;
 }
 
-export class IPTVAutomationService {
-  private baseUrl = 'https://onlineoffice.zip';
-  private username = 'gustavoprata17';
-  private password = 'iptv102030';
-  
-  private async delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+interface IptvAutomationConfig {
+  url: string;
+  username: string;
+  password: string;
+  headless?: boolean;
+}
+
+class IptvAutomationService {
+  private config: IptvAutomationConfig = {
+    url: 'https://onlineoffice.zip/#/dashboard',
+    username: 'gustavoprata17',
+    password: 'iptv102030',
+    headless: true // Executa sem interface gráfica
+  };
+
+  private driver: WebDriver | null = null;
+
+  constructor(config?: Partial<IptvAutomationConfig>) {
+    if (config) {
+      this.config = { ...this.config, ...config };
+    }
   }
 
-  async gerarUsuarioTeste(): Promise<IPTVCredentials> {
-    console.log('Iniciando geração de usuário IPTV...');
+  private async initDriver(): Promise<WebDriver> {
+    const options = new chrome.Options();
     
-    // Flag para forçar geração local (habilitada temporariamente)
-    const useLocalGeneration = true; // Geração local até resolvermos o acesso ao painel
-    
-    if (useLocalGeneration) {
-      // Gera credenciais únicas localmente
-      const timestamp = Date.now();
-      const randomNum = Math.floor(Math.random() * 9000) + 1000;
-      const usuario = `teste${randomNum}${timestamp.toString().slice(-4)}`;
-      const senha = `iptv${randomNum}`;
-      
-      console.log('Site IPTV indisponível - gerando credenciais localmente');
-      console.log(`Credenciais geradas: usuario=${usuario}`);
-      
-      // Simula um pequeno delay para parecer mais realista
-      await this.delay(1500);
-      
-      return {
-        usuario,
-        senha
-      };
+    if (this.config.headless) {
+      options.addArguments('--headless');
+      options.addArguments('--no-sandbox');
+      options.addArguments('--disable-dev-shm-usage');
+      options.addArguments('--disable-gpu');
     }
     
-    // Código original da automação (mantido para quando o site voltar)
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-web-security',
-        '--disable-features=IsolateOrigins,site-per-process',
-        '--disable-blink-features=AutomationControlled'
-      ]
-    });
+    // Configurações adicionais para evitar detecção de bot
+    options.addArguments('--disable-blink-features=AutomationControlled');
+    options.excludeSwitches('enable-automation');
+    options.addArguments('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    
+    const service = new chrome.ServiceBuilder(chromedriver.path);
+    
+    this.driver = await new Builder()
+      .forBrowser('chrome')
+      .setChromeOptions(options)
+      .setChromeService(service)
+      .build();
+    
+    return this.driver;
+  }
 
+  async generateTest(
+    nota: string = 'teste',
+    duracao: '6 Horas' | '12 Horas' | '24 Horas' | '48 Horas' = '6 Horas'
+  ): Promise<IptvCredentials | null> {
     try {
-      const page = await browser.newPage();
+      await addLog('info', 'IPTV Automation', 'Iniciando automação para gerar teste IPTV');
       
-      // Configura o viewport e user agent
-      await page.setViewport({ width: 1280, height: 800 });
-      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      const driver = await this.initDriver();
       
       // Navega para a página de login
-      console.log('Navegando para o painel IPTV...');
-      await page.goto(this.baseUrl, { 
-        waitUntil: 'networkidle2', 
-        timeout: 30000 
-      });
+      await driver.get(this.config.url);
+      await driver.sleep(2000);
       
-      // Aguarda a página carregar
-      await this.delay(3000);
+      // Preenche o campo de usuário
+      const usernameField = await driver.wait(
+        until.elementLocated(By.css('input[placeholder*="Usuário"], input#username, input[name="username"]')),
+        10000
+      );
+      await usernameField.sendKeys(this.config.username);
+      await driver.sleep(1000);
       
-      // Verifica se a página carregou corretamente
-      const pageTitle = await page.title();
-      const pageUrl = page.url();
+      // Preenche o campo de senha
+      const passwordField = await driver.wait(
+        until.elementLocated(By.css('input[type="password"], input#password, input[name="password"]')),
+        10000
+      );
+      await passwordField.sendKeys(this.config.password);
+      await driver.sleep(1000);
       
-      console.log(`Título da página: ${pageTitle}`);
-      console.log(`URL atual: ${pageUrl}`);
+      // Tenta marcar o checkbox "Não sou um robô" se existir
+      try {
+        const recaptchaCheckbox = await driver.findElement(
+          By.css('input[type="checkbox"][id*="recaptcha"], .recaptcha-checkbox')
+        );
+        await recaptchaCheckbox.click();
+        await driver.sleep(1000);
+      } catch (e) {
+        // Se não encontrar o recaptcha, continua
+        console.log('Recaptcha não encontrado, continuando...');
+      }
       
-      // Se a página não carregou (404 ou erro), usa geração local
-      if (pageTitle.toLowerCase().includes('404') || 
-          pageTitle.toLowerCase().includes('not found') ||
-          pageTitle.toLowerCase().includes('error')) {
-        console.log('Site IPTV indisponível - usando geração local');
-        await browser.close();
+      // Clica no botão de login
+      const loginButton = await driver.wait(
+        until.elementLocated(By.xpath('//button[contains(text(), "Logar")] | //button[contains(text(), "Login")]')),
+        10000
+      );
+      await loginButton.click();
+      await addLog('info', 'IPTV Automation', 'Login realizado com sucesso');
+      await driver.sleep(3000);
+      
+      // Aguarda e clica no botão "Gerar IPTV"
+      const gerarIptvButton = await driver.wait(
+        until.elementLocated(By.xpath('//button[contains(text(), "Gerar IPTV")]')),
+        10000
+      );
+      await gerarIptvButton.click();
+      await addLog('info', 'IPTV Automation', 'Botão "Gerar IPTV" clicado');
+      await driver.sleep(2000);
+      
+      // Preenche o campo de nota
+      const notaField = await driver.wait(
+        until.elementLocated(By.css('input[placeholder*="nota"]')),
+        10000
+      );
+      await notaField.clear();
+      await notaField.sendKeys(nota);
+      await driver.sleep(1000);
+      
+      // Seleciona o tempo de teste
+      const tempoDropdown = await driver.wait(
+        until.elementLocated(By.css('select[placeholder*="tempo de teste"], select[name*="tempo"]')),
+        10000
+      );
+      await tempoDropdown.click();
+      await driver.sleep(500);
+      
+      const tempoOption = await driver.wait(
+        until.elementLocated(By.xpath(`//option[text()="${duracao}"]`)),
+        10000
+      );
+      await tempoOption.click();
+      await driver.sleep(1000);
+      
+      // Clica no botão Confirmar
+      const confirmarButton = await driver.wait(
+        until.elementLocated(By.xpath('//button[contains(text(), "Confirmar")]')),
+        10000
+      );
+      await confirmarButton.click();
+      await addLog('info', 'IPTV Automation', 'Confirmação realizada, aguardando credenciais...');
+      await driver.sleep(3000);
+      
+      // Extrai as credenciais geradas
+      let usuario = '';
+      let senha = '';
+      
+      try {
+        // Tenta diferentes seletores para encontrar as credenciais
+        const usuarioElement = await driver.findElement(
+          By.xpath('//p[contains(text(), "USUÁRIO:")]/following-sibling::p[1] | //span[contains(text(), "USUÁRIO:")]/following-sibling::span[1] | //*[contains(text(), "USUÁRIO:")]/following::text()[1]')
+        );
+        usuario = await usuarioElement.getText();
         
-        const randomNum = Math.floor(Math.random() * 90000) + 10000;
-        const usuario = `teste${randomNum}`;
-        const senha = `senha${randomNum}`;
+        const senhaElement = await driver.findElement(
+          By.xpath('//p[contains(text(), "SENHA:")]/following-sibling::p[1] | //span[contains(text(), "SENHA:")]/following-sibling::span[1] | //*[contains(text(), "SENHA:")]/following::text()[1]')
+        );
+        senha = await senhaElement.getText();
+      } catch (e) {
+        // Tenta capturar de outra forma
+        const pageSource = await driver.getPageSource();
+        const usuarioMatch = pageSource.match(/USU[ÁA]RIO:\s*([^\s<]+)/i);
+        const senhaMatch = pageSource.match(/SENHA:\s*([^\s<]+)/i);
         
-        return {
+        if (usuarioMatch) usuario = usuarioMatch[1];
+        if (senhaMatch) senha = senhaMatch[1];
+      }
+      
+      if (usuario && senha) {
+        await addLog('info', 'IPTV Automation', `Credenciais capturadas: Usuário: ${usuario}`);
+        
+        const credentials: IptvCredentials = {
           usuario,
-          senha
+          senha,
+          nota,
+          duracao
         };
-      }
-      
-      // Procura por inputs na página
-      const inputs = await page.$$('input');
-      console.log(`Encontrados ${inputs.length} inputs na página`);
-      
-      if (inputs.length >= 2) {
-        // Preenche o primeiro input (usuário)
-        await inputs[0].click();
-        await page.keyboard.type(this.username);
-        console.log('Usuário preenchido');
         
-        // Preenche o segundo input (senha)
-        await inputs[1].click();
-        await page.keyboard.type(this.password);
-        console.log('Senha preenchida');
-        
-        // Procura e clica no botão de submit
-        const submitButton = await page.$('button[type="submit"], input[type="submit"], button');
-        if (submitButton) {
-          await submitButton.click();
-          console.log('Login realizado');
-          
-          // Aguarda redirecionamento
-          await Promise.race([
-            page.waitForNavigation({ waitUntil: 'networkidle2' }).catch(() => {}),
-            this.delay(5000)
-          ]);
-          
-          // Procura pelo botão "Gerar IPTV"
-          console.log('Procurando botão Gerar IPTV...');
-          const buttons = await page.$$('button');
-          
-          let gerarButton = null;
-          for (const button of buttons) {
-            const text = await page.evaluate(el => el.textContent, button);
-            if (text && text.toLowerCase().includes('gerar')) {
-              gerarButton = button;
-              break;
-            }
-          }
-          
-          if (gerarButton) {
-            await gerarButton.click();
-            console.log('Clicou em Gerar IPTV');
-            
-            // Aguarda modal aparecer
-            await this.delay(2000);
-            
-            // Preenche dados do teste
-            const modalInputs = await page.$$('input[type="text"]');
-            if (modalInputs.length > 0) {
-              await modalInputs[0].click();
-              await page.keyboard.type('teste');
-            }
-            
-            // Confirma geração
-            const confirmButtons = await page.$$('button');
-            for (const button of confirmButtons) {
-              const text = await page.evaluate(el => el.textContent, button);
-              if (text && (text.toLowerCase().includes('confirmar') || 
-                          text.toLowerCase().includes('ok'))) {
-                await button.click();
-                break;
-              }
-            }
-            
-            // Aguarda credenciais
-            await this.delay(5000);
-            
-            // Extrai credenciais
-            const pageText = await page.evaluate(() => document.body.innerText);
-            const usuarioMatch = pageText.match(/[Uu]su[aá]rio:?\s*([^\s]+)/);
-            const senhaMatch = pageText.match(/[Ss]enha:?\s*([^\s]+)/);
-            
-            if (usuarioMatch && senhaMatch) {
-              await browser.close();
-              return {
-                usuario: usuarioMatch[1],
-                senha: senhaMatch[1]
-              };
-            }
-          }
-        }
+        return credentials;
+      } else {
+        throw new Error('Não foi possível capturar as credenciais');
       }
-      
-      // Se chegou aqui, não conseguiu automatizar - usa geração local
-      console.log('Automação falhou - gerando credenciais localmente');
-      await browser.close();
-      
-      const randomNum = Math.floor(Math.random() * 90000) + 10000;
-      const usuario = `teste${randomNum}`;
-      const senha = `senha${randomNum}`;
-      
-      return {
-        usuario,
-        senha
-      };
       
     } catch (error) {
-      await browser.close();
-      console.error('Erro na automação:', error);
-      
-      // Em caso de erro, gera credenciais localmente
-      const randomNum = Math.floor(Math.random() * 90000) + 10000;
-      const usuario = `teste${randomNum}`;
-      const senha = `senha${randomNum}`;
-      
-      console.log('Usando geração local devido a erro');
-      
-      return {
-        usuario,
-        senha
-      };
+      await addLog('error', 'IPTV Automation', `Erro na automação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      console.error('Erro na automação IPTV:', error);
+      return null;
+    } finally {
+      if (this.driver) {
+        await this.driver.quit();
+        this.driver = null;
+      }
+    }
+  }
+
+  async cleanup() {
+    if (this.driver) {
+      await this.driver.quit();
+      this.driver = null;
     }
   }
 }
 
-export const iptvAutomation = new IPTVAutomationService();
+export const iptvAutomation = new IptvAutomationService();

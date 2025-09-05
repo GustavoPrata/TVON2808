@@ -2,7 +2,7 @@ import { db } from "./db";
 import { 
   clientes, pontos, pagamentos, pagamentosManual, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
-  avisosVencimento, configAvisos, anotacoes, usuariosGerados,
+  avisosVencimento, configAvisos, anotacoes,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
@@ -14,10 +14,9 @@ import {
   type MensagemRapida, type InsertMensagemRapida,
   type AvisoVencimento, type InsertAvisoVencimento,
   type ConfigAvisos, type InsertConfigAvisos,
-  type Anotacao, type InsertAnotacao,
-  type UsuarioGerado, type InsertUsuarioGerado
+  type Anotacao, type InsertAnotacao
 } from "@shared/schema";
-import { eq, desc, asc, sql, and, or, gte, lte, gt, ilike, ne, count } from "drizzle-orm";
+import { eq, desc, asc, sql, and, or, gte, lte, ilike, ne, count } from "drizzle-orm";
 
 export interface IStorage {
   // Clientes
@@ -198,13 +197,6 @@ export interface IStorage {
   
   // Conversas - Correção
   corrigirTelefoneConversa(telefoneIncorreto: string, telefoneCorreto: string): Promise<number>;
-  
-  // Usuários Gerados
-  getUsuariosGerados(): Promise<UsuarioGerado[]>;
-  getUsuariosGeradosAtivos(): Promise<UsuarioGerado[]>;
-  createUsuarioGerado(usuario: InsertUsuarioGerado): Promise<UsuarioGerado>;
-  updateUsuarioGeradoStatus(id: number, status: string): Promise<UsuarioGerado>;
-  checkAndUpdateExpiredUsuarios(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1526,45 +1518,6 @@ export class DatabaseStorage implements IStorage {
     );
     
     await Promise.all(updates);
-  }
-
-  // Usuários Gerados Implementation
-  async getUsuariosGerados(): Promise<UsuarioGerado[]> {
-    return await db.select().from(usuariosGerados)
-      .orderBy(desc(usuariosGerados.dataCriacao));
-  }
-
-  async getUsuariosGeradosAtivos(): Promise<UsuarioGerado[]> {
-    const now = new Date();
-    return await db.select().from(usuariosGerados)
-      .where(and(
-        eq(usuariosGerados.status, 'ativo'),
-        gt(usuariosGerados.dataExpiracao, now)
-      ))
-      .orderBy(desc(usuariosGerados.dataCriacao));
-  }
-
-  async createUsuarioGerado(usuario: InsertUsuarioGerado): Promise<UsuarioGerado> {
-    const result = await db.insert(usuariosGerados).values(usuario).returning();
-    return result[0];
-  }
-
-  async updateUsuarioGeradoStatus(id: number, status: string): Promise<UsuarioGerado> {
-    const result = await db.update(usuariosGerados)
-      .set({ status })
-      .where(eq(usuariosGerados.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async checkAndUpdateExpiredUsuarios(): Promise<void> {
-    const now = new Date();
-    await db.update(usuariosGerados)
-      .set({ status: 'expirado' })
-      .where(and(
-        eq(usuariosGerados.status, 'ativo'),
-        lte(usuariosGerados.dataExpiracao, now)
-      ));
   }
 }
 

@@ -26,7 +26,6 @@ import Woovi from "@/pages/woovi";
 import Indicacoes from "@/pages/indicacoes";
 import Ajuda from "@/pages/ajuda";
 import Anotacoes from "@/pages/anotacoes";
-import ConfigUser from "@/pages/config-user";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import { Loader2 } from "lucide-react";
@@ -44,7 +43,6 @@ function Router() {
       <Route path="/tickets" component={Tickets} />
       <Route path="/bot-config" component={BotConfig} />
       <Route path="/config-tv" component={ConfigTV} />
-      <Route path="/config-user" component={ConfigUser} />
       <Route path="/whatsapp-settings" component={WhatsAppSettings} />
       <Route path="/woovi" component={Woovi} />
       <Route path="/testes" component={Testes} />

@@ -22,8 +22,7 @@ import {
   Router,
   LogOut,
   StickyNote,
-  Activity,
-  UserCog
+  Activity
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -51,7 +50,6 @@ const menuItems = [
   { path: '/bot-config', icon: Bot, label: 'Config. Bot' },
   { path: '/woovi', icon: CreditCard, label: 'Woovi' },
   { path: '/config-tv', icon: Server, label: 'Config da API' },
-  { path: '/config-user', icon: UserCog, label: 'Config User' },
   { path: '/logs', icon: FileText, label: 'Logs' },
 ];
 

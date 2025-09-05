@@ -3290,91 +3290,6 @@ Como posso ajudar você hoje?
     }
   });
 
-  // Usuários Gerados Routes
-  app.get("/api/usuarios-gerados", async (req, res) => {
-    try {
-      // Update expired users
-      await storage.checkAndUpdateExpiredUsuarios();
-      const usuarios = await storage.getUsuariosGerados();
-      res.json(usuarios);
-    } catch (error) {
-      console.error("Erro ao buscar usuários gerados:", error);
-      res.status(500).json({ error: "Falha ao buscar usuários gerados" });
-    }
-  });
-
-  app.get("/api/usuarios-gerados/ativos", async (req, res) => {
-    try {
-      // Update expired users
-      await storage.checkAndUpdateExpiredUsuarios();
-      const usuarios = await storage.getUsuariosGeradosAtivos();
-      res.json(usuarios);
-    } catch (error) {
-      console.error("Erro ao buscar usuários ativos:", error);
-      res.status(500).json({ error: "Falha ao buscar usuários ativos" });
-    }
-  });
-
-  app.post("/api/usuarios-gerados/gerar", async (req, res) => {
-    try {
-      console.log("Iniciando geração de usuário IPTV no painel real...");
-      
-      // Importa o serviço de automação
-      const { iptvAutomation } = await import("./services/iptvAutomation");
-      
-      // Gera usuário no painel real
-      const credenciais = await iptvAutomation.gerarUsuarioTeste();
-      
-      if (!credenciais.usuario || !credenciais.senha) {
-        throw new Error('Não foi possível extrair as credenciais geradas');
-      }
-      
-      // Calcula expiração (6 horas)
-      const dataExpiracao = new Date();
-      dataExpiracao.setHours(dataExpiracao.getHours() + 6);
-      
-      // Salva no banco de dados
-      const usuarioSalvo = await storage.createUsuarioGerado({
-        usuario: credenciais.usuario,
-        senha: credenciais.senha,
-        nota: 'teste',
-        tempoExpiracao: '6 horas',
-        dataExpiracao,
-        appUrl: 'https://onlineoffice.zip',
-        apiResponse: { 
-          ...credenciais,
-          created: new Date().toISOString(),
-          source: 'Painel IPTV Real'
-        }
-      });
-
-      console.log("Usuário gerado com sucesso no painel real:", usuarioSalvo.usuario);
-      
-      // Retorna as credenciais
-      res.status(201).json(usuarioSalvo);
-    } catch (error) {
-      console.error("Erro ao gerar usuário no painel IPTV:", error);
-      res.status(500).json({ 
-        error: "Falha ao gerar usuário no painel IPTV", 
-        details: error.message 
-      });
-    }
-  });
-
-  app.put("/api/usuarios-gerados/:id/status", async (req, res) => {
-    try {
-      const { status } = req.body;
-      const usuario = await storage.updateUsuarioGeradoStatus(
-        parseInt(req.params.id),
-        status
-      );
-      res.json(usuario);
-    } catch (error) {
-      console.error("Erro ao atualizar status do usuário:", error);
-      res.status(500).json({ error: "Falha ao atualizar status do usuário" });
-    }
-  });
-
   app.post(
     "/api/whatsapp/profile-picture",
     profilePictureUpload.single("profilePicture"),
@@ -3805,6 +3720,97 @@ Como posso ajudar você hoje?
       res.json({ m3uLink });
     } catch (error) {
       res.status(500).json({ error: "Erro ao gerar link M3U" });
+    }
+  });
+
+  // Automação IPTV - Gerar teste automaticamente via Selenium
+  app.post("/api/testes/auto-generate", checkAuth, async (req, res) => {
+    try {
+      const { telefone, duracao, nota } = req.body;
+      
+      if (!telefone) {
+        return res.status(400).json({ error: "Telefone é obrigatório" });
+      }
+
+      // Mapear duração em horas para o formato do select
+      const duracaoMap: Record<number, '6 Horas' | '12 Horas' | '24 Horas' | '48 Horas'> = {
+        6: '6 Horas',
+        12: '12 Horas',
+        24: '24 Horas',
+        48: '48 Horas'
+      };
+
+      const duracaoHoras = duracao || 6;
+      const duracaoTexto = duracaoMap[duracaoHoras] || '6 Horas';
+
+      // Importar o serviço dinamicamente
+      const { iptvAutomation } = await import('./services/iptvAutomation');
+      
+      // Gerar credenciais via automação
+      const credentials = await iptvAutomation.generateTest(nota || `Teste para ${telefone}`, duracaoTexto);
+      
+      if (!credentials) {
+        return res.status(500).json({ 
+          error: "Não foi possível gerar o teste automaticamente. Verifique o serviço IPTV." 
+        });
+      }
+
+      // Gerar MAC e Device Key aleatórios
+      const generateMAC = () => {
+        const hex = () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0');
+        return `${hex()}:${hex()}:${hex()}:${hex()}:${hex()}:${hex()}`;
+      };
+      
+      const generateDeviceKey = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Criar teste no banco de dados
+      const sistemas = await storage.getSistemas();
+      const sistemaId = sistemas[0]?.id;
+
+      if (!sistemaId) {
+        return res.status(500).json({ error: "Nenhum sistema cadastrado" });
+      }
+
+      const expirationDate = new Date();
+      expirationDate.setHours(expirationDate.getHours() + duracaoHoras);
+
+      const teste = await storage.createTeste({
+        telefone,
+        aplicativo: "ibo_pro",
+        dispositivo: "smart_tv",
+        mac: generateMAC(),
+        deviceKey: generateDeviceKey(),
+        duracaoHoras,
+        apiUsername: credentials.usuario,
+        apiPassword: credentials.senha,
+        sistemaId,
+        expiraEm: expirationDate,
+        status: "ativo"
+      } as any);
+
+      // Adicionar log
+      await addLog('info', 'IPTV Automation', `Teste gerado automaticamente para ${telefone} - Usuário: ${credentials.usuario}`);
+
+      // Broadcast para atualizar interfaces
+      broadcastMessage("test_created", teste);
+
+      res.json({
+        success: true,
+        teste: {
+          ...teste,
+          usuario: credentials.usuario,
+          senha: credentials.senha,
+          nota: credentials.nota,
+          duracao: credentials.duracao
+        }
+      });
+    } catch (error) {
+      console.error("Erro ao gerar teste automaticamente:", error);
+      await addLog('error', 'IPTV Automation', `Erro ao gerar teste: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      res.status(500).json({ 
+        error: "Erro ao gerar teste automaticamente",
+        details: error instanceof Error ? error.message : "Erro desconhecido"
+      });
     }
   });
 

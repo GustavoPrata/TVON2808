@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["unzip", "chromium", "glib", "nss", "nspr", "atk", "cups", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "pango", "cairo", "alsa-lib", "gtk3", "libdrm", "mesa", "libxkbcommon"]
+packages = ["unzip"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -40,3 +40,4 @@ args = "npm run dev"
 waitForPort = 5000
 
 [agent]
+integrations = ["javascript_log_in_with_replit==1.0.0", "javascript_database==1.0.0"]
