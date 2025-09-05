@@ -109,84 +109,58 @@ export class OfficeAutomation {
       // Clicar no botão "Gerar IPTV"
       console.log('🎬 Clicando em "Gerar IPTV"...');
       try {
-        // Tentar várias seletores possíveis
-        const gerarButton = await page.waitForSelector('button:has-text("Gerar IPTV"), button:has-text("Gerar P2P")', { 
-          timeout: 10000 
-        });
-        await gerarButton?.click();
-      } catch (e) {
-        console.log('⚠️ Botão "Gerar IPTV" não encontrado, tentando alternativa...');
         await page.evaluate(() => {
           const buttons = Array.from(document.querySelectorAll('button'));
           const button = buttons.find(b => b.textContent?.includes('Gerar'));
-          if (button) button.click();
-        });
-      }
-      
-      await this.delay(3000);
-
-      // Preencher a nota
-      console.log('📝 Preenchendo nota...');
-      try {
-        await page.waitForSelector('input[placeholder*="nota"]', { timeout: 5000 });
-        await page.type('input[placeholder*="nota"]', 'teste', { delay: 100 });
-      } catch (e) {
-        console.log('⚠️ Campo de nota não encontrado');
-      }
-      
-      await this.delay(1000);
-
-      // Selecionar 6 horas no dropdown
-      console.log('⏰ Selecionando tempo de teste (6 horas)...');
-      try {
-        // Clicar no select
-        await page.click('select, [role="combobox"]');
-        await this.delay(500);
-        
-        // Selecionar a opção "6 Horas"
-        await page.select('select', '6');
-      } catch (e) {
-        try {
-          // Alternativa: usar XPath para encontrar a opção
-          const [option] = await page.$x('//option[contains(text(), "6 Horas")]');
-          if (option) {
-            await option.click();
-          } else {
-            // Ou usar evaluate para clicar na opção
-            await page.evaluate(() => {
-              const options = Array.from(document.querySelectorAll('option'));
-              const sixHours = options.find(opt => opt.textContent?.includes('6 Horas'));
-              if (sixHours) sixHours.click();
-            });
+          if (button) {
+            button.click();
+            console.log('Botão Gerar clicado');
           }
-        } catch (e2) {
-          console.log('⚠️ Não foi possível selecionar 6 horas');
-        }
+        });
+      } catch (e) {
+        console.log('⚠️ Erro ao clicar no botão Gerar:', e.message);
       }
       
-      await this.delay(1000);
+      await this.delay(2000);
 
-      // Clicar em "Confirmar" usando XPath ou evaluate
-      console.log('✅ Confirmando geração...');
+      // Primeiro clique no botão Confirmar
+      console.log('✅ Primeiro clique no botão Confirmar...');
       try {
-        // Método 1: Usar XPath para encontrar botão por texto
-        const [confirmButton] = await page.$x('//button[contains(text(), "Confirmar")]');
-        if (confirmButton) {
-          await confirmButton.click();
-        } else {
-          throw new Error('Botão não encontrado com XPath');
-        }
-      } catch (e) {
-        // Método 2: Usar evaluate para encontrar e clicar no botão
         await page.evaluate(() => {
           const buttons = Array.from(document.querySelectorAll('button'));
-          const confirmBtn = buttons.find(btn => btn.textContent?.includes('Confirmar'));
+          const confirmBtn = buttons.find(btn => 
+            btn.textContent?.trim().toLowerCase().includes('confirmar')
+          );
           if (confirmBtn) {
             confirmBtn.click();
-          } else {
-            throw new Error('Botão Confirmar não encontrado');
+            console.log('Primeiro Confirmar clicado');
+            return true;
           }
+          return false;
         });
+      } catch (e) {
+        console.log('⚠️ Erro no primeiro clique:', e.message);
+      }
+
+      await this.delay(2000);
+
+      // Segundo clique no botão Confirmar
+      console.log('✅ Segundo clique no botão Confirmar...');
+      try {
+        await page.evaluate(() => {
+          const buttons = Array.from(document.querySelectorAll('button'));
+          const confirmBtn = buttons.find(btn => 
+            btn.textContent?.trim().toLowerCase().includes('confirmar')
+          );
+          if (confirmBtn) {
+            confirmBtn.click();
+            console.log('Segundo Confirmar clicado');
+            return true;
+          }
+          return false;
+        });
+      } catch (e) {
+        console.log('⚠️ Erro no segundo clique:', e.message);
       }
       
       // Aguardar 7 segundos para o modal aparecer
