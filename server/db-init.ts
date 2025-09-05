@@ -241,20 +241,6 @@ export async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_indicacoes_codigo ON indicacoes(codigo_indicacao);
     `);
     
-    // Create credenciais IPTV table for storing external credentials
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS credenciais_iptv (
-        id SERIAL PRIMARY KEY,
-        usuario VARCHAR(255) NOT NULL,
-        senha VARCHAR(255) NOT NULL,
-        servidor VARCHAR(255),
-        data_geracao TIMESTAMP DEFAULT NOW(),
-        data_expiracao TIMESTAMP,
-        status VARCHAR(50) DEFAULT 'ativo',
-        observacoes TEXT
-      )
-    `);
-    
     console.log("Database tables initialized successfully");
   } catch (error) {
     console.error("Error initializing database:", error);

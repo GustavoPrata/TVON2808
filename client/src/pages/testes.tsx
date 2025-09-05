@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { 
   Search, Plus, Clock, Copy, ExternalLink, Trash2, 
-  Monitor, Smartphone, Tv, Laptop, RefreshCw, Filter, MessageCircle, ChevronDown, Zap 
+  Monitor, Smartphone, Tv, Laptop, RefreshCw, Filter, MessageCircle, ChevronDown 
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,7 +21,6 @@ import { useToast } from '@/hooks/use-toast';
 import { queryClient } from '@/lib/queryClient';
 import { CreateTestDialog } from '@/components/modals/create-test-dialog';
 import { TestDetailsDialog } from '@/components/modals/test-details-dialog';
-import { AutoTestDialog } from '@/components/modals/auto-test-dialog';
 import { useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
 
@@ -46,7 +45,6 @@ interface Teste {
 
 export default function Testes() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isAutoTestDialogOpen, setIsAutoTestDialogOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'ativo' | 'expirado' | 'deletado'>('ativo');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedPhone, setSelectedPhone] = useState<string>('');
@@ -293,14 +291,6 @@ export default function Testes() {
             </Button>
             <Button 
               size="lg"
-              onClick={() => setIsAutoTestDialogOpen(true)}
-              className="bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white font-semibold px-6 shadow-lg shadow-yellow-500/30 transition-all hover:scale-105"
-            >
-              <Zap className="w-5 h-5 mr-2" />
-              Teste Automático
-            </Button>
-            <Button 
-              size="lg"
               onClick={() => setIsCreateDialogOpen(true)}
               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold px-6 shadow-lg shadow-blue-500/30 transition-all hover:scale-105"
             >
@@ -484,12 +474,6 @@ export default function Testes() {
         onOpenChange={setIsDetailsDialogOpen}
         teste={selectedTest}
         onTestDeleted={() => setIsDetailsDialogOpen(false)}
-      />
-
-      <AutoTestDialog
-        open={isAutoTestDialogOpen}
-        onOpenChange={setIsAutoTestDialogOpen}
-        onTestCreated={() => queryClient.invalidateQueries({ queryKey: ['/api/testes'] })}
       />
     </div>
   );
