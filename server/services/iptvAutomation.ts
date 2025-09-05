@@ -15,7 +15,6 @@ export class IPTVAutomationService {
     
     const browser = await puppeteer.launch({
       headless: 'new',
-      executablePath: '/tmp/chromium',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
