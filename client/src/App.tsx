@@ -22,6 +22,7 @@ import Logs from "@/pages/logs";
 import WhatsAppSettings from "@/pages/whatsapp-settings";
 import ConfigTV from "@/pages/config-tv";
 import Testes from "@/pages/testes";
+import CredenciaisIptv from "@/pages/credenciais-iptv";
 import Woovi from "@/pages/woovi";
 import Indicacoes from "@/pages/indicacoes";
 import Ajuda from "@/pages/ajuda";
@@ -46,6 +47,7 @@ function Router() {
       <Route path="/whatsapp-settings" component={WhatsAppSettings} />
       <Route path="/woovi" component={Woovi} />
       <Route path="/testes" component={Testes} />
+      <Route path="/credenciais-iptv" component={CredenciaisIptv} />
       <Route path="/indicacoes" component={Indicacoes} />
       <Route path="/ajuda" component={Ajuda} />
       <Route path="/anotacoes" component={Anotacoes} />
