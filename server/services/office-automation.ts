@@ -163,9 +163,40 @@ export class OfficeAutomation {
         console.log('⚠️ Erro no segundo clique:', e instanceof Error ? e.message : String(e));
       }
       
-      // Aguardar 7 segundos para o modal aparecer
-      console.log('⏳ Aguardando geração do teste (7 segundos)...');
-      await this.delay(7000);
+      // Aguardar o modal aparecer (com timeout de 10 segundos)
+      console.log('⏳ Aguardando modal aparecer...');
+      try {
+        await page.waitForSelector('span.alert-inner--text, .modal-content, [role="dialog"], .alert', {
+          timeout: 10000
+        });
+        console.log('✅ Modal detectado!');
+      } catch (e) {
+        console.log('⚠️ Modal não detectado após 10 segundos, continuando mesmo assim...');
+      }
+      
+      // Aguardar mais 2 segundos para garantir que o conteúdo carregou
+      await this.delay(2000);
+
+      // Tirar screenshot para debug
+      try {
+        const screenshotDebug = await page.screenshot({ encoding: 'base64', type: 'png' });
+        console.log('📸 Screenshot após aguardar modal (primeiros 100 chars):', screenshotDebug.substring(0, 100));
+      } catch (e) {
+        console.log('⚠️ Não foi possível tirar screenshot de debug');
+      }
+
+      // Verificar se o modal está presente
+      const modalPresent = await page.evaluate(() => {
+        const modal = document.querySelector('.modal, [role="dialog"], .alert, .popup, .modal-content');
+        const alertSpan = document.querySelector('span.alert-inner--text');
+        return {
+          hasModal: !!modal,
+          hasAlertSpan: !!alertSpan,
+          bodyText: document.body.innerText?.substring(0, 500) || 'sem texto'
+        };
+      });
+      
+      console.log('🔍 Estado da página:', modalPresent);
 
       // Extrair credenciais do modal
       console.log('📋 Extraindo credenciais...');
@@ -278,6 +309,43 @@ export class OfficeAutomation {
           }
         } catch (e) {
           console.log('⚠️ Método 2 falhou:', e instanceof Error ? e.message : String(e));
+        }
+      }
+
+      // Método 3: Busca mais agressiva - pegar qualquer texto que pareça credenciais
+      if (!usuario || !senha) {
+        try {
+          const pageText = await page.evaluate(() => document.body.innerText || '');
+          console.log('📄 Texto completo da página (primeiros 300 chars):', pageText.substring(0, 300));
+          
+          // Procurar por padrões de números que possam ser usuário (geralmente 10 dígitos)
+          const possibleUsers = pageText.match(/\b\d{9,11}\b/g);
+          if (possibleUsers && possibleUsers.length > 0) {
+            usuario = possibleUsers[0];
+            console.log('🔍 Possível usuário encontrado (método 3):', usuario);
+          }
+          
+          // Procurar por padrões que possam ser senha (mix de letras e números)
+          const possiblePasswords = pageText.match(/\b[A-Z0-9]{8,12}\b/g);
+          if (possiblePasswords && possiblePasswords.length > 0) {
+            // Filtrar apenas os que têm letras E números
+            const validPasswords = possiblePasswords.filter(p => 
+              /[A-Z]/.test(p) && /[0-9]/.test(p)
+            );
+            if (validPasswords.length > 0) {
+              senha = validPasswords[0];
+              console.log('🔍 Possível senha encontrada (método 3):', senha);
+            }
+          }
+          
+          // Procurar por data/hora de vencimento
+          const possibleDates = pageText.match(/\d{1,2}\/\d{1,2}\/\d{4}\s+\d{1,2}:\d{2}:\d{2}/g);
+          if (possibleDates && possibleDates.length > 0) {
+            vencimento = possibleDates[0];
+            console.log('🔍 Possível vencimento encontrado (método 3):', vencimento);
+          }
+        } catch (e) {
+          console.log('⚠️ Método 3 falhou:', e instanceof Error ? e.message : String(e));
         }
       }
 
