@@ -3317,16 +3317,17 @@ Como posso ajudar você hoje?
 
   app.post("/api/usuarios-gerados/gerar", async (req, res) => {
     try {
-      console.log("Iniciando geração de usuário IPTV...");
+      console.log("Iniciando geração de usuário IPTV no painel real...");
       
-      // Por enquanto, gera credenciais localmente
-      // Em produção, isso deve fazer a integração real com o sistema IPTV
-      // através de requisições HTTP ou automação com Puppeteer
+      // Importa o serviço de automação
+      const { iptvAutomation } = await import("./services/iptvAutomation");
       
-      // Gera credenciais temporárias para teste
-      const randomNum = Math.floor(10000 + Math.random() * 90000);
-      const usuario = `${randomNum}teste`;
-      const senha = Math.random().toString(36).substring(2, 10).toUpperCase();
+      // Gera usuário no painel real
+      const credenciais = await iptvAutomation.gerarUsuarioTeste();
+      
+      if (!credenciais.usuario || !credenciais.senha) {
+        throw new Error('Não foi possível extrair as credenciais geradas');
+      }
       
       // Calcula expiração (6 horas)
       const dataExpiracao = new Date();
@@ -3334,31 +3335,27 @@ Como posso ajudar você hoje?
       
       // Salva no banco de dados
       const usuarioSalvo = await storage.createUsuarioGerado({
-        usuario: usuario,
-        senha: senha,
+        usuario: credenciais.usuario,
+        senha: credenciais.senha,
         nota: 'teste',
         tempoExpiracao: '6 horas',
         dataExpiracao,
         appUrl: 'https://onlineoffice.zip',
         apiResponse: { 
-          usuario, 
-          senha, 
+          ...credenciais,
           created: new Date().toISOString(),
-          message: 'Credenciais de teste geradas localmente. Integração com sistema IPTV em desenvolvimento.'
+          source: 'Painel IPTV Real'
         }
       });
 
-      console.log("Usuário gerado com sucesso:", usuarioSalvo.usuario);
+      console.log("Usuário gerado com sucesso no painel real:", usuarioSalvo.usuario);
       
       // Retorna as credenciais
-      res.status(201).json({
-        ...usuarioSalvo,
-        aviso: "Sistema em modo de teste. Credenciais geradas localmente."
-      });
+      res.status(201).json(usuarioSalvo);
     } catch (error) {
-      console.error("Erro ao gerar usuário:", error);
+      console.error("Erro ao gerar usuário no painel IPTV:", error);
       res.status(500).json({ 
-        error: "Falha ao gerar usuário", 
+        error: "Falha ao gerar usuário no painel IPTV", 
         details: error.message 
       });
     }
