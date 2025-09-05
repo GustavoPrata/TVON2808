@@ -146,7 +146,9 @@ export class OfficeAutomation {
       }
 
       // Aguardar carregamento completo da página
-      await this.delay(5000);
+      console.log('⏳ Aguardando carregamento completo da página...');
+      await page.waitForSelector('button', { timeout: 10000 });
+      await this.delay(3000);
       
       // Procurar e clicar no botão "Gerar IPTV"
       console.log('🎬 Procurando botão "Gerar IPTV"...');
@@ -170,33 +172,50 @@ export class OfficeAutomation {
       
       // Tentar clicar no botão de gerar
       const gerarClicked = await page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('button, a[role="button"], div[role="button"], .btn'));
+        // Procurar todos os botões na página
+        const buttons = Array.from(document.querySelectorAll('button'));
+        console.log(`Total de botões encontrados: ${buttons.length}`);
         
-        // Procurar botão com texto relacionado a gerar/criar
+        // Procurar botão que contenha "Gerar IPTV" no texto (pode estar em span interno)
         const button = buttons.find(b => {
-          const text = b.textContent?.toLowerCase() || '';
-          return text.includes('gerar') || text.includes('criar') || text.includes('novo') || 
-                 text.includes('add') || text.includes('adicionar') || text.includes('teste');
+          // Verificar texto do botão e de elementos internos (como span)
+          const buttonText = b.innerText || b.textContent || '';
+          const hasGerarIPTV = buttonText.includes('Gerar IPTV');
+          
+          if (hasGerarIPTV) {
+            console.log(`✅ Botão "Gerar IPTV" encontrado! Classes: ${b.className}`);
+            console.log(`   HTML interno: ${b.innerHTML}`);
+          }
+          
+          return hasGerarIPTV;
         });
         
         if (button) {
-          (button as HTMLElement).click();
-          console.log(`✅ Clicado no botão: "${button.textContent?.trim()}"`);
+          // Forçar o clique mesmo se houver elementos internos
+          button.click();
+          console.log('🖱️ Botão "Gerar IPTV" clicado com sucesso!');
           return true;
         }
         
-        // Se não encontrar, tentar clicar no primeiro botão que pareça ser de ação principal
-        const primaryButton = buttons.find(b => {
-          const classes = b.className || '';
-          return classes.includes('primary') || classes.includes('success') || classes.includes('btn-primary');
-        });
+        // Se não encontrar, procurar por botão com span contendo o texto
+        const spanWithText = document.querySelector('span:contains("Gerar IPTV")') || 
+                           Array.from(document.querySelectorAll('span')).find(s => s.textContent?.includes('Gerar IPTV'));
         
-        if (primaryButton) {
-          (primaryButton as HTMLElement).click();
-          console.log(`✅ Clicado no botão principal: "${primaryButton.textContent?.trim()}"`);
+        if (spanWithText && spanWithText.parentElement?.tagName === 'BUTTON') {
+          (spanWithText.parentElement as HTMLButtonElement).click();
+          console.log('🖱️ Clicado no botão pai do span "Gerar IPTV"');
           return true;
         }
         
+        // Última tentativa: botão com classe btn-outline-success
+        const successButton = document.querySelector('button.btn-outline-success');
+        if (successButton) {
+          (successButton as HTMLButtonElement).click();
+          console.log('🖱️ Clicado no botão com classe btn-outline-success');
+          return true;
+        }
+        
+        console.log('❌ Botão "Gerar IPTV" não encontrado em nenhuma das tentativas');
         return false;
       });
       
