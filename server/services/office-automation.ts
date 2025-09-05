@@ -173,85 +173,80 @@ export class OfficeAutomation {
       // Aguardar a página carregar
       await this.delay(5000);
       
-      // Verificar se o botão "Gerar IPTV" está no dashboard
+      // Tentar navegar diretamente para users-iptv primeiro
+      console.log('📍 Navegando para página users-iptv...');
+      let navigationSuccess = false;
+      let navAttempts = 0;
+      
+      while (!navigationSuccess && navAttempts < 3) {
+        navAttempts++;
+        try {
+          console.log(`🔄 Tentativa ${navAttempts} de navegar para users-iptv...`);
+          
+          // Tentar diferentes URLs
+          const urls = [
+            `${this.baseUrl}/#/users-iptv`,
+            `${this.baseUrl}/users-iptv`,
+            `${this.baseUrl}/#/dashboard`,
+            `${this.baseUrl}/dashboard`
+          ];
+          
+          for (const url of urls) {
+            try {
+              console.log(`📍 Tentando URL: ${url}`);
+              await page.goto(url, { 
+                waitUntil: 'domcontentloaded',
+                timeout: 20000 
+              });
+              
+              await this.delay(3000);
+              
+              // Verificar se a página carregou corretamente
+              const currentUrl = page.url();
+              if (!currentUrl.includes('chrome-error://') && !currentUrl.includes('about:blank')) {
+                navigationSuccess = true;
+                console.log(`✅ Navegação bem-sucedida para: ${currentUrl}`);
+                break;
+              }
+            } catch (e) {
+              console.log(`⚠️ Falha ao navegar para ${url}`);
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Erro na tentativa ${navAttempts}:`, error);
+        }
+        
+        if (!navigationSuccess && navAttempts < 3) {
+          console.log('⏳ Aguardando antes da próxima tentativa...');
+          await this.delay(5000);
+        }
+      }
+      
+      if (!navigationSuccess) {
+        throw new Error('Não foi possível navegar para o sistema após múltiplas tentativas');
+      }
+      
+      // Aguardar a página carregar completamente
+      await this.delay(5000);
+      
+      // Verificar se o botão "Gerar IPTV" está presente
       let hasGerarButton = await page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('button, a'));
+        const buttons = Array.from(document.querySelectorAll('button, a, span, div'));
         return buttons.some(btn => {
           const text = (btn as HTMLElement).innerText || btn.textContent || '';
-          return text.includes('Gerar IPTV') || text.includes('Gerar iptv');
+          return text.includes('Gerar IPTV') || text.includes('Gerar iptv') || 
+                 text.includes('GERAR IPTV') || text.includes('gerar iptv');
         });
       });
       
-      console.log(`🔍 Botão "Gerar IPTV" no dashboard: ${hasGerarButton ? 'Encontrado ✅' : 'Não encontrado ❌'}`);
+      console.log(`🔍 Botão "Gerar IPTV": ${hasGerarButton ? 'Encontrado ✅' : 'Não encontrado ❌'}`)
       
-      // Se não encontrar no dashboard, tentar na página users-iptv
-      if (!hasGerarButton) {
-        console.log('📍 Navegando para página users-iptv...');
-        await page.goto(`${this.baseUrl}/#/users-iptv`, { 
-          waitUntil: 'networkidle2',
-          timeout: 30000 
-        });
-        
-        await this.delay(5000);
-        
-        // Verificar novamente
-        hasGerarButton = await page.evaluate(() => {
-          const buttons = Array.from(document.querySelectorAll('button, a'));
-          return buttons.some(btn => {
-            const text = (btn as HTMLElement).innerText || btn.textContent || '';
-            return text.includes('Gerar IPTV') || text.includes('Gerar iptv');
-          });
-        });
-        
-        console.log(`🔍 Botão "Gerar IPTV" em users-iptv: ${hasGerarButton ? 'Encontrado ✅' : 'Não encontrado ❌'}`);
-      }
-      
-      // Verificar URL atual
+      // Verificar informações da página atual
       const currentPageUrl = page.url();
       console.log('🔗 URL da página atual:', currentPageUrl);
       
-      // Verificar o título da página
       const pageTitle = await page.title();
-      console.log('📄 Título da página:', pageTitle);
-      
-      // Verificar se há algum erro na página
-      const hasError = await page.evaluate(() => {
-        const bodyText = document.body.innerText.toLowerCase();
-        return bodyText.includes('error') || bodyText.includes('erro') || 
-               bodyText.includes('404') || bodyText.includes('not found');
-      });
-      
-      if (hasError) {
-        console.log('⚠️ Possível erro na página detectado');
-        
-        // Tentar navegar de forma diferente
-        console.log('🔄 Tentando navegação alternativa...');
-        await page.goto(this.baseUrl, { waitUntil: 'networkidle2' });
-        await this.delay(2000);
-        
-        // Clicar em link de usuários IPTV se existir
-        const linkClicked = await page.evaluate(() => {
-          const links = Array.from(document.querySelectorAll('a'));
-          const iptvLink = links.find(a => {
-            const text = a.textContent?.toLowerCase() || '';
-            const href = a.href?.toLowerCase() || '';
-            return text.includes('iptv') || text.includes('usuários') || 
-                   href.includes('users-iptv') || href.includes('iptv');
-          });
-          if (iptvLink) {
-            (iptvLink as HTMLAnchorElement).click();
-            return true;
-          }
-          return false;
-        });
-        
-        if (linkClicked) {
-          console.log('✅ Link para usuários IPTV clicado');
-          await this.delay(3000);
-        } else {
-          console.log('⚠️ Link para usuários IPTV não encontrado');
-        }
-      }
+      console.log('📄 Título da página:', pageTitle)
 
       // Aguardar carregamento completo da página
       console.log('⏳ Aguardando carregamento completo da página...');
