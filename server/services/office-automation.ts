@@ -19,6 +19,7 @@ export class OfficeAutomation {
 
   async generateIPTVTest(): Promise<IPTVCredentials> {
     let browser;
+    let page;
     
     try {
       console.log('🚀 Iniciando automação do OnlineOffice...');
@@ -42,7 +43,7 @@ export class OfficeAutomation {
         ignoreDefaultArgs: ['--enable-automation'],
       });
 
-      const page = await browser.newPage();
+      page = await browser.newPage();
       
       // Configurar viewport e user agent
       await page.setViewport({ width: 1920, height: 1080 });
@@ -60,18 +61,81 @@ export class OfficeAutomation {
       });
 
       // Aguardar um pouco para a página carregar completamente
-      await this.delay(3000);
+      await this.delay(5000);
 
-      // Preencher username
+      // Debug: verificar se a página carregou
+      const pageTitle = await page.title();
+      console.log('📄 Título da página:', pageTitle);
+      
+      // Preencher username - tentar múltiplos seletores
       console.log('📝 Preenchendo credenciais...');
-      await page.waitForSelector('input[type="text"]', { timeout: 10000 });
-      await page.type('input[type="text"]', this.username, { delay: 100 });
-      await this.delay(1000);
+      try {
+        // Tentar diferentes seletores para o campo de username
+        const usernameSelectors = [
+          'input[type="text"]',
+          'input[name="username"]',
+          'input[placeholder*="usuário" i]',
+          'input[placeholder*="user" i]',
+          '#username',
+          'input.form-control[type="text"]'
+        ];
+        
+        let usernameField = null;
+        for (const selector of usernameSelectors) {
+          try {
+            await page.waitForSelector(selector, { timeout: 2000 });
+            usernameField = selector;
+            console.log(`✅ Campo username encontrado com seletor: ${selector}`);
+            break;
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (!usernameField) {
+          throw new Error('Campo de username não encontrado');
+        }
+        
+        await page.type(usernameField, this.username, { delay: 100 });
+        await this.delay(1000);
+      } catch (e) {
+        console.error('❌ Erro ao preencher username:', e);
+        throw e;
+      }
 
-      // Preencher password
-      await page.waitForSelector('input[type="password"]', { timeout: 10000 });
-      await page.type('input[type="password"]', this.password, { delay: 100 });
-      await this.delay(1000);
+      // Preencher password - tentar múltiplos seletores
+      try {
+        const passwordSelectors = [
+          'input[type="password"]',
+          'input[name="password"]',
+          'input[placeholder*="senha" i]',
+          'input[placeholder*="pass" i]',
+          '#password',
+          'input.form-control[type="password"]'
+        ];
+        
+        let passwordField = null;
+        for (const selector of passwordSelectors) {
+          try {
+            await page.waitForSelector(selector, { timeout: 2000 });
+            passwordField = selector;
+            console.log(`✅ Campo password encontrado com seletor: ${selector}`);
+            break;
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (!passwordField) {
+          throw new Error('Campo de password não encontrado');
+        }
+        
+        await page.type(passwordField, this.password, { delay: 100 });
+        await this.delay(1000);
+      } catch (e) {
+        console.error('❌ Erro ao preencher password:', e);
+        throw e;
+      }
 
       // Tentar marcar o checkbox do reCAPTCHA
       console.log('🤖 Tentando marcar checkbox "Não sou um robô"...');
@@ -264,6 +328,17 @@ export class OfficeAutomation {
 
     } catch (error) {
       console.error('❌ Erro na automação:', error);
+      
+      // Tentar tirar screenshot para debug se a página existir
+      if (page) {
+        try {
+          const screenshot = await page.screenshot({ encoding: 'base64', type: 'png' });
+          console.log('📸 Screenshot capturado para debug (base64):', screenshot.substring(0, 50) + '...');
+        } catch (e) {
+          console.log('❌ Não foi possível tirar screenshot');
+        }
+      }
+      
       return {
         usuario: '',
         senha: '',
