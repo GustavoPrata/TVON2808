@@ -1,7 +1,6 @@
 import { Builder, By, until, WebDriver } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome';
 import { storage } from '../storage';
-const chromedriver = require('chromedriver');
 
 interface IptvCredentials {
   usuario: string;
@@ -48,12 +47,9 @@ class IptvAutomationService {
     options.excludeSwitches('enable-automation');
     options.addArguments('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     
-    const service = new chrome.ServiceBuilder(chromedriver.path);
-    
     this.driver = await new Builder()
       .forBrowser('chrome')
       .setChromeOptions(options)
-      .setChromeService(service)
       .build();
     
     return this.driver;

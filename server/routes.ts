@@ -3743,11 +3743,11 @@ Como posso ajudar você hoje?
       const duracaoHoras = duracao || 6;
       const duracaoTexto = duracaoMap[duracaoHoras] || '6 Horas';
 
-      // Importar o serviço dinamicamente
-      const { iptvAutomation } = await import('./services/iptvAutomation');
+      // Usar simulação ao invés de Selenium (Replit não suporta Chrome headless)
+      const { iptvSimulationService } = await import('./services/iptvSimulation');
       
-      // Gerar credenciais via automação
-      const credentials = await iptvAutomation.generateTest(nota || `Teste para ${telefone}`, duracaoTexto);
+      // Gerar credenciais via simulação
+      const credentials = await iptvSimulationService.generateTest(nota || `Teste para ${telefone}`, duracaoTexto);
       
       if (!credentials) {
         return res.status(500).json({ 
