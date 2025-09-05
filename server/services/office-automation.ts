@@ -63,14 +63,42 @@ export class OfficeAutomation {
       // Navegar para página de login primeiro
       console.log('📍 Navegando para o sistema...');
       
-      try {
-        await page.goto(`${this.baseUrl}/#/login`, { 
-          waitUntil: 'networkidle2',
-          timeout: 30000 
-        });
-      } catch (error) {
-        console.error('❌ Erro ao navegar para o site:', error);
-        throw new Error(`Não foi possível acessar o site ${this.baseUrl}. Verifique sua conexão e se o site está disponível.`);
+      let pageLoaded = false;
+      let attempts = 0;
+      
+      while (!pageLoaded && attempts < 3) {
+        attempts++;
+        try {
+          console.log(`🔄 Tentativa ${attempts} de carregar a página...`);
+          
+          // Na primeira tentativa, tentar a URL base diretamente
+          const targetUrl = attempts === 1 ? this.baseUrl : `${this.baseUrl}/#/login`;
+          console.log(`📍 Acessando: ${targetUrl}`);
+          
+          await page.goto(targetUrl, { 
+            waitUntil: 'domcontentloaded',
+            timeout: 30000 
+          });
+          
+          // Aguardar um pouco para a página processar
+          await this.delay(3000);
+          
+          // Verificar se a página carregou corretamente
+          const currentUrl = page.url();
+          if (!currentUrl.includes('chrome-error://') && !currentUrl.includes('about:blank')) {
+            pageLoaded = true;
+            console.log('✅ Página carregada com sucesso');
+          } else {
+            console.log('⚠️ Erro de carregamento detectado, tentando novamente...');
+            await this.delay(2000);
+          }
+        } catch (error) {
+          console.error(`❌ Erro na tentativa ${attempts}:`, error);
+          if (attempts >= 3) {
+            throw new Error(`Não foi possível acessar o site ${this.baseUrl} após 3 tentativas. Verifique se o site está disponível.`);
+          }
+          await this.delay(2000);
+        }
       }
       
       await this.delay(2000);
