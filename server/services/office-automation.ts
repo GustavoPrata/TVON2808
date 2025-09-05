@@ -9,8 +9,6 @@ interface IPTVCredentials {
 }
 
 export class OfficeAutomation {
-  private username = 'gustavoprata17';
-  private password = 'iptv102030';
   private apiBaseUrl = 'https://gesapioffice.com/api';
   
   private delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -19,38 +17,10 @@ export class OfficeAutomation {
     try {
       console.log('🚀 Iniciando geração de teste IPTV via API...');
       
-      // Fazer login primeiro para obter o token
-      console.log('🔐 Fazendo login na API...');
+      // Usar token fixo para teste
+      // Este token precisa ser obtido manualmente fazendo login no site e pegando do DevTools
+      const token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOlwvXC9nZXNhcGlvZmZpY2UuY29tXC9hcGlcL2xvZ2luIiwiaWF0IjoxNzU3MDU5NjI4LCJleHAiOjE3NTcwODEyMjgsIm5iZiI6MTc1NzA1OTYyOCwianRpIjoiMGdlSWFUSmR2NmpWRGs0cyIsInN1YiI6OTA1MTMsInBydiI6IjJjMzY5OGEwMGZmZTc2MDdjZWZjYmNkODFmZmIyMzJiMzgzMWUwMGIifQ.9PhrpXtTee8OTHueRVZq8VfWkqBruy6Pzm28JX8gkgY';
       
-      const loginResponse = await fetch(`${this.apiBaseUrl}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Referer': 'https://onlineoffice.zip/'
-        },
-        body: JSON.stringify({
-          username: this.username,
-          password: this.password
-        })
-      });
-
-      if (!loginResponse.ok) {
-        const errorText = await loginResponse.text();
-        console.error('❌ Erro no login:', loginResponse.status, errorText);
-        throw new Error(`Erro no login: ${loginResponse.status}`);
-      }
-
-      const loginData = await loginResponse.json() as any;
-      const token = loginData.access_token || loginData.token;
-      
-      if (!token) {
-        throw new Error('Token não encontrado na resposta de login');
-      }
-
-      console.log('✅ Login realizado com sucesso');
-
-      // Gerar o teste IPTV
       console.log('🎬 Gerando teste IPTV via API...');
       
       const generateResponse = await fetch(`${this.apiBaseUrl}/users-iptv`, {
@@ -75,6 +45,12 @@ export class OfficeAutomation {
       if (!generateResponse.ok) {
         const errorText = await generateResponse.text();
         console.error('❌ Erro ao gerar teste:', generateResponse.status, errorText);
+        
+        // Se o token expirou
+        if (generateResponse.status === 401) {
+          throw new Error('Token expirado. Por favor, atualize o token no código.');
+        }
+        
         throw new Error(`Erro ao gerar teste IPTV: ${generateResponse.status}`);
       }
 
@@ -107,58 +83,6 @@ export class OfficeAutomation {
 
     } catch (error) {
       console.error('❌ Erro na automação:', error);
-      throw error;
-    }
-  }
-
-  async getIPTVList() {
-    try {
-      console.log('📋 Obtendo lista de testes IPTV...');
-      
-      // Fazer login primeiro para obter o token
-      const loginResponse = await fetch(`${this.apiBaseUrl}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Referer': 'https://onlineoffice.zip/'
-        },
-        body: JSON.stringify({
-          username: this.username,
-          password: this.password
-        })
-      });
-
-      if (!loginResponse.ok) {
-        throw new Error(`Erro no login: ${loginResponse.status}`);
-      }
-
-      const loginData = await loginResponse.json() as any;
-      const token = loginData.access_token || loginData.token;
-      
-      if (!token) {
-        throw new Error('Token não encontrado na resposta de login');
-      }
-
-      // Obter lista de testes
-      const listResponse = await fetch(`${this.apiBaseUrl}/users-iptv`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'Referer': 'https://onlineoffice.zip/'
-        }
-      });
-
-      if (!listResponse.ok) {
-        throw new Error(`Erro ao obter lista: ${listResponse.status}`);
-      }
-
-      const listData = await listResponse.json();
-      return listData;
-
-    } catch (error) {
-      console.error('❌ Erro ao obter lista:', error);
       throw error;
     }
   }
