@@ -23,13 +23,8 @@ export default function PainelOffice() {
 
   const generateTestMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('/api/office/generate-iptv-test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      return response;
+      const response = await apiRequest('POST', '/api/office/generate-iptv-test');
+      return response.json();
     },
     onSuccess: (data) => {
       if (data.success) {
