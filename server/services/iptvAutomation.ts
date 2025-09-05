@@ -17,9 +17,8 @@ export class IPTVAutomationService {
   async gerarUsuarioTeste(): Promise<IPTVCredentials> {
     console.log('Iniciando geração de usuário IPTV...');
     
-    // Por enquanto, vamos gerar credenciais localmente já que o site está fora do ar
-    // Quando o site voltar, podemos habilitar a automação novamente
-    const useLocalGeneration = true; // Temporário até o site voltar
+    // Flag para forçar geração local (habilitada temporariamente)
+    const useLocalGeneration = true; // Geração local até resolvermos o acesso ao painel
     
     if (useLocalGeneration) {
       // Gera credenciais únicas localmente
