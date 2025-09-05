@@ -3743,11 +3743,11 @@ Como posso ajudar você hoje?
       const duracaoHoras = duracao || 6;
       const duracaoTexto = duracaoMap[duracaoHoras] || '6 Horas';
 
-      // Usar simulação ao invés de Selenium (Replit não suporta Chrome headless)
-      const { iptvSimulationService } = await import('./services/iptvSimulation');
+      // Importar o serviço dinamicamente
+      const { iptvAutomation } = await import('./services/iptvAutomation');
       
-      // Gerar credenciais via simulação
-      const credentials = await iptvSimulationService.generateTest(nota || `Teste para ${telefone}`, duracaoTexto);
+      // Gerar credenciais via automação
+      const credentials = await iptvAutomation.generateTest(nota || `Teste para ${telefone}`, duracaoTexto);
       
       if (!credentials) {
         return res.status(500).json({ 
@@ -3788,6 +3788,9 @@ Como posso ajudar você hoje?
         status: "ativo"
       } as any);
 
+      // Adicionar log
+      await addLog('info', 'IPTV Automation', `Teste gerado automaticamente para ${telefone} - Usuário: ${credentials.usuario}`);
+
       // Broadcast para atualizar interfaces
       broadcastMessage("test_created", teste);
 
@@ -3803,6 +3806,7 @@ Como posso ajudar você hoje?
       });
     } catch (error) {
       console.error("Erro ao gerar teste automaticamente:", error);
+      await addLog('error', 'IPTV Automation', `Erro ao gerar teste: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       res.status(500).json({ 
         error: "Erro ao gerar teste automaticamente",
         details: error instanceof Error ? error.message : "Erro desconhecido"

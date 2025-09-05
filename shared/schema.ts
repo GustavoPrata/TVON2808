@@ -52,6 +52,22 @@ export const indicacoes = pgTable("indicacoes", {
   observacoes: text("observacoes"),
 });
 
+// Credenciais IPTV (geradas pela automação externa)
+export const credenciaisIptv = pgTable("credenciais_iptv", {
+  id: serial("id").primaryKey(),
+  usuario: varchar("usuario", { length: 100 }).notNull().unique(),
+  senha: varchar("senha", { length: 100 }).notNull(),
+  servidor: varchar("servidor", { length: 200 }),
+  porta: varchar("porta", { length: 10 }),
+  tipo: varchar("tipo", { length: 50 }).default("iptv"), // iptv, vod, series
+  status: varchar("status", { length: 20 }).notNull().default("disponivel"), // disponivel, em_uso, expirado
+  dataGeracao: timestamp("data_geracao").notNull().defaultNow(),
+  dataExpiracao: timestamp("data_expiracao"),
+  observacoes: text("observacoes"),
+  usadoPor: varchar("usado_por", { length: 20 }), // Telefone do cliente usando
+  dataUso: timestamp("data_uso"), // Quando foi atribuído a um cliente
+});
+
 // Avisos de Vencimento
 export const avisosVencimento = pgTable("avisos_vencimento", {
   id: serial("id").primaryKey(),
@@ -558,3 +574,13 @@ export const insertConfigAvisosSchema = createInsertSchema(configAvisos).omit({
 
 export type ConfigAvisos = typeof configAvisos.$inferSelect;
 export type InsertConfigAvisos = z.infer<typeof insertConfigAvisosSchema>;
+
+// Credenciais IPTV types
+export const insertCredencialIptvSchema = createInsertSchema(credenciaisIptv).omit({
+  id: true,
+  dataGeracao: true,
+  status: true,
+});
+
+export type CredencialIptv = typeof credenciaisIptv.$inferSelect;
+export type InsertCredencialIptv = z.infer<typeof insertCredencialIptvSchema>;

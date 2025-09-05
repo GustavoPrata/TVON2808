@@ -41,6 +41,7 @@ const menuItems = [
   { path: '/vencimentos', icon: Calendar, label: 'Vencimentos' },
   { path: '/acessos', icon: Activity, label: 'Acessos' },
   { path: '/testes', icon: Monitor, label: 'Testes' },
+  { path: '/credenciais-iptv', icon: Tv, label: 'Credenciais IPTV' },
   { path: '/clientes', icon: Users, label: 'Clientes' },
   { path: '/apps', icon: Router, label: 'APPs' },
   { path: '/indicacoes', icon: UserPlus, label: 'Indicações' },
