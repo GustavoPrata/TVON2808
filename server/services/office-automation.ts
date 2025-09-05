@@ -62,16 +62,37 @@ export class OfficeAutomation {
 
       // Primeiro, verificar se já está logado (verificar URL)
       console.log('📍 Navegando para o sistema...');
-      await page.goto(`${this.baseUrl}/#/users-iptv`, { 
-        waitUntil: 'networkidle2',
-        timeout: 30000 
-      });
+      
+      try {
+        await page.goto(`${this.baseUrl}/#/users-iptv`, { 
+          waitUntil: 'networkidle2',
+          timeout: 30000 
+        });
+      } catch (error) {
+        console.error('❌ Erro ao navegar para o site:', error);
+        console.log('🔄 Tentando navegar para a página inicial primeiro...');
+        
+        // Tentar navegar para a página inicial primeiro
+        try {
+          await page.goto(this.baseUrl, { 
+            waitUntil: 'networkidle2',
+            timeout: 30000 
+          });
+        } catch (e) {
+          throw new Error(`Não foi possível acessar o site ${this.baseUrl}. Verifique sua conexão e se o site está disponível.`);
+        }
+      }
       
       await this.delay(3000);
       
-      // Verificar se foi redirecionado para login
+      // Verificar se foi redirecionado para login ou se houve erro
       const currentUrl = page.url();
       console.log('🔗 URL atual:', currentUrl);
+      
+      // Verificar se houve erro de carregamento
+      if (currentUrl.includes('chrome-error://') || currentUrl.includes('about:blank')) {
+        throw new Error(`Erro ao carregar a página. URL inválida: ${currentUrl}. Verifique se o site está acessível.`);
+      }
       
       if (currentUrl.includes('/login')) {
         console.log('⚠️ Não está logado. Por favor, faça login manualmente no navegador que abriu.');
@@ -164,18 +185,61 @@ export class OfficeAutomation {
         console.log('⚠️ Erro no segundo clique:', e instanceof Error ? e.message : String(e));
       }
       
-      // Aguardar o modal aparecer (com timeout de 10 segundos)
-      console.log('⏳ Aguardando modal aparecer...');
-      try {
-        await page.waitForSelector('span.alert-inner--text, .modal-content, [role="dialog"], .alert', {
-          timeout: 10000
+      // Aguardar o modal aparecer (com timeout de 15 segundos)
+      console.log('⏳ Aguardando modal aparecer (15 segundos)...');
+      
+      // Tentar detectar mudanças na página por 15 segundos
+      let modalFound = false;
+      for (let i = 0; i < 15; i++) {
+        await this.delay(1000);
+        
+        // Verificar se algum modal ou alerta apareceu
+        const hasModal = await page.evaluate(() => {
+          const selectors = [
+            'span.alert-inner--text',
+            '.modal-content', 
+            '[role="dialog"]',
+            '.alert',
+            '.swal2-container',
+            '.sweet-alert',
+            'div[class*="modal"]',
+            'div[class*="popup"]',
+            'div[class*="dialog"]'
+          ];
+          
+          for (const selector of selectors) {
+            const element = document.querySelector(selector);
+            if (element && element.textContent) {
+              console.log(`Modal encontrado com seletor: ${selector}`);
+              return true;
+            }
+          }
+          
+          // Verificar também se apareceu algum texto com padrão de credencial
+          const pageText = document.body.innerText;
+          if (pageText.includes('usuário') || pageText.includes('senha') || 
+              /\b\d{10}\b/.test(pageText)) {
+            console.log('Possível texto de credencial detectado');
+            return true;
+          }
+          
+          return false;
         });
-        console.log('✅ Modal detectado!');
-      } catch (e) {
-        console.log('⚠️ Modal não detectado após 10 segundos, continuando mesmo assim...');
+        
+        if (hasModal) {
+          modalFound = true;
+          console.log(`✅ Modal detectado após ${i+1} segundos!`);
+          break;
+        }
+        
+        console.log(`⏱️ Aguardando... (${i+1}/15)`);
       }
       
-      // Aguardar mais 2 segundos para garantir que o conteúdo carregou
+      if (!modalFound) {
+        console.log('⚠️ Modal não detectado após 15 segundos, continuando mesmo assim...');
+      }
+      
+      // Aguardar mais 2 segundos para garantir que o conteúdo carregou completamente
       await this.delay(2000);
 
       // Capturar HTML completo da página
