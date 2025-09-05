@@ -1,7 +1,6 @@
 import { Builder, By, until, WebDriver } from 'selenium-webdriver';
 import chrome from 'selenium-webdriver/chrome';
 import { storage } from '../storage';
-import { addLog } from '../utils/logger';
 const chromedriver = require('chromedriver');
 
 interface IptvCredentials {
@@ -65,8 +64,6 @@ class IptvAutomationService {
     duracao: '6 Horas' | '12 Horas' | '24 Horas' | '48 Horas' = '6 Horas'
   ): Promise<IptvCredentials | null> {
     try {
-      await addLog('info', 'IPTV Automation', 'Iniciando automação para gerar teste IPTV');
-      
       const driver = await this.initDriver();
       
       // Navega para a página de login
@@ -107,7 +104,6 @@ class IptvAutomationService {
         10000
       );
       await loginButton.click();
-      await addLog('info', 'IPTV Automation', 'Login realizado com sucesso');
       await driver.sleep(3000);
       
       // Aguarda e clica no botão "Gerar IPTV"
@@ -116,7 +112,6 @@ class IptvAutomationService {
         10000
       );
       await gerarIptvButton.click();
-      await addLog('info', 'IPTV Automation', 'Botão "Gerar IPTV" clicado');
       await driver.sleep(2000);
       
       // Preenche o campo de nota
@@ -149,7 +144,6 @@ class IptvAutomationService {
         10000
       );
       await confirmarButton.click();
-      await addLog('info', 'IPTV Automation', 'Confirmação realizada, aguardando credenciais...');
       await driver.sleep(3000);
       
       // Extrai as credenciais geradas
@@ -178,8 +172,6 @@ class IptvAutomationService {
       }
       
       if (usuario && senha) {
-        await addLog('info', 'IPTV Automation', `Credenciais capturadas: Usuário: ${usuario}`);
-        
         const credentials: IptvCredentials = {
           usuario,
           senha,
@@ -193,7 +185,6 @@ class IptvAutomationService {
       }
       
     } catch (error) {
-      await addLog('error', 'IPTV Automation', `Erro na automação: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       console.error('Erro na automação IPTV:', error);
       return null;
     } finally {

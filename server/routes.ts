@@ -3788,9 +3788,6 @@ Como posso ajudar você hoje?
         status: "ativo"
       } as any);
 
-      // Adicionar log
-      await addLog('info', 'IPTV Automation', `Teste gerado automaticamente para ${telefone} - Usuário: ${credentials.usuario}`);
-
       // Broadcast para atualizar interfaces
       broadcastMessage("test_created", teste);
 
@@ -3806,7 +3803,6 @@ Como posso ajudar você hoje?
       });
     } catch (error) {
       console.error("Erro ao gerar teste automaticamente:", error);
-      await addLog('error', 'IPTV Automation', `Erro ao gerar teste: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       res.status(500).json({ 
         error: "Erro ao gerar teste automaticamente",
         details: error instanceof Error ? error.message : "Erro desconhecido"
