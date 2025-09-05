@@ -147,8 +147,18 @@ export class OfficeAutomation {
         await page.select('select', '6');
       } catch (e) {
         try {
-          // Alternativa: clicar diretamente na opção
-          await page.click('option:has-text("6 Horas")');
+          // Alternativa: usar XPath para encontrar a opção
+          const [option] = await page.$x('//option[contains(text(), "6 Horas")]');
+          if (option) {
+            await option.click();
+          } else {
+            // Ou usar evaluate para clicar na opção
+            await page.evaluate(() => {
+              const options = Array.from(document.querySelectorAll('option'));
+              const sixHours = options.find(opt => opt.textContent?.includes('6 Horas'));
+              if (sixHours) sixHours.click();
+            });
+          }
         } catch (e2) {
           console.log('⚠️ Não foi possível selecionar 6 horas');
         }
@@ -156,9 +166,28 @@ export class OfficeAutomation {
       
       await this.delay(1000);
 
-      // Clicar em "Confirmar"
+      // Clicar em "Confirmar" usando XPath ou evaluate
       console.log('✅ Confirmando geração...');
-      await page.click('button:has-text("Confirmar")', { delay: 100 });
+      try {
+        // Método 1: Usar XPath para encontrar botão por texto
+        const [confirmButton] = await page.$x('//button[contains(text(), "Confirmar")]');
+        if (confirmButton) {
+          await confirmButton.click();
+        } else {
+          throw new Error('Botão não encontrado com XPath');
+        }
+      } catch (e) {
+        // Método 2: Usar evaluate para encontrar e clicar no botão
+        await page.evaluate(() => {
+          const buttons = Array.from(document.querySelectorAll('button'));
+          const confirmBtn = buttons.find(btn => btn.textContent?.includes('Confirmar'));
+          if (confirmBtn) {
+            confirmBtn.click();
+          } else {
+            throw new Error('Botão Confirmar não encontrado');
+          }
+        });
+      }
       
       // Aguardar 7 segundos para o modal aparecer
       console.log('⏳ Aguardando geração do teste (7 segundos)...');
