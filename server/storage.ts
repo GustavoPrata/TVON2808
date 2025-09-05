@@ -198,6 +198,13 @@ export interface IStorage {
   
   // Conversas - Correção
   corrigirTelefoneConversa(telefoneIncorreto: string, telefoneCorreto: string): Promise<number>;
+  
+  // Usuários Gerados
+  getUsuariosGerados(): Promise<UsuarioGerado[]>;
+  getUsuariosGeradosAtivos(): Promise<UsuarioGerado[]>;
+  createUsuarioGerado(usuario: InsertUsuarioGerado): Promise<UsuarioGerado>;
+  updateUsuarioGeradoStatus(id: number, status: string): Promise<UsuarioGerado>;
+  checkAndUpdateExpiredUsuarios(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
