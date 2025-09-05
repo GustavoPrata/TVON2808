@@ -60,56 +60,73 @@ export class OfficeAutomation {
         'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8'
       });
 
-      // Primeiro, verificar se já está logado (verificar URL)
+      // Navegar para página de login primeiro
       console.log('📍 Navegando para o sistema...');
       
       try {
-        await page.goto(`${this.baseUrl}/#/users-iptv`, { 
+        await page.goto(`${this.baseUrl}/#/login`, { 
           waitUntil: 'networkidle2',
           timeout: 30000 
         });
       } catch (error) {
         console.error('❌ Erro ao navegar para o site:', error);
-        console.log('🔄 Tentando navegar para a página inicial primeiro...');
-        
-        // Tentar navegar para a página inicial primeiro
-        try {
-          await page.goto(this.baseUrl, { 
-            waitUntil: 'networkidle2',
-            timeout: 30000 
-          });
-        } catch (e) {
-          throw new Error(`Não foi possível acessar o site ${this.baseUrl}. Verifique sua conexão e se o site está disponível.`);
-        }
+        throw new Error(`Não foi possível acessar o site ${this.baseUrl}. Verifique sua conexão e se o site está disponível.`);
       }
       
-      await this.delay(3000);
+      await this.delay(2000);
       
-      // Verificar se foi redirecionado para login ou se houve erro
       const currentUrl = page.url();
       console.log('🔗 URL atual:', currentUrl);
       
-      // Verificar se houve erro de carregamento
-      if (currentUrl.includes('chrome-error://') || currentUrl.includes('about:blank')) {
-        throw new Error(`Erro ao carregar a página. URL inválida: ${currentUrl}. Verifique se o site está acessível.`);
-      }
-      
-      if (currentUrl.includes('/login')) {
-        console.log('⚠️ Não está logado. Por favor, faça login manualmente no navegador que abriu.');
-        console.log('📝 Instruções:');
-        console.log('   1. Preencha o usuário e senha');
-        console.log('   2. Resolva o captcha "Não sou um robô"');
-        console.log('   3. Clique em Logar');
-        console.log('   4. Aguarde ser redirecionado');
-        console.log('⏳ Aguardando 30 segundos para login manual...');
+      // Fazer login automaticamente
+      if (currentUrl.includes('/login') || currentUrl.includes('#/login')) {
+        console.log('🔐 Fazendo login automaticamente...');
         
-        // Aguardar 30 segundos para o usuário fazer login manual
-        await this.delay(30000);
-        
-        // Verificar se o login foi feito
-        const urlAfterWait = page.url();
-        if (urlAfterWait.includes('/login')) {
-          throw new Error('Login não foi realizado. Por favor, tente novamente e faça o login manualmente.');
+        try {
+          // Preencher usuário
+          await page.waitForSelector('input[type="text"], input[name="username"], input[placeholder*="usuário" i], #username', { timeout: 5000 });
+          await page.type('input[type="text"], input[name="username"], input[placeholder*="usuário" i], #username', 'gustavoprata17', { delay: 100 });
+          
+          // Preencher senha
+          await page.waitForSelector('input[type="password"], input[name="password"], input[placeholder*="senha" i], #password', { timeout: 5000 });
+          await page.type('input[type="password"], input[name="password"], input[placeholder*="senha" i], #password', 'iptv102030', { delay: 100 });
+          
+          console.log('📝 Credenciais preenchidas');
+          
+          // Clicar no botão de login
+          await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button, input[type="submit"]'));
+            const loginBtn = buttons.find(btn => {
+              const text = btn.textContent?.toLowerCase() || '';
+              const value = (btn as HTMLInputElement).value?.toLowerCase() || '';
+              return text.includes('logar') || text.includes('login') || text.includes('entrar') || 
+                     value.includes('logar') || value.includes('login') || value.includes('entrar');
+            });
+            if (loginBtn) {
+              (loginBtn as HTMLElement).click();
+              return true;
+            }
+            return false;
+          });
+          
+          console.log('🖱️ Botão de login clicado');
+          
+          // Aguardar redirecionamento após login
+          await this.delay(5000);
+          
+          const urlAfterLogin = page.url();
+          if (urlAfterLogin.includes('/login')) {
+            console.log('⚠️ Login automático pode ter falhado. Tentando resolver captcha manualmente...');
+            console.log('📝 Se houver captcha, resolva-o manualmente no navegador');
+            console.log('⏳ Aguardando 20 segundos para resolução manual do captcha...');
+            await this.delay(20000);
+          }
+          
+        } catch (e) {
+          console.log('⚠️ Erro no login automático:', e instanceof Error ? e.message : String(e));
+          console.log('📝 Por favor, faça login manualmente no navegador');
+          console.log('⏳ Aguardando 30 segundos para login manual...');
+          await this.delay(30000);
         }
       }
       
@@ -128,22 +145,67 @@ export class OfficeAutomation {
         await this.delay(3000);
       }
 
-      // Clicar no botão "Gerar IPTV"
-      console.log('🎬 Clicando em "Gerar IPTV"...');
-      try {
-        await page.evaluate(() => {
-          const buttons = Array.from(document.querySelectorAll('button'));
-          const button = buttons.find(b => b.textContent?.includes('Gerar'));
-          if (button) {
-            button.click();
-            console.log('Botão Gerar clicado');
-          }
+      // Aguardar carregamento completo da página
+      await this.delay(5000);
+      
+      // Procurar e clicar no botão "Gerar IPTV"
+      console.log('🎬 Procurando botão "Gerar IPTV"...');
+      
+      // Listar todos os botões da página para debug
+      const buttonsInfo = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button, a[role="button"], div[role="button"], .btn'));
+        return buttons.map((btn, index) => {
+          const text = btn.textContent?.trim() || '';
+          const classes = btn.className || '';
+          return { index, text, classes };
         });
-      } catch (e) {
-        console.log('⚠️ Erro ao clicar no botão Gerar:', e instanceof Error ? e.message : String(e));
+      });
+      
+      console.log('📋 Botões encontrados na página:');
+      buttonsInfo.forEach(btn => {
+        if (btn.text) {
+          console.log(`  - Botão ${btn.index}: "${btn.text}" (classes: ${btn.classes})`);
+        }
+      });
+      
+      // Tentar clicar no botão de gerar
+      const gerarClicked = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button, a[role="button"], div[role="button"], .btn'));
+        
+        // Procurar botão com texto relacionado a gerar/criar
+        const button = buttons.find(b => {
+          const text = b.textContent?.toLowerCase() || '';
+          return text.includes('gerar') || text.includes('criar') || text.includes('novo') || 
+                 text.includes('add') || text.includes('adicionar') || text.includes('teste');
+        });
+        
+        if (button) {
+          (button as HTMLElement).click();
+          console.log(`✅ Clicado no botão: "${button.textContent?.trim()}"`);
+          return true;
+        }
+        
+        // Se não encontrar, tentar clicar no primeiro botão que pareça ser de ação principal
+        const primaryButton = buttons.find(b => {
+          const classes = b.className || '';
+          return classes.includes('primary') || classes.includes('success') || classes.includes('btn-primary');
+        });
+        
+        if (primaryButton) {
+          (primaryButton as HTMLElement).click();
+          console.log(`✅ Clicado no botão principal: "${primaryButton.textContent?.trim()}"`);
+          return true;
+        }
+        
+        return false;
+      });
+      
+      if (!gerarClicked) {
+        console.log('⚠️ Botão de gerar não encontrado automaticamente');
+        throw new Error('Não foi possível encontrar o botão para gerar IPTV. Verifique se você está na página correta.');
       }
       
-      await this.delay(2000);
+      await this.delay(3000);
 
       // Primeiro clique no botão Confirmar
       console.log('✅ Primeiro clique no botão Confirmar...');
