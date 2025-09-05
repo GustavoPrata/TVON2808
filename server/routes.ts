@@ -4893,6 +4893,44 @@ Como posso ajudar você hoje?
     }
   });
 
+  // OnlineOffice automation route
+  app.post("/api/office/generate-iptv-test", async (req, res) => {
+    try {
+      console.log("🚀 Iniciando automação OnlineOffice...");
+      
+      // Import the automation service
+      const { officeAutomation } = await import("./services/office-automation");
+      
+      // Run the automation
+      const result = await officeAutomation.generateIPTVTest();
+      
+      if (result.error) {
+        console.error("❌ Erro na automação:", result.error);
+        return res.status(500).json({
+          success: false,
+          message: "Erro ao gerar teste IPTV",
+          error: result.error
+        });
+      }
+      
+      console.log("✅ Teste IPTV gerado com sucesso!");
+      res.json({
+        success: true,
+        usuario: result.usuario,
+        senha: result.senha,
+        vencimento: result.vencimento,
+        message: "Teste IPTV gerado com sucesso!"
+      });
+    } catch (error) {
+      console.error("❌ Erro na rota de automação:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao gerar teste IPTV",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   app.get("/api/sync/details", async (req, res) => {
     try {
       // Get local systems

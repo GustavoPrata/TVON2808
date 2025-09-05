@@ -1,0 +1,89 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+import time
+import os
+
+# Configurações
+URL = "https://onlineoffice.zip/#/users-iptv"  # Substitua pelo URL correto
+OUTPUT_DIR = "credenciais_iptv"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# Credenciais
+USERNAME = "gustavoprata17"
+PASSWORD = "iptv102030"
+
+# Configura o driver do Chrome
+driver_path = "./chromedriver"  # Caminho para o ChromeDriver
+service = Service(driver_path)
+driver = webdriver.Chrome(service=service)
+
+try:
+    # Abre a página de login
+    driver.get(URL)
+    time.sleep(2)  # Aguarda o carregamento
+
+    # Preenche o usuário
+    username_field = driver.find_element(By.ID, "username")  # Ajuste o ID se diferente
+    username_field.send_keys(USERNAME)
+    time.sleep(1)
+
+    # Preenche a senha
+    password_field = driver.find_element(By.ID, "password")  # Ajuste o ID se diferente
+    password_field.send_keys(PASSWORD)
+    time.sleep(1)
+
+    # Marca "Não sou um robô"
+    checkbox = driver.find_element(By.XPATH, "//input[@type='checkbox' and contains(@id, 'recaptcha')]")  # Ajuste o ID
+    checkbox.click()
+    time.sleep(1)
+
+    # Clica no botão "Logar"
+    login_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Logar')]")
+    login_button.click()
+    print("Login realizado!")
+    time.sleep(3)  # Aguarda o redirecionamento
+
+    # Após login, clica em "Gerar IPTV"
+    gerar_iptv_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Gerar IPTV')]")
+    gerar_iptv_button.click()
+    print("Botão 'Gerar IPTV' clicado!")
+    time.sleep(2)  # Aguarda a popup
+
+    # Preenche a nota com "teste"
+    nota_field = driver.find_element(By.XPATH, "//input[@placeholder='Insira aqui uma nota para o usuário']")
+    nota_field.send_keys("teste")
+    time.sleep(1)
+
+    # Seleciona 6 horas no dropdown de tempo de teste
+    tempo_dropdown = driver.find_element(By.XPATH, "//select[contains(@placeholder, 'Selecione o tempo de teste')]")
+    tempo_dropdown.click()
+    time.sleep(1)
+    tempo_6h = driver.find_element(By.XPATH, "//option[text()='6 Horas']")
+    tempo_6h.click()
+    time.sleep(1)
+
+    # Clica em "Confirmar"
+    confirmar_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Confirmar')]")
+    confirmar_button.click()
+    print("Confirmação realizada!")
+    time.sleep(3)  # Aguarda a lista ser gerada
+
+    # Extrai usuário e senha da nova janela ou popup
+    usuario = driver.find_element(By.XPATH, "//p[contains(text(), 'USUÁRIO:')]/following-sibling::p[1]").text
+    senha = driver.find_element(By.XPATH, "//p[contains(text(), 'SENHA:')]/following-sibling::p[1]").text
+
+    # Salva apenas usuário e senha
+    if usuario and senha:
+        filename = os.path.join(OUTPUT_DIR, "credenciais.txt")
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(f"Usuário: {usuario}\nSenha: {senha}")
+        print(f"Credenciais salvas em {filename}")
+
+except Exception as e:
+    print(f"Erro: {e}")
+
+finally:
+    # Fecha o navegador após 5 segundos
+    time.sleep(5)
+    driver.quit()

@@ -26,6 +26,7 @@ import Woovi from "@/pages/woovi";
 import Indicacoes from "@/pages/indicacoes";
 import Ajuda from "@/pages/ajuda";
 import Anotacoes from "@/pages/anotacoes";
+import PainelOffice from "@/pages/painel-office";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import { Loader2 } from "lucide-react";
@@ -49,6 +50,7 @@ function Router() {
       <Route path="/indicacoes" component={Indicacoes} />
       <Route path="/ajuda" component={Ajuda} />
       <Route path="/anotacoes" component={Anotacoes} />
+      <Route path="/painel-office" component={PainelOffice} />
       <Route path="/logs" component={Logs} />
       <Route component={NotFound} />
     </Switch>

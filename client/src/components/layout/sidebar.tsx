@@ -43,6 +43,7 @@ const menuItems = [
   { path: '/testes', icon: Monitor, label: 'Testes' },
   { path: '/clientes', icon: Users, label: 'Clientes' },
   { path: '/apps', icon: Router, label: 'APPs' },
+  { path: '/painel-office', icon: Monitor, label: 'Painel Office' },
   { path: '/indicacoes', icon: UserPlus, label: 'Indicações' },
   { path: '/ajuda', icon: HelpCircle, label: 'Ajuda' },
   { path: '/anotacoes', icon: StickyNote, label: 'Anotações' },
