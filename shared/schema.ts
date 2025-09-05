@@ -558,3 +558,26 @@ export const insertConfigAvisosSchema = createInsertSchema(configAvisos).omit({
 
 export type ConfigAvisos = typeof configAvisos.$inferSelect;
 export type InsertConfigAvisos = z.infer<typeof insertConfigAvisosSchema>;
+
+// Usuários Gerados Automaticamente
+export const usuariosGerados = pgTable("usuarios_gerados", {
+  id: serial("id").primaryKey(),
+  usuario: varchar("usuario", { length: 100 }).notNull(),
+  senha: varchar("senha", { length: 100 }).notNull(),
+  nota: varchar("nota", { length: 200 }).default("teste"),
+  tempoExpiracao: varchar("tempo_expiracao", { length: 20 }).notNull().default("6 horas"),
+  dataCriacao: timestamp("data_criacao").notNull().defaultNow(),
+  dataExpiracao: timestamp("data_expiracao").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("ativo"), // ativo, expirado
+  appUrl: text("app_url"), // URL do aplicativo usado
+  apiResponse: json("api_response"), // Resposta completa da API
+});
+
+export const insertUsuarioGeradoSchema = createInsertSchema(usuariosGerados).omit({
+  id: true,
+  dataCriacao: true,
+  status: true,
+});
+
+export type UsuarioGerado = typeof usuariosGerados.$inferSelect;
+export type InsertUsuarioGerado = z.infer<typeof insertUsuarioGeradoSchema>;

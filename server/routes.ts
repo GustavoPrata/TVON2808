@@ -3290,6 +3290,113 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Usuários Gerados Routes
+  app.get("/api/usuarios-gerados", async (req, res) => {
+    try {
+      // Update expired users
+      await storage.checkAndUpdateExpiredUsuarios();
+      const usuarios = await storage.getUsuariosGerados();
+      res.json(usuarios);
+    } catch (error) {
+      console.error("Erro ao buscar usuários gerados:", error);
+      res.status(500).json({ error: "Falha ao buscar usuários gerados" });
+    }
+  });
+
+  app.get("/api/usuarios-gerados/ativos", async (req, res) => {
+    try {
+      // Update expired users
+      await storage.checkAndUpdateExpiredUsuarios();
+      const usuarios = await storage.getUsuariosGeradosAtivos();
+      res.json(usuarios);
+    } catch (error) {
+      console.error("Erro ao buscar usuários ativos:", error);
+      res.status(500).json({ error: "Falha ao buscar usuários ativos" });
+    }
+  });
+
+  app.post("/api/usuarios-gerados/gerar", async (req, res) => {
+    try {
+      console.log("Iniciando geração de usuário IPTV...");
+      
+      // Faz login no sistema
+      const loginResponse = await fetch('https://onlineoffice.zip/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: 'gustavoprata17',
+          password: 'iptv102030'
+        })
+      });
+
+      if (!loginResponse.ok) {
+        throw new Error('Erro ao fazer login no sistema IPTV');
+      }
+
+      const loginData = await loginResponse.json();
+      const token = loginData.token || loginData.access_token;
+      
+      // Gera novo usuário com teste de 6 horas
+      const gerarResponse = await fetch('https://onlineoffice.zip/api/usuarios/gerar-teste', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          nota: 'teste',
+          tempo: '6 horas'
+        })
+      });
+
+      if (!gerarResponse.ok) {
+        throw new Error('Erro ao gerar usuário de teste');
+      }
+
+      const userData = await gerarResponse.json();
+      
+      // Calcula expiração (6 horas)
+      const dataExpiracao = new Date();
+      dataExpiracao.setHours(dataExpiracao.getHours() + 6);
+      
+      // Salva no banco de dados
+      const usuarioSalvo = await storage.createUsuarioGerado({
+        usuario: userData.usuario || userData.username,
+        senha: userData.senha || userData.password,
+        nota: 'teste',
+        tempoExpiracao: '6 horas',
+        dataExpiracao,
+        appUrl: 'https://onlineoffice.zip',
+        apiResponse: userData
+      });
+
+      console.log("Usuário gerado com sucesso:", usuarioSalvo.usuario);
+      res.status(201).json(usuarioSalvo);
+    } catch (error) {
+      console.error("Erro ao gerar usuário:", error);
+      res.status(500).json({ 
+        error: "Falha ao gerar usuário", 
+        details: error.message 
+      });
+    }
+  });
+
+  app.put("/api/usuarios-gerados/:id/status", async (req, res) => {
+    try {
+      const { status } = req.body;
+      const usuario = await storage.updateUsuarioGeradoStatus(
+        parseInt(req.params.id),
+        status
+      );
+      res.json(usuario);
+    } catch (error) {
+      console.error("Erro ao atualizar status do usuário:", error);
+      res.status(500).json({ error: "Falha ao atualizar status do usuário" });
+    }
+  });
+
   app.post(
     "/api/whatsapp/profile-picture",
     profilePictureUpload.single("profilePicture"),
