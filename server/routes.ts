@@ -3317,12 +3317,16 @@ Como posso ajudar você hoje?
 
   app.post("/api/usuarios-gerados/gerar", async (req, res) => {
     try {
-      console.log("Iniciando geração de usuário IPTV local...");
+      console.log("Iniciando geração de usuário IPTV...");
       
-      // Gera credenciais aleatórias
-      const randomNum = Math.floor(Math.random() * 99999);
-      const usuario = `teste${randomNum}`;
-      const senha = Math.random().toString(36).substring(2, 10);
+      // Por enquanto, gera credenciais localmente
+      // Em produção, isso deve fazer a integração real com o sistema IPTV
+      // através de requisições HTTP ou automação com Puppeteer
+      
+      // Gera credenciais temporárias para teste
+      const randomNum = Math.floor(10000 + Math.random() * 90000);
+      const usuario = `${randomNum}teste`;
+      const senha = Math.random().toString(36).substring(2, 10).toUpperCase();
       
       // Calcula expiração (6 horas)
       const dataExpiracao = new Date();
@@ -3336,11 +3340,21 @@ Como posso ajudar você hoje?
         tempoExpiracao: '6 horas',
         dataExpiracao,
         appUrl: 'https://onlineoffice.zip',
-        apiResponse: { usuario, senha, created: new Date().toISOString() }
+        apiResponse: { 
+          usuario, 
+          senha, 
+          created: new Date().toISOString(),
+          message: 'Credenciais de teste geradas localmente. Integração com sistema IPTV em desenvolvimento.'
+        }
       });
 
       console.log("Usuário gerado com sucesso:", usuarioSalvo.usuario);
-      res.status(201).json(usuarioSalvo);
+      
+      // Retorna as credenciais
+      res.status(201).json({
+        ...usuarioSalvo,
+        aviso: "Sistema em modo de teste. Credenciais geradas localmente."
+      });
     } catch (error) {
       console.error("Erro ao gerar usuário:", error);
       res.status(500).json({ 
