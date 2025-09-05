@@ -285,8 +285,7 @@ export class OfficeAutomation {
         }
         
         // Se não encontrar, procurar por botão com span contendo o texto
-        const spanWithText = document.querySelector('span:contains("Gerar IPTV")') || 
-                           Array.from(document.querySelectorAll('span')).find(s => s.textContent?.includes('Gerar IPTV'));
+        const spanWithText = Array.from(document.querySelectorAll('span')).find(s => s.textContent?.includes('Gerar IPTV'));
         
         if (spanWithText && spanWithText.parentElement?.tagName === 'BUTTON') {
           (spanWithText.parentElement as HTMLButtonElement).click();
@@ -294,12 +293,15 @@ export class OfficeAutomation {
           return true;
         }
         
-        // Última tentativa: botão com classe btn-outline-success
+        // Última tentativa: botão com classe btn-outline-success que contém "Gerar IPTV"
         const successButton = document.querySelector('button.btn-outline-success');
         if (successButton) {
-          (successButton as HTMLButtonElement).click();
-          console.log('🖱️ Clicado no botão com classe btn-outline-success');
-          return true;
+          const buttonText = successButton.textContent || '';
+          if (buttonText.includes('Gerar IPTV')) {
+            (successButton as HTMLButtonElement).click();
+            console.log('🖱️ Clicado no botão "Gerar IPTV" com classe btn-outline-success');
+            return true;
+          }
         }
         
         console.log('❌ Botão "Gerar IPTV" não encontrado em nenhuma das tentativas');
