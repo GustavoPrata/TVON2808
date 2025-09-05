@@ -2,7 +2,7 @@ import { db } from "./db";
 import { 
   clientes, pontos, pagamentos, pagamentosManual, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
-  avisosVencimento, configAvisos, anotacoes, credenciaisIptv,
+  avisosVencimento, configAvisos, anotacoes,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
@@ -14,8 +14,7 @@ import {
   type MensagemRapida, type InsertMensagemRapida,
   type AvisoVencimento, type InsertAvisoVencimento,
   type ConfigAvisos, type InsertConfigAvisos,
-  type Anotacao, type InsertAnotacao,
-  type CredencialIptv, type InsertCredencialIptv
+  type Anotacao, type InsertAnotacao
 } from "@shared/schema";
 import { eq, desc, asc, sql, and, or, gte, lte, ilike, ne, count } from "drizzle-orm";
 
@@ -195,14 +194,6 @@ export interface IStorage {
   updateAnotacao(id: number, anotacao: Partial<InsertAnotacao>): Promise<Anotacao>;
   deleteAnotacao(id: number): Promise<void>;
   reorderAnotacoes(ids: number[]): Promise<void>;
-  
-  // Credenciais IPTV
-  getCredenciaisIptv(): Promise<CredencialIptv[]>;
-  getCredencialIptvById(id: number): Promise<CredencialIptv | undefined>;
-  createCredencialIptv(credencial: InsertCredencialIptv): Promise<CredencialIptv>;
-  updateCredencialIptv(id: number, credencial: Partial<InsertCredencialIptv>): Promise<CredencialIptv>;
-  deleteCredencialIptv(id: number): Promise<void>;
-  updateCredencialIptvStatus(id: number, status: string): Promise<CredencialIptv>;
   
   // Conversas - Correção
   corrigirTelefoneConversa(telefoneIncorreto: string, telefoneCorreto: string): Promise<number>;
@@ -1527,41 +1518,6 @@ export class DatabaseStorage implements IStorage {
     );
     
     await Promise.all(updates);
-  }
-
-  // Credenciais IPTV implementation
-  async getCredenciaisIptv(): Promise<CredencialIptv[]> {
-    return await db.select().from(credenciaisIptv).orderBy(desc(credenciaisIptv.dataGeracao));
-  }
-
-  async getCredencialIptvById(id: number): Promise<CredencialIptv | undefined> {
-    const result = await db.select().from(credenciaisIptv).where(eq(credenciaisIptv.id, id)).limit(1);
-    return result[0];
-  }
-
-  async createCredencialIptv(credencial: InsertCredencialIptv): Promise<CredencialIptv> {
-    const result = await db.insert(credenciaisIptv).values(credencial).returning();
-    return result[0];
-  }
-
-  async updateCredencialIptv(id: number, credencial: Partial<InsertCredencialIptv>): Promise<CredencialIptv> {
-    const result = await db.update(credenciaisIptv)
-      .set(credencial)
-      .where(eq(credenciaisIptv.id, id))
-      .returning();
-    return result[0];
-  }
-
-  async deleteCredencialIptv(id: number): Promise<void> {
-    await db.delete(credenciaisIptv).where(eq(credenciaisIptv.id, id));
-  }
-
-  async updateCredencialIptvStatus(id: number, status: string): Promise<CredencialIptv> {
-    const result = await db.update(credenciaisIptv)
-      .set({ status })
-      .where(eq(credenciaisIptv.id, id))
-      .returning();
-    return result[0];
   }
 }
 
