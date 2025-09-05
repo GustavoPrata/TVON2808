@@ -1,6 +1,7 @@
 import puppeteer from 'puppeteer';
 import puppeteerExtra from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import { promises as fs } from 'fs';
 
 // Usar o plugin stealth para evitar detecção de bot
 puppeteerExtra.use(StealthPlugin());
@@ -182,7 +183,6 @@ export class OfficeAutomation {
       console.log('📄 HTML da página capturado, tamanho:', pageHTML.length);
       
       // Salvar HTML em arquivo para debug
-      const fs = require('fs').promises;
       const debugFilePath = '/tmp/office-page-debug.html';
       try {
         await fs.writeFile(debugFilePath, pageHTML);
