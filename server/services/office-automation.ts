@@ -67,74 +67,32 @@ export class OfficeAutomation {
       const pageTitle = await page.title();
       console.log('📄 Título da página:', pageTitle);
       
-      // Preencher username - tentar múltiplos seletores
+      // Preencher username - usando seletor específico do site
       console.log('📝 Preenchendo credenciais...');
       try {
-        // Tentar diferentes seletores para o campo de username
-        const usernameSelectors = [
-          'input[type="text"]',
-          'input[name="username"]',
-          'input[placeholder*="usuário" i]',
-          'input[placeholder*="user" i]',
-          '#username',
-          'input.form-control[type="text"]'
-        ];
-        
-        let usernameField = null;
-        for (const selector of usernameSelectors) {
-          try {
-            await page.waitForSelector(selector, { timeout: 2000 });
-            usernameField = selector;
-            console.log(`✅ Campo username encontrado com seletor: ${selector}`);
-            break;
-          } catch (e) {
-            continue;
-          }
-        }
-        
-        if (!usernameField) {
-          throw new Error('Campo de username não encontrado');
-        }
-        
-        await page.type(usernameField, this.username, { delay: 100 });
+        // Aguardar e preencher campo de usuário
+        const usernameSelector = 'input[placeholder="Usuário"]';
+        await page.waitForSelector(usernameSelector, { timeout: 10000 });
+        await page.click(usernameSelector);
+        await page.type(usernameSelector, this.username, { delay: 100 });
+        console.log('✅ Campo username preenchido');
         await this.delay(1000);
       } catch (e) {
         console.error('❌ Erro ao preencher username:', e);
-        throw e;
+        throw new Error('Campo de username não encontrado - verifique se a página carregou corretamente');
       }
 
-      // Preencher password - tentar múltiplos seletores
+      // Preencher password - usando seletor específico do site
       try {
-        const passwordSelectors = [
-          'input[type="password"]',
-          'input[name="password"]',
-          'input[placeholder*="senha" i]',
-          'input[placeholder*="pass" i]',
-          '#password',
-          'input.form-control[type="password"]'
-        ];
-        
-        let passwordField = null;
-        for (const selector of passwordSelectors) {
-          try {
-            await page.waitForSelector(selector, { timeout: 2000 });
-            passwordField = selector;
-            console.log(`✅ Campo password encontrado com seletor: ${selector}`);
-            break;
-          } catch (e) {
-            continue;
-          }
-        }
-        
-        if (!passwordField) {
-          throw new Error('Campo de password não encontrado');
-        }
-        
-        await page.type(passwordField, this.password, { delay: 100 });
+        const passwordSelector = 'input[placeholder="Senha"][type="password"]';
+        await page.waitForSelector(passwordSelector, { timeout: 10000 });
+        await page.click(passwordSelector);
+        await page.type(passwordSelector, this.password, { delay: 100 });
+        console.log('✅ Campo password preenchido');
         await this.delay(1000);
       } catch (e) {
         console.error('❌ Erro ao preencher password:', e);
-        throw e;
+        throw new Error('Campo de password não encontrado - verifique se a página carregou corretamente');
       }
 
       // Tentar marcar o checkbox do reCAPTCHA
@@ -166,7 +124,33 @@ export class OfficeAutomation {
 
       // Clicar no botão de login
       console.log('🔐 Fazendo login...');
-      await page.click('button:has-text("Logar")', { delay: 100 });
+      try {
+        // Tentar clicar no botão usando múltiplas estratégias
+        const loginButtonSelectors = [
+          'button.btn.btn-primary',
+          'button:has-text("Logar")',
+          'button[type="button"]'
+        ];
+        
+        let clicked = false;
+        for (const selector of loginButtonSelectors) {
+          try {
+            await page.click(selector, { delay: 100 });
+            clicked = true;
+            console.log(`✅ Botão de login clicado com seletor: ${selector}`);
+            break;
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (!clicked) {
+          throw new Error('Botão de login não encontrado');
+        }
+      } catch (e) {
+        console.error('❌ Erro ao clicar no botão de login:', e);
+        throw e;
+      }
       
       // Aguardar o redirecionamento
       await this.delay(5000);
