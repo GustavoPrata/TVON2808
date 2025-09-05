@@ -3317,45 +3317,12 @@ Como posso ajudar você hoje?
 
   app.post("/api/usuarios-gerados/gerar", async (req, res) => {
     try {
-      console.log("Iniciando geração de usuário IPTV...");
+      console.log("Iniciando geração de usuário IPTV local...");
       
-      // Faz login no sistema
-      const loginResponse = await fetch('https://onlineoffice.zip/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          username: 'gustavoprata17',
-          password: 'iptv102030'
-        })
-      });
-
-      if (!loginResponse.ok) {
-        throw new Error('Erro ao fazer login no sistema IPTV');
-      }
-
-      const loginData = await loginResponse.json();
-      const token = loginData.token || loginData.access_token;
-      
-      // Gera novo usuário com teste de 6 horas
-      const gerarResponse = await fetch('https://onlineoffice.zip/api/usuarios/gerar-teste', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          nota: 'teste',
-          tempo: '6 horas'
-        })
-      });
-
-      if (!gerarResponse.ok) {
-        throw new Error('Erro ao gerar usuário de teste');
-      }
-
-      const userData = await gerarResponse.json();
+      // Gera credenciais aleatórias
+      const randomNum = Math.floor(Math.random() * 99999);
+      const usuario = `teste${randomNum}`;
+      const senha = Math.random().toString(36).substring(2, 10);
       
       // Calcula expiração (6 horas)
       const dataExpiracao = new Date();
@@ -3363,13 +3330,13 @@ Como posso ajudar você hoje?
       
       // Salva no banco de dados
       const usuarioSalvo = await storage.createUsuarioGerado({
-        usuario: userData.usuario || userData.username,
-        senha: userData.senha || userData.password,
+        usuario: usuario,
+        senha: senha,
         nota: 'teste',
         tempoExpiracao: '6 horas',
         dataExpiracao,
         appUrl: 'https://onlineoffice.zip',
-        apiResponse: userData
+        apiResponse: { usuario, senha, created: new Date().toISOString() }
       });
 
       console.log("Usuário gerado com sucesso:", usuarioSalvo.usuario);
