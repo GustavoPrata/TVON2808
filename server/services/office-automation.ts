@@ -177,6 +177,20 @@ export class OfficeAutomation {
       // Aguardar mais 2 segundos para garantir que o conteúdo carregou
       await this.delay(2000);
 
+      // Capturar HTML completo da página
+      const pageHTML = await page.evaluate(() => document.documentElement.outerHTML);
+      console.log('📄 HTML da página capturado, tamanho:', pageHTML.length);
+      
+      // Salvar HTML em arquivo para debug
+      const fs = require('fs').promises;
+      const debugFilePath = '/tmp/office-page-debug.html';
+      try {
+        await fs.writeFile(debugFilePath, pageHTML);
+        console.log('📝 HTML salvo em:', debugFilePath);
+      } catch (e) {
+        console.log('⚠️ Erro ao salvar HTML:', e);
+      }
+
       // Tirar screenshot para debug
       try {
         const screenshotDebug = await page.screenshot({ encoding: 'base64', type: 'png' });
@@ -185,18 +199,34 @@ export class OfficeAutomation {
         console.log('⚠️ Não foi possível tirar screenshot de debug');
       }
 
-      // Verificar se o modal está presente
+      // Verificar se o modal está presente e capturar estrutura detalhada
       const modalPresent = await page.evaluate(() => {
         const modal = document.querySelector('.modal, [role="dialog"], .alert, .popup, .modal-content');
         const alertSpan = document.querySelector('span.alert-inner--text');
+        
+        // Buscar todos os elementos que contenham números
+        const allElements = document.querySelectorAll('*');
+        const numbersFound: string[] = [];
+        
+        allElements.forEach(el => {
+          const text = el.textContent || '';
+          const numbers = text.match(/\b\d{9,11}\b/g);
+          if (numbers) {
+            numbersFound.push(...numbers);
+          }
+        });
+        
         return {
           hasModal: !!modal,
           hasAlertSpan: !!alertSpan,
-          bodyText: document.body.innerText?.substring(0, 500) || 'sem texto'
+          bodyText: document.body.innerText?.substring(0, 500) || 'sem texto',
+          numbersInPage: Array.from(new Set(numbersFound)).slice(0, 5), // Primeiros 5 números únicos
+          modalHTML: modal ? modal.innerHTML.substring(0, 500) : null,
+          alertSpanHTML: alertSpan ? alertSpan.innerHTML : null
         };
       });
       
-      console.log('🔍 Estado da página:', modalPresent);
+      console.log('🔍 Estado da página:', JSON.stringify(modalPresent, null, 2));
 
       // Extrair credenciais do modal
       console.log('📋 Extraindo credenciais...');
