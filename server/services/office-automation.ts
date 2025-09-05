@@ -118,7 +118,7 @@ export class OfficeAutomation {
           }
         });
       } catch (e) {
-        console.log('⚠️ Erro ao clicar no botão Gerar:', e.message);
+        console.log('⚠️ Erro ao clicar no botão Gerar:', e instanceof Error ? e.message : String(e));
       }
       
       await this.delay(2000);
@@ -139,7 +139,7 @@ export class OfficeAutomation {
           return false;
         });
       } catch (e) {
-        console.log('⚠️ Erro no primeiro clique:', e.message);
+        console.log('⚠️ Erro no primeiro clique:', e instanceof Error ? e.message : String(e));
       }
 
       await this.delay(2000);
@@ -160,7 +160,7 @@ export class OfficeAutomation {
           return false;
         });
       } catch (e) {
-        console.log('⚠️ Erro no segundo clique:', e.message);
+        console.log('⚠️ Erro no segundo clique:', e instanceof Error ? e.message : String(e));
       }
       
       // Aguardar 7 segundos para o modal aparecer
@@ -176,66 +176,108 @@ export class OfficeAutomation {
       let vencimento = '';
 
       try {
-        // Método 1: Buscar por texto específico
-        const usuarioElement = await page.$x('//p[contains(text(), "USUÁRIO:")]/following-sibling::p[1]');
-        if (usuarioElement.length > 0) {
-          usuario = await page.evaluate(el => el.textContent, usuarioElement[0]);
-        }
-        
-        const senhaElement = await page.$x('//p[contains(text(), "SENHA:")]/following-sibling::p[1]');
-        if (senhaElement.length > 0) {
-          senha = await page.evaluate(el => el.textContent, senhaElement[0]);
+        // Método 1: Buscar dentro do span.alert-inner--text (estrutura específica do modal)
+        const modalContent = await page.evaluate(() => {
+          // Primeiro tentar o span específico
+          const alertSpan = document.querySelector('span.alert-inner--text') as HTMLElement;
+          if (alertSpan) {
+            return alertSpan.innerText || alertSpan.textContent;
+          }
+          
+          // Se não encontrar, tentar outras estruturas de modal
+          const modal = document.querySelector('.modal-content, .modal-body, [role="dialog"], .alert') as HTMLElement;
+          if (modal) {
+            return modal.innerText || modal.textContent;
+          }
+          
+          // Por último, tentar qualquer elemento que contenha as credenciais
+          const allText = document.body.innerText || document.body.textContent;
+          if (allText && allText.includes('USUÁRIO:')) {
+            return allText;
+          }
+          
+          return null;
+        });
+
+        if (modalContent) {
+          console.log('📄 Conteúdo do modal encontrado');
+          
+          // Regex mais flexível para capturar valores entre aspas ou não
+          // USUÁRIO: "5259609334 " ou USUÁRIO: 5259609334
+          const userMatch = modalContent.match(/USUÁRIO:\s*["\s]*(\d+)["\s]*/i);
+          if (userMatch) {
+            usuario = userMatch[1].trim();
+            console.log('✅ Usuário extraído:', usuario);
+          }
+
+          // SENHA: "8867A44633 " ou SENHA: 8867A44633
+          const passMatch = modalContent.match(/SENHA:\s*["\s]*([A-Z0-9]+)["\s]*/i);
+          if (passMatch) {
+            senha = passMatch[1].trim();
+            console.log('✅ Senha extraída:', senha);
+          }
+
+          // VENCIMENTO: " 05/09/2025 12:22:34 "
+          const vencMatch = modalContent.match(/VENCIMENTO:\s*["\s]*([^"\n]+?)["|\n]/i);
+          if (vencMatch) {
+            vencimento = vencMatch[1].trim();
+            console.log('✅ Vencimento extraído:', vencimento);
+          }
         }
       } catch (e) {
-        console.log('⚠️ Método 1 falhou, tentando método 2...');
+        console.log('⚠️ Método 1 falhou:', e instanceof Error ? e.message : String(e));
       }
 
-      // Método 2: Buscar por padrão no texto
+      // Método 2: Buscar por estrutura HTML com textContent dos nós
       if (!usuario || !senha) {
         try {
-          const modalText = await page.evaluate(() => {
-            const modal = document.querySelector('[role="dialog"], .modal, .popup');
-            return modal ? modal.textContent : document.body.textContent;
+          const credentials = await page.evaluate(() => {
+            const result: { [key: string]: string } = { usuario: '', senha: '', vencimento: '' };
+            
+            // Procurar o span.alert-inner--text
+            const alertSpan = document.querySelector('span.alert-inner--text');
+            if (!alertSpan) return result;
+            
+            // Pegar os nós filhos
+            const childNodes = alertSpan.childNodes;
+            let currentField = '';
+            
+            childNodes.forEach(node => {
+              const text = node.textContent || '';
+              
+              // Se for um strong com o nome do campo
+              if (node.nodeName === 'STRONG') {
+                if (text.includes('USUÁRIO')) currentField = 'usuario';
+                else if (text.includes('SENHA')) currentField = 'senha';
+                else if (text.includes('VENCIMENTO')) currentField = 'vencimento';
+                else currentField = '';
+              } 
+              // Se for um texto após o strong
+              else if (node.nodeType === Node.TEXT_NODE && currentField) {
+                const value = text.replace(/["\s]+/g, ' ').trim();
+                if (value) {
+                  result[currentField] = value;
+                }
+              }
+            });
+            
+            return result;
           });
 
-          // Extrair usuário (formato esperado: USUÁRIO: 974286091)
-          const userMatch = modalText?.match(/USUÁRIO:\s*(\d+)/i);
-          if (userMatch) usuario = userMatch[1];
-
-          // Extrair senha (formato esperado: SENHA: x569n9833G)
-          const passMatch = modalText?.match(/SENHA:\s*([a-zA-Z0-9]+)/i);
-          if (passMatch) senha = passMatch[1];
-
-          // Extrair vencimento (formato esperado: VENCIMENTO: 05/09/2025 10:10:51)
-          const vencMatch = modalText?.match(/VENCIMENTO:\s*([\d\/\s:]+)/i);
-          if (vencMatch) vencimento = vencMatch[1].trim();
-        } catch (e) {
-          console.log('⚠️ Método 2 falhou, tentando método 3...');
-        }
-      }
-
-      // Método 3: Buscar diretamente nos elementos
-      if (!usuario || !senha) {
-        try {
-          const allText = await page.evaluate(() => {
-            const elements = document.querySelectorAll('p, div, span');
-            return Array.from(elements).map(el => el.textContent).join('\n');
-          });
-
-          const lines = allText.split('\n');
-          for (let i = 0; i < lines.length; i++) {
-            if (lines[i].includes('USUÁRIO:')) {
-              usuario = lines[i].split(':')[1]?.trim() || lines[i + 1]?.trim() || '';
-            }
-            if (lines[i].includes('SENHA:')) {
-              senha = lines[i].split(':')[1]?.trim() || lines[i + 1]?.trim() || '';
-            }
-            if (lines[i].includes('VENCIMENTO:')) {
-              vencimento = lines[i].split(':', 2)[1]?.trim() || lines[i + 1]?.trim() || '';
-            }
+          if (credentials.usuario) {
+            usuario = credentials.usuario;
+            console.log('✅ Usuário extraído (método 2):', usuario);
+          }
+          if (credentials.senha) {
+            senha = credentials.senha;
+            console.log('✅ Senha extraída (método 2):', senha);
+          }
+          if (credentials.vencimento) {
+            vencimento = credentials.vencimento;
+            console.log('✅ Vencimento extraído (método 2):', vencimento);
           }
         } catch (e) {
-          console.log('⚠️ Método 3 falhou');
+          console.log('⚠️ Método 2 falhou:', e instanceof Error ? e.message : String(e));
         }
       }
 
