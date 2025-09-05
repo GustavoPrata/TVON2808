@@ -13,6 +13,7 @@ interface IPTVResult {
   usuario: string;
   senha: string;
   vencimento?: string;
+  m3u8?: string;
 }
 
 export default function PainelOffice() {
@@ -31,7 +32,8 @@ export default function PainelOffice() {
         setResult({
           usuario: data.usuario,
           senha: data.senha,
-          vencimento: data.vencimento
+          vencimento: data.vencimento,
+          m3u8: data.m3u8
         });
         setError(null);
         toast({
@@ -82,7 +84,7 @@ export default function PainelOffice() {
                 Painel Office
               </h1>
               <p className="text-sm text-slate-400 mt-1">
-                Automação para geração de testes IPTV
+                Integração via API para geração de testes IPTV
               </p>
             </div>
           </div>
@@ -105,14 +107,14 @@ export default function PainelOffice() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <p className="text-sm text-slate-400">
-                Este processo automatizado irá:
+                Este processo via API irá:
               </p>
               <ul className="text-sm text-slate-400 space-y-1 ml-4">
-                <li>• Fazer login no sistema OnlineOffice</li>
-                <li>• Navegar até a página de geração</li>
-                <li>• Preencher os dados necessários</li>
-                <li>• Selecionar duração de 6 horas</li>
-                <li>• Extrair as credenciais geradas</li>
+                <li>• Fazer login na API OnlineOffice</li>
+                <li>• Gerar um teste IPTV de 6 horas</li>
+                <li>• Retornar as credenciais geradas</li>
+                <li>• Fornecer URL M3U8 para streaming</li>
+                <li>• Processo rápido e confiável</li>
               </ul>
             </div>
 
@@ -125,7 +127,7 @@ export default function PainelOffice() {
               {generateTestMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Gerando teste... (pode demorar até 30 segundos)
+                  Gerando teste via API...
                 </>
               ) : (
                 <>
@@ -140,7 +142,7 @@ export default function PainelOffice() {
                 <Loader2 className="h-4 w-4 animate-spin text-yellow-400" />
                 <AlertTitle className="text-yellow-400">Processando...</AlertTitle>
                 <AlertDescription className="text-yellow-400/80">
-                  A automação está em execução. Por favor, aguarde...
+                  Conectando à API e gerando teste IPTV...
                 </AlertDescription>
               </Alert>
             )}
@@ -231,6 +233,31 @@ export default function PainelOffice() {
                         <span className="text-sm text-slate-400">Vencimento:</span>
                       </div>
                       <span className="font-mono text-sm">{result.vencimento}</span>
+                    </div>
+                  )}
+
+                  {/* M3U8 URL */}
+                  {result.m3u8 && (
+                    <div className="p-3 bg-slate-800 rounded-lg space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Wifi className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm text-slate-400">URL M3U8:</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs break-all">{result.m3u8}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => copyToClipboard(result.m3u8!, 'M3U8')}
+                          className="h-7 w-7 p-0 flex-shrink-0"
+                        >
+                          {copiedField === 'M3U8' ? (
+                            <CheckCircle className="w-4 h-4 text-green-400" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
