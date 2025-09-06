@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClientModal } from '@/components/modals/client-modal';
-import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Edit, Copy, Save, X, Shuffle } from 'lucide-react';
+import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Edit, Copy, Save, X, Shuffle, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Cliente } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
@@ -64,6 +64,12 @@ export default function Clientes() {
   // States for inline editing
   const [editingPonto, setEditingPonto] = useState<number | null>(null);
   const [editedPonto, setEditedPonto] = useState<any>({});
+  const [isDistributing, setIsDistributing] = useState(false);
+  const [distributionProgress, setDistributionProgress] = useState<{
+    current: number;
+    total: number;
+    message: string;
+  } | null>(null);
   
   // State for distribution modal
   const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false);
@@ -1168,6 +1174,45 @@ export default function Clientes() {
             </DialogDescription>
           </DialogHeader>
 
+          {/* Distribution Progress Overlay */}
+          {isDistributing && distributionProgress && (
+            <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm rounded-lg flex items-center justify-center">
+              <div className="bg-slate-900 border border-purple-500/50 rounded-xl p-8 shadow-2xl max-w-md w-full mx-4">
+                <div className="flex flex-col items-center space-y-6">
+                  {/* Animated Icon */}
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-xl animate-pulse" />
+                    <Loader2 className="w-16 h-16 text-purple-500 animate-spin relative z-10" />
+                  </div>
+                  
+                  {/* Progress Text */}
+                  <div className="text-center space-y-2">
+                    <h3 className="text-lg font-semibold text-white">
+                      {distributionProgress.message}
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Processando {distributionProgress.current} de {distributionProgress.total} pontos
+                    </p>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-purple-500 to-purple-600 rounded-full transition-all duration-500 ease-out"
+                      style={{ 
+                        width: `${(distributionProgress.current / distributionProgress.total) * 100}%` 
+                      }}
+                    />
+                  </div>
+                  
+                  <p className="text-xs text-slate-500 animate-pulse">
+                    Por favor, aguarde. Não feche esta janela.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-6 py-4">
             {/* Distribution Mode Selection */}
             <div className="space-y-4">
@@ -1369,27 +1414,81 @@ export default function Clientes() {
                   })) || [];
                 }
                 
+                // Start distribution process
+                setIsDistributing(true);
+                setDistributionProgress({
+                  current: 0,
+                  total: updates.length,
+                  message: 'Iniciando distribuição...'
+                });
+                
                 // Send updates to backend
                 try {
+                  // Simulate progress updates
+                  setTimeout(() => {
+                    setDistributionProgress({
+                      current: Math.floor(updates.length * 0.3),
+                      total: updates.length,
+                      message: 'Conectando com servidor...'
+                    });
+                  }, 300);
+                  
+                  setTimeout(() => {
+                    setDistributionProgress({
+                      current: Math.floor(updates.length * 0.6),
+                      total: updates.length,
+                      message: 'Processando distribuição...'
+                    });
+                  }, 800);
+                  
                   await apiRequest('PUT', '/api/pontos/bulk-update', { updates });
-                  queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
-                  toast({
-                    title: "Distribuição Concluída",
-                    description: `${updates.length} pontos foram atualizados com sucesso.`,
+                  
+                  setDistributionProgress({
+                    current: updates.length,
+                    total: updates.length,
+                    message: 'Finalizando...'
                   });
-                  setIsDistributionModalOpen(false);
-                } catch (error) {
+                  
+                  await queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
+                  await queryClient.invalidateQueries({ queryKey: ['/api/sistemas'] });
+                  
+                  // Success notification with better styling
                   toast({
-                    title: "Erro na Distribuição",
+                    title: "✅ Distribuição Concluída!",
+                    description: `${updates.length} pontos foram distribuídos com sucesso entre os sistemas.`,
+                    className: "bg-green-900/90 border-green-600 text-white",
+                  });
+                  
+                  // Close modal after a short delay
+                  setTimeout(() => {
+                    setIsDistributionModalOpen(false);
+                    setIsDistributing(false);
+                    setDistributionProgress(null);
+                  }, 1000);
+                } catch (error) {
+                  setIsDistributing(false);
+                  setDistributionProgress(null);
+                  toast({
+                    title: "❌ Erro na Distribuição",
                     description: "Não foi possível atualizar os pontos. Tente novamente.",
                     variant: "destructive",
                   });
                 }
               }}
-              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white"
+              disabled={isDistributing}
+              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Shuffle className="w-4 h-4 mr-2" />
-              Aplicar Distribuição
+              {isDistributing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Distribuindo...
+                </>
+              ) : (
+                <>
+                  <Shuffle className="w-4 h-4 mr-2" />
+                  Aplicar Distribuição
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
