@@ -16,7 +16,7 @@ import {
   Star, Pin, Reply, Forward, Copy, Download, Image, FileText, Mic, Video, Info,
   Settings, LogOut, RefreshCw, Filter, Bell, BellOff, ExternalLink, ChevronDown,
   Plus, UserCheck, Sparkles, Ticket, CheckCircle, Zap, ChevronUp, ArrowLeft,
-  Menu, ChevronRight, Edit2, Shield, Activity, Clock3, DollarSign, XCircle
+  Menu, ChevronRight, Edit2, Shield, Activity, Clock3, DollarSign, XCircle, Hash
 } from 'lucide-react';
 
 import defaultProfileIcon from '../assets/default-profile.webp';
@@ -144,6 +144,7 @@ export default function Chat() {
   const [showCreateClientDialog, setShowCreateClientDialog] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
   const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'bot' | 'human'>('all');
+  const [searchById, setSearchById] = useState(false);
   const [testPhoneNumber, setTestPhoneNumber] = useState<string>('');
   const [newChatNumber, setNewChatNumber] = useState('');
   const [showSearchDialog, setShowSearchDialog] = useState(false);
@@ -3385,6 +3386,7 @@ export default function Chat() {
         if (!open) {
           setContactSearch('');
           setNewChatNumber('');
+          setSearchById(false);
         }
       }}>
         <DialogContent className="sm:max-w-2xl bg-dark-surface border-slate-700">
@@ -3439,14 +3441,39 @@ export default function Chat() {
               </div>
               
               {/* Search Contacts */}
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-                <Input
-                  placeholder="Buscar contato..."
-                  value={contactSearch}
-                  onChange={(e) => setContactSearch(e.target.value)}
-                  className="pl-10 h-9 bg-dark-card border-slate-600 text-sm"
-                />
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <Input
+                    placeholder={searchById ? "Buscar por ID..." : "Buscar por nome ou telefone..."}
+                    value={contactSearch}
+                    onChange={(e) => setContactSearch(e.target.value)}
+                    className="pl-10 h-9 bg-dark-card border-slate-600 text-sm"
+                  />
+                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => setSearchById(!searchById)}
+                        className={cn(
+                          "h-9 px-3 transition-all",
+                          searchById ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-600 hover:bg-slate-700"
+                        )}
+                        size="sm"
+                      >
+                        {searchById ? (
+                          <Hash className="w-4 h-4" />
+                        ) : (
+                          <User className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{searchById ? "Buscando por ID" : "Buscando por nome/telefone"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
 
               {/* Contacts List with Scroll */}
@@ -3455,8 +3482,14 @@ export default function Chat() {
                   {allClientes
                     .filter(cliente => {
                       const searchLower = contactSearch.toLowerCase();
-                      return cliente.nome?.toLowerCase().includes(searchLower) ||
-                             cliente.telefone?.includes(contactSearch);
+                      if (searchById) {
+                        // Search by ID
+                        return cliente.id.toString().includes(contactSearch);
+                      } else {
+                        // Search by name or phone
+                        return cliente.nome?.toLowerCase().includes(searchLower) ||
+                               cliente.telefone?.includes(contactSearch);
+                      }
                     })
                     .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
                     .map((cliente) => (
@@ -3482,7 +3515,10 @@ export default function Chat() {
                             {(cliente.nome || '?')[0].toUpperCase()}
                           </div>
                           <div>
-                            <div className="text-sm font-medium">{cliente.nome || 'Sem nome'}</div>
+                            <div className="text-sm font-medium">
+                              {cliente.nome || 'Sem nome'} 
+                              <span className="text-xs text-slate-500 ml-1">#{cliente.id}</span>
+                            </div>
                             <div className="text-xs text-slate-400">{formatPhoneNumber(cliente.telefone)}</div>
                           </div>
                         </div>
@@ -3492,8 +3528,12 @@ export default function Chat() {
                   }
                   {allClientes.filter(cliente => {
                     const searchLower = contactSearch.toLowerCase();
-                    return cliente.nome?.toLowerCase().includes(searchLower) ||
-                           cliente.telefone?.includes(contactSearch);
+                    if (searchById) {
+                      return cliente.id.toString().includes(contactSearch);
+                    } else {
+                      return cliente.nome?.toLowerCase().includes(searchLower) ||
+                             cliente.telefone?.includes(contactSearch);
+                    }
                   }).length === 0 && (
                     <div className="text-center py-4 text-sm text-slate-500">
                       {contactSearch ? 'Nenhum contato encontrado' : 'Nenhum contato salvo'}
