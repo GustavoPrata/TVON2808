@@ -3103,11 +3103,11 @@ export class WhatsAppService extends EventEmitter {
             `• Pontos: ${pontosRenovacao2.length || 1}\n` +
             `• Vencimento: ${venc2}\n` +
             `• Dias restantes: ${dias2 > 0 ? dias2 : 0}\n\n` +
-            `*Escolha o período de renovação:*\n\n` +
+            `*Escolha o período:*\n\n` +
             `1️⃣ 1 mês - R$ ${precos2.mensal.toFixed(2).replace(".", ",")}\n` +
-            `2️⃣ 3 meses - R$ ${precos2.trimestral.toFixed(2).replace(".", ",")}\n` +
-            `3️⃣ 6 meses - R$ ${precos2.semestral.toFixed(2).replace(".", ",")}\n` +
-            `4️⃣ 1 ano - R$ ${precos2.anual.toFixed(2).replace(".", ",")}\n\n` +
+            `2️⃣ 3 meses - R$ ${precos2.trimestral.toFixed(2).replace(".", ",")} (-10%)\n` +
+            `3️⃣ 6 meses - R$ ${precos2.semestral.toFixed(2).replace(".", ",")} (-20%)\n` +
+            `4️⃣ 1 ano - R$ ${precos2.anual.toFixed(2).replace(".", ",")} (-30%)\n\n` +
             `0️⃣ Voltar ao menu principal`,
         );
 
@@ -3553,11 +3553,11 @@ export class WhatsAppService extends EventEmitter {
       await this.sendMessage(
         telefone,
         `*RENOVAR PLANO*\n\n` +
-          `*Escolha o período de renovação:*\n\n` +
+          `Escolha o período:\n\n` +
           `1️⃣ 1 mês - R$ ${precos.mensal.toFixed(2).replace(".", ",")}\n` +
-          `2️⃣ 3 meses - R$ ${precos.trimestral.toFixed(2).replace(".", ",")}\n` +
-          `3️⃣ 6 meses - R$ ${precos.semestral.toFixed(2).replace(".", ",")}\n` +
-          `4️⃣ 1 ano - R$ ${precos.anual.toFixed(2).replace(".", ",")}\n\n` +
+          `2️⃣ 3 meses - R$ ${precos.trimestral.toFixed(2).replace(".", ",")} (-10%)\n` +
+          `3️⃣ 6 meses - R$ ${precos.semestral.toFixed(2).replace(".", ",")} (-20%)\n` +
+          `4️⃣ 1 ano - R$ ${precos.anual.toFixed(2).replace(".", ",")} (-30%)\n\n` +
           `0️⃣ Voltar ao menu principal`,
       );
 
@@ -4153,12 +4153,12 @@ export class WhatsAppService extends EventEmitter {
 
       await this.sendMessage(
         telefone,
-        `💳 *RENOVAR PLANO*\n\n` +
-          `💰 *Escolha o período de renovação:*\n\n` +
+        `*RENOVAR PLANO*\n\n` +
+          `Escolha o período:\n\n` +
           `1️⃣ 1 mês - R$ ${precos.mensal.toFixed(2).replace(".", ",")}\n` +
-          `2️⃣ 3 meses - R$ ${precos.trimestral.toFixed(2).replace(".", ",")}\n` +
-          `3️⃣ 6 meses - R$ ${precos.semestral.toFixed(2).replace(".", ",")}\n` +
-          `4️⃣ 1 ano - R$ ${precos.anual.toFixed(2).replace(".", ",")}\n\n` +
+          `2️⃣ 3 meses - R$ ${precos.trimestral.toFixed(2).replace(".", ",")} (-10%)\n` +
+          `3️⃣ 6 meses - R$ ${precos.semestral.toFixed(2).replace(".", ",")} (-20%)\n` +
+          `4️⃣ 1 ano - R$ ${precos.anual.toFixed(2).replace(".", ",")} (-30%)\n\n` +
           `0️⃣ Voltar ao menu principal`,
       );
 
