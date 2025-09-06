@@ -222,9 +222,8 @@ export default function Clientes() {
       cliente?.nome?.toLowerCase().includes(searchLower)
     );
     
-    // Sistema filter  
-    const sistemaId = sistemasMap.get(ponto.sistemaId);
-    const matchesSistema = selectedSistema === 'all' || sistemaId === selectedSistema;
+    // Sistema filter - compare internal IDs directly
+    const matchesSistema = selectedSistema === 'all' || String(ponto.sistemaId) === selectedSistema;
     
     // App filter
     const matchesApp = selectedApp === 'all' || 
