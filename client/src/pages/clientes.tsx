@@ -69,7 +69,7 @@ export default function Clientes() {
   const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false);
   const [distributionData, setDistributionData] = useState<{ [key: number]: string }>({});
   const [distributionMode, setDistributionMode] = useState<'individual' | 'all' | 'equal'>('individual');
-  const [selectedDistributionSistema, setSelectedDistributionSistema] = useState<string>('1');
+  const [selectedDistributionSistema, setSelectedDistributionSistema] = useState<string>('');
   
   // Persist filters to localStorage
   useEffect(() => {
@@ -507,6 +507,10 @@ export default function Clientes() {
                     initialData[ponto.id] = String(ponto.sistemaId || '13');
                   });
                   setDistributionData(initialData);
+                  // Set the first system as default for "all" mode
+                  if (sistemas && sistemas.length > 0) {
+                    setSelectedDistributionSistema(String(sistemas[0].id));
+                  }
                   setIsDistributionModalOpen(true);
                 }}
                 className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold px-4 shadow-lg shadow-purple-500/30 transition-all hover:scale-105"
@@ -1286,7 +1290,7 @@ export default function Clientes() {
                       {distributionMode === 'all' && (
                         <div className="px-3 py-1.5 bg-purple-500/20 rounded-lg">
                           <span className="text-xs font-medium text-purple-400">
-                            → Sistema {selectedDistributionSistema}
+                            → Sistema {sistemas?.find((s: any) => String(s.id) === selectedDistributionSistema)?.systemId || 'Nenhum'}
                           </span>
                         </div>
                       )}
@@ -1340,6 +1344,15 @@ export default function Clientes() {
                   }));
                 } else if (distributionMode === 'all') {
                   // Move all to selected system
+                  // Validate that a system is selected
+                  if (!selectedDistributionSistema || selectedDistributionSistema === '') {
+                    toast({
+                      title: "Erro",
+                      description: "Por favor, selecione um sistema de destino.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
                   updates = pontos?.map((ponto: any) => ({
                     id: ponto.id,
                     sistemaId: parseInt(selectedDistributionSistema)
