@@ -1434,6 +1434,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk update pontos endpoint - MUST BE BEFORE /:id to avoid route conflicts
+  app.put("/api/pontos/bulk-update", async (req, res) => {
+    try {
+      const { updates } = req.body;
+      
+      if (!updates || !Array.isArray(updates)) {
+        return res.status(400).json({ error: "Invalid updates array" });
+      }
+
+      console.log(`Bulk updating ${updates.length} pontos`);
+      
+      const results = [];
+      const errors = [];
+      
+      for (const update of updates) {
+        try {
+          const { id, sistemaId } = update;
+          
+          if (!id || sistemaId === null || sistemaId === undefined) {
+            errors.push({ id, error: "Missing id or sistemaId" });
+            continue;
+          }
+          
+          // Get old ponto data
+          const oldPonto = await storage.getPontoById(id);
+          if (!oldPonto) {
+            errors.push({ id, error: "Ponto not found" });
+            continue;
+          }
+          
+          // Update the ponto
+          const updatedPonto = await storage.updatePonto(id, { sistemaId });
+          
+          // Update system active points count if system changed
+          if (oldPonto.sistemaId !== sistemaId) {
+            if (oldPonto.sistemaId) {
+              await storage.updateSistemaActivePontos(oldPonto.sistemaId);
+            }
+            if (sistemaId) {
+              await storage.updateSistemaActivePontos(sistemaId);
+            }
+          }
+          
+          // Sync with external API if needed
+          if (updatedPonto.apiUserId) {
+            const sistema = await storage.getSistemaById(sistemaId);
+            const cliente = await storage.getClienteById(updatedPonto.clienteId);
+            
+            if (sistema && cliente) {
+              const expDate = cliente.vencimento
+                ? Math.floor(new Date(cliente.vencimento).getTime() / 1000).toString()
+                : Math.floor(new Date(updatedPonto.expiracao).getTime() / 1000).toString();
+              
+              const apiData = {
+                username: updatedPonto.usuario,
+                password: updatedPonto.senha,
+                exp_date: expDate,
+                status: updatedPonto.status === "ativo" ? "Active" : "Inactive",
+                system: parseInt(sistema.systemId),
+              };
+              
+              try {
+                await externalApiService.updateUser(updatedPonto.apiUserId, apiData);
+                console.log(`Updated ponto ${id} in external API`);
+              } catch (apiError) {
+                console.error(`Failed to update ponto ${id} in external API:`, apiError);
+              }
+            }
+          }
+          
+          results.push({ id, success: true });
+        } catch (error) {
+          console.error(`Error updating ponto ${update.id}:`, error);
+          errors.push({ id: update.id, error: error.message });
+        }
+      }
+      
+      res.json({
+        success: true,
+        updated: results.length,
+        errors: errors.length,
+        results,
+        errors
+      });
+    } catch (error) {
+      console.error("Error in bulk update:", error);
+      res.status(500).json({ error: "Failed to bulk update pontos" });
+    }
+  });
+
   app.put("/api/pontos/:id", async (req, res) => {
     try {
       console.log("PUT /api/pontos/:id - Body recebido:", req.body);
@@ -1541,96 +1631,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res
         .status(500)
         .json({ error: "Erro ao atualizar ponto", details: error.message });
-    }
-  });
-
-  // Bulk update pontos endpoint
-  app.put("/api/pontos/bulk-update", async (req, res) => {
-    try {
-      const { updates } = req.body;
-      
-      if (!updates || !Array.isArray(updates)) {
-        return res.status(400).json({ error: "Invalid updates array" });
-      }
-
-      console.log(`Bulk updating ${updates.length} pontos`);
-      
-      const results = [];
-      const errors = [];
-      
-      for (const update of updates) {
-        try {
-          const { id, sistemaId } = update;
-          
-          if (!id || !sistemaId) {
-            errors.push({ id, error: "Missing id or sistemaId" });
-            continue;
-          }
-          
-          // Get old ponto data
-          const oldPonto = await storage.getPontoById(id);
-          if (!oldPonto) {
-            errors.push({ id, error: "Ponto not found" });
-            continue;
-          }
-          
-          // Update the ponto
-          const updatedPonto = await storage.updatePonto(id, { sistemaId });
-          
-          // Update system active points count if system changed
-          if (oldPonto.sistemaId !== sistemaId) {
-            if (oldPonto.sistemaId) {
-              await storage.updateSistemaActivePontos(oldPonto.sistemaId);
-            }
-            if (sistemaId) {
-              await storage.updateSistemaActivePontos(sistemaId);
-            }
-          }
-          
-          // Sync with external API if needed
-          if (updatedPonto.apiUserId) {
-            const sistema = await storage.getSistemaById(sistemaId);
-            const cliente = await storage.getClienteById(updatedPonto.clienteId);
-            
-            if (sistema && cliente) {
-              const expDate = cliente.vencimento
-                ? Math.floor(new Date(cliente.vencimento).getTime() / 1000).toString()
-                : Math.floor(new Date(updatedPonto.expiracao).getTime() / 1000).toString();
-              
-              const apiData = {
-                username: updatedPonto.usuario,
-                password: updatedPonto.senha,
-                exp_date: expDate,
-                status: updatedPonto.status === "ativo" ? "Active" : "Inactive",
-                system: parseInt(sistema.systemId),
-              };
-              
-              try {
-                await externalApiService.updateUser(updatedPonto.apiUserId, apiData);
-                console.log(`Updated ponto ${id} in external API`);
-              } catch (apiError) {
-                console.error(`Failed to update ponto ${id} in external API:`, apiError);
-              }
-            }
-          }
-          
-          results.push({ id, success: true });
-        } catch (error) {
-          console.error(`Error updating ponto ${update.id}:`, error);
-          errors.push({ id: update.id, error: error.message });
-        }
-      }
-      
-      res.json({
-        success: true,
-        updated: results.length,
-        errors: errors.length,
-        results,
-        errors
-      });
-    } catch (error) {
-      console.error("Error in bulk update:", error);
-      res.status(500).json({ error: "Failed to bulk update pontos" });
     }
   });
 
