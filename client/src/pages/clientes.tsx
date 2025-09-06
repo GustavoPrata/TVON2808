@@ -461,17 +461,20 @@ export default function Clientes() {
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-700">
                   <SelectItem value="all" className="text-white hover:bg-slate-800">
-                    Todos os Sistemas
+                    Todos os Sistemas ({pontos?.length || 0} pontos)
                   </SelectItem>
-                  {sistemas.map((sistema: any) => (
-                    <SelectItem 
-                      key={sistema.id} 
-                      value={String(sistema.id)}
-                      className="text-white hover:bg-slate-800"
-                    >
-                      Sistema {sistema.systemId}
-                    </SelectItem>
-                  ))}
+                  {sistemas.map((sistema: any) => {
+                    const pontosInSistema = pontos?.filter((p: any) => p.sistemaId === sistema.id).length || 0;
+                    return (
+                      <SelectItem 
+                        key={sistema.id} 
+                        value={String(sistema.id)}
+                        className="text-white hover:bg-slate-800"
+                      >
+                        Sistema {sistema.systemId} ({pontosInSistema} pontos)
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
               
