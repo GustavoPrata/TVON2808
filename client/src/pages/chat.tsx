@@ -1839,24 +1839,26 @@ export default function Chat() {
               </Tabs>
             </div>
             
-            <div className="relative mt-4">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-              <Input
-                placeholder="Buscar conversa..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-dark-card border-slate-600"
-              />
+            <div className="flex gap-2 mt-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Buscar conversa..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-dark-card border-slate-600"
+                />
+              </div>
+              
+              {/* New Chat Button */}
+              <Button
+                onClick={() => setShowNewChatDialog(true)}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 p-2.5"
+                size="icon"
+              >
+                <Plus className="w-5 h-5" />
+              </Button>
             </div>
-            
-            {/* New Chat Button */}
-            <Button
-              onClick={() => setShowNewChatDialog(true)}
-              className="w-full mt-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Conversa
-            </Button>
           </div>
         
         <div className="flex-1 overflow-y-auto relative z-10">
