@@ -1231,7 +1231,7 @@ export default function Clientes() {
               
               <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
                 {pontos?.map((ponto: any) => {
-                  const cliente = allClientes?.find((c: any) => c.id === ponto.clienteId);
+                  const cliente = ponto.cliente || allClientes?.find((c: any) => c.id === ponto.clienteId);
                   const sistemaAtual = sistemas?.find((s: any) => s.id === ponto.sistemaId);
                   return (
                     <div 
