@@ -143,6 +143,7 @@ export default function Chat() {
   // Menu lateral sempre visível - removido estado showSidebar
   const [showCreateClientDialog, setShowCreateClientDialog] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
+  const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'bot' | 'human'>('all');
   const [testPhoneNumber, setTestPhoneNumber] = useState<string>('');
   const [newChatNumber, setNewChatNumber] = useState('');
   const [showSearchDialog, setShowSearchDialog] = useState(false);
@@ -1469,7 +1470,7 @@ export default function Chat() {
     }, 3000);
   };
 
-  // Filter conversations based on contact type and search
+  // Filter conversations based on contact type, attendance mode and search
   const filteredConversas = conversas?.filter(conv => {
     // Hide own WhatsApp number from the list
     if (conv.telefone.includes('14997220616')) return false;
@@ -1478,6 +1479,10 @@ export default function Chat() {
       conv.telefone.includes(searchTerm);
     
     if (!matchesSearch) return false;
+    
+    // Filter by attendance mode
+    if (attendanceFilter === 'bot' && conv.modoAtendimento !== 'bot') return false;
+    if (attendanceFilter === 'human' && conv.modoAtendimento !== 'humano') return false;
     
     if (contactFilter === 'clientes') return conv.isCliente;
     if (contactFilter === 'novos') return !conv.isCliente && !conv.isTeste;
@@ -1849,6 +1854,48 @@ export default function Chat() {
             </div>
             
             <div className="flex gap-2 mt-4">
+              {/* Attendance Filter Button */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      onClick={() => {
+                        // Cycle through: all -> bot -> human -> all
+                        if (attendanceFilter === 'all') {
+                          setAttendanceFilter('bot');
+                        } else if (attendanceFilter === 'bot') {
+                          setAttendanceFilter('human');
+                        } else {
+                          setAttendanceFilter('all');
+                        }
+                      }}
+                      className={cn(
+                        "p-2.5 transition-all",
+                        attendanceFilter === 'bot' && "bg-green-600 hover:bg-green-700",
+                        attendanceFilter === 'human' && "bg-blue-600 hover:bg-blue-700",
+                        attendanceFilter === 'all' && "bg-slate-600 hover:bg-slate-700"
+                      )}
+                      size="icon"
+                    >
+                      {attendanceFilter === 'bot' ? (
+                        <Bot className="w-5 h-5" />
+                      ) : attendanceFilter === 'human' ? (
+                        <User className="w-5 h-5" />
+                      ) : (
+                        <Users className="w-5 h-5" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {attendanceFilter === 'bot' && 'Mostrando apenas conversas com bot'}
+                      {attendanceFilter === 'human' && 'Mostrando apenas conversas com atendente'}
+                      {attendanceFilter === 'all' && 'Mostrando todas as conversas'}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                 <Input
@@ -1868,6 +1915,31 @@ export default function Chat() {
                 <Plus className="w-5 h-5" />
               </Button>
             </div>
+            
+            {/* Active Filter Indicator */}
+            {attendanceFilter !== 'all' && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+                <div className="flex items-center gap-1">
+                  {attendanceFilter === 'bot' ? (
+                    <>
+                      <Bot className="w-3 h-3" />
+                      <span>Conversas com Bot</span>
+                    </>
+                  ) : (
+                    <>
+                      <User className="w-3 h-3" />
+                      <span>Conversas com Atendente</span>
+                    </>
+                  )}
+                </div>
+                <button
+                  onClick={() => setAttendanceFilter('all')}
+                  className="text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
           </div>
         
         <div className="flex-1 overflow-y-auto relative z-10">
