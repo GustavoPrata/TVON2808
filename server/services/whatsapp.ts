@@ -1200,38 +1200,16 @@ export class WhatsAppService extends EventEmitter {
     try {
       console.log("Processing outgoing WhatsApp message:", message);
 
-      // Get or create conversation
-      let conversa = await storage.getConversaByTelefone(phone);
+      // Use the mutex-protected method to get or create conversation
+      const conversa = await this.getOrCreateConversation(phone, undefined, message);
 
-      if (!conversa) {
-        // Check if it's a client
-        const cliente = await storage.getClienteByTelefone(phone);
-
-        // Create conversation
-        conversa = await storage.createConversa({
-          telefone: phone,
-          nome: cliente?.nome || formatPhoneNumber(phone),
-          ultimaMensagem: message.message,
-          status: "ativo",
-          modoAtendimento: "humano", // Set to human since it's sent directly
-          mensagensNaoLidas: 0,
-          ultimoRemetente: "sistema",
-          mensagemLida: true,
-          clienteId: cliente?.id || null,
-          tipoUltimaMensagem: message.type,
-        });
-
-        // Send WebSocket event for new conversation
-        this.notifyWebSocketClients("conversation_created", {
-          conversaId: conversa.id,
-          conversa: conversa,
-        });
-      } else {
+      if (conversa) {
         // Update existing conversation
         await storage.updateConversa(conversa.id, {
           ultimaMensagem: message.message,
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: message.type,
+          modoAtendimento: "humano", // Set to human since it's sent directly
         });
       }
 

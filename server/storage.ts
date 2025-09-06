@@ -528,8 +528,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createConversa(conversa: InsertConversa): Promise<Conversa> {
-    const result = await db.insert(conversas).values(conversa).returning();
-    return result[0];
+    try {
+      const result = await db.insert(conversas).values(conversa).returning();
+      return result[0];
+    } catch (error: any) {
+      // Se houver conflito de telefone único, busca a conversa existente
+      if (error.code === '23505' && error.constraint === 'conversas_telefone_unique') {
+        console.log(`Conversa já existe para telefone ${conversa.telefone}, retornando conversa existente`);
+        const existing = await this.getConversaByTelefone(conversa.telefone);
+        if (existing) {
+          return existing;
+        }
+      }
+      throw error;
+    }
   }
 
   async updateConversa(id: number, conversa: Partial<InsertConversa>): Promise<Conversa> {

@@ -164,6 +164,7 @@ export const conversas = pgTable("conversas", {
   metadados: text("metadados"), // JSON string para armazenar metadados adicionais
 }, (table) => ({
   telefoneIdx: index("idx_conversas_telefone").on(table.telefone),
+  telefoneUnique: unique("conversas_telefone_unique").on(table.telefone),
 }));
 
 // Mensagens do chat
