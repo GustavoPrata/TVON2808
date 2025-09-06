@@ -801,12 +801,32 @@ export class WhatsAppService extends EventEmitter {
     
     // Log when we receive an empty text message for debugging
     if (!messageText && !mediaUrl && messageType === "text" && !isViewOnce) {
-      console.log("Empty text message received - might be unsupported message type:", {
+      console.log("Empty text message received - checking for special message types:", {
         key: message.key,
         messageKeys: message.message ? Object.keys(message.message) : [],
         fullMessage: JSON.stringify(message.message, null, 2)
       });
-      // Set a placeholder for empty messages (NOT view-once)
+      
+      // Check if this is a protocol message (delete, edit, etc)
+      if (message.message?.protocolMessage) {
+        console.log("Protocol message detected - skipping (will be handled by messages.update)");
+        return; // Don't process protocol messages as regular messages
+      }
+      
+      // Check if this is an edited message notification
+      if (message.message?.editedMessage) {
+        console.log("Edited message notification detected - skipping (will be handled by messages.update)");
+        return; // Don't process edited notifications as regular messages
+      }
+      
+      // Check if this is a message update/sync
+      if (message.message?.messageContextInfo) {
+        console.log("Message context update detected - skipping");
+        return; // Don't process context updates as regular messages
+      }
+      
+      // Only set placeholder for truly unsupported messages
+      console.log("Setting placeholder for unsupported message type");
       messageText = "[Mensagem não suportada]";
     }
 
