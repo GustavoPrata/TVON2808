@@ -124,7 +124,14 @@ export default function Clientes() {
   });
   
   // Transform sistemas data to the format we need
-  const sistemas = sistemasData || [];
+  // Get local sistemas from the database to get the correct id mapping
+  const { data: localSistemas = [] } = useQuery<any[]>({
+    queryKey: ['/api/sistemas'],
+    staleTime: 5000,
+    refetchOnWindowFocus: true,
+  });
+  
+  const sistemas = localSistemas || [];
 
   // Fetch conversations to get profile pictures
   const { data: conversas, isLoading: isLoadingConversas } = useQuery<any[]>({
@@ -460,10 +467,10 @@ export default function Clientes() {
                   {sistemas.map((sistema: any) => (
                     <SelectItem 
                       key={sistema.id} 
-                      value={sistema.system_id || sistema.systemId}
+                      value={String(sistema.id)}
                       className="text-white hover:bg-slate-800"
                     >
-                      Sistema {sistema.system_id || sistema.systemId}
+                      Sistema {sistema.systemId}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1215,10 +1222,10 @@ export default function Clientes() {
                     {sistemas.map((sistema: any) => (
                       <SelectItem 
                         key={sistema.id} 
-                        value={sistema.system_id || sistema.systemId}
+                        value={String(sistema.id)}
                         className="text-white hover:bg-slate-800"
                       >
-                        Sistema {sistema.system_id || sistema.systemId}
+                        Sistema {sistema.systemId}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1275,10 +1282,10 @@ export default function Clientes() {
                             {sistemas.map((sistema: any) => (
                               <SelectItem 
                                 key={sistema.id} 
-                                value={sistema.system_id || sistema.systemId}
+                                value={String(sistema.id)}
                                 className="text-white hover:bg-slate-800 text-sm"
                               >
-                                Sistema {sistema.system_id || sistema.systemId}
+                                Sistema {sistema.systemId}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -1332,23 +1339,23 @@ export default function Clientes() {
             <Button
               onClick={async () => {
                 // Prepare the updates based on distribution mode
-                let updates: { id: number; sistemaId: string }[] = [];
+                let updates: { id: number; sistemaId: number }[] = [];
                 
                 if (distributionMode === 'individual') {
                   // Use the manual selections
                   updates = Object.entries(distributionData).map(([id, sistemaId]) => ({
                     id: parseInt(id),
-                    sistemaId
+                    sistemaId: parseInt(sistemaId)
                   }));
                 } else if (distributionMode === 'all') {
                   // Move all to selected system
                   updates = filteredPontos?.map((ponto: any) => ({
                     id: ponto.id,
-                    sistemaId: selectedDistributionSistema
+                    sistemaId: parseInt(selectedDistributionSistema)
                   })) || [];
                 } else if (distributionMode === 'equal') {
                   // Distribute equally
-                  const sistemaIds = sistemas.map((s: any) => s.system_id || s.systemId);
+                  const sistemaIds = sistemas.map((s: any) => s.id);
                   updates = filteredPontos?.map((ponto: any, index: number) => ({
                     id: ponto.id,
                     sistemaId: sistemaIds[index % sistemaIds.length]
