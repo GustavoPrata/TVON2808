@@ -71,6 +71,17 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const [showImageViewer, setShowImageViewer] = useState(false);
   
+  // Check if message can be edited (within 14.5 minutes)
+  const canEditMessage = () => {
+    if (!isOwn || message.deletada || message.tipo !== 'text') return false;
+    
+    const messageTime = new Date(message.timestamp).getTime();
+    const now = Date.now();
+    const timeDiff = (now - messageTime) / 1000 / 60; // Convert to minutes
+    
+    return timeDiff <= 14.5; // WhatsApp allows edits up to 14.5 minutes
+  };
+  
   // Function to format text with WhatsApp-style formatting (bold and italic)
   const formatMessageText = (text: string) => {
     if (!text) return null;
@@ -419,7 +430,7 @@ export function MessageBubble({
                       <Copy className="w-4 h-4 mr-2" />
                       Copiar
                     </DropdownMenuItem>
-                    {isOwn && !message.deletada && onEdit && message.tipo === 'text' && (
+                    {canEditMessage() && onEdit && (
                       <>
                         <DropdownMenuSeparator className="bg-slate-600" />
                         <DropdownMenuItem onClick={onEdit} className="hover:bg-slate-700">
