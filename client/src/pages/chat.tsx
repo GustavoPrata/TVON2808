@@ -1465,6 +1465,9 @@ export default function Chat() {
 
   // Filter conversations based on contact type and search
   const filteredConversas = conversas?.filter(conv => {
+    // Hide own WhatsApp number from the list
+    if (conv.telefone.includes('14997220616')) return false;
+    
     const matchesSearch = conv.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conv.telefone.includes(searchTerm);
     
