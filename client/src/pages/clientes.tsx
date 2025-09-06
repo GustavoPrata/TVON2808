@@ -503,21 +503,9 @@ export default function Clientes() {
                 onClick={() => {
                   // Initialize distribution data with current sistema assignments
                   const initialData: { [key: number]: string } = {};
-                  const filteredPontosForDistribution = pontos?.filter((ponto: any) => {
-                    const cliente = allClientes?.find((c: any) => c.id === ponto.clienteId);
-                    const matchesType = cliente?.tipo === pontosType;
-                    const matchesSearch = searchTerm === '' || 
-                      ponto.usuario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      ponto.aplicativo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      ponto.dispositivo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      cliente?.nome?.toLowerCase().includes(searchTerm.toLowerCase());
-                    const matchesSistema = selectedSistema === 'all' || ponto.sistemaId === selectedSistema;
-                    const matchesApp = selectedApp === 'all' || ponto.aplicativo === selectedApp;
-                    return matchesType && matchesSearch && matchesSistema && matchesApp;
-                  }) || [];
-                  
-                  filteredPontosForDistribution.forEach((ponto: any) => {
-                    initialData[ponto.id] = ponto.sistemaId || '1';
+                  // Use ALL pontos, not filtered ones
+                  pontos?.forEach((ponto: any) => {
+                    initialData[ponto.id] = String(ponto.sistemaId || '13');
                   });
                   setDistributionData(initialData);
                   setIsDistributionModalOpen(true);
@@ -1236,15 +1224,16 @@ export default function Clientes() {
             {/* Points List with Individual System Selection */}
             <div className="space-y-3">
               <div className="flex items-center justify-between mb-2">
-                <Label className="text-sm font-semibold text-slate-300">Pontos Disponíveis</Label>
+                <Label className="text-sm font-semibold text-slate-300">Todos os Pontos</Label>
                 <span className="text-xs text-slate-400">
-                  {filteredPontos?.length || 0} pontos filtrados
+                  {pontos?.length || 0} pontos no total
                 </span>
               </div>
               
               <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
-                {filteredPontos?.map((ponto: any) => {
+                {pontos?.map((ponto: any) => {
                   const cliente = allClientes?.find((c: any) => c.id === ponto.clienteId);
+                  const sistemaAtual = sistemas?.find((s: any) => s.id === ponto.sistemaId);
                   return (
                     <div 
                       key={ponto.id}
@@ -1260,6 +1249,9 @@ export default function Clientes() {
                           </p>
                           <p className="text-xs text-slate-400">
                             {ponto.usuario} • {ponto.aplicativo}
+                          </p>
+                          <p className="text-xs text-green-400 font-medium">
+                            Sistema Atual: {sistemaAtual?.systemId || 'Sem sistema'}
                           </p>
                         </div>
                       </div>
@@ -1321,8 +1313,8 @@ export default function Clientes() {
                   <span className="text-sm font-semibold text-white">Resumo da Distribuição</span>
                 </div>
                 <p className="text-xs text-slate-400">
-                  {filteredPontos?.length || 0} pontos serão distribuídos igualmente entre {sistemas.length} sistemas.
-                  Cada sistema receberá aproximadamente {Math.ceil((filteredPontos?.length || 0) / sistemas.length)} pontos.
+                  {pontos?.length || 0} pontos serão distribuídos igualmente entre {sistemas.length} sistemas.
+                  Cada sistema receberá aproximadamente {Math.ceil((pontos?.length || 0) / sistemas.length)} pontos.
                 </p>
               </div>
             )}
@@ -1349,14 +1341,14 @@ export default function Clientes() {
                   }));
                 } else if (distributionMode === 'all') {
                   // Move all to selected system
-                  updates = filteredPontos?.map((ponto: any) => ({
+                  updates = pontos?.map((ponto: any) => ({
                     id: ponto.id,
                     sistemaId: parseInt(selectedDistributionSistema)
                   })) || [];
                 } else if (distributionMode === 'equal') {
                   // Distribute equally
                   const sistemaIds = sistemas.map((s: any) => s.id);
-                  updates = filteredPontos?.map((ponto: any, index: number) => ({
+                  updates = pontos?.map((ponto: any, index: number) => ({
                     id: ponto.id,
                     sistemaId: sistemaIds[index % sistemaIds.length]
                   })) || [];
