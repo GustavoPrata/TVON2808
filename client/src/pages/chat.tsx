@@ -142,6 +142,7 @@ export default function Chat() {
   const [showTestChatModal, setShowTestChatModal] = useState(false);
   // Menu lateral sempre visível - removido estado showSidebar
   const [showCreateClientDialog, setShowCreateClientDialog] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
   const [testPhoneNumber, setTestPhoneNumber] = useState<string>('');
   const [newChatNumber, setNewChatNumber] = useState('');
   const [showSearchDialog, setShowSearchDialog] = useState(false);
@@ -197,6 +198,11 @@ export default function Chat() {
   const { data: tickets = [] } = useQuery<any[]>({
     queryKey: ['/api/tickets'],
     refetchInterval: 5000, // Auto-refresh every 5 seconds
+  });
+
+  // Fetch all clients for new chat dialog
+  const { data: allClientes = [] } = useQuery<any[]>({
+    queryKey: ['/api/clientes'],
   });
 
   // Get quick messages
@@ -3302,12 +3308,18 @@ export default function Chat() {
       )}
 
       {/* New Chat Dialog */}
-      <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
-        <DialogContent className="sm:max-w-md bg-dark-surface border-slate-700">
+      <Dialog open={showNewChatDialog} onOpenChange={(open) => {
+        setShowNewChatDialog(open);
+        if (!open) {
+          setContactSearch('');
+          setNewChatNumber('');
+        }
+      }}>
+        <DialogContent className="sm:max-w-2xl bg-dark-surface border-slate-700">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">Nova Conversa</DialogTitle>
             <DialogDescription className="text-slate-400">
-              Digite o número de telefone com quem deseja iniciar uma conversa
+              Selecione um contato existente ou digite um novo número
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
@@ -3340,6 +3352,83 @@ export default function Chat() {
               <p className="text-xs text-slate-500">
                 Digite apenas os números. O código do país (+55) será adicionado automaticamente.
               </p>
+            </div>
+
+            {/* Contacts List */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Contatos Salvos
+                </Label>
+                <span className="text-xs text-slate-500">
+                  {allClientes.length} contatos
+                </span>
+              </div>
+              
+              {/* Search Contacts */}
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Buscar contato..."
+                  value={contactSearch}
+                  onChange={(e) => setContactSearch(e.target.value)}
+                  className="pl-10 h-9 bg-dark-card border-slate-600 text-sm"
+                />
+              </div>
+
+              {/* Contacts List with Scroll */}
+              <ScrollArea className="h-48 w-full rounded-md border border-slate-700 bg-dark-card">
+                <div className="p-2 space-y-1">
+                  {allClientes
+                    .filter(cliente => {
+                      const searchLower = contactSearch.toLowerCase();
+                      return cliente.nome?.toLowerCase().includes(searchLower) ||
+                             cliente.telefone?.includes(contactSearch);
+                    })
+                    .sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+                    .map((cliente) => (
+                      <button
+                        key={cliente.id}
+                        onClick={() => {
+                          // Format phone for display
+                          let phone = cliente.telefone.replace(/\D/g, '');
+                          if (phone.startsWith('55')) {
+                            phone = phone.substring(2);
+                          }
+                          if (phone.length === 11) {
+                            phone = `(${phone.slice(0, 2)}) ${phone.slice(2, 7)}-${phone.slice(7)}`;
+                          } else if (phone.length === 10) {
+                            phone = `(${phone.slice(0, 2)}) ${phone.slice(2, 6)}-${phone.slice(6)}`;
+                          }
+                          setNewChatNumber(phone);
+                        }}
+                        className="w-full p-2 text-left rounded hover:bg-slate-700/50 transition-colors flex items-center justify-between group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-semibold">
+                            {(cliente.nome || '?')[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium">{cliente.nome || 'Sem nome'}</div>
+                            <div className="text-xs text-slate-400">{formatPhoneNumber(cliente.telefone)}</div>
+                          </div>
+                        </div>
+                        <MessageSquare className="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    ))
+                  }
+                  {allClientes.filter(cliente => {
+                    const searchLower = contactSearch.toLowerCase();
+                    return cliente.nome?.toLowerCase().includes(searchLower) ||
+                           cliente.telefone?.includes(contactSearch);
+                  }).length === 0 && (
+                    <div className="text-center py-4 text-sm text-slate-500">
+                      {contactSearch ? 'Nenhum contato encontrado' : 'Nenhum contato salvo'}
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
             </div>
           </div>
           <DialogFooter className="mt-6">
