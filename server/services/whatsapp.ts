@@ -1210,6 +1210,8 @@ export class WhatsAppService extends EventEmitter {
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: message.type,
           modoAtendimento: "humano", // Set to human since it's sent directly
+          // Reset unread messages when system sends a message
+          mensagensNaoLidas: 0,
         });
       }
 
@@ -1356,6 +1358,7 @@ export class WhatsAppService extends EventEmitter {
         // Update conversation including profile picture if settings enabled
         const updateData: any = {
           ultimaMensagem: displayMessage,
+          // Only increment unread messages for incoming CLIENT messages
           mensagensNaoLidas: this.settings?.markMessagesRead
             ? 0
             : (conversa.mensagensNaoLidas || 0) + 1,
@@ -5102,6 +5105,8 @@ export class WhatsAppService extends EventEmitter {
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: "text",
           dataUltimaMensagem: new Date(),
+          // Reset unread messages when system sends a message
+          mensagensNaoLidas: 0,
         });
 
         // Notify WebSocket clients about the new message
@@ -5223,6 +5228,8 @@ export class WhatsAppService extends EventEmitter {
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: "image",
           dataUltimaMensagem: new Date(),
+          // Reset unread messages when system sends an image
+          mensagensNaoLidas: 0,
         });
 
         // Notify WebSocket clients about the new message
@@ -5544,6 +5551,8 @@ export class WhatsAppService extends EventEmitter {
           ultimaMensagem: lastMessage,
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: mediaType,
+          // Reset unread messages when system sends media
+          mensagensNaoLidas: 0,
         });
       }
 
