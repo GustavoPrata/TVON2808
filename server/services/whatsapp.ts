@@ -3048,7 +3048,7 @@ export class WhatsAppService extends EventEmitter {
           submenu: "vencimento_submenu",
           lastActivity: new Date(),
           clienteId: cliente.id,
-        } as any);
+        });
 
         await this.sendMessage(
           telefone,
@@ -3058,7 +3058,7 @@ export class WhatsAppService extends EventEmitter {
             `Valor: R$ ${valorTotalCliente > 0 ? valorTotalCliente.toFixed(2).replace(".", ",") : "29,00"}\n` +
             `Total de pontos: ${pontosCliente.length || 1}\n\n` +
             `Escolha uma opção:\n\n` +
-            `1️⃣ Renovar plano\n` +
+            `1️⃣ Renovar plano\n\n` +
             `0️⃣ Voltar para o menu anterior`,
         );
         break;
