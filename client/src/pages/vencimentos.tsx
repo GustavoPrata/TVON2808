@@ -428,48 +428,6 @@ export default function Vencimentos() {
             </p>
           </div>
         </div>
-        
-        {/* Avisos Stats */}
-        {totalNotificadosHoje > 0 && (
-          <div className="grid grid-cols-4 gap-2 mt-4">
-            {stats.hoje > 0 && (
-              <div className="bg-orange-500/10 rounded-lg p-2 border border-orange-500/30">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-orange-400">Vence hoje</span>
-                  <AlertCircle className="w-3 h-3 text-orange-400" />
-                </div>
-                <p className="text-lg font-bold text-orange-400">{stats.hoje}</p>
-              </div>
-            )}
-            {stats.ontem > 0 && (
-              <div className="bg-red-500/10 rounded-lg p-2 border border-red-500/30">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-red-400">Venceu ontem</span>
-                  <AlertTriangle className="w-3 h-3 text-red-400" />
-                </div>
-                <p className="text-lg font-bold text-red-400">{stats.ontem}</p>
-              </div>
-            )}
-            {stats.recorrente > 0 && (
-              <div className="bg-purple-500/10 rounded-lg p-2 border border-purple-500/30">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-purple-400">Lembretes</span>
-                  <Timer className="w-3 h-3 text-purple-400" />
-                </div>
-                <p className="text-lg font-bold text-purple-400">{stats.recorrente}</p>
-              </div>
-            )}
-            {stats.manual > 0 && (
-              <div className="bg-blue-500/10 rounded-lg p-2 border border-blue-500/30">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-blue-400">Manual</span>
-                  <Send className="w-3 h-3 text-blue-400" />
-                </div>
-                <p className="text-lg font-bold text-blue-400">{stats.manual}</p>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Config Panel */}
