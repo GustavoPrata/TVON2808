@@ -116,12 +116,15 @@ export default function Clientes() {
     enabled: viewMode === 'pontos', // Only fetch when in pontos mode
   });
 
-  // Fetch sistemas data
-  const { data: sistemas = [] } = useQuery<any[]>({
-    queryKey: ['/api/sistemas'],
+  // Fetch sistemas data - needed for pontos filters and distribution
+  const { data: sistemasData } = useQuery<any[]>({
+    queryKey: ['/api/external-api/systems'],
     staleTime: 5000,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
   });
+  
+  // Transform sistemas data to the format we need
+  const sistemas = sistemasData || [];
 
   // Fetch conversations to get profile pictures
   const { data: conversas, isLoading: isLoadingConversas } = useQuery<any[]>({
@@ -457,10 +460,10 @@ export default function Clientes() {
                   {sistemas.map((sistema: any) => (
                     <SelectItem 
                       key={sistema.id} 
-                      value={sistema.systemId}
+                      value={sistema.system_id || sistema.systemId}
                       className="text-white hover:bg-slate-800"
                     >
-                      Sistema {sistema.systemId}
+                      Sistema {sistema.system_id || sistema.systemId}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -493,7 +496,20 @@ export default function Clientes() {
                 onClick={() => {
                   // Initialize distribution data with current sistema assignments
                   const initialData: { [key: number]: string } = {};
-                  pontos?.forEach((ponto: any) => {
+                  const filteredPontosForDistribution = pontos?.filter((ponto: any) => {
+                    const cliente = allClientes?.find((c: any) => c.id === ponto.clienteId);
+                    const matchesType = cliente?.tipo === pontosType;
+                    const matchesSearch = searchTerm === '' || 
+                      ponto.usuario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      ponto.aplicativo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      ponto.dispositivo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      cliente?.nome?.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesSistema = selectedSistema === 'all' || ponto.sistemaId === selectedSistema;
+                    const matchesApp = selectedApp === 'all' || ponto.aplicativo === selectedApp;
+                    return matchesType && matchesSearch && matchesSistema && matchesApp;
+                  }) || [];
+                  
+                  filteredPontosForDistribution.forEach((ponto: any) => {
                     initialData[ponto.id] = ponto.sistemaId || '1';
                   });
                   setDistributionData(initialData);
@@ -1199,10 +1215,10 @@ export default function Clientes() {
                     {sistemas.map((sistema: any) => (
                       <SelectItem 
                         key={sistema.id} 
-                        value={sistema.systemId}
+                        value={sistema.system_id || sistema.systemId}
                         className="text-white hover:bg-slate-800"
                       >
-                        Sistema {sistema.systemId}
+                        Sistema {sistema.system_id || sistema.systemId}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1215,12 +1231,12 @@ export default function Clientes() {
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-sm font-semibold text-slate-300">Pontos Disponíveis</Label>
                 <span className="text-xs text-slate-400">
-                  {pontos?.length || 0} pontos no total
+                  {filteredPontos?.length || 0} pontos filtrados
                 </span>
               </div>
               
               <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
-                {pontos?.map((ponto: any) => {
+                {filteredPontos?.map((ponto: any) => {
                   const cliente = allClientes?.find((c: any) => c.id === ponto.clienteId);
                   return (
                     <div 
@@ -1259,10 +1275,10 @@ export default function Clientes() {
                             {sistemas.map((sistema: any) => (
                               <SelectItem 
                                 key={sistema.id} 
-                                value={sistema.systemId}
+                                value={sistema.system_id || sistema.systemId}
                                 className="text-white hover:bg-slate-800 text-sm"
                               >
-                                Sistema {sistema.systemId}
+                                Sistema {sistema.system_id || sistema.systemId}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -1298,8 +1314,8 @@ export default function Clientes() {
                   <span className="text-sm font-semibold text-white">Resumo da Distribuição</span>
                 </div>
                 <p className="text-xs text-slate-400">
-                  {pontos?.length || 0} pontos serão distribuídos igualmente entre {sistemas.length} sistemas.
-                  Cada sistema receberá aproximadamente {Math.ceil((pontos?.length || 0) / sistemas.length)} pontos.
+                  {filteredPontos?.length || 0} pontos serão distribuídos igualmente entre {sistemas.length} sistemas.
+                  Cada sistema receberá aproximadamente {Math.ceil((filteredPontos?.length || 0) / sistemas.length)} pontos.
                 </p>
               </div>
             )}
@@ -1326,14 +1342,14 @@ export default function Clientes() {
                   }));
                 } else if (distributionMode === 'all') {
                   // Move all to selected system
-                  updates = pontos?.map((ponto: any) => ({
+                  updates = filteredPontos?.map((ponto: any) => ({
                     id: ponto.id,
                     sistemaId: selectedDistributionSistema
                   })) || [];
                 } else if (distributionMode === 'equal') {
                   // Distribute equally
-                  const sistemaIds = sistemas.map((s: any) => s.systemId);
-                  updates = pontos?.map((ponto: any, index: number) => ({
+                  const sistemaIds = sistemas.map((s: any) => s.system_id || s.systemId);
+                  updates = filteredPontos?.map((ponto: any, index: number) => ({
                     id: ponto.id,
                     sistemaId: sistemaIds[index % sistemaIds.length]
                   })) || [];
