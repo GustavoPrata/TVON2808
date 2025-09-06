@@ -1437,6 +1437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Bulk update pontos endpoint - MUST BE BEFORE /:id to avoid route conflicts
   app.put("/api/pontos/bulk-update", async (req, res) => {
     try {
+      console.log("PUT /api/pontos/bulk-update - Called correctly!");
       const { updates } = req.body;
       
       if (!updates || !Array.isArray(updates)) {
@@ -1526,7 +1527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/pontos/:id", async (req, res) => {
     try {
-      console.log("PUT /api/pontos/:id - Body recebido:", req.body);
+      console.log(`PUT /api/pontos/${req.params.id} - Body recebido:`, req.body);
 
       // Separa os campos que não estão no schema
       const { valor, expiracao, observacoes, ...restData } = req.body;
