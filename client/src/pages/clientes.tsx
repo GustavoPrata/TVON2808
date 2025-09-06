@@ -1422,7 +1422,7 @@ export default function Clientes() {
                   message: 'Iniciando distribuição...'
                 });
                 
-                // Send updates to backend
+                // Send updates to backend with timeout
                 try {
                   // Update progress before sending
                   setDistributionProgress({
@@ -1431,7 +1431,16 @@ export default function Clientes() {
                     message: 'Enviando para servidor...'
                   });
                   
-                  const response = await apiRequest('PUT', '/api/pontos/bulk-update', { updates });
+                  // Create a promise that rejects after timeout
+                  const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('A operação está demorando mais que o esperado')), 30000); // 30 seconds timeout
+                  });
+                  
+                  // Race between the API call and timeout
+                  const response = await Promise.race([
+                    apiRequest('PUT', '/api/pontos/bulk-update', { updates }),
+                    timeoutPromise
+                  ]);
                   
                   // Update progress after server response
                   setDistributionProgress({
@@ -1440,37 +1449,70 @@ export default function Clientes() {
                     message: 'Atualizando interface...'
                   });
                   
+                  // Wait a bit before refreshing
+                  await new Promise(resolve => setTimeout(resolve, 500));
+                  
                   // Invalidate queries to refresh data
                   await queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
                   await queryClient.invalidateQueries({ queryKey: ['/api/sistemas'] });
                   
                   // Success notification
-                  toast({
-                    title: "✅ Distribuição Concluída!",
-                    description: `${response.updated || updates.length} pontos foram distribuídos com sucesso.`,
-                    className: "bg-green-900/90 border-green-600 text-white",
-                  });
+                  const successCount = (response as any)?.updated || updates.length;
+                  const errorCount = (response as any)?.errors || 0;
                   
-                  // Reset states and close modal
+                  if (errorCount > 0) {
+                    toast({
+                      title: "⚠️ Distribuição Parcial",
+                      description: `${successCount} pontos atualizados. ${errorCount} pontos com erro.`,
+                      className: "bg-yellow-900/90 border-yellow-600 text-white",
+                    });
+                  } else {
+                    toast({
+                      title: "✅ Distribuição Concluída!",
+                      description: `${successCount} pontos foram distribuídos com sucesso.`,
+                      className: "bg-green-900/90 border-green-600 text-white",
+                    });
+                  }
+                  
+                  // Always close modal and reset states
+                  setTimeout(() => {
+                    setIsDistributing(false);
+                    setDistributionProgress(null);
+                    setIsDistributionModalOpen(false);
+                    setDistributionData({});
+                    setSelectedDistributionSistema('');
+                  }, 500);
+                  
+                } catch (error: any) {
+                  console.error('Distribution error:', error);
+                  
+                  // Always reset states on error
                   setIsDistributing(false);
                   setDistributionProgress(null);
                   setIsDistributionModalOpen(false);
                   
+                  const isTimeout = error.message?.includes('demorando');
+                  
+                  if (isTimeout) {
+                    toast({
+                      title: "⏱️ Tempo Esgotado",
+                      description: "A distribuição está demorando muito. Verifique os pontos e tente novamente se necessário.",
+                      className: "bg-orange-900/90 border-orange-600 text-white",
+                    });
+                    // Still refresh the data as some points might have been updated
+                    queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
+                    queryClient.invalidateQueries({ queryKey: ['/api/sistemas'] });
+                  } else {
+                    toast({
+                      title: "❌ Erro na Distribuição",
+                      description: error.response?.data?.error || error.message || "Não foi possível atualizar os pontos.",
+                      variant: "destructive",
+                    });
+                  }
+                  
                   // Reset distribution data
                   setDistributionData({});
                   setSelectedDistributionSistema('');
-                } catch (error: any) {
-                  console.error('Distribution error:', error);
-                  setIsDistributing(false);
-                  setDistributionProgress(null);
-                  
-                  const errorMessage = error.response?.data?.error || error.message || "Não foi possível atualizar os pontos.";
-                  
-                  toast({
-                    title: "❌ Erro na Distribuição",
-                    description: errorMessage,
-                    variant: "destructive",
-                  });
                 }
               }}
               disabled={isDistributing}
