@@ -1726,6 +1726,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/avisos", async (req, res) => {
+    try {
+      const avisos = await storage.getAvisosVencimento();
+      res.json(avisos);
+    } catch (error) {
+      console.error("Error in /api/avisos:", error);
+      res.status(500).json({ error: "Erro ao buscar avisos" });
+    }
+  });
+
   app.get("/api/avisos/config", async (req, res) => {
     try {
       const config = await storage.getConfigAvisos();
@@ -1783,7 +1793,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             telefone: phoneNumber,
             dataVencimento: cliente.vencimento || new Date(),
             tipoAviso: 'manual',
-            statusEnvio: 'enviado',
             mensagemEnviada: mensagem
           });
           
@@ -1797,8 +1806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             telefone: phoneNumber,
             dataVencimento: cliente.vencimento || new Date(),
             tipoAviso: 'manual',
-            statusEnvio: 'erro',
-            mensagemErro: whatsappError.message
+            mensagemEnviada: `[ERRO] ${whatsappError.message}`
           });
           
           res.status(500).json({ error: "Erro ao enviar mensagem WhatsApp" });

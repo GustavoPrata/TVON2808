@@ -7,7 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Calendar, Clock, Bell, BellOff, Send, Search, Filter, AlertTriangle, CheckCircle, Users, Phone, Settings, RefreshCw } from 'lucide-react';
+import { 
+  Calendar, Clock, Bell, BellOff, Send, Search, Filter, AlertTriangle, 
+  CheckCircle, Users, Phone, Settings, RefreshCw, MessageSquare, History,
+  AlertCircle, Timer, BellRing
+} from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import type { Cliente } from '@/types';
@@ -21,6 +25,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+interface AvisoVencimento {
+  id: number;
+  clienteId: number;
+  cliente?: Cliente;
+  telefone: string;
+  dataVencimento: string;
+  dataAviso: string;
+  tipoAviso: string;
+  statusEnvio: string;
+  mensagemEnviada: string;
+}
 
 export default function Vencimentos() {
   const [location, navigate] = useLocation();
@@ -30,6 +58,8 @@ export default function Vencimentos() {
   const [horaAviso, setHoraAviso] = useState('09:00');
   const [avisoAtivo, setAvisoAtivo] = useState(true);
   const [mensagemPadrao, setMensagemPadrao] = useState('');
+  const [showHistorico, setShowHistorico] = useState(false);
+  const [selectedCliente, setSelectedCliente] = useState<number | null>(null);
   const { toast } = useToast();
   
   // Format phone number to Brazilian format
@@ -69,11 +99,23 @@ export default function Vencimentos() {
     queryFn: async () => {
       const response = await fetch('/api/avisos/hoje');
       if (!response.ok) throw new Error('Failed to fetch avisos');
-      return response.json();
+      return response.json() as Promise<AvisoVencimento[]>;
     },
     refetchInterval: 10000, // Auto-refresh every 10 seconds
     staleTime: 0,
     refetchOnWindowFocus: true,
+  });
+
+  // Fetch all avisos (histórico)
+  const { data: todosAvisos } = useQuery({
+    queryKey: ['/api/avisos'],
+    queryFn: async () => {
+      const response = await fetch('/api/avisos');
+      if (!response.ok) throw new Error('Failed to fetch all avisos');
+      return response.json() as Promise<AvisoVencimento[]>;
+    },
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
+    staleTime: 0,
   });
 
   // Fetch config avisos
@@ -151,6 +193,7 @@ export default function Vencimentos() {
         description: `Aviso de vencimento enviado para ${cliente.nome}.`,
       });
       refetchAvisos();
+      queryClient.invalidateQueries({ queryKey: ['/api/avisos'] });
     },
     onError: () => {
       toast({
@@ -177,6 +220,7 @@ export default function Vencimentos() {
       });
       refetchAvisos();
       refetchClientes();
+      queryClient.invalidateQueries({ queryKey: ['/api/avisos'] });
     },
     onError: () => {
       toast({
@@ -212,9 +256,61 @@ export default function Vencimentos() {
     return `${days} dias`;
   };
 
-  const checkIfNotified = (clienteId: number) => {
-    return avisos?.some((aviso: any) => aviso.clienteId === clienteId);
+  const getTipoAvisoInfo = (tipo: string) => {
+    switch (tipo) {
+      case 'vence_hoje':
+        return {
+          label: 'Vence Hoje',
+          color: 'bg-orange-500/20 text-orange-400 border-orange-500/50',
+          icon: <AlertCircle className="w-3 h-3" />
+        };
+      case 'venceu_ontem':
+        return {
+          label: 'Venceu Ontem',
+          color: 'bg-red-500/20 text-red-400 border-red-500/50',
+          icon: <AlertTriangle className="w-3 h-3" />
+        };
+      case 'vencido_recorrente':
+        return {
+          label: 'Lembrete (3 dias)',
+          color: 'bg-purple-500/20 text-purple-400 border-purple-500/50',
+          icon: <Timer className="w-3 h-3" />
+        };
+      case 'manual':
+        return {
+          label: 'Manual',
+          color: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
+          icon: <Send className="w-3 h-3" />
+        };
+      default:
+        return {
+          label: 'Automático',
+          color: 'bg-green-500/20 text-green-400 border-green-500/50',
+          icon: <Bell className="w-3 h-3" />
+        };
+    }
   };
+
+  const checkIfNotified = (clienteId: number) => {
+    return avisos?.some((aviso: AvisoVencimento) => aviso.clienteId === clienteId);
+  };
+
+  const getClienteAvisos = (clienteId: number) => {
+    return todosAvisos?.filter((aviso: AvisoVencimento) => aviso.clienteId === clienteId) || [];
+  };
+
+  const getAvisosStats = () => {
+    if (!avisos) return { hoje: 0, ontem: 0, recorrente: 0, manual: 0 };
+    
+    return {
+      hoje: avisos.filter(a => a.tipoAviso === 'vence_hoje').length,
+      ontem: avisos.filter(a => a.tipoAviso === 'venceu_ontem').length,
+      recorrente: avisos.filter(a => a.tipoAviso === 'vencido_recorrente').length,
+      manual: avisos.filter(a => a.tipoAviso === 'manual').length,
+    };
+  };
+
+  const stats = getAvisosStats();
 
   const filteredClientes = clientes?.filter(cliente => {
     // Search filter
@@ -277,17 +373,27 @@ export default function Vencimentos() {
             </div>
           </div>
           
-          <Button
-            onClick={() => setConfigOpen(!configOpen)}
-            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Configurar Avisos
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setShowHistorico(!showHistorico)}
+              variant="outline"
+              className="border-slate-600 hover:bg-slate-800"
+            >
+              <History className="w-4 h-4 mr-2" />
+              Histórico
+            </Button>
+            <Button
+              onClick={() => setConfigOpen(!configOpen)}
+              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Configurar Avisos
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mt-6">
+        <div className="grid grid-cols-4 gap-4 mt-6">
           <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-400">Vencendo hoje</span>
@@ -298,7 +404,7 @@ export default function Vencimentos() {
           
           <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-400">Notificados hoje</span>
+              <span className="text-sm text-slate-400">Total avisos hoje</span>
               <Bell className="w-4 h-4 text-green-400" />
             </div>
             <p className="text-2xl font-bold text-green-400 mt-1">{totalNotificadosHoje}</p>
@@ -311,7 +417,59 @@ export default function Vencimentos() {
             </div>
             <p className="text-2xl font-bold text-blue-400 mt-1">{horaAviso}</p>
           </div>
+          
+          <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-400">Status</span>
+              <BellRing className={`w-4 h-4 ${avisoAtivo ? 'text-green-400' : 'text-red-400'}`} />
+            </div>
+            <p className={`text-2xl font-bold mt-1 ${avisoAtivo ? 'text-green-400' : 'text-red-400'}`}>
+              {avisoAtivo ? 'Ativo' : 'Inativo'}
+            </p>
+          </div>
         </div>
+        
+        {/* Avisos Stats */}
+        {totalNotificadosHoje > 0 && (
+          <div className="grid grid-cols-4 gap-2 mt-4">
+            {stats.hoje > 0 && (
+              <div className="bg-orange-500/10 rounded-lg p-2 border border-orange-500/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-orange-400">Vence hoje</span>
+                  <AlertCircle className="w-3 h-3 text-orange-400" />
+                </div>
+                <p className="text-lg font-bold text-orange-400">{stats.hoje}</p>
+              </div>
+            )}
+            {stats.ontem > 0 && (
+              <div className="bg-red-500/10 rounded-lg p-2 border border-red-500/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-red-400">Venceu ontem</span>
+                  <AlertTriangle className="w-3 h-3 text-red-400" />
+                </div>
+                <p className="text-lg font-bold text-red-400">{stats.ontem}</p>
+              </div>
+            )}
+            {stats.recorrente > 0 && (
+              <div className="bg-purple-500/10 rounded-lg p-2 border border-purple-500/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-purple-400">Lembretes</span>
+                  <Timer className="w-3 h-3 text-purple-400" />
+                </div>
+                <p className="text-lg font-bold text-purple-400">{stats.recorrente}</p>
+              </div>
+            )}
+            {stats.manual > 0 && (
+              <div className="bg-blue-500/10 rounded-lg p-2 border border-blue-500/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-blue-400">Manual</span>
+                  <Send className="w-3 h-3 text-blue-400" />
+                </div>
+                <p className="text-lg font-bold text-blue-400">{stats.manual}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Config Panel */}
@@ -354,18 +512,22 @@ export default function Vencimentos() {
               </div>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="mensagem">Mensagem Padrão</Label>
-              <Textarea
-                id="mensagem"
-                value={mensagemPadrao}
-                onChange={(e) => setMensagemPadrao(e.target.value)}
-                className="bg-slate-800 border-slate-700 h-32"
-                placeholder="Digite a mensagem que será enviada aos clientes..."
-              />
-              <p className="text-xs text-slate-400">
-                Use {'{nome}'} para incluir o nome do cliente na mensagem
-              </p>
+            <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+              <h4 className="text-sm font-semibold text-white mb-2">Regras de Avisos Automáticos</h4>
+              <ul className="space-y-2 text-xs text-slate-400">
+                <li className="flex items-center gap-2">
+                  <AlertCircle className="w-3 h-3 text-orange-400" />
+                  <span><strong className="text-orange-400">No dia do vencimento:</strong> Aviso de que o plano vence hoje</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <AlertTriangle className="w-3 h-3 text-red-400" />
+                  <span><strong className="text-red-400">1 dia após vencimento:</strong> Aviso com opção de desbloqueio de confiança</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Timer className="w-3 h-3 text-purple-400" />
+                  <span><strong className="text-purple-400">A cada 3 dias após:</strong> Lembretes recorrentes para renovação</span>
+                </li>
+              </ul>
             </div>
             
             <div className="flex gap-2">
@@ -382,6 +544,55 @@ export default function Vencimentos() {
               >
                 Cancelar
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Histórico de Avisos */}
+      {showHistorico && todosAvisos && (
+        <Card className="bg-dark-card border-slate-600">
+          <CardHeader>
+            <CardTitle className="text-white">Histórico de Avisos</CardTitle>
+            <CardDescription className="text-slate-400">
+              Últimos avisos enviados para todos os clientes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="max-h-96 overflow-y-auto space-y-2">
+              {todosAvisos.slice(0, 50).map((aviso) => {
+                const tipoInfo = getTipoAvisoInfo(aviso.tipoAviso);
+                const cliente = clientes?.find(c => c.id === aviso.clienteId);
+                
+                return (
+                  <div key={aviso.id} className="bg-slate-800/30 rounded-lg p-3 border border-slate-700/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-8 h-8">
+                          <AvatarFallback className="bg-gradient-to-br from-blue-500/20 to-purple-500/20 text-xs">
+                            {cliente?.nome?.charAt(0).toUpperCase() || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-white">{cliente?.nome || 'Cliente Desconhecido'}</p>
+                          <p className="text-xs text-slate-400">
+                            {new Date(aviso.dataAviso).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className={`flex items-center gap-1 ${tipoInfo.color}`}>
+                        {tipoInfo.icon}
+                        {tipoInfo.label}
+                      </Badge>
+                    </div>
+                    {aviso.mensagemEnviada && (
+                      <div className="mt-2 p-2 bg-slate-900/50 rounded text-xs text-slate-300 font-mono">
+                        {aviso.mensagemEnviada.substring(0, 100)}...
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -417,9 +628,10 @@ export default function Vencimentos() {
         
         <Button
           onClick={() => checkExpiredMutation.mutate()}
+          disabled={checkExpiredMutation.isPending}
           className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
         >
-          <RefreshCw className="w-4 h-4 mr-2" />
+          <RefreshCw className={`w-4 h-4 mr-2 ${checkExpiredMutation.isPending ? 'animate-spin' : ''}`} />
           Verificar e Avisar Todos
         </Button>
       </div>
@@ -435,7 +647,7 @@ export default function Vencimentos() {
                   <th className="text-left py-3 px-4 text-slate-400 font-semibold">Telefone</th>
                   <th className="text-left py-3 px-4 text-slate-400 font-semibold">Vencimento</th>
                   <th className="text-left py-3 px-4 text-slate-400 font-semibold">Status</th>
-                  <th className="text-center py-3 px-4 text-slate-400 font-semibold">Notificado</th>
+                  <th className="text-center py-3 px-4 text-slate-400 font-semibold">Avisos</th>
                   <th className="text-right py-3 px-4 text-slate-400 font-semibold">Ações</th>
                 </tr>
               </thead>
@@ -443,6 +655,12 @@ export default function Vencimentos() {
                 {filteredClientes?.map((cliente) => {
                   const days = cliente.vencimento ? getDaysUntilExpiry(cliente.vencimento) : null;
                   const notified = checkIfNotified(cliente.id);
+                  const clienteAvisos = getClienteAvisos(cliente.id);
+                  const avisosHoje = clienteAvisos.filter(a => {
+                    const avisoDate = new Date(a.dataAviso);
+                    const today = new Date();
+                    return avisoDate.toDateString() === today.toDateString();
+                  });
                   
                   return (
                     <tr key={cliente.id} className="border-b border-slate-700/50 hover:bg-slate-800/30 transition-colors">
@@ -501,26 +719,52 @@ export default function Vencimentos() {
                           {cliente.status}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 text-center">
-                        {notified ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <CheckCircle className="w-4 h-4 text-green-400" />
-                            <span className="text-xs text-green-400">Sim</span>
-                          </div>
-                        ) : days === 0 ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <AlertTriangle className="w-4 h-4 text-yellow-400" />
-                            <span className="text-xs text-yellow-400">Não</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-500">-</span>
-                        )}
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col items-center gap-1">
+                          {avisosHoje.length > 0 ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <div className="flex items-center gap-1">
+                                    <CheckCircle className="w-4 h-4 text-green-400" />
+                                    <span className="text-xs text-green-400">{avisosHoje.length} hoje</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-slate-800 border-slate-700">
+                                  <div className="space-y-1">
+                                    {avisosHoje.map((aviso, idx) => {
+                                      const tipoInfo = getTipoAvisoInfo(aviso.tipoAviso);
+                                      return (
+                                        <div key={idx} className="flex items-center gap-2">
+                                          {tipoInfo.icon}
+                                          <span className="text-xs">{tipoInfo.label}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : days === 0 ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <AlertTriangle className="w-4 h-4 text-yellow-400" />
+                              <span className="text-xs text-yellow-400">Pendente</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-500">-</span>
+                          )}
+                          {clienteAvisos.length > 0 && (
+                            <span className="text-xs text-slate-400">
+                              Total: {clienteAvisos.length}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-right">
                         <Button
                           size="sm"
                           onClick={() => sendAvisoMutation.mutate(cliente)}
-                          disabled={notified || !cliente.vencimento}
+                          disabled={notified || !cliente.vencimento || sendAvisoMutation.isPending}
                           className={
                             notified 
                               ? "bg-slate-700 text-slate-400 cursor-not-allowed" 
