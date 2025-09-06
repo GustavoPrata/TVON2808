@@ -1424,53 +1424,51 @@ export default function Clientes() {
                 
                 // Send updates to backend
                 try {
-                  // Simulate progress updates
-                  setTimeout(() => {
-                    setDistributionProgress({
-                      current: Math.floor(updates.length * 0.3),
-                      total: updates.length,
-                      message: 'Conectando com servidor...'
-                    });
-                  }, 300);
+                  // Update progress before sending
+                  setDistributionProgress({
+                    current: Math.floor(updates.length * 0.3),
+                    total: updates.length,
+                    message: 'Enviando para servidor...'
+                  });
                   
-                  setTimeout(() => {
-                    setDistributionProgress({
-                      current: Math.floor(updates.length * 0.6),
-                      total: updates.length,
-                      message: 'Processando distribuição...'
-                    });
-                  }, 800);
+                  const response = await apiRequest('PUT', '/api/pontos/bulk-update', { updates });
                   
-                  await apiRequest('PUT', '/api/pontos/bulk-update', { updates });
-                  
+                  // Update progress after server response
                   setDistributionProgress({
                     current: updates.length,
                     total: updates.length,
-                    message: 'Finalizando...'
+                    message: 'Atualizando interface...'
                   });
                   
+                  // Invalidate queries to refresh data
                   await queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
                   await queryClient.invalidateQueries({ queryKey: ['/api/sistemas'] });
                   
-                  // Success notification with better styling
+                  // Success notification
                   toast({
                     title: "✅ Distribuição Concluída!",
-                    description: `${updates.length} pontos foram distribuídos com sucesso entre os sistemas.`,
+                    description: `${response.updated || updates.length} pontos foram distribuídos com sucesso.`,
                     className: "bg-green-900/90 border-green-600 text-white",
                   });
                   
-                  // Close modal after a short delay
-                  setTimeout(() => {
-                    setIsDistributionModalOpen(false);
-                    setIsDistributing(false);
-                    setDistributionProgress(null);
-                  }, 1000);
-                } catch (error) {
+                  // Reset states and close modal
                   setIsDistributing(false);
                   setDistributionProgress(null);
+                  setIsDistributionModalOpen(false);
+                  
+                  // Reset distribution data
+                  setDistributionData({});
+                  setSelectedDistributionSistema('');
+                } catch (error: any) {
+                  console.error('Distribution error:', error);
+                  setIsDistributing(false);
+                  setDistributionProgress(null);
+                  
+                  const errorMessage = error.response?.data?.error || error.message || "Não foi possível atualizar os pontos.";
+                  
                   toast({
                     title: "❌ Erro na Distribuição",
-                    description: "Não foi possível atualizar os pontos. Tente novamente.",
+                    description: errorMessage,
                     variant: "destructive",
                   });
                 }
