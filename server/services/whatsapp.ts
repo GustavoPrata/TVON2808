@@ -2491,16 +2491,17 @@ export class WhatsAppService extends EventEmitter {
       case "2": // TV Box
         await this.sendMessage(
           telefone,
-          `Vamos te ajudar a configurar sua TV Box.\n` +
-            `Chamando um atendente...`,
+          `Perfeito! Vamos criar seu teste para TV Box.\n\n` +
+            `Aguarde enquanto processamos sua solicitação...`,
         );
-        await storage.updateConversa(conversa.id, {
-          modoAtendimento: "humano",
-        });
-        await this.createTicket(
-          conversa,
-          null,
-          "[Ticket] Novo teste grátis - Dispositivo: TV Box",
+        // Continue in bot mode to handle test creation
+        // await storage.updateConversa(conversa.id, {
+        //   modoAtendimento: "humano",
+        // });
+        // await this.createTicket(
+        //   conversa,
+        //   null,
+        //   "[Ticket] Novo teste grátis - Dispositivo: TV Box",
         );
         this.conversaStates.delete(telefone);
         break;
@@ -2530,16 +2531,17 @@ export class WhatsAppService extends EventEmitter {
       case "4": // Notebook ou Computador
         await this.sendMessage(
           telefone,
-          `Beleza! A ativação para computador é feita manualmente.\n` +
-            `Chamando um atendente...`,
+          `Perfeito! Vamos criar seu teste para Notebook/PC.\n\n` +
+            `Aguarde enquanto processamos sua solicitação...`,
         );
-        await storage.updateConversa(conversa.id, {
-          modoAtendimento: "humano",
-        });
-        await this.createTicket(
-          conversa,
-          null,
-          "[Ticket] Novo teste grátis - Dispositivo: Notebook ou PC",
+        // Continue in bot mode to handle test creation
+        // await storage.updateConversa(conversa.id, {
+        //   modoAtendimento: "humano",
+        // });
+        // await this.createTicket(
+        //   conversa,
+        //   null,
+        //   "[Ticket] Novo teste grátis - Dispositivo: Notebook ou PC",
         );
         this.conversaStates.delete(telefone);
         break;
@@ -2547,15 +2549,17 @@ export class WhatsAppService extends EventEmitter {
       case "5": // Outros
         await this.sendMessage(
           telefone,
-          `Sem problema! Vamos te ajudar.\n` + `Chamando um atendente...`,
+          `Perfeito! Vamos criar seu teste.\n\n` + 
+            `Aguarde enquanto processamos sua solicitação...`,
         );
-        await storage.updateConversa(conversa.id, {
-          modoAtendimento: "humano",
-        });
-        await this.createTicket(
-          conversa,
-          null,
-          "[Ticket] Novo teste grátis - Dispositivo: Outro",
+        // Continue in bot mode to handle test creation
+        // await storage.updateConversa(conversa.id, {
+        //   modoAtendimento: "humano",
+        // });
+        // await this.createTicket(
+        //   conversa,
+        //   null,
+        //   "[Ticket] Novo teste grátis - Dispositivo: Outro",
         );
         this.conversaStates.delete(telefone);
         break;
@@ -2568,12 +2572,13 @@ export class WhatsAppService extends EventEmitter {
     telefone: string,
   ) {
     const tipo = opcaoId === "1" ? "Android" : "iPhone";
-    await storage.updateConversa(conversa.id, { modoAtendimento: "humano" });
-    await this.createTicket(
-      conversa,
-      null,
-      `[Ticket] Novo teste grátis - Dispositivo: Celular (${tipo})`,
-    );
+    // Only switch to human mode when explicitly needed
+    // await storage.updateConversa(conversa.id, { modoAtendimento: "humano" });
+    // await this.createTicket(
+    //   conversa,
+    //   null,
+    //   `[Ticket] Novo teste grátis - Dispositivo: Celular (${tipo})`,
+    // );
     await this.sendMessage(
       telefone,
       `Perfeito! Vamos ativar seu teste para ${tipo}.\n` +
@@ -2604,12 +2609,13 @@ export class WhatsAppService extends EventEmitter {
         ? "Outras"
         : marcas[parseInt(opcaoId) - 1] || "Outras";
 
-    await storage.updateConversa(conversa.id, { modoAtendimento: "humano" });
-    await this.createTicket(
-      conversa,
-      null,
-      `[Ticket] Novo teste grátis - Dispositivo: Smart TV (${marca})`,
-    );
+    // Continue in bot mode to handle test creation
+    // await storage.updateConversa(conversa.id, { modoAtendimento: "humano" });
+    // await this.createTicket(
+    //   conversa,
+    //   null,
+    //   `[Ticket] Novo teste grátis - Dispositivo: Smart TV (${marca})`,
+    // );
     await this.sendMessage(
       telefone,
       `Ótimo! Vamos configurar para Smart TV ${marca}.\n` +
