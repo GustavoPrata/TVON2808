@@ -1,9 +1,9 @@
 import { storage } from '../storage';
 import { whatsappService } from './whatsapp';
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 
 export class NotificationService {
-  private scheduledTasks: Map<string, cron.ScheduledTask> = new Map();
+  private scheduledTasks: Map<string, ScheduledTask> = new Map();
 
   constructor() {
     this.initializeScheduledNotifications();
@@ -230,9 +230,7 @@ export class NotificationService {
           clienteId: cliente.id,
           telefone: phoneNumber,
           dataVencimento: dataVencimento,
-          dataAviso: new Date(nowBrazil),
           tipoAviso: tipoAviso,
-          statusEnvio: 'enviado',
           mensagemEnviada: mensagem
         });
         
@@ -293,9 +291,7 @@ export class NotificationService {
           clienteId: cliente.id,
           telefone: phoneNumber,
           dataVencimento: dataVencimento,
-          dataAviso: new Date(nowBrazil),
           tipoAviso: 'automatico',
-          statusEnvio: 'enviado',
           mensagemEnviada: mensagem
         });
         
@@ -449,8 +445,6 @@ export class NotificationService {
         
         // Remover tarefa após execução
         this.scheduledTasks.delete(taskId);
-      }, {
-        scheduled: false
       });
 
       this.scheduledTasks.set(taskId, task);
