@@ -1209,7 +1209,8 @@ export class WhatsAppService extends EventEmitter {
           ultimaMensagem: message.message,
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: message.type,
-          modoAtendimento: "humano", // Set to human since it's sent directly
+          // Don't change mode - keep current mode (bot or human)
+          // modoAtendimento is only changed when explicitly needed
           // Reset unread messages when system sends a message
           mensagensNaoLidas: 0,
         });
@@ -1609,8 +1610,14 @@ export class WhatsAppService extends EventEmitter {
         return;
       }
 
+      // Handle option "0" - always return to menu
+      if (messageText === "0") {
+        console.log("Opção 0 detectada - voltando ao menu principal");
+        this.conversaStates.delete(conversa.telefone);
+        await this.sendBotMenu(conversa.telefone, botConfig);
+      }
       // Special handling for clientes bot - always accept options 1-6
-      if (tipoBot === "clientes" && ["1", "2", "3", "4", "5", "6"].includes(messageText)) {
+      else if (tipoBot === "clientes" && ["1", "2", "3", "4", "5", "6"].includes(messageText)) {
         console.log(`Opção ${messageText} selecionada para bot clientes`);
         await this.handleClientesBotOption(
           conversa,
