@@ -204,7 +204,7 @@ export default function Clientes() {
     return map;
   }, [sistemas]);
 
-  // Filter clients locally based on search term
+  // Filter clients locally based on search term and sort alphabetically
   const clientes = allClientes?.filter(cliente => {
     if (!searchTerm) return true;
     const searchLower = searchTerm.toLowerCase();
@@ -212,9 +212,9 @@ export default function Clientes() {
       cliente.nome.toLowerCase().includes(searchLower) ||
       cliente.telefone.includes(searchTerm)
     );
-  });
+  })?.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   
-  // Filter pontos locally based on search term and filters
+  // Filter pontos locally based on search term and filters, then sort alphabetically by client name
   const filteredPontos = pontos?.filter((ponto: any) => {
     // Get cliente from backend or find by ID
     const cliente = ponto.cliente || allClientes?.find((c: any) => c.id === ponto.clienteId);
@@ -241,6 +241,12 @@ export default function Clientes() {
     const matchesType = !cliente ? true : cliente.tipo === pontosType;
     
     return matchesSearch && matchesSistema && matchesApp && matchesType;
+  })?.sort((a: any, b: any) => {
+    const clienteA = a.cliente || allClientes?.find((c: any) => c.id === a.clienteId);
+    const clienteB = b.cliente || allClientes?.find((c: any) => c.id === b.clienteId);
+    const nomeA = clienteA?.nome || '';
+    const nomeB = clienteB?.nome || '';
+    return nomeA.localeCompare(nomeB, 'pt-BR');
   });
 
   const handleOpenModal = (cliente?: Cliente) => {
@@ -1282,7 +1288,13 @@ export default function Clientes() {
               </div>
               
               <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
-                {pontos?.map((ponto: any) => {
+                {pontos?.sort((a: any, b: any) => {
+                  const clienteA = a.cliente || allClientes?.find((c: any) => c.id === a.clienteId);
+                  const clienteB = b.cliente || allClientes?.find((c: any) => c.id === b.clienteId);
+                  const nomeA = clienteA?.nome || '';
+                  const nomeB = clienteB?.nome || '';
+                  return nomeA.localeCompare(nomeB, 'pt-BR');
+                })?.map((ponto: any) => {
                   const cliente = ponto.cliente || allClientes?.find((c: any) => c.id === ponto.clienteId);
                   const sistemaAtual = sistemas?.find((s: any) => s.id === ponto.sistemaId);
                   return (
