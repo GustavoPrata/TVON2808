@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ClientModal } from '@/components/modals/client-modal';
-import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Edit, Copy, Save, X } from 'lucide-react';
+import { Plus, Search, Eye, Filter, Users, Phone, DollarSign, Calendar, CheckCircle, XCircle, AlertTriangle, Activity, Monitor, KeyRound, Wifi, Lock, Settings, Package, FileText, Edit, Copy, Save, X, Shuffle } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Cliente } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,6 +19,15 @@ import { useSettings } from '@/contexts/settings-context';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 export default function Clientes() {
   const [, setLocation] = useLocation();
@@ -55,6 +64,12 @@ export default function Clientes() {
   // States for inline editing
   const [editingPonto, setEditingPonto] = useState<number | null>(null);
   const [editedPonto, setEditedPonto] = useState<any>({});
+  
+  // State for distribution modal
+  const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false);
+  const [distributionData, setDistributionData] = useState<{ [key: number]: string }>({});
+  const [distributionMode, setDistributionMode] = useState<'individual' | 'all' | 'equal'>('individual');
+  const [selectedDistributionSistema, setSelectedDistributionSistema] = useState<string>('1');
   
   // Persist filters to localStorage
   useEffect(() => {
@@ -473,6 +488,22 @@ export default function Clientes() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+              
+              <Button
+                onClick={() => {
+                  // Initialize distribution data with current sistema assignments
+                  const initialData: { [key: number]: string } = {};
+                  pontos?.forEach((ponto: any) => {
+                    initialData[ponto.id] = ponto.sistemaId || '1';
+                  });
+                  setDistributionData(initialData);
+                  setIsDistributionModalOpen(true);
+                }}
+                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold px-4 shadow-lg shadow-purple-500/30 transition-all hover:scale-105"
+              >
+                <Shuffle className="w-4 h-4 mr-2" />
+                Distribuir
+              </Button>
             </>
           )}
           
@@ -1107,6 +1138,232 @@ export default function Clientes() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
       />
+
+      {/* Distribution Modal */}
+      <Dialog open={isDistributionModalOpen} onOpenChange={setIsDistributionModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 to-slate-950 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Distribuir Pontos entre Sistemas
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Configure como deseja distribuir os pontos entre os sistemas disponíveis
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Distribution Mode Selection */}
+            <div className="space-y-4">
+              <Label className="text-sm font-semibold text-slate-300">Modo de Distribuição</Label>
+              <RadioGroup
+                value={distributionMode}
+                onValueChange={(value) => setDistributionMode(value as 'individual' | 'all' | 'equal')}
+                className="space-y-3"
+              >
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-purple-500 transition-colors">
+                  <RadioGroupItem value="individual" id="individual" className="text-purple-500" />
+                  <Label htmlFor="individual" className="cursor-pointer flex-1">
+                    <div className="font-medium text-white">Individual</div>
+                    <div className="text-xs text-slate-400">Configure cada ponto manualmente</div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-purple-500 transition-colors">
+                  <RadioGroupItem value="all" id="all" className="text-purple-500" />
+                  <Label htmlFor="all" className="cursor-pointer flex-1">
+                    <div className="font-medium text-white">Todos para Um Sistema</div>
+                    <div className="text-xs text-slate-400">Mover todos os pontos para um único sistema</div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-purple-500 transition-colors">
+                  <RadioGroupItem value="equal" id="equal" className="text-purple-500" />
+                  <Label htmlFor="equal" className="cursor-pointer flex-1">
+                    <div className="font-medium text-white">Distribuição Igual</div>
+                    <div className="text-xs text-slate-400">Dividir igualmente entre todos os sistemas</div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* System Selection for 'all' mode */}
+            {distributionMode === 'all' && (
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold text-slate-300">Selecione o Sistema de Destino</Label>
+                <Select
+                  value={selectedDistributionSistema}
+                  onValueChange={setSelectedDistributionSistema}
+                >
+                  <SelectTrigger className="w-full bg-slate-800 border-slate-700 text-white">
+                    <SelectValue placeholder="Escolha um sistema" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-700">
+                    {sistemas.map((sistema: any) => (
+                      <SelectItem 
+                        key={sistema.id} 
+                        value={sistema.systemId}
+                        className="text-white hover:bg-slate-800"
+                      >
+                        Sistema {sistema.systemId}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Points List with Individual System Selection */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-sm font-semibold text-slate-300">Pontos Disponíveis</Label>
+                <span className="text-xs text-slate-400">
+                  {pontos?.length || 0} pontos no total
+                </span>
+              </div>
+              
+              <div className="max-h-96 overflow-y-auto space-y-2 pr-2">
+                {pontos?.map((ponto: any) => {
+                  const cliente = allClientes?.find((c: any) => c.id === ponto.clienteId);
+                  return (
+                    <div 
+                      key={ponto.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-purple-500/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+                          <Monitor className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-white truncate">
+                            {cliente?.nome || 'Sem cliente'}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {ponto.usuario} • {ponto.aplicativo}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {distributionMode === 'individual' && (
+                        <Select
+                          value={distributionData[ponto.id] || ponto.sistemaId || '1'}
+                          onValueChange={(value) => {
+                            setDistributionData({
+                              ...distributionData,
+                              [ponto.id]: value
+                            });
+                          }}
+                          disabled={distributionMode !== 'individual'}
+                        >
+                          <SelectTrigger className="w-32 bg-slate-700 border-slate-600 text-white text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-slate-900 border-slate-700">
+                            {sistemas.map((sistema: any) => (
+                              <SelectItem 
+                                key={sistema.id} 
+                                value={sistema.systemId}
+                                className="text-white hover:bg-slate-800 text-sm"
+                              >
+                                Sistema {sistema.systemId}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      
+                      {distributionMode === 'all' && (
+                        <div className="px-3 py-1.5 bg-purple-500/20 rounded-lg">
+                          <span className="text-xs font-medium text-purple-400">
+                            → Sistema {selectedDistributionSistema}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {distributionMode === 'equal' && (
+                        <div className="px-3 py-1.5 bg-blue-500/20 rounded-lg">
+                          <span className="text-xs font-medium text-blue-400">
+                            Auto
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Summary */}
+            {distributionMode === 'equal' && sistemas.length > 0 && (
+              <div className="p-4 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-lg border border-slate-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="w-4 h-4 text-purple-400" />
+                  <span className="text-sm font-semibold text-white">Resumo da Distribuição</span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  {pontos?.length || 0} pontos serão distribuídos igualmente entre {sistemas.length} sistemas.
+                  Cada sistema receberá aproximadamente {Math.ceil((pontos?.length || 0) / sistemas.length)} pontos.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsDistributionModalOpen(false)}
+              className="border-slate-700 text-slate-400 hover:text-white"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                // Prepare the updates based on distribution mode
+                let updates: { id: number; sistemaId: string }[] = [];
+                
+                if (distributionMode === 'individual') {
+                  // Use the manual selections
+                  updates = Object.entries(distributionData).map(([id, sistemaId]) => ({
+                    id: parseInt(id),
+                    sistemaId
+                  }));
+                } else if (distributionMode === 'all') {
+                  // Move all to selected system
+                  updates = pontos?.map((ponto: any) => ({
+                    id: ponto.id,
+                    sistemaId: selectedDistributionSistema
+                  })) || [];
+                } else if (distributionMode === 'equal') {
+                  // Distribute equally
+                  const sistemaIds = sistemas.map((s: any) => s.systemId);
+                  updates = pontos?.map((ponto: any, index: number) => ({
+                    id: ponto.id,
+                    sistemaId: sistemaIds[index % sistemaIds.length]
+                  })) || [];
+                }
+                
+                // Send updates to backend
+                try {
+                  await apiRequest('PUT', '/api/pontos/bulk-update', { updates });
+                  queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
+                  toast({
+                    title: "Distribuição Concluída",
+                    description: `${updates.length} pontos foram atualizados com sucesso.`,
+                  });
+                  setIsDistributionModalOpen(false);
+                } catch (error) {
+                  toast({
+                    title: "Erro na Distribuição",
+                    description: "Não foi possível atualizar os pontos. Tente novamente.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white"
+            >
+              <Shuffle className="w-4 h-4 mr-2" />
+              Aplicar Distribuição
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
