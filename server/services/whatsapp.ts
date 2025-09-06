@@ -4574,8 +4574,9 @@ export class WhatsAppService extends EventEmitter {
         }
         
         // Process variables in welcome message for active clients
+        const welcomeMessage = botConfig.mensagemBoasVindas || "*{{nome}}!*\n\nVencimento: {{vencimento}}\nValor: {{valorTotal}}";
         const processedMessage = await this.processVariables(
-          botConfig.mensagemBoasVindas,
+          welcomeMessage,
           telefone,
         );
 
@@ -4684,8 +4685,9 @@ export class WhatsAppService extends EventEmitter {
       const opcoes = botConfig.opcoes as any[];
 
       // Process variables in welcome message
+      const welcomeMessage = botConfig.mensagemBoasVindas || "Bem-vindo(a)!";
       const processedMessage = await this.processVariables(
-        botConfig.mensagemBoasVindas,
+        welcomeMessage,
         telefone,
       );
       console.log("Mensagem processada:", processedMessage);
@@ -4851,6 +4853,11 @@ export class WhatsAppService extends EventEmitter {
 
   async processVariables(text: string, telefone: string): Promise<string> {
     try {
+      // Ensure text is not null or undefined
+      if (!text) {
+        text = "";
+      }
+      
       // Get client and test data
       const cliente = await storage.getClienteByTelefone(telefone);
       const teste = await storage.getTesteAtivoByTelefone(telefone);
