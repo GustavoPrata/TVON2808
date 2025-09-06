@@ -81,7 +81,7 @@ export class NotificationService {
 
   private async checkExpiringClients() {
     try {
-      console.log('🔍 Iniciando verificação de vencimentos...');
+      console.log('🔍 Iniciando verificação profissional de vencimentos...');
       
       // Obter configuração de avisos
       const config = await storage.getConfigAvisos();
@@ -110,30 +110,145 @@ export class NotificationService {
         const diasRestantes = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         const primeiroNome = cliente.nome.split(' ')[0];
-        console.log(`📅 Cliente: ${primeiroNome} - Vencimento em ${diasRestantes} dias`);
+        console.log(`📅 Cliente: ${primeiroNome} - Dias para vencimento: ${diasRestantes}`);
         
-        // Verificar se está dentro do período de aviso (vencido ou vencendo)
-        if (diasRestantes <= config.diasAntecedencia || diasRestantes === 0 || diasRestantes < 0) {
-          // Verificar se já enviou aviso hoje
+        // Lógica profissional de avisos
+        let deveEnviarAviso = false;
+        let tipoAviso = '';
+        
+        // 1. No dia do vencimento (diasRestantes = 0)
+        if (diasRestantes === 0) {
+          deveEnviarAviso = true;
+          tipoAviso = 'vence_hoje';
+          console.log(`⏰ ${primeiroNome}: Vence HOJE - enviando aviso`);
+        }
+        // 2. No dia seguinte ao vencimento (diasRestantes = -1)
+        else if (diasRestantes === -1) {
+          deveEnviarAviso = true;
+          tipoAviso = 'venceu_ontem';
+          console.log(`📛 ${primeiroNome}: Venceu ONTEM - enviando aviso com opção de desbloqueio`);
+        }
+        // 3. A cada 3 dias após vencimento (dias -4, -7, -10, -13, etc)
+        else if (diasRestantes < -1) {
+          const diasVencido = Math.abs(diasRestantes);
+          // Enviar no dia -4 (3 dias após o aviso do dia -1)
+          // Depois a cada 3 dias: -7, -10, -13, etc
+          // Formula: envia se (diasVencido - 1) é divisível por 3 e diasVencido >= 4
+          if (diasVencido >= 4 && (diasVencido - 1) % 3 === 0) {
+            deveEnviarAviso = true;
+            tipoAviso = 'vencido_recorrente';
+            console.log(`🔄 ${primeiroNome}: Vencido há ${diasVencido} dias - enviando lembrete (a cada 3 dias)`);
+          } else {
+            console.log(`⏭️ ${primeiroNome}: Vencido há ${diasVencido} dias - não é dia de aviso recorrente`);
+          }
+        } else {
+          console.log(`✅ ${primeiroNome}: ${diasRestantes > 0 ? `Vence em ${diasRestantes} dias` : 'Status OK'} - sem aviso necessário`);
+        }
+        
+        if (deveEnviarAviso) {
+          // Verificar se já enviou aviso hoje para este cliente
           const avisoExistente = await storage.getAvisoByClienteId(cliente.id, vencimento);
           
           if (!avisoExistente) {
-            await this.sendExpirationNotification(cliente, diasRestantes, config.mensagemPadrao);
+            // Enviar notificação específica baseada no tipo
+            await this.sendProfessionalExpirationNotification(cliente, diasRestantes, tipoAviso);
             clientesNotificados++;
           } else {
+            console.log(`⏭️ ${primeiroNome}: Já foi notificado hoje`);
             clientesJaNotificados++;
           }
         }
       }
 
-      console.log(`✅ Verificação concluída: ${clientesNotificados} avisos enviados, ${clientesJaNotificados} já notificados hoje`);
-      await this.logActivity('info', `Verificação de vencimentos - ${clientesNotificados} avisos enviados`);
+      console.log(`\n✅ Verificação profissional concluída:`);
+      console.log(`   📤 ${clientesNotificados} avisos enviados`);
+      console.log(`   ⏭️ ${clientesJaNotificados} já notificados hoje\n`);
+      
+      await this.logActivity('info', `Verificação profissional de vencimentos - ${clientesNotificados} avisos enviados`);
     } catch (error) {
       console.error('❌ Erro ao verificar vencimentos:', error);
       await this.logActivity('error', `Erro ao verificar vencimentos: ${error}`);
     }
   }
 
+  private async sendProfessionalExpirationNotification(cliente: any, diasRestantes: number, tipoAviso: string) {
+    try {
+      // Pegar apenas o primeiro nome
+      const primeiroNome = cliente.nome.split(' ')[0];
+      
+      // Definir mensagem específica baseada no tipo de aviso
+      let mensagem = '';
+      
+      switch (tipoAviso) {
+        case 'vence_hoje':
+          // Mensagem para o dia do vencimento
+          mensagem = `Olá ${primeiroNome}! 👋\n` +
+                    `Seu plano vencerá hoje. Renove agora para continuar aproveitando nossos serviços!\n\n` +
+                    `2️⃣ Renovar agora\n` +
+                    `0️⃣ Menu Principal`;
+          break;
+          
+        case 'venceu_ontem':
+          // Mensagem para o dia seguinte ao vencimento
+          mensagem = `Olá ${primeiroNome}! 👋\n` +
+                    `Seu plano venceu. Renove agora para continuar aproveitando nossos serviços!\n\n` +
+                    `1️⃣ Desbloqueio de confiança\n` +
+                    `2️⃣ Renovar agora\n` +
+                    `0️⃣ Menu Principal`;
+          break;
+          
+        case 'vencido_recorrente':
+          // Mensagem para lembretes a cada 3 dias
+          const diasVencido = Math.abs(diasRestantes);
+          mensagem = `Olá ${primeiroNome}! 👋\n` +
+                    `Seu plano está vencido há ${diasVencido} dias. Renove agora para continuar aproveitando nossos serviços!\n\n` +
+                    `1️⃣ Desbloqueio de confiança\n` +
+                    `2️⃣ Renovar agora\n` +
+                    `0️⃣ Menu Principal`;
+          break;
+          
+        default:
+          console.error(`❌ Tipo de aviso desconhecido: ${tipoAviso}`);
+          return;
+      }
+
+      // Garantir que o telefone tem código do Brasil (55)
+      let phoneNumber = cliente.telefone.replace(/\D/g, ''); // Remove non-digits
+      if (!phoneNumber.startsWith('55')) {
+        phoneNumber = '55' + phoneNumber;
+      }
+
+      console.log(`📱 Enviando aviso profissional (${tipoAviso}) para ${primeiroNome} (${phoneNumber})...`);
+      const sucesso = await whatsappService.sendMessage(phoneNumber, mensagem);
+      
+      if (sucesso) {
+        // Registrar aviso enviado
+        const nowBrazil = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+        const dataVencimento = new Date(cliente.vencimento);
+        
+        await storage.createAvisoVencimento({
+          clienteId: cliente.id,
+          telefone: phoneNumber,
+          dataVencimento: dataVencimento,
+          dataAviso: new Date(nowBrazil),
+          tipoAviso: tipoAviso,
+          statusEnvio: 'enviado',
+          mensagemEnviada: mensagem
+        });
+        
+        console.log(`✅ Notificação profissional (${tipoAviso}) enviada para ${primeiroNome}`);
+        await this.logActivity('info', `Notificação profissional de vencimento (${tipoAviso}) enviada para ${primeiroNome}`);
+      } else {
+        console.log(`❌ Falha ao enviar notificação profissional para ${primeiroNome}`);
+        await this.logActivity('error', `Falha ao enviar notificação profissional para ${primeiroNome}`);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao enviar notificação profissional:', error);
+      await this.logActivity('error', `Erro ao enviar notificação profissional: ${error}`);
+    }
+  }
+
+  // Método legado mantido para compatibilidade
   private async sendExpirationNotification(cliente: any, diasRestantes: number, templateMessage: string) {
     try {
       // Pegar apenas o primeiro nome
