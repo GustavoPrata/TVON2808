@@ -1,53 +1,81 @@
 import { useState } from 'react';
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import { 
   UserPlus, 
   Users, 
   MessageCircle, 
   Clock,
-  AlertCircle,
   ChevronRight,
-  Phone,
+  ChevronLeft,
   Gift,
   Tv,
   DollarSign,
   HelpCircle,
-  User,
   Shield,
   CreditCard,
-  Timer,
   Smartphone,
   Monitor,
   Laptop,
-  Settings,
   Headphones,
   Bot,
   UserCheck,
   XCircle,
-  CheckCircle,
   Zap,
-  ArrowRight,
   AlertTriangle,
-  Calendar
+  Calendar,
+  ArrowLeft,
+  Home,
+  Sparkles,
+  Star,
+  Phone,
+  CheckCircle2,
+  Info,
+  Wifi,
+  Package
 } from 'lucide-react';
 
 export default function BotMenu() {
-  // Página Bot Menu - Visualização completa dos fluxos do bot
   const [selectedFlow, setSelectedFlow] = useState<string>('novos');
   const [expandedMenu, setExpandedMenu] = useState<string>('main');
+  const [navigationHistory, setNavigationHistory] = useState<string[]>(['main']);
+
+  // Função para navegar para um submenu
+  const navigateToSubmenu = (submenuKey: string) => {
+    setNavigationHistory([...navigationHistory, submenuKey]);
+    setExpandedMenu(submenuKey);
+  };
+
+  // Função para voltar ao menu anterior
+  const navigateBack = () => {
+    if (navigationHistory.length > 1) {
+      const newHistory = [...navigationHistory];
+      newHistory.pop();
+      setNavigationHistory(newHistory);
+      setExpandedMenu(newHistory[newHistory.length - 1]);
+    } else {
+      setExpandedMenu('main');
+    }
+  };
+
+  // Função para voltar ao menu principal
+  const navigateToMain = () => {
+    setNavigationHistory(['main']);
+    setExpandedMenu('main');
+  };
 
   // Estrutura completa dos menus do bot
   const botFlows = {
     novos: {
       title: 'Novos Clientes',
       icon: <UserPlus className="w-5 h-5" />,
-      description: 'Usuários que ainda não são clientes',
+      description: 'Pessoas que ainda não são clientes',
       color: 'from-blue-500 to-cyan-500',
       badge: 'bg-blue-500/20 text-blue-400',
+      stats: { total: '~150/dia', conversao: '35%' },
       mainMenu: {
         greeting: 'Bom dia/tarde/noite, bem-vindo(a) à *TvON*!',
         options: [
@@ -63,18 +91,20 @@ export default function BotMenu() {
       },
       submenus: {
         teste_dispositivo: {
-          title: 'Escolha onde vai assistir',
+          title: 'Escolha do Dispositivo para Teste',
+          icon: <Monitor />,
           message: 'Legal! 😄 Vamos ativar seu teste gratuito por 24h.\n\nOnde você vai assistir?',
           options: [
-            { id: '1', text: 'Celular', next: 'teste_celular_tipo' },
-            { id: '2', text: 'TV Box (caixinha)', action: 'criar_teste' },
-            { id: '3', text: 'Smart TV', next: 'teste_smarttv_marca' },
-            { id: '4', text: 'Notebook ou Computador', action: 'criar_teste' },
-            { id: '5', text: 'Outros', action: 'criar_teste' }
+            { id: '1', icon: <Smartphone />, text: 'Celular', next: 'teste_celular_tipo' },
+            { id: '2', icon: <Package />, text: 'TV Box (caixinha)', action: 'criar_teste' },
+            { id: '3', icon: <Tv />, text: 'Smart TV', next: 'teste_smarttv_marca' },
+            { id: '4', icon: <Laptop />, text: 'Notebook ou Computador', action: 'criar_teste' },
+            { id: '5', icon: <Monitor />, text: 'Outros', action: 'criar_teste' }
           ]
         },
         teste_celular_tipo: {
-          title: 'Tipo de celular',
+          title: 'Tipo de Celular',
+          icon: <Smartphone />,
           message: '📱 Qual o tipo do celular?',
           options: [
             { id: '1', text: 'Android', action: 'criar_teste' },
@@ -83,6 +113,7 @@ export default function BotMenu() {
         },
         teste_smarttv_marca: {
           title: 'Marca da Smart TV',
+          icon: <Tv />,
           message: '📺 Qual a marca da Smart TV?',
           options: [
             { id: '1', text: 'Samsung', action: 'criar_teste' },
@@ -98,7 +129,8 @@ export default function BotMenu() {
           ]
         },
         assinar_codigo: {
-          title: 'Código de indicação',
+          title: 'Código de Indicação',
+          icon: <Star />,
           message: 'Show! 🎉 Agora me diz, você tem um código de indicação?',
           options: [
             { id: '1', text: 'Sim, tenho código', next: 'aguardando_codigo' },
@@ -106,23 +138,54 @@ export default function BotMenu() {
           ]
         },
         aguardando_codigo: {
-          title: 'Digite o código',
+          title: 'Digite o Código',
+          icon: <Star />,
           message: 'Perfeito! Por favor, digite o código de indicação:',
           action: 'validar_codigo'
         },
         assinar_dispositivo: {
-          title: 'Escolha o dispositivo',
+          title: 'Escolha do Dispositivo',
+          icon: <Monitor />,
           message: 'Legal! 😄 Onde você vai assistir?',
           options: [
-            { id: '1', text: 'Celular', next: 'celular_tipo_assinar' },
-            { id: '2', text: 'TV Box (caixinha)', next: 'cadastro_nome' },
-            { id: '3', text: 'Smart TV', next: 'smart_tv_marca_assinar' },
-            { id: '4', text: 'Notebook ou Computador', next: 'cadastro_nome' },
-            { id: '5', text: 'Outros', next: 'cadastro_nome' }
+            { id: '1', icon: <Smartphone />, text: 'Celular', next: 'celular_tipo_assinar' },
+            { id: '2', icon: <Package />, text: 'TV Box (caixinha)', next: 'cadastro_nome' },
+            { id: '3', icon: <Tv />, text: 'Smart TV', next: 'smart_tv_marca_assinar' },
+            { id: '4', icon: <Laptop />, text: 'Notebook ou Computador', next: 'cadastro_nome' },
+            { id: '5', icon: <Monitor />, text: 'Outros', next: 'cadastro_nome' }
           ]
         },
+        celular_tipo_assinar: {
+          title: 'Tipo de Celular',
+          icon: <Smartphone />,
+          message: '📱 Qual o tipo do celular?',
+          options: [
+            { id: '1', text: 'Android', next: 'cadastro_nome' },
+            { id: '2', text: 'iPhone', next: 'cadastro_nome' }
+          ]
+        },
+        smart_tv_marca_assinar: {
+          title: 'Marca da Smart TV',
+          icon: <Tv />,
+          message: '📺 Qual a marca da Smart TV?',
+          options: [
+            { id: '1', text: 'Samsung', next: 'cadastro_nome' },
+            { id: '2', text: 'LG', next: 'cadastro_nome' },
+            { id: '3', text: 'Philips', next: 'cadastro_nome' },
+            { id: '4', text: 'AOC', next: 'cadastro_nome' },
+            { id: '5', text: 'TCL', next: 'cadastro_nome' },
+            { id: '6', text: 'Outras', next: 'cadastro_nome' }
+          ]
+        },
+        cadastro_nome: {
+          title: 'Cadastro - Nome',
+          icon: <UserCheck />,
+          message: 'Ótimo! Agora vou fazer seu cadastro.\n\nQual é o seu nome completo?',
+          action: 'aguardar_nome'
+        },
         info_conteudo: {
-          title: 'Conteúdo disponível',
+          title: 'Conteúdo Disponível',
+          icon: <Tv />,
           message: '📺 A TvON te dá acesso a:\n\n• Todos os canais ao vivo (Globo, SBT, Record, SporTV, Premiere, Discovery, Cartoon, etc)\n• Todos os filmes e séries das principais plataformas: Netflix, Prime Video, Disney+, Paramount+, HBO Max e outras\n• Programação infantil, esportiva, documentários, realities, filmes em lançamento e muito mais\n• Qualidade até 4K, sem travar\n• Suporte 24 horas!',
           options: [
             { id: '1', text: 'Assinar agora', submenu: 'assinar_codigo' },
@@ -130,8 +193,27 @@ export default function BotMenu() {
           ]
         },
         info_valores: {
-          title: 'Valores dos planos',
-          message: '💰 Planos TvON:\n\n• 🔹 Mensal: R$ 29,90\n• 🔹 Trimestral: R$ 79,90 (10% OFF)\n• 🔹 Semestral: R$ 139,90 (20% OFF)\n• 🔹 Anual: R$ 249,90 (30% OFF)\n\n• ✅ Pode cancelar quando quiser\n• ✅ Sem taxas extras\n• ✅ Reembolso proporcional em caso de cancelamento',
+          title: 'Valores dos Planos',
+          icon: <DollarSign />,
+          message: '💰 Planos TvON:\n\n• 🔹 Mensal: R$ 29,90\n• 🔹 Trimestral: R$ 79,90 (10% OFF)\n• 🔹 Semestral: R$ 139,90 (20% OFF)\n• 🔹 Anual: R$ 249,90 (30% OFF)\n\n• ✅ Pode cancelar quando quiser\n• ✅ Sem taxas extras\n• ✅ Reembolso proporcional',
+          options: [
+            { id: '1', text: 'Assinar agora', submenu: 'assinar_codigo' },
+            { id: '2', text: 'Testar grátis por 24h', submenu: 'teste_dispositivo' }
+          ]
+        },
+        info_dispositivos: {
+          title: 'Dispositivos Compatíveis',
+          icon: <Wifi />,
+          message: 'Você pode usar a TvON em praticamente qualquer dispositivo com internet:\n\n• 📱 Celulares Android e iPhone\n• 📺 Todas as Smart TVs\n• 🖥️ TV Box\n• 💻 Notebooks e PCs\n• 📦 Outros aparelhos conectados',
+          options: [
+            { id: '1', text: 'Assinar agora', submenu: 'assinar_codigo' },
+            { id: '2', text: 'Testar grátis por 24h', submenu: 'teste_dispositivo' }
+          ]
+        },
+        info_detalhes: {
+          title: 'Sobre a TvON',
+          icon: <Info />,
+          message: 'A *TvON* é uma central de conteúdo que reúne:\n\n• ✅ Canais ao vivo de todas as categorias\n• ✅ Filmes e séries completas\n• ✅ Qualidade até 4K\n• ✅ Suporte técnico 24h\n• ✅ Sem fidelidade\n• ✅ Acesso multiplataforma',
           options: [
             { id: '1', text: 'Assinar agora', submenu: 'assinar_codigo' },
             { id: '2', text: 'Testar grátis por 24h', submenu: 'teste_dispositivo' }
@@ -145,12 +227,13 @@ export default function BotMenu() {
       description: 'Clientes com plano ativo',
       color: 'from-green-500 to-emerald-500',
       badge: 'bg-green-500/20 text-green-400',
+      stats: { total: '1.256', adimplentes: '92%' },
       mainMenu: {
         greeting: 'Bom dia/tarde/noite! *{{nome}}!*\n\nVencimento: {{vencimento}}\nValor: {{valorTotal}}',
         options: [
           { id: '1', icon: <Calendar />, text: 'Ver vencimento', submenu: 'vencimento_info' },
           { id: '2', icon: <CreditCard />, text: 'Renovar plano', submenu: 'renovar_periodo' },
-          { id: '3', icon: <Settings />, text: 'Ver pontos', submenu: 'pontos_menu' },
+          { id: '3', icon: <Package />, text: 'Ver pontos', submenu: 'pontos_menu' },
           { id: '4', icon: <Gift />, text: 'Ganhar um mês grátis', submenu: 'indicar_amigo' },
           { id: '5', icon: <Shield />, text: 'Suporte técnico', submenu: 'suporte_tecnico' },
           { id: '6', icon: <Headphones />, text: 'Falar com atendente', action: 'humano' }
@@ -158,15 +241,17 @@ export default function BotMenu() {
       },
       submenus: {
         vencimento_info: {
-          title: 'Informações do plano',
+          title: 'Informações do Plano',
+          icon: <Calendar />,
           message: '*INFORMAÇÕES DO SEU PLANO*\n\nVencimento: {{vencimento}}\nDias restantes: {{diasRestantes}}\nValor: R$ {{valor}}\nTotal de pontos: {{pontos}}',
           options: [
             { id: '1', text: 'Renovar plano', submenu: 'renovar_periodo' }
           ]
         },
         renovar_periodo: {
-          title: 'Renovação de plano',
-          message: '*RENOVAR PLANO*\n\nEscolha o período:',
+          title: 'Renovação de Plano',
+          icon: <CreditCard />,
+          message: '*RENOVAR PLANO*\n\nSeu plano atual:\n• Valor: R$ {{valorMensal}}\n• Pontos: {{pontos}}\n• Vencimento: {{vencimento}}\n\nEscolha o período:',
           options: [
             { id: '1', text: '1 mês - R$ {{mensal}}', action: 'gerar_pagamento' },
             { id: '2', text: '3 meses - R$ {{trimestral}} (-10%)', action: 'gerar_pagamento' },
@@ -175,26 +260,48 @@ export default function BotMenu() {
           ]
         },
         pontos_menu: {
-          title: 'Gerenciar pontos',
-          message: '*GERENCIAR PONTOS*\n\nPontos ativos: {{pontosAtivos}}\nValor total: R$ {{valorTotal}}',
+          title: 'Gerenciar Pontos',
+          icon: <Package />,
+          message: '*GERENCIAR PONTOS*\n\nPontos ativos: {{pontosAtivos}}\nValor total: R$ {{valorTotal}}\n\nLista de pontos:\n{{listaPontos}}',
           options: [
             { id: '1', text: 'Adicionar ponto', submenu: 'ponto_dispositivo' },
             { id: '2', text: 'Remover ponto', action: 'humano' }
           ]
         },
         ponto_dispositivo: {
-          title: 'Adicionar ponto',
+          title: 'Adicionar Ponto',
+          icon: <Package />,
           message: 'Legal! 😄 Vamos adicionar um novo ponto.\n\nOnde você vai assistir?',
           options: [
-            { id: '1', text: 'Celular', next: 'ponto_celular_tipo' },
-            { id: '2', text: 'TV Box', action: 'humano' },
-            { id: '3', text: 'Smart TV', next: 'ponto_smarttv_marca' },
-            { id: '4', text: 'Notebook ou Computador', action: 'humano' },
-            { id: '5', text: 'Outros', action: 'humano' }
+            { id: '1', icon: <Smartphone />, text: 'Celular', next: 'ponto_celular_tipo' },
+            { id: '2', icon: <Package />, text: 'TV Box', action: 'humano' },
+            { id: '3', icon: <Tv />, text: 'Smart TV', next: 'ponto_smarttv_marca' },
+            { id: '4', icon: <Laptop />, text: 'Notebook ou Computador', action: 'humano' },
+            { id: '5', icon: <Monitor />, text: 'Outros', action: 'humano' }
+          ]
+        },
+        ponto_celular_tipo: {
+          title: 'Tipo de Celular - Ponto',
+          icon: <Smartphone />,
+          message: '📱 Qual o tipo do celular?',
+          options: [
+            { id: '1', text: 'Android', action: 'humano' },
+            { id: '2', text: 'iPhone', action: 'humano' }
+          ]
+        },
+        ponto_smarttv_marca: {
+          title: 'Marca da Smart TV - Ponto',
+          icon: <Tv />,
+          message: '📺 Qual a marca da Smart TV?',
+          options: [
+            { id: '1', text: 'Samsung', action: 'humano' },
+            { id: '2', text: 'LG', action: 'humano' },
+            { id: '3', text: 'Outras marcas', action: 'humano' }
           ]
         },
         suporte_tecnico: {
-          title: 'Suporte técnico',
+          title: 'Suporte Técnico',
+          icon: <Shield />,
           message: '*SUPORTE TÉCNICO*\n\nEscolha o problema que está enfrentando:',
           options: [
             { id: '1', text: 'App travando ou lento', submenu: 'suporte_app' },
@@ -203,16 +310,27 @@ export default function BotMenu() {
           ]
         },
         suporte_app: {
-          title: 'App travando',
-          message: 'Vamos resolver! Por favor, siga estes passos:\n\n1️⃣ Feche o app completamente\n2️⃣ Limpe o cache do aplicativo\n3️⃣ Reinicie o dispositivo\n4️⃣ Abra o app novamente',
+          title: 'App Travando',
+          icon: <Shield />,
+          message: 'Vamos resolver! Por favor, siga estes passos:\n\n1️⃣ Feche o app completamente\n2️⃣ Limpe o cache do aplicativo\n3️⃣ Reinicie o dispositivo\n4️⃣ Abra o app novamente\n\nFuncionou?',
           options: [
             { id: '1', text: 'Resolvido! ✅', action: 'resolvido' },
             { id: '2', text: 'Não resolveu', action: 'humano' }
           ]
         },
+        suporte_foradoar: {
+          title: 'Serviço Fora do Ar',
+          icon: <Shield />,
+          message: '🔴 Verificando o status do serviço...\n\n✅ Serviços operando normalmente!\n\nPor favor, tente:\n1️⃣ Verificar sua conexão com a internet\n2️⃣ Reiniciar o roteador\n3️⃣ Aguardar 2 minutos e tentar novamente',
+          options: [
+            { id: '1', text: 'Funcionou!', action: 'resolvido' },
+            { id: '2', text: 'Ainda com problema', action: 'humano' }
+          ]
+        },
         indicar_amigo: {
           title: 'Indique e Ganhe',
-          message: '*INDIQUE E GANHE!* 🎁\n\nSeu código de indicação é: *{{telefone}}*\n\nQuando 3 amigos assinarem com seu código, você ganha 1 mês grátis!\n\nAmigos indicados: {{indicados}}/3',
+          icon: <Gift />,
+          message: '*INDIQUE E GANHE!* 🎁\n\nSeu código de indicação é: *{{telefone}}*\n\nQuando 3 amigos assinarem com seu código, você ganha 1 mês grátis!\n\nAmigos indicados: {{indicados}}/3\n\n📲 Compartilhe seu código!',
           options: []
         }
       }
@@ -223,26 +341,29 @@ export default function BotMenu() {
       description: 'Clientes com plano expirado',
       color: 'from-red-500 to-orange-500',
       badge: 'bg-red-500/20 text-red-400',
+      stats: { total: '87', recuperacao: '68%' },
       mainMenu: {
         greeting: '⚠️ *PLANO VENCIDO*\n\nBom dia/tarde/noite, *{{nome}}!*\n\nSeu plano venceu há {{diasVencido}} dias.\nVencimento: {{vencimento}}',
         options: [
           { id: '1', icon: <Shield />, text: 'Desbloqueio de confiança', submenu: 'desbloqueio_confianca' },
-          { id: '2', icon: <CreditCard />, text: 'Pagar plano', submenu: 'renovar_periodo' },
+          { id: '2', icon: <CreditCard />, text: 'Pagar plano', submenu: 'renovar_vencido' },
           { id: '3', icon: <Headphones />, text: 'Falar com atendente', action: 'humano' }
         ]
       },
       submenus: {
         desbloqueio_confianca: {
-          title: 'Desbloqueio de confiança',
-          message: '*DESBLOQUEIO DE CONFIANÇA* 🔓\n\nPor ser um cliente especial, vamos liberar seu acesso por *24 horas* para você poder fazer o pagamento.\n\n⚠️ *Atenção:* Esta é uma liberação única por confiança. Use este tempo para regularizar seu pagamento.',
+          title: 'Desbloqueio de Confiança',
+          icon: <Shield />,
+          message: '*DESBLOQUEIO DE CONFIANÇA* 🔓\n\nPor ser um cliente especial, vamos liberar seu acesso por *24 horas* para você poder fazer o pagamento.\n\n⚠️ *Atenção:* Esta é uma liberação única por confiança.\n\nDeseja ativar?',
           options: [
             { id: '1', text: 'Ativar desbloqueio', action: 'ativar_trust' },
-            { id: '2', text: 'Pagar agora', submenu: 'renovar_periodo' }
+            { id: '2', text: 'Pagar agora', submenu: 'renovar_vencido' }
           ]
         },
-        renovar_periodo: {
-          title: 'Renovação de plano',
-          message: '*RENOVAR PLANO*\n\nEscolha o período:',
+        renovar_vencido: {
+          title: 'Renovar Plano Vencido',
+          icon: <CreditCard />,
+          message: '*RENOVAR PLANO*\n\n⚠️ Seu plano está vencido há {{diasVencido}} dias\n\nEscolha o período para renovação:',
           options: [
             { id: '1', text: '1 mês - R$ {{mensal}}', action: 'gerar_pagamento' },
             { id: '2', text: '3 meses - R$ {{trimestral}} (-10%)', action: 'gerar_pagamento' },
@@ -253,25 +374,44 @@ export default function BotMenu() {
       }
     },
     testes: {
-      title: 'Testes',
+      title: 'Testes Ativos',
       icon: <Clock className="w-5 h-5" />,
       description: 'Clientes em período de teste',
       color: 'from-purple-500 to-pink-500',
       badge: 'bg-purple-500/20 text-purple-400',
+      stats: { total: '43', conversao: '72%' },
       mainMenu: {
         greeting: '🟢 *TESTE ATIVO*\n\nOlá, bom dia/tarde/noite!\n⏱️ Tempo restante: {{tempoRestante}}',
         options: [
-          { id: '1', icon: <Zap />, text: 'Ativar plano agora', submenu: 'assinar_codigo' },
+          { id: '1', icon: <Zap />, text: 'Ativar plano agora', submenu: 'teste_assinar' },
           { id: '2', icon: <Headphones />, text: 'Falar com atendente', action: 'humano' }
         ]
       },
       submenus: {
-        assinar_codigo: {
-          title: 'Código de indicação',
-          message: 'Show! 🎉 Agora me diz, você tem um código de indicação?',
+        teste_assinar: {
+          title: 'Ativar Plano',
+          icon: <Zap />,
+          message: 'Show! 🎉 Vamos ativar seu plano completo!\n\nVocê tem um código de indicação?',
           options: [
-            { id: '1', text: 'Sim, tenho código', next: 'aguardando_codigo' },
-            { id: '2', text: 'Não tenho', next: 'assinar_dispositivo' }
+            { id: '1', text: 'Sim, tenho código', next: 'teste_codigo' },
+            { id: '2', text: 'Não tenho', next: 'teste_plano' }
+          ]
+        },
+        teste_codigo: {
+          title: 'Código de Indicação',
+          icon: <Star />,
+          message: 'Digite o código de indicação:',
+          action: 'validar_codigo_teste'
+        },
+        teste_plano: {
+          title: 'Escolher Plano',
+          icon: <CreditCard />,
+          message: 'Escolha seu plano:\n\n• Mensal: R$ 29,90\n• Trimestral: R$ 79,90 (-10%)\n• Semestral: R$ 139,90 (-20%)\n• Anual: R$ 249,90 (-30%)',
+          options: [
+            { id: '1', text: 'Mensal - R$ 29,90', action: 'gerar_pagamento' },
+            { id: '2', text: 'Trimestral - R$ 79,90', action: 'gerar_pagamento' },
+            { id: '3', text: 'Semestral - R$ 139,90', action: 'gerar_pagamento' },
+            { id: '4', text: 'Anual - R$ 249,90', action: 'gerar_pagamento' }
           ]
         }
       }
@@ -282,45 +422,68 @@ export default function BotMenu() {
       description: 'Testes que já expiraram',
       color: 'from-gray-500 to-gray-600',
       badge: 'bg-gray-500/20 text-gray-400',
+      stats: { total: '12', recuperacao: '45%' },
       mainMenu: {
-        greeting: '🔴 *Teste Expirado*\n\nSeu teste expirou.',
+        greeting: '🔴 *Teste Expirado*\n\nSeu teste gratuito expirou.\n\nGostaria de ativar o plano completo?',
         options: [
-          { id: '1', icon: <Zap />, text: 'Ativar plano agora', submenu: 'assinar_codigo' },
+          { id: '1', icon: <Zap />, text: 'Ativar plano agora', submenu: 'expirado_assinar' },
           { id: '2', icon: <Headphones />, text: 'Falar com atendente', action: 'humano' }
         ]
       },
-      submenus: {}
+      submenus: {
+        expirado_assinar: {
+          title: 'Ativar Plano Após Teste',
+          icon: <Zap />,
+          message: 'Que bom que gostou! 🎉\n\nEscolha seu plano:',
+          options: [
+            { id: '1', text: 'Mensal - R$ 29,90', action: 'gerar_pagamento' },
+            { id: '2', text: 'Trimestral - R$ 79,90 (-10%)', action: 'gerar_pagamento' },
+            { id: '3', text: 'Semestral - R$ 139,90 (-20%)', action: 'gerar_pagamento' },
+            { id: '4', text: 'Anual - R$ 249,90 (-30%)', action: 'gerar_pagamento' }
+          ]
+        }
+      }
     }
   };
 
   const currentFlow = botFlows[selectedFlow as keyof typeof botFlows];
 
   const renderOption = (option: any) => {
-    const getActionBadge = (action?: string, submenu?: string) => {
+    const getActionBadge = (action?: string, submenu?: string, next?: string) => {
       if (action === 'humano') return <Badge className="bg-yellow-500/20 text-yellow-400 ml-2">Atendente</Badge>;
       if (action === 'criar_teste') return <Badge className="bg-green-500/20 text-green-400 ml-2">Criar teste</Badge>;
       if (action === 'gerar_pagamento') return <Badge className="bg-blue-500/20 text-blue-400 ml-2">PIX</Badge>;
       if (action === 'validar_codigo') return <Badge className="bg-purple-500/20 text-purple-400 ml-2">Validar</Badge>;
       if (action === 'ativar_trust') return <Badge className="bg-orange-500/20 text-orange-400 ml-2">Trust</Badge>;
       if (action === 'resolvido') return <Badge className="bg-green-500/20 text-green-400 ml-2">Finalizar</Badge>;
-      if (submenu || option.next) return <ChevronRight className="w-4 h-4 text-slate-400 ml-2" />;
+      if (action === 'aguardar_nome') return <Badge className="bg-cyan-500/20 text-cyan-400 ml-2">Aguardar</Badge>;
+      if (action === 'validar_codigo_teste') return <Badge className="bg-purple-500/20 text-purple-400 ml-2">Validar</Badge>;
+      if (submenu || next) return <ChevronRight className="w-4 h-4 text-slate-400 ml-2" />;
       return null;
+    };
+
+    const handleClick = () => {
+      if (option.submenu) {
+        navigateToSubmenu(option.submenu);
+      } else if (option.next) {
+        navigateToSubmenu(option.next);
+      }
     };
 
     return (
       <div 
         key={option.id}
-        className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-colors cursor-pointer"
-        onClick={() => option.submenu && setExpandedMenu(option.submenu)}
+        className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-colors cursor-pointer group"
+        onClick={handleClick}
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
             {option.id}
           </div>
-          {option.icon && <div className="text-slate-400">{option.icon}</div>}
-          <span className="text-white">{option.text}</span>
+          {option.icon && <div className="text-slate-400 group-hover:text-slate-200 transition-colors">{option.icon}</div>}
+          <span className="text-white group-hover:text-blue-300 transition-colors">{option.text}</span>
         </div>
-        {getActionBadge(option.action, option.submenu)}
+        {getActionBadge(option.action, option.submenu, option.next)}
       </div>
     );
   };
@@ -331,32 +494,67 @@ export default function BotMenu() {
 
     return (
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className="text-lg font-semibold text-white">{submenu.title}</h4>
-          <button
-            onClick={() => setExpandedMenu('main')}
-            className="text-sm text-slate-400 hover:text-white"
-          >
-            ← Voltar ao menu principal
-          </button>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            {submenu.icon && <div className="text-blue-400">{submenu.icon}</div>}
+            <h4 className="text-lg font-semibold text-white">{submenu.title}</h4>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={navigateBack}
+              variant="ghost"
+              size="sm"
+              className="text-slate-400 hover:text-white"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Voltar
+            </Button>
+            <Button
+              onClick={navigateToMain}
+              variant="ghost"
+              size="sm"
+              className="text-slate-400 hover:text-white"
+            >
+              <Home className="w-4 h-4 mr-1" />
+              Menu Principal
+            </Button>
+          </div>
         </div>
+        
         <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700">
           <div className="flex items-start gap-3 mb-4">
-            <Bot className="w-5 h-5 text-green-400 mt-1" />
+            <Bot className="w-5 h-5 text-green-400 mt-1 flex-shrink-0" />
             <div className="flex-1">
               <p className="text-sm text-slate-300 whitespace-pre-line">{submenu.message}</p>
             </div>
           </div>
+          
           {submenu.options && submenu.options.length > 0 && (
             <div className="space-y-2 mt-4">
               {submenu.options.map(renderOption)}
             </div>
           )}
+          
           {submenu.action && (
-            <Badge className="mt-4 bg-blue-500/20 text-blue-400">
-              Aguardando resposta do usuário...
-            </Badge>
+            <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <Badge className="bg-blue-500/20 text-blue-400">
+                <Sparkles className="w-3 h-3 mr-1" />
+                Aguardando resposta do usuário...
+              </Badge>
+            </div>
           )}
+        </div>
+        
+        {/* Breadcrumb de navegação */}
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span>Caminho:</span>
+          <span className="text-slate-400">Menu Principal</span>
+          {navigationHistory.slice(1).map((item, index) => (
+            <React.Fragment key={index}>
+              <ChevronRight className="w-3 h-3" />
+              <span className="text-slate-400">{(currentFlow.submenus as any)[item]?.title || item}</span>
+            </React.Fragment>
+          ))}
         </div>
       </div>
     );
@@ -365,36 +563,47 @@ export default function BotMenu() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Menu Completo do Bot WhatsApp</h1>
-        <p className="text-slate-400">Visualização interativa de todos os fluxos e menus do bot de atendimento</p>
+      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-6 rounded-xl border border-slate-700">
+        <h1 className="text-3xl font-bold text-white mb-2">🤖 Menu Completo do Bot WhatsApp</h1>
+        <p className="text-slate-400">Navegue interativamente por todos os fluxos e menus do bot de atendimento</p>
       </div>
 
-      {/* Flow Selector */}
+      {/* Flow Selector com estatísticas */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {Object.entries(botFlows).map(([key, flow]) => (
           <Card
             key={key}
-            className={`cursor-pointer transition-all ${
+            className={`cursor-pointer transition-all transform hover:scale-105 ${
               selectedFlow === key 
-                ? 'ring-2 ring-white shadow-lg' 
-                : 'hover:shadow-md'
+                ? 'ring-2 ring-white shadow-xl' 
+                : 'hover:shadow-lg'
             } bg-gradient-to-br ${flow.color} border-0`}
             onClick={() => {
               setSelectedFlow(key);
+              setNavigationHistory(['main']);
               setExpandedMenu('main');
             }}
           >
             <CardContent className="p-4">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-white/20 rounded-lg">
+                <div className="p-2 bg-white/20 rounded-lg backdrop-blur">
                   {flow.icon}
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-white">{flow.title}</h3>
                 </div>
               </div>
-              <p className="text-xs text-white/80">{flow.description}</p>
+              <p className="text-xs text-white/80 mb-2">{flow.description}</p>
+              {flow.stats && (
+                <div className="pt-2 border-t border-white/20">
+                  <div className="text-xs text-white/70">
+                    {flow.stats.total && <div>Total: {flow.stats.total}</div>}
+                    {flow.stats.conversao && <div>Conv.: {flow.stats.conversao}</div>}
+                    {flow.stats.adimplentes && <div>Adimp.: {flow.stats.adimplentes}</div>}
+                    {flow.stats.recuperacao && <div>Recup.: {flow.stats.recuperacao}</div>}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -410,7 +619,7 @@ export default function BotMenu() {
               Estrutura do Bot - {currentFlow.title}
             </CardTitle>
             <CardDescription className="text-slate-400">
-              Navegue pelos menus e submenus
+              Clique nas opções para navegar pelos menus
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -441,64 +650,73 @@ export default function BotMenu() {
               Visualização do Chat
             </CardTitle>
             <CardDescription className="text-slate-400">
-              Como o bot responde no WhatsApp
+              Como aparece no WhatsApp
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[600px]">
-              <div className="space-y-4">
-                {/* User Message */}
-                <div className="flex justify-end">
-                  <div className="max-w-[70%] bg-green-600 text-white rounded-lg p-3">
-                    <p className="text-sm">Oi</p>
-                    <span className="text-xs opacity-70">09:30</span>
+              <div className="bg-gradient-to-b from-green-900/20 to-green-800/10 rounded-lg p-4">
+                <div className="space-y-4">
+                  {/* User Message */}
+                  <div className="flex justify-end">
+                    <div className="max-w-[70%] bg-green-600 text-white rounded-2xl rounded-tr-sm p-3 shadow-lg">
+                      <p className="text-sm">Oi</p>
+                      <span className="text-xs opacity-70 flex items-center justify-end gap-1 mt-1">
+                        09:30
+                        <CheckCircle2 className="w-3 h-3" />
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Bot Response */}
-                <div className="flex justify-start">
-                  <div className="max-w-[85%] bg-slate-700 text-white rounded-lg p-3">
-                    <p className="text-sm whitespace-pre-line font-medium mb-2">
-                      {currentFlow.mainMenu.greeting}
-                    </p>
-                    <p className="text-sm mb-2">Escolha uma opção:</p>
-                    {currentFlow.mainMenu.options.map((option) => (
-                      <p key={option.id} className="text-sm py-1">
-                        {option.id}️⃣ {option.text}
+                  {/* Bot Response */}
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] bg-slate-700 text-white rounded-2xl rounded-tl-sm p-3 shadow-lg">
+                      <p className="text-sm whitespace-pre-line font-medium mb-2">
+                        {currentFlow.mainMenu.greeting}
                       </p>
-                    ))}
-                    <span className="text-xs opacity-70">09:30</span>
+                      <p className="text-sm mb-2">Escolha uma opção:</p>
+                      {currentFlow.mainMenu.options.map((option) => (
+                        <p key={option.id} className="text-sm py-1">
+                          {option.id}️⃣ {option.text}
+                        </p>
+                      ))}
+                      <span className="text-xs opacity-70 mt-2 block">09:30</span>
+                    </div>
                   </div>
-                </div>
 
-                {expandedMenu !== 'main' && (currentFlow.submenus as any)[expandedMenu] && (
-                  <>
-                    {/* User Selection */}
-                    <div className="flex justify-end">
-                      <div className="max-w-[70%] bg-green-600 text-white rounded-lg p-3">
-                        <p className="text-sm">
-                          {currentFlow.mainMenu.options.find(o => o.submenu === expandedMenu)?.id || '1'}
-                        </p>
-                        <span className="text-xs opacity-70">09:31</span>
-                      </div>
-                    </div>
-
-                    {/* Bot Submenu Response */}
-                    <div className="flex justify-start">
-                      <div className="max-w-[85%] bg-slate-700 text-white rounded-lg p-3">
-                        <p className="text-sm whitespace-pre-line">
-                          {(currentFlow.submenus as any)[expandedMenu].message}
-                        </p>
-                        {(currentFlow.submenus as any)[expandedMenu].options && (currentFlow.submenus as any)[expandedMenu].options.map((option: any) => (
-                          <p key={option.id} className="text-sm py-1">
-                            {option.id}️⃣ {option.text}
+                  {expandedMenu !== 'main' && (currentFlow.submenus as any)[expandedMenu] && (
+                    <>
+                      {/* User Selection */}
+                      <div className="flex justify-end">
+                        <div className="max-w-[70%] bg-green-600 text-white rounded-2xl rounded-tr-sm p-3 shadow-lg">
+                          <p className="text-sm">
+                            {currentFlow.mainMenu.options.find(o => o.submenu === expandedMenu)?.id || 
+                             navigationHistory[navigationHistory.length - 2] || '1'}
                           </p>
-                        ))}
-                        <span className="text-xs opacity-70">09:31</span>
+                          <span className="text-xs opacity-70 flex items-center justify-end gap-1 mt-1">
+                            09:31
+                            <CheckCircle2 className="w-3 h-3" />
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  </>
-                )}
+
+                      {/* Bot Submenu Response */}
+                      <div className="flex justify-start">
+                        <div className="max-w-[85%] bg-slate-700 text-white rounded-2xl rounded-tl-sm p-3 shadow-lg">
+                          <p className="text-sm whitespace-pre-line">
+                            {(currentFlow.submenus as any)[expandedMenu].message}
+                          </p>
+                          {(currentFlow.submenus as any)[expandedMenu].options && (currentFlow.submenus as any)[expandedMenu].options.map((option: any) => (
+                            <p key={option.id} className="text-sm py-1">
+                              {option.id}️⃣ {option.text}
+                            </p>
+                          ))}
+                          <span className="text-xs opacity-70 mt-2 block">09:31</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </ScrollArea>
           </CardContent>
@@ -508,23 +726,23 @@ export default function BotMenu() {
       {/* Commands Info */}
       <Card className="bg-dark-card border-slate-600">
         <CardHeader>
-          <CardTitle className="text-white">Comandos Especiais</CardTitle>
+          <CardTitle className="text-white">⚡ Comandos Especiais</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+            <div className="p-4 rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-500/30">
               <Badge className="bg-blue-500/20 text-blue-400 mb-2">0</Badge>
               <h4 className="font-semibold text-white mb-1">Voltar ao Menu</h4>
               <p className="text-sm text-slate-400">Digite 0 para voltar ao menu principal</p>
             </div>
-            <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+            <div className="p-4 rounded-lg bg-gradient-to-br from-purple-500/10 to-purple-600/10 border border-purple-500/30">
               <Badge className="bg-purple-500/20 text-purple-400 mb-2">reset</Badge>
               <h4 className="font-semibold text-white mb-1">Resetar Bot</h4>
               <p className="text-sm text-slate-400">Digite "reset" para reiniciar a conversa</p>
             </div>
-            <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
-              <Badge className="bg-green-500/20 text-green-400 mb-2">Automático</Badge>
-              <h4 className="font-semibold text-white mb-1">Detecção de Tipo</h4>
+            <div className="p-4 rounded-lg bg-gradient-to-br from-green-500/10 to-green-600/10 border border-green-500/30">
+              <Badge className="bg-green-500/20 text-green-400 mb-2">Auto</Badge>
+              <h4 className="font-semibold text-white mb-1">Detecção Inteligente</h4>
               <p className="text-sm text-slate-400">O bot detecta automaticamente o tipo de usuário</p>
             </div>
           </div>
@@ -534,45 +752,32 @@ export default function BotMenu() {
       {/* Variables Info */}
       <Card className="bg-dark-card border-slate-600">
         <CardHeader>
-          <CardTitle className="text-white">Variáveis Dinâmicas</CardTitle>
+          <CardTitle className="text-white">🔧 Variáveis Dinâmicas</CardTitle>
           <CardDescription className="text-slate-400">
-            Variáveis que são substituídas automaticamente nas mensagens
+            Substituídas automaticamente nas mensagens
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-              <code className="text-sm text-blue-400">{'{{nome}}'}</code>
-              <p className="text-xs text-slate-400 mt-1">Nome do cliente</p>
-            </div>
-            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-              <code className="text-sm text-blue-400">{'{{vencimento}}'}</code>
-              <p className="text-xs text-slate-400 mt-1">Data de vencimento</p>
-            </div>
-            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-              <code className="text-sm text-blue-400">{'{{valorTotal}}'}</code>
-              <p className="text-xs text-slate-400 mt-1">Valor do plano</p>
-            </div>
-            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-              <code className="text-sm text-blue-400">{'{{telefone}}'}</code>
-              <p className="text-xs text-slate-400 mt-1">Telefone do cliente</p>
-            </div>
-            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-              <code className="text-sm text-blue-400">{'{{diasRestantes}}'}</code>
-              <p className="text-xs text-slate-400 mt-1">Dias até vencer</p>
-            </div>
-            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-              <code className="text-sm text-blue-400">{'{{pontosAtivos}}'}</code>
-              <p className="text-xs text-slate-400 mt-1">Quantidade de pontos</p>
-            </div>
-            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-              <code className="text-sm text-blue-400">{'{{tempoRestante}}'}</code>
-              <p className="text-xs text-slate-400 mt-1">Tempo restante do teste</p>
-            </div>
-            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
-              <code className="text-sm text-blue-400">{'{{indicados}}'}</code>
-              <p className="text-xs text-slate-400 mt-1">Amigos indicados</p>
-            </div>
+            {[
+              { var: '{{nome}}', desc: 'Nome do cliente' },
+              { var: '{{vencimento}}', desc: 'Data de vencimento' },
+              { var: '{{valorTotal}}', desc: 'Valor do plano' },
+              { var: '{{telefone}}', desc: 'Telefone do cliente' },
+              { var: '{{diasRestantes}}', desc: 'Dias até vencer' },
+              { var: '{{pontosAtivos}}', desc: 'Quantidade de pontos' },
+              { var: '{{tempoRestante}}', desc: 'Tempo restante do teste' },
+              { var: '{{indicados}}', desc: 'Amigos indicados' },
+              { var: '{{diasVencido}}', desc: 'Dias de atraso' },
+              { var: '{{valorMensal}}', desc: 'Valor mensal base' },
+              { var: '{{listaPontos}}', desc: 'Lista dos pontos' },
+              { var: '{{pontos}}', desc: 'Total de pontos' }
+            ].map(item => (
+              <div key={item.var} className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+                <code className="text-sm text-blue-400">{item.var}</code>
+                <p className="text-xs text-slate-400 mt-1">{item.desc}</p>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
