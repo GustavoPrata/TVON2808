@@ -645,7 +645,7 @@ export class PixService {
           const valorFormatado = value ? (value / 100).toFixed(2).replace('.', ',') : pagamento.valor;
           
           // Enviar mensagem simples de confirmação
-          const mensagem = `✅ Pagamento concluído com sucesso!\n\nValor: R$ ${valorFormatado}\n\n🙏 Obrigado pela preferência!`;
+          const mensagem = `✅ Pagamento Confirmado!\n\nSeu pagamento PIX no valor de R$ ${valorFormatado} foi confirmado com sucesso.`;
           
           try {
             console.log('📨 Enviando mensagem WhatsApp...');
@@ -708,8 +708,15 @@ export class PixService {
           console.log('📱 Enviando confirmação para cliente:', cliente.nome);
           console.log('📱 Telefone normalizado:', telefoneCliente);
           
+          // Formatar a data de vencimento para exibição
+          const dataVencimento = novoVencimento.toLocaleDateString('pt-BR', {
+            day: '2d',
+            month: '2d',
+            year: 'numeric'
+          });
+          
           // Enviar mensagem de confirmação via WhatsApp
-          const mensagem = `✅ *Pagamento Confirmado!*\n\nOlá ${cliente.nome}! 👋\n\nSeu pagamento PIX no valor de *R$ ${valorFormatado}* foi confirmado com sucesso.\n\n🎉 *Seu acesso está liberado!*\n\nObrigado pela confiança!\n\n_TV ON Sistema_`;
+          const mensagem = `✅ Pagamento Confirmado!\n\nSeu pagamento PIX no valor de R$ ${valorFormatado} foi confirmado com sucesso.\n\nNovo Vencimento: ${dataVencimento}`;
           
           try {
             await whatsappService.sendMessage(telefoneCliente, mensagem);
