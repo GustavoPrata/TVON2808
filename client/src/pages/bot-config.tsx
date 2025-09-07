@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 
 export default function BotConfig() {
+  // Página de visualização completa do bot - atualizada
   const [selectedFlow, setSelectedFlow] = useState<string>('novos');
   const [expandedMenu, setExpandedMenu] = useState<string>('main');
 
@@ -325,7 +326,7 @@ export default function BotConfig() {
   };
 
   const renderSubmenu = (submenuKey: string) => {
-    const submenu = currentFlow.submenus[submenuKey];
+    const submenu = (currentFlow.submenus as any)[submenuKey];
     if (!submenu) return null;
 
     return (
@@ -470,7 +471,7 @@ export default function BotConfig() {
                   </div>
                 </div>
 
-                {expandedMenu !== 'main' && currentFlow.submenus[expandedMenu] && (
+                {expandedMenu !== 'main' && (currentFlow.submenus as any)[expandedMenu] && (
                   <>
                     {/* User Selection */}
                     <div className="flex justify-end">
@@ -486,9 +487,9 @@ export default function BotConfig() {
                     <div className="flex justify-start">
                       <div className="max-w-[85%] bg-slate-700 text-white rounded-lg p-3">
                         <p className="text-sm whitespace-pre-line">
-                          {currentFlow.submenus[expandedMenu].message}
+                          {(currentFlow.submenus as any)[expandedMenu].message}
                         </p>
-                        {currentFlow.submenus[expandedMenu].options && currentFlow.submenus[expandedMenu].options.map((option: any) => (
+                        {(currentFlow.submenus as any)[expandedMenu].options && (currentFlow.submenus as any)[expandedMenu].options.map((option: any) => (
                           <p key={option.id} className="text-sm py-1">
                             {option.id}️⃣ {option.text}
                           </p>
