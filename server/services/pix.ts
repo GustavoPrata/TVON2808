@@ -623,10 +623,23 @@ export class PixService {
         console.log('💬 Pagamento de conversa sem cliente cadastrado');
         
         // Para pagamentos manuais, o telefone está diretamente no registro
-        const telefone = pagamento.telefone;
+        let telefone = pagamento.telefone;
         
         if (telefone) {
+          // Normalizar o número de telefone para formato brasileiro
+          telefone = telefone.replace(/\D/g, ''); // Remove todos os não-dígitos (incluindo +)
+          
+          // Se começar com 14 (número de Bauru), adicionar código do Brasil
+          if (telefone.startsWith('14')) {
+            telefone = '55' + telefone;
+          }
+          // Se não começar com 55, adicionar código do Brasil
+          else if (!telefone.startsWith('55')) {
+            telefone = '55' + telefone;
+          }
+          
           console.log('📨 Preparando para enviar mensagem WhatsApp para:', telefone);
+          console.log('📱 Número normalizado:', telefone);
           
           // Formatar valor para exibição
           const valorFormatado = value ? (value / 100).toFixed(2).replace('.', ',') : pagamento.valor;
@@ -680,11 +693,26 @@ export class PixService {
           // Formatar valor para exibição
           const valorFormatado = value ? (value / 100).toFixed(2).replace('.', ',') : pagamento.valor;
           
+          // Normalizar telefone do cliente antes de enviar
+          let telefoneCliente = cliente.telefone.replace(/\D/g, ''); // Remove não-dígitos
+          
+          // Se começar com 14 (número de Bauru), adicionar código do Brasil
+          if (telefoneCliente.startsWith('14')) {
+            telefoneCliente = '55' + telefoneCliente;
+          }
+          // Se não começar com 55, adicionar código do Brasil
+          else if (!telefoneCliente.startsWith('55')) {
+            telefoneCliente = '55' + telefoneCliente;
+          }
+          
+          console.log('📱 Enviando confirmação para cliente:', cliente.nome);
+          console.log('📱 Telefone normalizado:', telefoneCliente);
+          
           // Enviar mensagem de confirmação via WhatsApp
           const mensagem = `✅ *Pagamento Confirmado!*\n\nOlá ${cliente.nome}! 👋\n\nSeu pagamento PIX no valor de *R$ ${valorFormatado}* foi confirmado com sucesso.\n\n🎉 *Seu acesso está liberado!*\n\nObrigado pela confiança!\n\n_TV ON Sistema_`;
           
           try {
-            await whatsappService.sendMessage(cliente.telefone, mensagem);
+            await whatsappService.sendMessage(telefoneCliente, mensagem);
           } catch (whatsError: any) {
             console.error('Erro ao enviar mensagem WhatsApp:', whatsError);
             // Não interromper o processo se WhatsApp falhar
@@ -739,11 +767,25 @@ export class PixService {
       // Buscar cliente para notificação
       const cliente = await storage.getClienteById(pagamento.clienteId);
       if (cliente) {
+        // Normalizar telefone do cliente antes de enviar
+        let telefoneCliente = cliente.telefone.replace(/\D/g, ''); // Remove não-dígitos
+        
+        // Se começar com 14 (número de Bauru), adicionar código do Brasil
+        if (telefoneCliente.startsWith('14')) {
+          telefoneCliente = '55' + telefoneCliente;
+        }
+        // Se não começar com 55, adicionar código do Brasil
+        else if (!telefoneCliente.startsWith('55')) {
+          telefoneCliente = '55' + telefoneCliente;
+        }
+        
+        console.log('⏰ Enviando notificação de expiração para:', telefoneCliente);
+        
         // Enviar mensagem de expiração via WhatsApp
         const mensagem = `⏰ *PIX Expirado*\n\nOlá ${cliente.nome},\n\nSeu PIX no valor de *R$ ${pagamento.valor}* expirou.\n\nPara continuar com o pagamento, solicite um novo código PIX.\n\n_TV ON Sistema_`;
         
         try {
-          await whatsappService.sendMessage(cliente.telefone, mensagem);
+          await whatsappService.sendMessage(telefoneCliente, mensagem);
         } catch (whatsError) {
           console.error('Erro ao enviar mensagem WhatsApp:', whatsError);
         }
