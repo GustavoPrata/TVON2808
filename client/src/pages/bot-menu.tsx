@@ -185,12 +185,10 @@ export default function BotMenu() {
   // Estrutura completa dos menus do bot
   const botFlows = {
     novos: {
-      title: 'Novos Clientes',
+      title: 'Novo',
       icon: <UserPlus className="w-5 h-5" />,
-      description: 'Pessoas que ainda não são clientes',
       color: 'from-blue-500 to-cyan-500',
       badge: 'bg-blue-500/20 text-blue-400',
-      stats: { total: '~150/dia', conversao: '35%' },
       mainMenu: {
         greeting: 'Bom dia/tarde/noite, bem-vindo(a) à *TvON*!',
         options: [
@@ -337,12 +335,10 @@ export default function BotMenu() {
       }
     },
     clientes: {
-      title: 'Clientes Ativos',
+      title: 'Cliente Ativo',
       icon: <Users className="w-5 h-5" />,
-      description: 'Clientes com plano ativo',
       color: 'from-green-500 to-emerald-500',
       badge: 'bg-green-500/20 text-green-400',
-      stats: { total: '1.256', adimplentes: '92%' },
       mainMenu: {
         greeting: 'Bom dia/tarde/noite! *{{nome}}!*\n\nVencimento: {{vencimento}}\nValor: {{valorTotal}}',
         options: [
@@ -451,12 +447,10 @@ export default function BotMenu() {
       }
     },
     vencidos: {
-      title: 'Clientes Vencidos',
+      title: 'Vencido',
       icon: <AlertTriangle className="w-5 h-5" />,
-      description: 'Clientes com plano expirado',
       color: 'from-red-500 to-orange-500',
       badge: 'bg-red-500/20 text-red-400',
-      stats: { total: '87', recuperacao: '68%' },
       mainMenu: {
         greeting: '⚠️ *PLANO VENCIDO*\n\nBom dia/tarde/noite, *{{nome}}!*\n\nSeu plano venceu há {{diasVencido}} dias.\nVencimento: {{vencimento}}',
         options: [
@@ -489,12 +483,10 @@ export default function BotMenu() {
       }
     },
     testes: {
-      title: 'Testes Ativos',
+      title: 'Teste Ativo',
       icon: <Clock className="w-5 h-5" />,
-      description: 'Clientes em período de teste',
       color: 'from-purple-500 to-pink-500',
       badge: 'bg-purple-500/20 text-purple-400',
-      stats: { total: '43', conversao: '72%' },
       mainMenu: {
         greeting: '🟢 *TESTE ATIVO*\n\nOlá, bom dia/tarde/noite!\n⏱️ Tempo restante: {{tempoRestante}}',
         options: [
@@ -532,12 +524,10 @@ export default function BotMenu() {
       }
     },
     testesExpirados: {
-      title: 'Testes Expirados',
+      title: 'Expirado',
       icon: <XCircle className="w-5 h-5" />,
-      description: 'Testes que já expiraram',
       color: 'from-gray-500 to-gray-600',
       badge: 'bg-gray-500/20 text-gray-400',
-      stats: { total: '12', recuperacao: '45%' },
       mainMenu: {
         greeting: '🔴 *Teste Expirado*\n\nSeu teste gratuito expirou.\n\nGostaria de ativar o plano completo?',
         options: [
@@ -722,17 +712,6 @@ export default function BotMenu() {
                   <h3 className="font-semibold text-white">{flow.title}</h3>
                 </div>
               </div>
-              <p className="text-xs text-white/80 mb-2">{flow.description}</p>
-              {flow.stats && (
-                <div className="pt-2 border-t border-white/20">
-                  <div className="text-xs text-white/70">
-                    {flow.stats.total && <div>Total: {flow.stats.total}</div>}
-                    {flow.stats.conversao && <div>Conv.: {flow.stats.conversao}</div>}
-                    {flow.stats.adimplentes && <div>Adimp.: {flow.stats.adimplentes}</div>}
-                    {flow.stats.recuperacao && <div>Recup.: {flow.stats.recuperacao}</div>}
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
         ))}
