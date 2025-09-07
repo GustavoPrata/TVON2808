@@ -35,13 +35,78 @@ import {
   CheckCircle2,
   Info,
   Wifi,
-  Package
+  Package,
+  X,
+  Copy,
+  QrCode,
+  Timer
 } from 'lucide-react';
 
 export default function BotMenu() {
   const [selectedFlow, setSelectedFlow] = useState<string>('novos');
   const [expandedMenu, setExpandedMenu] = useState<string>('main');
   const [navigationHistory, setNavigationHistory] = useState<string[]>(['main']);
+  const [actionModal, setActionModal] = useState<{
+    show: boolean;
+    type: string;
+    title: string;
+    message: string;
+  }>({
+    show: false,
+    type: '',
+    title: '',
+    message: ''
+  });
+
+  // Função para executar ações
+  const executeAction = (actionType: string, context?: any) => {
+    const actionMessages: Record<string, { title: string; message: string }> = {
+      humano: {
+        title: '👤 Atendimento Humano',
+        message: 'O bot transferirá a conversa para um atendente humano. O cliente será notificado e aguardará o atendimento.'
+      },
+      criar_teste: {
+        title: '✅ Teste Criado',
+        message: `Teste de 24 horas criado com sucesso!\n\n• Usuário: teste_${Math.random().toString(36).substring(7)}\n• Senha: ${Math.floor(1000 + Math.random() * 9000)}\n• Válido até: ${new Date(Date.now() + 24*60*60*1000).toLocaleString('pt-BR')}\n\nO cliente receberá os dados de acesso no WhatsApp.`
+      },
+      gerar_pagamento: {
+        title: '💳 PIX Gerado',
+        message: `Pagamento PIX gerado:\n\n• Valor: ${context || 'R$ 29,90'}\n• Copia e Cola: 00020126580014BR.GOV.BCB.PIX...\n• QR Code: [Imagem do QR Code]\n• Vencimento: ${new Date(Date.now() + 30*60*1000).toLocaleString('pt-BR')}\n\nO cliente receberá o PIX no WhatsApp.`
+      },
+      validar_codigo: {
+        title: '🔍 Validando Código',
+        message: 'O código de indicação será validado. Se válido, o cliente ganhará desconto e o indicador receberá créditos.'
+      },
+      validar_codigo_teste: {
+        title: '🔍 Validando Código',
+        message: 'Verificando código de indicação para aplicar benefícios...'
+      },
+      ativar_trust: {
+        title: '🔓 Trust Ativado',
+        message: 'Desbloqueio de confiança ativado por 24 horas!\n\nO cliente pode usar o serviço normalmente e fazer o pagamento neste período.'
+      },
+      resolvido: {
+        title: '✅ Atendimento Finalizado',
+        message: 'O problema foi resolvido e o atendimento será finalizado. O bot voltará ao modo automático.'
+      },
+      aguardar_nome: {
+        title: '⏳ Aguardando Nome',
+        message: 'O bot aguardará o cliente digitar seu nome completo para continuar o cadastro.'
+      }
+    };
+
+    const actionInfo = actionMessages[actionType] || {
+      title: '🔄 Ação Executada',
+      message: `Ação "${actionType}" executada com sucesso.`
+    };
+
+    setActionModal({
+      show: true,
+      type: actionType,
+      title: actionInfo.title,
+      message: actionInfo.message
+    });
+  };
 
   // Função para navegar para um submenu
   const navigateToSubmenu = (submenuKey: string) => {
@@ -253,10 +318,10 @@ export default function BotMenu() {
           icon: <CreditCard />,
           message: '*RENOVAR PLANO*\n\nSeu plano atual:\n• Valor: R$ {{valorMensal}}\n• Pontos: {{pontos}}\n• Vencimento: {{vencimento}}\n\nEscolha o período:',
           options: [
-            { id: '1', text: '1 mês - R$ {{mensal}}', action: 'gerar_pagamento' },
-            { id: '2', text: '3 meses - R$ {{trimestral}} (-10%)', action: 'gerar_pagamento' },
-            { id: '3', text: '6 meses - R$ {{semestral}} (-20%)', action: 'gerar_pagamento' },
-            { id: '4', text: '1 ano - R$ {{anual}} (-30%)', action: 'gerar_pagamento' }
+            { id: '1', text: '1 mês - R$ {{mensal}}', action: 'gerar_pagamento', context: 'R$ 29,90' },
+            { id: '2', text: '3 meses - R$ {{trimestral}} (-10%)', action: 'gerar_pagamento', context: 'R$ 79,90' },
+            { id: '3', text: '6 meses - R$ {{semestral}} (-20%)', action: 'gerar_pagamento', context: 'R$ 139,90' },
+            { id: '4', text: '1 ano - R$ {{anual}} (-30%)', action: 'gerar_pagamento', context: 'R$ 249,90' }
           ]
         },
         pontos_menu: {
@@ -365,10 +430,10 @@ export default function BotMenu() {
           icon: <CreditCard />,
           message: '*RENOVAR PLANO*\n\n⚠️ Seu plano está vencido há {{diasVencido}} dias\n\nEscolha o período para renovação:',
           options: [
-            { id: '1', text: '1 mês - R$ {{mensal}}', action: 'gerar_pagamento' },
-            { id: '2', text: '3 meses - R$ {{trimestral}} (-10%)', action: 'gerar_pagamento' },
-            { id: '3', text: '6 meses - R$ {{semestral}} (-20%)', action: 'gerar_pagamento' },
-            { id: '4', text: '1 ano - R$ {{anual}} (-30%)', action: 'gerar_pagamento' }
+            { id: '1', text: '1 mês - R$ {{mensal}}', action: 'gerar_pagamento', context: 'R$ 29,90' },
+            { id: '2', text: '3 meses - R$ {{trimestral}} (-10%)', action: 'gerar_pagamento', context: 'R$ 79,90' },
+            { id: '3', text: '6 meses - R$ {{semestral}} (-20%)', action: 'gerar_pagamento', context: 'R$ 139,90' },
+            { id: '4', text: '1 ano - R$ {{anual}} (-30%)', action: 'gerar_pagamento', context: 'R$ 249,90' }
           ]
         }
       }
@@ -408,10 +473,10 @@ export default function BotMenu() {
           icon: <CreditCard />,
           message: 'Escolha seu plano:\n\n• Mensal: R$ 29,90\n• Trimestral: R$ 79,90 (-10%)\n• Semestral: R$ 139,90 (-20%)\n• Anual: R$ 249,90 (-30%)',
           options: [
-            { id: '1', text: 'Mensal - R$ 29,90', action: 'gerar_pagamento' },
-            { id: '2', text: 'Trimestral - R$ 79,90', action: 'gerar_pagamento' },
-            { id: '3', text: 'Semestral - R$ 139,90', action: 'gerar_pagamento' },
-            { id: '4', text: 'Anual - R$ 249,90', action: 'gerar_pagamento' }
+            { id: '1', text: 'Mensal - R$ 29,90', action: 'gerar_pagamento', context: 'R$ 29,90' },
+            { id: '2', text: 'Trimestral - R$ 79,90', action: 'gerar_pagamento', context: 'R$ 79,90' },
+            { id: '3', text: 'Semestral - R$ 139,90', action: 'gerar_pagamento', context: 'R$ 139,90' },
+            { id: '4', text: 'Anual - R$ 249,90', action: 'gerar_pagamento', context: 'R$ 249,90' }
           ]
         }
       }
@@ -436,10 +501,10 @@ export default function BotMenu() {
           icon: <Zap />,
           message: 'Que bom que gostou! 🎉\n\nEscolha seu plano:',
           options: [
-            { id: '1', text: 'Mensal - R$ 29,90', action: 'gerar_pagamento' },
-            { id: '2', text: 'Trimestral - R$ 79,90 (-10%)', action: 'gerar_pagamento' },
-            { id: '3', text: 'Semestral - R$ 139,90 (-20%)', action: 'gerar_pagamento' },
-            { id: '4', text: 'Anual - R$ 249,90 (-30%)', action: 'gerar_pagamento' }
+            { id: '1', text: 'Mensal - R$ 29,90', action: 'gerar_pagamento', context: 'R$ 29,90' },
+            { id: '2', text: 'Trimestral - R$ 79,90 (-10%)', action: 'gerar_pagamento', context: 'R$ 79,90' },
+            { id: '3', text: 'Semestral - R$ 139,90 (-20%)', action: 'gerar_pagamento', context: 'R$ 139,90' },
+            { id: '4', text: 'Anual - R$ 249,90 (-30%)', action: 'gerar_pagamento', context: 'R$ 249,90' }
           ]
         }
       }
@@ -467,13 +532,15 @@ export default function BotMenu() {
         navigateToSubmenu(option.submenu);
       } else if (option.next) {
         navigateToSubmenu(option.next);
+      } else if (option.action) {
+        executeAction(option.action, option.context);
       }
     };
 
     return (
       <div 
         key={option.id}
-        className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-colors cursor-pointer group"
+        className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-all transform hover:scale-[1.02] cursor-pointer group"
         onClick={handleClick}
       >
         <div className="flex items-center gap-3">
@@ -536,10 +603,13 @@ export default function BotMenu() {
           )}
           
           {submenu.action && (
-            <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <div 
+              className="mt-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg cursor-pointer hover:bg-blue-500/20 transition-colors"
+              onClick={() => executeAction(submenu.action)}
+            >
               <Badge className="bg-blue-500/20 text-blue-400">
                 <Sparkles className="w-3 h-3 mr-1" />
-                Aguardando resposta do usuário...
+                Aguardando resposta do usuário... (Clique para simular ação)
               </Badge>
             </div>
           )}
@@ -619,7 +689,7 @@ export default function BotMenu() {
               Estrutura do Bot - {currentFlow.title}
             </CardTitle>
             <CardDescription className="text-slate-400">
-              Clique nas opções para navegar pelos menus
+              Clique nas opções para navegar pelos menus e executar ações
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -722,6 +792,55 @@ export default function BotMenu() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Action Modal */}
+      {actionModal.show && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 max-w-md w-full mx-4 animate-in fade-in zoom-in duration-300">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">{actionModal.title}</h3>
+              <Button
+                onClick={() => setActionModal({ show: false, type: '', title: '', message: '' })}
+                variant="ghost"
+                size="sm"
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <div className="text-slate-300 whitespace-pre-line mb-4">
+              {actionModal.message}
+            </div>
+            {actionModal.type === 'gerar_pagamento' && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 p-3 bg-slate-700/50 rounded-lg">
+                  <QrCode className="w-12 h-12 text-blue-400" />
+                  <div className="text-xs text-slate-400">QR Code PIX será exibido aqui</div>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-slate-700/50 rounded-lg">
+                  <Copy className="w-4 h-4 text-slate-400" />
+                  <input 
+                    type="text" 
+                    value="00020126580014BR.GOV.BCB.PIX..." 
+                    readOnly 
+                    className="flex-1 bg-transparent text-xs text-slate-300 outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <Timer className="w-3 h-3" />
+                  <span>Válido por 30 minutos</span>
+                </div>
+              </div>
+            )}
+            <Button
+              onClick={() => setActionModal({ show: false, type: '', title: '', message: '' })}
+              className="w-full mt-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700"
+            >
+              Fechar
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Commands Info */}
       <Card className="bg-dark-card border-slate-600">
