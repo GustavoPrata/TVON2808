@@ -27,91 +27,134 @@ import {
   Zap,
   AlertTriangle,
   Calendar,
-  ArrowLeft,
   Home,
   Sparkles,
   Star,
-  Phone,
   CheckCircle2,
   Info,
   Wifi,
   Package,
-  X,
   Copy,
   QrCode,
-  Timer
+  Timer,
+  Key,
+  FileText
 } from 'lucide-react';
+
+interface ChatMessage {
+  type: 'user' | 'bot';
+  text: string;
+  time: string;
+  hasQrCode?: boolean;
+  hasPixCode?: boolean;
+  pixValue?: string;
+}
 
 export default function BotMenu() {
   const [selectedFlow, setSelectedFlow] = useState<string>('novos');
   const [expandedMenu, setExpandedMenu] = useState<string>('main');
   const [navigationHistory, setNavigationHistory] = useState<string[]>(['main']);
-  const [actionModal, setActionModal] = useState<{
-    show: boolean;
-    type: string;
-    title: string;
-    message: string;
-  }>({
-    show: false,
-    type: '',
-    title: '',
-    message: ''
-  });
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+    { type: 'user', text: 'Oi', time: '09:30' },
+    { type: 'bot', text: 'Bom dia/tarde/noite, bem-vindo(a) à *TvON*!', time: '09:30' }
+  ]);
+
+  // Função para adicionar mensagem ao chat
+  const addChatMessage = (type: 'user' | 'bot', text: string, extras?: Partial<ChatMessage>) => {
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    setChatMessages(prev => [...prev, { type, text, time, ...extras }]);
+  };
 
   // Função para executar ações
   const executeAction = (actionType: string, context?: any) => {
-    const actionMessages: Record<string, { title: string; message: string }> = {
-      humano: {
-        title: '👤 Atendimento Humano',
-        message: 'O bot transferirá a conversa para um atendente humano. O cliente será notificado e aguardará o atendimento.'
+    const actionMessages: Record<string, () => void> = {
+      humano: () => {
+        addChatMessage('bot', '👤 Transferindo para um atendente humano...');
+        setTimeout(() => {
+          addChatMessage('bot', 'Um atendente entrará em contato em breve. Por favor, aguarde.');
+        }, 1000);
       },
-      criar_teste: {
-        title: '✅ Teste Criado',
-        message: `Teste de 24 horas criado com sucesso!\n\n• Usuário: teste_${Math.random().toString(36).substring(7)}\n• Senha: ${Math.floor(1000 + Math.random() * 9000)}\n• Válido até: ${new Date(Date.now() + 24*60*60*1000).toLocaleString('pt-BR')}\n\nO cliente receberá os dados de acesso no WhatsApp.`
+      criar_teste: () => {
+        const user = `teste_${Math.random().toString(36).substring(7)}`;
+        const pass = Math.floor(1000 + Math.random() * 9000);
+        const expiry = new Date(Date.now() + 24*60*60*1000);
+        
+        addChatMessage('bot', '✅ Teste criado com sucesso!');
+        setTimeout(() => {
+          addChatMessage('bot', `📱 *DADOS DE ACESSO*\n\n👤 Usuário: ${user}\n🔑 Senha: ${pass}\n⏰ Válido até: ${expiry.toLocaleString('pt-BR')}\n\n📲 Link para baixar o app:\nhttps://tv-on.site/download`);
+        }, 500);
       },
-      gerar_pagamento: {
-        title: '💳 PIX Gerado',
-        message: `Pagamento PIX gerado:\n\n• Valor: ${context || 'R$ 29,90'}\n• Copia e Cola: 00020126580014BR.GOV.BCB.PIX...\n• QR Code: [Imagem do QR Code]\n• Vencimento: ${new Date(Date.now() + 30*60*1000).toLocaleString('pt-BR')}\n\nO cliente receberá o PIX no WhatsApp.`
+      gerar_pagamento: () => {
+        const valor = context || 'R$ 29,90';
+        addChatMessage('bot', `💳 Gerando PIX para pagamento de ${valor}...`);
+        setTimeout(() => {
+          addChatMessage('bot', `✅ *PIX GERADO COM SUCESSO*\n\nValor: ${valor}\nVencimento: 30 minutos`, {
+            hasQrCode: true,
+            hasPixCode: true,
+            pixValue: valor
+          });
+        }, 1000);
       },
-      validar_codigo: {
-        title: '🔍 Validando Código',
-        message: 'O código de indicação será validado. Se válido, o cliente ganhará desconto e o indicador receberá créditos.'
+      validar_codigo: () => {
+        addChatMessage('user', '55149998888');
+        setTimeout(() => {
+          addChatMessage('bot', '🔍 Validando código de indicação...');
+          setTimeout(() => {
+            addChatMessage('bot', '✅ Código válido! Você ganhou 10% de desconto e seu amigo receberá créditos quando você assinar.');
+          }, 1500);
+        }, 500);
       },
-      validar_codigo_teste: {
-        title: '🔍 Validando Código',
-        message: 'Verificando código de indicação para aplicar benefícios...'
+      validar_codigo_teste: () => {
+        addChatMessage('user', '55149997777');
+        setTimeout(() => {
+          addChatMessage('bot', '🔍 Verificando código...');
+          setTimeout(() => {
+            addChatMessage('bot', '✅ Código aceito! Desconto aplicado.');
+          }, 1000);
+        }, 500);
       },
-      ativar_trust: {
-        title: '🔓 Trust Ativado',
-        message: 'Desbloqueio de confiança ativado por 24 horas!\n\nO cliente pode usar o serviço normalmente e fazer o pagamento neste período.'
+      ativar_trust: () => {
+        addChatMessage('bot', '🔓 Ativando desbloqueio de confiança...');
+        setTimeout(() => {
+          addChatMessage('bot', '✅ *DESBLOQUEIO ATIVADO!*\n\nSeu acesso foi liberado por 24 horas.\n\n⚠️ Lembre-se: Esta é uma liberação única. Aproveite para regularizar seu pagamento.');
+        }, 1000);
       },
-      resolvido: {
-        title: '✅ Atendimento Finalizado',
-        message: 'O problema foi resolvido e o atendimento será finalizado. O bot voltará ao modo automático.'
+      resolvido: () => {
+        addChatMessage('bot', '✅ Que bom que conseguimos resolver!\n\nSe precisar de mais alguma coisa, é só chamar. 😊');
+        setTimeout(() => {
+          addChatMessage('bot', '🤖 Atendimento finalizado. Voltando ao modo automático.');
+        }, 1000);
       },
-      aguardar_nome: {
-        title: '⏳ Aguardando Nome',
-        message: 'O bot aguardará o cliente digitar seu nome completo para continuar o cadastro.'
+      aguardar_nome: () => {
+        addChatMessage('user', 'João da Silva Santos');
+        setTimeout(() => {
+          addChatMessage('bot', 'Prazer, João! 😊\n\nAgora preciso do seu CPF para continuar o cadastro:');
+        }, 500);
       }
     };
 
-    const actionInfo = actionMessages[actionType] || {
-      title: '🔄 Ação Executada',
-      message: `Ação "${actionType}" executada com sucesso.`
-    };
-
-    setActionModal({
-      show: true,
-      type: actionType,
-      title: actionInfo.title,
-      message: actionInfo.message
-    });
+    const action = actionMessages[actionType];
+    if (action) {
+      action();
+    } else {
+      addChatMessage('bot', `✅ Ação "${actionType}" executada.`);
+    }
   };
 
   // Função para navegar para um submenu
   const navigateToSubmenu = (submenuKey: string) => {
     setNavigationHistory([...navigationHistory, submenuKey]);
     setExpandedMenu(submenuKey);
+    
+    // Adiciona mensagem do usuário selecionando a opção
+    const currentFlow = botFlows[selectedFlow as keyof typeof botFlows];
+    const submenu = (currentFlow.submenus as any)[submenuKey];
+    if (submenu) {
+      setTimeout(() => {
+        addChatMessage('bot', submenu.message);
+      }, 500);
+    }
   };
 
   // Função para voltar ao menu anterior
@@ -130,6 +173,13 @@ export default function BotMenu() {
   const navigateToMain = () => {
     setNavigationHistory(['main']);
     setExpandedMenu('main');
+    
+    // Adiciona mensagem voltando ao menu
+    addChatMessage('user', '0');
+    setTimeout(() => {
+      const currentFlow = botFlows[selectedFlow as keyof typeof botFlows];
+      addChatMessage('bot', currentFlow.mainMenu.greeting);
+    }, 500);
   };
 
   // Estrutura completa dos menus do bot
@@ -528,13 +578,18 @@ export default function BotMenu() {
     };
 
     const handleClick = () => {
-      if (option.submenu) {
-        navigateToSubmenu(option.submenu);
-      } else if (option.next) {
-        navigateToSubmenu(option.next);
-      } else if (option.action) {
-        executeAction(option.action, option.context);
-      }
+      // Adiciona mensagem do usuário selecionando
+      addChatMessage('user', option.id);
+      
+      setTimeout(() => {
+        if (option.submenu) {
+          navigateToSubmenu(option.submenu);
+        } else if (option.next) {
+          navigateToSubmenu(option.next);
+        } else if (option.action) {
+          executeAction(option.action, option.context);
+        }
+      }, 300);
     };
 
     return (
@@ -609,7 +664,7 @@ export default function BotMenu() {
             >
               <Badge className="bg-blue-500/20 text-blue-400">
                 <Sparkles className="w-3 h-3 mr-1" />
-                Aguardando resposta do usuário... (Clique para simular ação)
+                Aguardando resposta do usuário... (Clique para simular)
               </Badge>
             </div>
           )}
@@ -652,6 +707,10 @@ export default function BotMenu() {
               setSelectedFlow(key);
               setNavigationHistory(['main']);
               setExpandedMenu('main');
+              setChatMessages([
+                { type: 'user', text: 'Oi', time: '09:30' },
+                { type: 'bot', text: flow.mainMenu.greeting, time: '09:30' }
+              ]);
             }}
           >
             <CardContent className="p-4">
@@ -689,7 +748,7 @@ export default function BotMenu() {
               Estrutura do Bot - {currentFlow.title}
             </CardTitle>
             <CardDescription className="text-slate-400">
-              Clique nas opções para navegar pelos menus e executar ações
+              Clique nas opções para navegar e ver as ações no chat
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -720,127 +779,57 @@ export default function BotMenu() {
               Visualização do Chat
             </CardTitle>
             <CardDescription className="text-slate-400">
-              Como aparece no WhatsApp
+              Chat interativo com as ações do bot
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[600px]">
               <div className="bg-gradient-to-b from-green-900/20 to-green-800/10 rounded-lg p-4">
                 <div className="space-y-4">
-                  {/* User Message */}
-                  <div className="flex justify-end">
-                    <div className="max-w-[70%] bg-green-600 text-white rounded-2xl rounded-tr-sm p-3 shadow-lg">
-                      <p className="text-sm">Oi</p>
-                      <span className="text-xs opacity-70 flex items-center justify-end gap-1 mt-1">
-                        09:30
-                        <CheckCircle2 className="w-3 h-3" />
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Bot Response */}
-                  <div className="flex justify-start">
-                    <div className="max-w-[85%] bg-slate-700 text-white rounded-2xl rounded-tl-sm p-3 shadow-lg">
-                      <p className="text-sm whitespace-pre-line font-medium mb-2">
-                        {currentFlow.mainMenu.greeting}
-                      </p>
-                      <p className="text-sm mb-2">Escolha uma opção:</p>
-                      {currentFlow.mainMenu.options.map((option) => (
-                        <p key={option.id} className="text-sm py-1">
-                          {option.id}️⃣ {option.text}
-                        </p>
-                      ))}
-                      <span className="text-xs opacity-70 mt-2 block">09:30</span>
-                    </div>
-                  </div>
-
-                  {expandedMenu !== 'main' && (currentFlow.submenus as any)[expandedMenu] && (
-                    <>
-                      {/* User Selection */}
-                      <div className="flex justify-end">
-                        <div className="max-w-[70%] bg-green-600 text-white rounded-2xl rounded-tr-sm p-3 shadow-lg">
-                          <p className="text-sm">
-                            {currentFlow.mainMenu.options.find(o => o.submenu === expandedMenu)?.id || 
-                             navigationHistory[navigationHistory.length - 2] || '1'}
-                          </p>
-                          <span className="text-xs opacity-70 flex items-center justify-end gap-1 mt-1">
-                            09:31
-                            <CheckCircle2 className="w-3 h-3" />
-                          </span>
-                        </div>
+                  {chatMessages.map((msg, index) => (
+                    <div key={index} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[85%] ${
+                        msg.type === 'user' 
+                          ? 'bg-green-600 text-white rounded-2xl rounded-tr-sm' 
+                          : 'bg-slate-700 text-white rounded-2xl rounded-tl-sm'
+                      } p-3 shadow-lg`}>
+                        <p className="text-sm whitespace-pre-line">{msg.text}</p>
+                        
+                        {/* PIX QR Code e Copia Cola */}
+                        {msg.hasQrCode && (
+                          <div className="mt-3 space-y-3">
+                            <div className="bg-white p-4 rounded-lg flex items-center justify-center">
+                              <QrCode className="w-32 h-32 text-black" />
+                            </div>
+                            <div className="flex items-center gap-2 p-2 bg-slate-800 rounded">
+                              <Copy className="w-4 h-4 text-slate-400" />
+                              <input 
+                                type="text" 
+                                value="00020126580014BR.GOV.BCB.PIX..." 
+                                readOnly 
+                                className="flex-1 bg-transparent text-xs text-slate-300 outline-none"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-400">
+                              <Timer className="w-3 h-3" />
+                              <span>Válido por 30 minutos</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        <span className={`text-xs opacity-70 flex items-center ${msg.type === 'user' ? 'justify-end' : ''} gap-1 mt-1`}>
+                          {msg.time}
+                          {msg.type === 'user' && <CheckCircle2 className="w-3 h-3" />}
+                        </span>
                       </div>
-
-                      {/* Bot Submenu Response */}
-                      <div className="flex justify-start">
-                        <div className="max-w-[85%] bg-slate-700 text-white rounded-2xl rounded-tl-sm p-3 shadow-lg">
-                          <p className="text-sm whitespace-pre-line">
-                            {(currentFlow.submenus as any)[expandedMenu].message}
-                          </p>
-                          {(currentFlow.submenus as any)[expandedMenu].options && (currentFlow.submenus as any)[expandedMenu].options.map((option: any) => (
-                            <p key={option.id} className="text-sm py-1">
-                              {option.id}️⃣ {option.text}
-                            </p>
-                          ))}
-                          <span className="text-xs opacity-70 mt-2 block">09:31</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </ScrollArea>
           </CardContent>
         </Card>
       </div>
-
-      {/* Action Modal */}
-      {actionModal.show && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-slate-800 border border-slate-600 rounded-xl p-6 max-w-md w-full mx-4 animate-in fade-in zoom-in duration-300">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold text-white">{actionModal.title}</h3>
-              <Button
-                onClick={() => setActionModal({ show: false, type: '', title: '', message: '' })}
-                variant="ghost"
-                size="sm"
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-            <div className="text-slate-300 whitespace-pre-line mb-4">
-              {actionModal.message}
-            </div>
-            {actionModal.type === 'gerar_pagamento' && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 p-3 bg-slate-700/50 rounded-lg">
-                  <QrCode className="w-12 h-12 text-blue-400" />
-                  <div className="text-xs text-slate-400">QR Code PIX será exibido aqui</div>
-                </div>
-                <div className="flex items-center gap-2 p-2 bg-slate-700/50 rounded-lg">
-                  <Copy className="w-4 h-4 text-slate-400" />
-                  <input 
-                    type="text" 
-                    value="00020126580014BR.GOV.BCB.PIX..." 
-                    readOnly 
-                    className="flex-1 bg-transparent text-xs text-slate-300 outline-none"
-                  />
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <Timer className="w-3 h-3" />
-                  <span>Válido por 30 minutos</span>
-                </div>
-              </div>
-            )}
-            <Button
-              onClick={() => setActionModal({ show: false, type: '', title: '', message: '' })}
-              className="w-full mt-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700"
-            >
-              Fechar
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Commands Info */}
       <Card className="bg-dark-card border-slate-600">
