@@ -365,10 +365,19 @@ export default function BotConfig() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Configuração do Bot WhatsApp</h1>
-        <p className="text-slate-400">Visualize todos os fluxos e menus do bot de atendimento</p>
-      </div>
+      <Card className="bg-gradient-to-br from-purple-600 to-blue-600 border-0 shadow-xl">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-xl backdrop-blur">
+              <Bot className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-1">Configuração Completa do Bot</h1>
+              <p className="text-white/80">Configure todos os aspectos do seu bot de atendimento</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Flow Selector */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
