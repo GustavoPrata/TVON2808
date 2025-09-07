@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 
 export default function BotConfig() {
-  // Página de visualização completa do bot - atualizada
+  // Nova página de visualização completa do bot - atualizada às 07:48
   const [selectedFlow, setSelectedFlow] = useState<string>('novos');
   const [expandedMenu, setExpandedMenu] = useState<string>('main');
 
