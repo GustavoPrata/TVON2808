@@ -22,7 +22,8 @@ import {
   Router,
   LogOut,
   StickyNote,
-  Activity
+  Activity,
+  Workflow
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ const menuItems = [
   { path: '/anotacoes', icon: StickyNote, label: 'Anotações' },
   { path: '/whatsapp-settings', icon: Smartphone, label: 'WhatsApp Config' },
   { path: '/bot-config', icon: Bot, label: 'Config. Bot' },
+  { path: '/bot-menu', icon: Workflow, label: 'Bot Menu' },
   { path: '/woovi', icon: CreditCard, label: 'Woovi' },
   { path: '/config-tv', icon: Server, label: 'Config da API' },
   { path: '/logs', icon: FileText, label: 'Logs' },
