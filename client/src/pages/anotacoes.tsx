@@ -202,19 +202,19 @@ export default function Anotacoes() {
   const completedNotes = notes.filter(note => note.concluida);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Beautiful Header - igual ao site */}
-      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
+      <div className="mb-4 md:mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <StickyNote className="w-10 h-10 text-white" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <StickyNote className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Anotações
               </h1>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-xs md:text-sm text-slate-400 mt-1">
                 {pendingNotes.length} {pendingNotes.length === 1 ? 'anotação pendente' : 'anotações pendentes'}
               </p>
             </div>
@@ -227,17 +227,17 @@ export default function Anotacoes() {
         <Input
           value={newNote}
           onChange={(e) => setNewNote(e.target.value)}
-          placeholder="Digite uma nova anotação e pressione Enter..."
-          className="flex-1 bg-slate-800 border-slate-700 text-white placeholder:text-slate-400"
+          placeholder="Digite uma nova anotação..."
+          className="flex-1 bg-slate-800 border-slate-700 text-white placeholder:text-slate-400 text-sm md:text-base"
           data-testid="input-new-note"
         />
         <Button 
           type="submit"
           disabled={!newNote.trim() || createMutation.isPending}
-          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 md:px-4"
           data-testid="button-add-note"
         >
-          <Plus className="h-5 w-5" />
+          <Plus className="h-4 w-4 md:h-5 md:w-5" />
         </Button>
       </form>
 
