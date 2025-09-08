@@ -5,11 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckCircle, Clock, Users, Trophy, Gift, AlertCircle, UserPlus } from "lucide-react";
+import { CheckCircle, Users, Trophy, Gift, AlertCircle, UserPlus } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Indicacao {
@@ -29,15 +28,13 @@ interface Indicacao {
 }
 
 export default function Indicacoes() {
-  const [activeTab, setActiveTab] = useState("todas");
   const { toast } = useToast();
 
   // Buscar indicações
   const { data: indicacoes = [], isLoading, refetch } = useQuery<Indicacao[]>({
-    queryKey: ['/api/indicacoes', activeTab],
+    queryKey: ['/api/indicacoes'],
     queryFn: async () => {
-      const params = activeTab !== 'todas' ? `?status=${activeTab}` : '';
-      const response = await fetch(`/api/indicacoes${params}`);
+      const response = await fetch('/api/indicacoes');
       if (!response.ok) throw new Error('Erro ao buscar indicações');
       return response.json();
     }
@@ -66,30 +63,15 @@ export default function Indicacoes() {
 
   // Estatísticas
   const totalIndicacoes = indicacoes.length;
-  const pendentes = indicacoes.filter(i => i.status === 'pendente').length;
-  const confirmadas = indicacoes.filter(i => i.status === 'confirmada').length;
+  const confirmadas = indicacoes.length; // Todas são confirmadas
   const mesesDistribuidos = indicacoes.filter(i => i.mesGratisAplicado).length;
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pendente':
-        return <Badge className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 border-yellow-500/30">
-          <Clock className="w-3 h-3 mr-1" />
-          Pendente
-        </Badge>;
-      case 'confirmada':
-        return <Badge className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-500/30">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          Confirmada
-        </Badge>;
-      case 'expirada':
-        return <Badge className="bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-400 border-red-500/30">
-          <AlertCircle className="w-3 h-3 mr-1" />
-          Expirada
-        </Badge>;
-      default:
-        return <Badge className="bg-slate-700/50 text-slate-400 border-slate-600">{status}</Badge>;
-    }
+    // Todas as indicações são confirmadas
+    return <Badge className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border-green-500/30">
+      <CheckCircle className="w-3 h-3 mr-1" />
+      Confirmada
+    </Badge>;
   };
 
   const formatPhoneNumber = (phone: string) => {
@@ -121,26 +103,9 @@ export default function Indicacoes() {
         </div>
       </div>
 
-      <Tabs defaultValue="todas" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 bg-slate-900 border border-slate-700">
-          <TabsTrigger value="todas" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white">
-            <Users className="w-4 h-4 mr-2" />
-            Todas
-          </TabsTrigger>
-          <TabsTrigger value="pendente" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-500 data-[state=active]:to-yellow-600 data-[state=active]:text-white">
-            <Clock className="w-4 h-4 mr-2" />
-            Pendentes
-          </TabsTrigger>
-          <TabsTrigger value="confirmada" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white">
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Confirmadas
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="todas">
-          <div className="space-y-6">
-            {/* Cards de Estatísticas */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="space-y-6">
+        {/* Cards de Estatísticas */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm shadow-xl">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-slate-400">Total de Indicações</CardTitle>
@@ -155,19 +120,6 @@ export default function Indicacoes() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm shadow-xl">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-400">Pendentes</CardTitle>
-                  <div className="p-2 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-lg">
-                    <Clock className="h-4 w-4 text-yellow-400" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-transparent bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text">
-                    {pendentes}
-                  </div>
-                </CardContent>
-              </Card>
 
               <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm shadow-xl">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -273,17 +225,6 @@ export default function Indicacoes() {
                             </TableCell>
                             <TableCell>{getStatusBadge(indicacao.status)}</TableCell>
                             <TableCell>
-                              {indicacao.status === 'pendente' && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => confirmarIndicacao.mutate(indicacao.id)}
-                                  disabled={confirmarIndicacao.isPending}
-                                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white border-0"
-                                >
-                                  <CheckCircle className="w-4 h-4 mr-1" />
-                                  Confirmar
-                                </Button>
-                              )}
                               {indicacao.mesGratisAplicado && (
                                 <Badge className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border-blue-500/30">
                                   <Gift className="w-3 h-3 mr-1" />
@@ -366,23 +307,7 @@ export default function Indicacoes() {
             })()}
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="pendente">
-          <div className="space-y-6">
-            {/* Content for pendente tab - same structure as todas */}
-            {/* Will show filtered pendente items */}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="confirmada">
-          <div className="space-y-6">
-            {/* Content for confirmada tab - same structure as todas */}
-            {/* Will show filtered confirmada items */}
-          </div>
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 }
