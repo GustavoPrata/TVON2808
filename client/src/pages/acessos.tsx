@@ -250,27 +250,27 @@ export default function Acessos() {
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <Activity className="w-10 h-10 text-white" />
+      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <Activity className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                   Central de Acessos
                 </h1>
                 {isUpdating && (
                   <div className="flex items-center gap-2 text-green-400 animate-pulse">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Atualizando...</span>
+                    <RefreshCw className="w-3 h-3 md:w-4 md:h-4 animate-spin" />
+                    <span className="text-xs md:text-sm">Atualizando...</span>
                   </div>
                 )}
               </div>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-xs md:text-sm text-slate-400 mt-1">
                 Monitoramento de pontos de acesso em tempo real
               </p>
             </div>
@@ -278,37 +278,38 @@ export default function Acessos() {
           
           <Button
             onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
+            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 w-full md:w-auto text-xs md:text-sm"
           >
-            <ArrowUpDown className="w-4 h-4 mr-2" />
-            {sortOrder === 'desc' ? 'Mais recente primeiro' : 'Mais antigo primeiro'}
+            <ArrowUpDown className="w-4 h-4 mr-1 md:mr-2" />
+            <span className="sm:hidden">{sortOrder === 'desc' ? 'Recentes' : 'Antigos'}</span>
+            <span className="hidden sm:inline">{sortOrder === 'desc' ? 'Mais recente primeiro' : 'Mais antigo primeiro'}</span>
           </Button>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mt-6">
-          <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-400">Online Agora</span>
-              <CheckCircle className="w-4 h-4 text-green-400" />
+        <div className="grid grid-cols-3 gap-3 md:gap-4 mt-4 md:mt-6">
+          <div className="bg-slate-800/50 rounded-lg p-2 md:p-3 border border-slate-700">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+              <span className="text-xs md:text-sm text-slate-400">Online Agora</span>
+              <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-green-400" />
             </div>
-            <p className="text-2xl font-bold text-green-400 mt-1">{metrics.pontosOnlineAgora}</p>
+            <p className="text-xl md:text-2xl font-bold text-green-400 mt-1">{metrics.pontosOnlineAgora}</p>
           </div>
           
-          <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-400">Online Hoje</span>
-              <Clock className="w-4 h-4 text-blue-400" />
+          <div className="bg-slate-800/50 rounded-lg p-2 md:p-3 border border-slate-700">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+              <span className="text-xs md:text-sm text-slate-400">Online Hoje</span>
+              <Clock className="w-3 h-3 md:w-4 md:h-4 text-blue-400" />
             </div>
-            <p className="text-2xl font-bold text-blue-400 mt-1">{metrics.acessosHoje}</p>
+            <p className="text-xl md:text-2xl font-bold text-blue-400 mt-1">{metrics.acessosHoje}</p>
           </div>
           
-          <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-400">Total de Pontos</span>
-              <Users className="w-4 h-4 text-slate-400" />
+          <div className="bg-slate-800/50 rounded-lg p-2 md:p-3 border border-slate-700">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+              <span className="text-xs md:text-sm text-slate-400">Total</span>
+              <Users className="w-3 h-3 md:w-4 md:h-4 text-slate-400" />
             </div>
-            <p className="text-2xl font-bold text-slate-300 mt-1">{metrics.totalPontos}</p>
+            <p className="text-xl md:text-2xl font-bold text-slate-300 mt-1">{metrics.totalPontos}</p>
           </div>
         </div>
       </div>

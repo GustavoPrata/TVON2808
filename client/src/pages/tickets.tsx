@@ -211,116 +211,116 @@ export default function Tickets() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Professional Header with Stats */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-8 border border-slate-700/50 shadow-2xl"
+        className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-xl md:rounded-2xl p-4 md:p-8 border border-slate-700/50 shadow-2xl"
       >
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 md:mb-8 gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 blur-xl opacity-50"></div>
-              <div className="relative p-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-2xl">
-                <TicketIcon className="w-12 h-12 text-white" />
+              <div className="relative p-3 md:p-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl md:rounded-2xl shadow-2xl">
+                <TicketIcon className="w-8 h-8 md:w-12 md:h-12 text-white" />
               </div>
             </div>
             <div>
-              <h1 className="text-4xl font-bold text-white mb-2">
+              <h1 className="text-2xl md:text-4xl font-bold text-white mb-1 md:mb-2">
                 Central de Tickets
               </h1>
-              <p className="text-slate-400 text-lg">
+              <p className="text-slate-400 text-sm md:text-lg">
                 Gerencie solicitações e suporte aos clientes
               </p>
             </div>
           </div>
           <Button 
             onClick={() => setShowNewTicketDialog(true)}
-            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg"
+            className="w-full md:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg"
           >
             <Plus className="w-5 h-5 mr-2" />
-            Novo Ticket
+            <span className="text-sm md:text-base">Novo Ticket</span>
           </Button>
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4">
           <motion.div 
             whileHover={{ scale: 1.05 }}
-            className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700"
+            className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-slate-700"
           >
             <div className="flex items-center justify-between mb-2">
-              <BarChart3 className="w-5 h-5 text-blue-400" />
+              <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
               <span className="text-xs text-slate-400">Total</span>
             </div>
-            <p className="text-2xl font-bold text-white">{stats.total}</p>
+            <p className="text-xl md:text-2xl font-bold text-white">{stats.total}</p>
             <p className="text-xs text-slate-400 mt-1">tickets criados</p>
           </motion.div>
 
           <motion.div 
             whileHover={{ scale: 1.05 }}
-            className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700"
+            className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-slate-700"
           >
             <div className="flex items-center justify-between mb-2">
-              <AlertCircle className="w-5 h-5 text-red-400" />
+              <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-red-400" />
               <span className="text-xs text-slate-400">Abertos</span>
             </div>
-            <p className="text-2xl font-bold text-red-400">{stats.abertos}</p>
+            <p className="text-xl md:text-2xl font-bold text-red-400">{stats.abertos}</p>
             <p className="text-xs text-slate-400 mt-1">aguardando</p>
           </motion.div>
 
           <motion.div 
             whileHover={{ scale: 1.05 }}
-            className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700"
+            className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-slate-700"
           >
             <div className="flex items-center justify-between mb-2">
-              <Clock className="w-5 h-5 text-yellow-400" />
+              <Clock className="w-4 h-4 md:w-5 md:h-5 text-yellow-400" />
               <span className="text-xs text-slate-400">Atendimento</span>
             </div>
-            <p className="text-2xl font-bold text-yellow-400">{stats.emAtendimento}</p>
+            <p className="text-xl md:text-2xl font-bold text-yellow-400">{stats.emAtendimento}</p>
             <p className="text-xs text-slate-400 mt-1">em progresso</p>
           </motion.div>
 
           <motion.div 
             whileHover={{ scale: 1.05 }}
-            className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700"
+            className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-slate-700"
           >
             <div className="flex items-center justify-between mb-2">
-              <CheckCircle className="w-5 h-5 text-green-400" />
+              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-400" />
               <span className="text-xs text-slate-400">Fechados</span>
             </div>
-            <p className="text-2xl font-bold text-green-400">{stats.fechados}</p>
+            <p className="text-xl md:text-2xl font-bold text-green-400">{stats.fechados}</p>
             <p className="text-xs text-slate-400 mt-1">resolvidos</p>
           </motion.div>
 
           <motion.div 
             whileHover={{ scale: 1.05 }}
-            className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700"
+            className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-slate-700 col-span-2 sm:col-span-1"
           >
             <div className="flex items-center justify-between mb-2">
-              <AlertTriangle className="w-5 h-5 text-orange-400" />
+              <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-orange-400" />
               <span className="text-xs text-slate-400">Prioridade Alta</span>
             </div>
-            <p className="text-2xl font-bold text-orange-400">{stats.altaPrioridade}</p>
+            <p className="text-xl md:text-2xl font-bold text-orange-400">{stats.altaPrioridade}</p>
             <p className="text-xs text-slate-400 mt-1">urgentes</p>
           </motion.div>
         </div>
       </motion.div>
       
       {/* Filters and Search */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+      <div className="flex flex-col gap-3 md:gap-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-slate-400" />
           <Input
-            placeholder="Buscar por título, telefone ou descrição..."
+            placeholder="Buscar tickets..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-slate-800/50 border-slate-700 focus:border-blue-500 transition-colors"
+            className="pl-9 md:pl-10 bg-slate-800/50 border-slate-700 focus:border-blue-500 transition-colors text-sm md:text-base"
           />
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-2">
           {(['all', 'aberto', 'em_atendimento', 'fechado'] as const).map((status) => {
             const isActive = filterStatus === status;
             const config = status === 'all' ? null : getStatusConfig(status);

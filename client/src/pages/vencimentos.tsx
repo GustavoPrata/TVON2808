@@ -355,75 +355,75 @@ export default function Vencimentos() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <Calendar className="w-10 h-10 text-white" />
+      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <Calendar className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Vencimentos
               </h1>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-xs md:text-sm text-slate-400 mt-1">
                 Controle de vencimentos e avisos automáticos
               </p>
             </div>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full md:w-auto">
             <Button
               onClick={() => setShowHistorico(!showHistorico)}
               variant="outline"
-              className="border-slate-600 hover:bg-slate-800"
+              className="border-slate-600 hover:bg-slate-800 flex-1 md:flex-none text-xs md:text-sm"
             >
-              <History className="w-4 h-4 mr-2" />
+              <History className="w-4 h-4 mr-1 md:mr-2" />
               Histórico
             </Button>
             <Button
               onClick={() => setConfigOpen(!configOpen)}
-              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
+              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 flex-1 md:flex-none text-xs md:text-sm"
             >
-              <Settings className="w-4 h-4 mr-2" />
-              Configurar Avisos
+              <Settings className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Configurar</span> Avisos
             </Button>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-4 md:mt-6">
           <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-400">Vencendo hoje</span>
-              <Calendar className="w-4 h-4 text-orange-400" />
+              <span className="text-xs md:text-sm text-slate-400">Vencendo hoje</span>
+              <Calendar className="w-3 h-3 md:w-4 md:h-4 text-orange-400" />
             </div>
-            <p className="text-2xl font-bold text-orange-400 mt-1">{vencendoHoje}</p>
+            <p className="text-xl md:text-2xl font-bold text-orange-400 mt-1">{vencendoHoje}</p>
           </div>
           
           <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-400">Total avisos hoje</span>
-              <Bell className="w-4 h-4 text-green-400" />
+              <span className="text-xs md:text-sm text-slate-400">Avisos hoje</span>
+              <Bell className="w-3 h-3 md:w-4 md:h-4 text-green-400" />
             </div>
-            <p className="text-2xl font-bold text-green-400 mt-1">{totalNotificadosHoje}</p>
+            <p className="text-xl md:text-2xl font-bold text-green-400 mt-1">{totalNotificadosHoje}</p>
           </div>
           
           <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-400">Horário de aviso</span>
-              <Clock className="w-4 h-4 text-blue-400" />
+              <span className="text-xs md:text-sm text-slate-400">Horário</span>
+              <Clock className="w-3 h-3 md:w-4 md:h-4 text-blue-400" />
             </div>
-            <p className="text-2xl font-bold text-blue-400 mt-1">{horaAviso}</p>
+            <p className="text-xl md:text-2xl font-bold text-blue-400 mt-1">{horaAviso}</p>
           </div>
           
           <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-400">Status</span>
-              <BellRing className={`w-4 h-4 ${avisoAtivo ? 'text-green-400' : 'text-red-400'}`} />
+              <span className="text-xs md:text-sm text-slate-400">Status</span>
+              <BellRing className={`w-3 h-3 md:w-4 md:h-4 ${avisoAtivo ? 'text-green-400' : 'text-red-400'}`} />
             </div>
-            <p className={`text-2xl font-bold mt-1 ${avisoAtivo ? 'text-green-400' : 'text-red-400'}`}>
+            <p className={`text-xl md:text-2xl font-bold mt-1 ${avisoAtivo ? 'text-green-400' : 'text-red-400'}`}>
               {avisoAtivo ? 'Ativo' : 'Inativo'}
             </p>
           </div>
@@ -440,7 +440,7 @@ export default function Vencimentos() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="hora">Horário de Envio</Label>
                 <Input
@@ -557,21 +557,21 @@ export default function Vencimentos() {
       )}
 
       {/* Filters and Actions */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 flex-1">
-          <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-4">
+        <div className="flex flex-col sm:flex-row gap-2 flex-1">
+          <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
             <Input
               type="text"
-              placeholder="Buscar por nome ou telefone..."
+              placeholder="Buscar cliente..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-dark-surface border-slate-600"
+              className="pl-10 bg-dark-surface border-slate-600 text-sm md:text-base"
             />
           </div>
           
           <Select value={filterDays} onValueChange={setFilterDays}>
-            <SelectTrigger className="w-[180px] bg-dark-surface border-slate-600">
+            <SelectTrigger className="w-full sm:w-[180px] bg-dark-surface border-slate-600 text-sm md:text-base">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-dark-surface border-slate-600">
@@ -587,10 +587,11 @@ export default function Vencimentos() {
         <Button
           onClick={() => checkExpiredMutation.mutate()}
           disabled={checkExpiredMutation.isPending}
-          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 w-full md:w-auto text-sm md:text-base"
         >
-          <RefreshCw className={`w-4 h-4 mr-2 ${checkExpiredMutation.isPending ? 'animate-spin' : ''}`} />
-          Verificar e Avisar Todos
+          <RefreshCw className={`w-4 h-4 mr-1 md:mr-2 ${checkExpiredMutation.isPending ? 'animate-spin' : ''}`} />
+          <span className="sm:hidden">Avisar</span>
+          <span className="hidden sm:inline">Verificar e Avisar Todos</span>
         </Button>
       </div>
 

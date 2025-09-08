@@ -247,29 +247,29 @@ export default function Testes() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <Monitor className="w-10 h-10 text-white" />
+      <div className="mb-4 md:mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <Monitor className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Gerenciar Testes
               </h1>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-xs md:text-sm text-slate-400 mt-1">
                 {filteredTestes?.length || 0} testes no sistema
               </p>
             </div>
           </div>
-          <div className="flex gap-3 items-center">
+          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
             <Select
               value={selectedSistemaId?.toString()}
               onValueChange={(value) => setSelectedSistemaId(parseInt(value))}
             >
-              <SelectTrigger className="w-[200px] bg-slate-900 border-slate-700 text-white">
+              <SelectTrigger className="w-full sm:w-[200px] bg-slate-900 border-slate-700 text-white text-sm md:text-base">
                 <SelectValue placeholder="Selecionar Sistema" />
               </SelectTrigger>
               <SelectContent>
@@ -280,40 +280,43 @@ export default function Testes() {
                 ))}
               </SelectContent>
             </Select>
-            <Button 
-              onClick={() => cleanupMutation.mutate()}
-              disabled={cleanupMutation.isPending}
-              variant="outline"
-              className="border-red-500/50 text-red-400 hover:bg-red-500/10"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Limpar Expirados
-            </Button>
-            <Button 
-              size="lg"
-              onClick={() => setIsCreateDialogOpen(true)}
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold px-6 shadow-lg shadow-blue-500/30 transition-all hover:scale-105"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Novo Teste
-            </Button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button 
+                onClick={() => cleanupMutation.mutate()}
+                disabled={cleanupMutation.isPending}
+                variant="outline"
+                className="border-red-500/50 text-red-400 hover:bg-red-500/10 flex-1 sm:flex-none text-xs md:text-sm"
+              >
+                <Trash2 className="w-4 h-4 mr-1 md:mr-2" />
+                <span className="sm:hidden">Limpar</span>
+                <span className="hidden sm:inline">Limpar Expirados</span>
+              </Button>
+              <Button 
+                size="default"
+                onClick={() => setIsCreateDialogOpen(true)}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold px-4 md:px-6 shadow-lg shadow-blue-500/30 transition-all hover:scale-105 flex-1 sm:flex-none text-xs md:text-sm"
+              >
+                <Plus className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
+                Novo Teste
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
-            placeholder="Buscar por telefone, usuário ou aplicativo..."
+            placeholder="Buscar teste..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-400"
+            className="pl-9 md:pl-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-400 text-sm md:text-base"
           />
         </div>
         
-        <div className="flex bg-dark-bg border border-slate-700 rounded-lg p-1">
+        <div className="flex bg-dark-bg border border-slate-700 rounded-lg p-1 w-full sm:w-auto">
           <Button
             variant="ghost"
             size="sm"

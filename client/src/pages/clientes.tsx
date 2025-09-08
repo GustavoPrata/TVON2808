@@ -345,19 +345,19 @@ export default function Clientes() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Beautiful Header */}
-      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <Users className="w-10 h-10 text-white" />
+      <div className="mb-4 md:mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <Users className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 {viewMode === 'clientes' ? 'Gerenciar Clientes' : 'Gerenciar Pontos'}
               </h1>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-xs md:text-sm text-slate-400 mt-1">
                 {viewMode === 'clientes' 
                   ? (showCanceled 
                     ? `${clientes?.filter(c => c.status === 'cancelado').length || 0} clientes cancelados`
@@ -367,16 +367,16 @@ export default function Clientes() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
             <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg p-2 border border-slate-700">
               <Label 
                 htmlFor="view-mode-switch" 
-                className={`text-sm font-medium transition-colors ${
+                className={`text-xs md:text-sm font-medium transition-colors ${
                   viewMode === 'clientes' ? 'text-blue-400' : 'text-slate-400'
                 }`}
               >
-                <Users className="w-4 h-4 inline-block mr-1" />
-                Clientes
+                <Users className="w-3 h-3 md:w-4 md:h-4 inline-block mr-1" />
+                <span className="hidden sm:inline">Clientes</span>
               </Label>
               <Switch
                 id="view-mode-switch"
@@ -386,21 +386,21 @@ export default function Clientes() {
               />
               <Label 
                 htmlFor="view-mode-switch" 
-                className={`text-sm font-medium transition-colors ${
+                className={`text-xs md:text-sm font-medium transition-colors ${
                   viewMode === 'pontos' ? 'text-purple-400' : 'text-slate-400'
                 }`}
               >
-                <Activity className="w-4 h-4 inline-block mr-1" />
-                Pontos
+                <Activity className="w-3 h-3 md:w-4 md:h-4 inline-block mr-1" />
+                <span className="hidden sm:inline">Pontos</span>
               </Label>
             </div>
             {viewMode === 'clientes' && (
               <Button 
-                size="lg"
+                size="default"
                 onClick={() => handleOpenModal()}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold px-6 shadow-lg shadow-blue-500/30 transition-all hover:scale-105"
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold px-4 md:px-6 shadow-lg shadow-blue-500/30 transition-all hover:scale-105 w-full sm:w-auto text-sm md:text-base"
               >
-                <Plus className="w-5 h-5 mr-2" />
+                <Plus className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                 Novo Cliente
               </Button>
             )}
@@ -409,15 +409,15 @@ export default function Clientes() {
       </div>
 
       {/* Filters Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1 sm:flex-none">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
-              placeholder={viewMode === 'clientes' ? "Buscar por nome ou telefone..." : "Buscar usuário, app ou dispositivo..."}
+              placeholder={viewMode === 'clientes' ? "Buscar cliente..." : "Buscar ponto..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-80 bg-slate-900 border-slate-700 text-white placeholder:text-slate-400 focus:bg-slate-800 focus:text-white focus:ring-2 focus:ring-blue-500"
+              className="pl-9 md:pl-10 w-full sm:w-64 md:w-80 bg-slate-900 border-slate-700 text-white placeholder:text-slate-400 focus:bg-slate-800 focus:text-white focus:ring-2 focus:ring-blue-500 text-sm md:text-base"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
