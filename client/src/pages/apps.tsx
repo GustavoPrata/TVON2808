@@ -213,33 +213,33 @@ export default function Apps() {
   const uniqueApps = Array.from(new Set(pontos?.filter(p => p.aplicativo !== 'shamel').map(p => p.aplicativo) || []));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <Router className="w-10 h-10 text-white" />
+      <div className="mb-4 md:mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <Router className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Aplicativos
               </h1>
-              <p className="text-sm text-slate-400 mt-1">Gerenciamento de aplicativos cadastrados</p>
+              <p className="text-xs md:text-sm text-slate-400 mt-1">Gerenciamento de aplicativos cadastrados</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full md:w-auto justify-around md:justify-center">
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">{pontos?.filter(p => p.aplicativo !== 'shamel').length || 0}</p>
+              <p className="text-xl md:text-2xl font-bold text-white">{pontos?.filter(p => p.aplicativo !== 'shamel').length || 0}</p>
               <p className="text-xs text-slate-400">Total</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-green-400">{totalAtivos}</p>
+              <p className="text-xl md:text-2xl font-bold text-green-400">{totalAtivos}</p>
               <p className="text-xs text-slate-400">Ativos</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-red-400">{totalVencidos}</p>
+              <p className="text-xl md:text-2xl font-bold text-red-400">{totalVencidos}</p>
               <p className="text-xs text-slate-400">Vencidos</p>
             </div>
           </div>
@@ -248,21 +248,21 @@ export default function Apps() {
 
       {/* Filters Section */}
       <Card className="bg-slate-800 border-slate-700">
-        <CardContent className="p-4 space-y-4">
-          <div className="flex flex-wrap items-center gap-4">
+        <CardContent className="p-3 md:p-4 space-y-3 md:space-y-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 type="text"
-                placeholder="Buscar por cliente, MAC, telefone..."
+                placeholder="Buscar..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-slate-700 border-slate-600 focus:border-blue-500 text-white"
+                className="pl-9 md:pl-10 bg-slate-700 border-slate-600 focus:border-blue-500 text-white text-sm md:text-base"
               />
             </div>
             
             <Select value={filterApp} onValueChange={setFilterApp}>
-              <SelectTrigger className="w-[200px] bg-slate-700 border-slate-600">
+              <SelectTrigger className="w-full sm:w-[200px] bg-slate-700 border-slate-600 text-sm md:text-base">
                 <SelectValue placeholder="Filtrar por app" />
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-slate-700">
@@ -276,9 +276,9 @@ export default function Apps() {
             </Select>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             <Filter className="w-4 h-4 text-slate-400" />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               {['todos', 'proximos', 'vencidos'].map((type) => (
                 <Button
                   key={type}
