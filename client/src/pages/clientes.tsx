@@ -776,7 +776,7 @@ export default function Clientes() {
           </div>
           
           {/* Mobile Cards View */}
-          <div className="block md:hidden p-4 space-y-4">
+          <div className="block md:hidden p-3 space-y-3">
             {clientes?.filter(cliente => {
               const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                    cliente.telefone.includes(searchTerm);
@@ -790,12 +790,12 @@ export default function Clientes() {
                 <div
                   key={cliente.id}
                   onClick={() => handleViewClient(cliente.id)}
-                  className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-3 active:scale-[0.98] transition-transform"
+                  className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 space-y-2.5 active:scale-[0.98] transition-transform cursor-pointer"
                 >
                   {/* Header with Avatar and Name */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-10 h-10 shadow-md">
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <Avatar className="w-10 h-10 shadow-md flex-shrink-0">
                         {showPhotosClientes && phoneToProfilePicture.get(cliente.telefone) ? (
                           <AvatarImage 
                             src={phoneToProfilePicture.get(cliente.telefone)} 
@@ -807,8 +807,8 @@ export default function Clientes() {
                           {cliente.nome.charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1">
-                        <p className="font-semibold text-white">{cliente.nome}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-white truncate">{cliente.nome}</p>
                         <p className="text-xs text-slate-400">{formatPhoneNumber(cliente.telefone)}</p>
                       </div>
                     </div>
@@ -818,10 +818,10 @@ export default function Clientes() {
                   </div>
                   
                   {/* Info Grid */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-xs text-slate-400 mb-0.5">Valor Total</p>
-                      <p className="font-bold text-green-400">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-slate-900/30 rounded-lg p-2">
+                      <p className="text-[10px] text-slate-400 mb-0.5 uppercase font-medium">Valor Total</p>
+                      <p className="font-bold text-green-400 text-sm">
                         R$ {typeof cliente.valorTotal === 'number' 
                           ? cliente.valorTotal.toFixed(2) 
                           : parseFloat(cliente.valorTotal || '0').toFixed(2)}
@@ -832,16 +832,16 @@ export default function Clientes() {
                         </p>
                       )}
                     </div>
-                    <div>
-                      <p className="text-xs text-slate-400 mb-0.5">Vencimento</p>
-                      <p className="font-medium text-white text-sm">
+                    <div className="bg-slate-900/30 rounded-lg p-2">
+                      <p className="text-[10px] text-slate-400 mb-0.5 uppercase font-medium">Vencimento</p>
+                      <p className="font-medium text-white text-xs">
                         {cliente.vencimento 
                           ? new Date(cliente.vencimento).toLocaleDateString('pt-BR')
                           : '-'
                         }
                       </p>
                       {daysUntilExpiry !== null && (
-                        <p className={`text-xs font-medium mt-0.5 ${getExpiryColor(daysUntilExpiry)}`}>
+                        <p className={`text-[10px] font-medium mt-0.5 ${getExpiryColor(daysUntilExpiry)}`}>
                           {daysUntilExpiry === 0 
                             ? 'Vence hoje' 
                             : daysUntilExpiry < 0
@@ -855,7 +855,7 @@ export default function Clientes() {
                   
                   {cliente.email && (
                     <div className="pt-2 border-t border-slate-700/50">
-                      <p className="text-xs text-slate-400">{cliente.email}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{cliente.email}</p>
                     </div>
                   )}
                 </div>

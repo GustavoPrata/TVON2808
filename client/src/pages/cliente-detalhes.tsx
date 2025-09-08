@@ -643,10 +643,10 @@ export default function ClienteDetalhes() {
       </div>
 
       {/* Grid de Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6">
         {/* Informações Principais */}
         <Card className="lg:col-span-2 bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-slate-700/50 pb-4 md:pb-6">
+          <CardHeader className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-slate-700/50 pb-3 md:pb-6">
             <CardTitle className="text-lg md:text-2xl font-bold flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-2">
               <div className="flex items-center gap-2 md:gap-3">
                 <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/30">
@@ -672,7 +672,7 @@ export default function ClienteDetalhes() {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 p-4">
+          <CardContent className="space-y-3 md:space-y-4 p-3 md:p-4">
             {/* Nome do Cliente */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nome Completo</label>
@@ -766,7 +766,7 @@ export default function ClienteDetalhes() {
             </div>
 
             {/* Tipo e Status */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               {/* Tipo */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tipo de Cliente</label>
@@ -1059,22 +1059,22 @@ export default function ClienteDetalhes() {
 
       {/* Pontos de Acesso */}
       <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-slate-700/50 pb-8">
-          <div className="flex flex-row items-center justify-between">
+        <CardHeader className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-slate-700/50 pb-4 md:pb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 md:gap-4">
             <div>
-              <CardTitle className="text-2xl font-bold flex items-center gap-3 mb-2">
-                <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/30">
-                  <Wifi className="w-7 h-7 text-white" />
+              <CardTitle className="text-lg md:text-2xl font-bold flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
+                <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/30">
+                  <Wifi className="w-5 h-5 md:w-7 md:h-7 text-white" />
                 </div>
                 Pontos de Acesso
               </CardTitle>
-              <p className="text-sm text-slate-300 ml-14">
+              <p className="text-xs md:text-sm text-slate-300 ml-9 md:ml-14">
                 {pontos.length} {pontos.length === 1 ? 'dispositivo conectado' : 'dispositivos conectados'}
               </p>
             </div>
             <Button 
-              size="lg" 
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold px-6 shadow-lg shadow-blue-500/30 transition-all hover:shadow-blue-500/50 hover:scale-105"
+              size="default" 
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold px-3 md:px-6 shadow-lg shadow-blue-500/30 transition-all hover:shadow-blue-500/50 hover:scale-105 w-full sm:w-auto text-sm md:text-base"
               onClick={() => {
                 // Gera o nome de usuário baseado no primeiro nome + número do ponto
                 const firstName = cliente?.nome.split(' ')[0].toLowerCase().replace(/[^a-z]/g, '') || 'usuario';
@@ -1101,18 +1101,18 @@ export default function ClienteDetalhes() {
                 setShowAddPontoDialog(true);
               }}
             >
-              <Plus className="w-5 h-5 mr-2" />
+              <Plus className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
               Novo Ponto
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-8">
+        <CardContent className="p-3 md:p-8">
           {pontos.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-3 md:gap-6">
               {pontos.map((ponto) => (
                 <div 
                   key={ponto.id} 
-                  className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-2xl overflow-hidden shadow-xl relative"
+                  className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/50 rounded-xl md:rounded-2xl overflow-hidden shadow-xl relative"
                 >
 
                   
