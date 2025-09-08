@@ -328,7 +328,8 @@ export default function Acessos() {
         </Card>
       ) : (
         <Card className="bg-dark-card border-slate-600">
-              <div className="overflow-x-auto">
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead className="border-b border-slate-700 bg-slate-800/50">
                     <tr>
@@ -416,6 +417,75 @@ export default function Acessos() {
                     })}
                   </tbody>
                 </table>
+              </div>
+              
+              {/* Mobile Cards View */}
+              <div className="block md:hidden p-4 space-y-4">
+                {sortedPontos.map((ponto) => {
+                  const accessStatus = getAccessStatus(ponto.ultimoAcesso);
+                  
+                  return (
+                    <div
+                      key={ponto.id}
+                      className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-3"
+                      onClick={() => ponto.clienteId && setLocation(`/clientes/${ponto.clienteId}`)}
+                    >
+                      {/* Header with Status */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-semibold text-white">
+                            {ponto.cliente?.nome || 'Cliente não identificado'}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            Usuário: {ponto.usuario}
+                          </p>
+                        </div>
+                        <Badge className={cn("text-xs", getStatusColor(ponto))}>
+                          {ponto.status === 'ativo' && !isBefore(new Date(ponto.expiracao), new Date()) ? 'Ativo' :
+                           ponto.status === 'inativo' ? 'Inativo' : 'Expirado'}
+                        </Badge>
+                      </div>
+                      
+                      {/* Info Grid */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-slate-400 mb-1">Aplicativo</p>
+                          <div className="flex items-center gap-1">
+                            {getAppIcon(ponto.aplicativo)}
+                            <span className="text-sm text-white">
+                              {ponto.aplicativo === 'ibo_pro' ? 'IBO Pro' :
+                               ponto.aplicativo === 'ibo_player' ? 'IBO Player' : 'Shamel'}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <p className="text-xs text-slate-400 mb-1">Dispositivo</p>
+                          <div className="flex items-center gap-1">
+                            {getDeviceIcon(ponto.dispositivo)}
+                            <span className="text-sm text-white">
+                              {ponto.dispositivo.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <p className="text-xs text-slate-400 mb-1">Sistema</p>
+                          <p className="text-sm text-white">
+                            {ponto.sistema ? ponto.sistema.systemId : '-'}
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <p className="text-xs text-slate-400 mb-1">Último Acesso</p>
+                          <p className={cn("text-sm font-medium", accessStatus.color)}>
+                            {accessStatus.text}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
         </Card>
       )}
