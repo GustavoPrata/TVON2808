@@ -190,18 +190,16 @@ export default function BotMenu() {
       color: 'from-blue-500 to-cyan-500',
       badge: 'bg-blue-500/20 text-blue-400',
       mainMenu: {
-        greeting: '🌟 Bom dia/tarde/noite, bem-vindo(a) à *TvON*! 🌟\n\n📺 O melhor em entretenimento com *TODOS* os canais e plataformas em um só lugar!\n\nComo posso ajudar você hoje?',
+        greeting: 'Bom dia/tarde/noite, bem-vindo(a) à *TvON*!',
         options: [
-          { id: '1', icon: <Gift />, text: '🎁 Teste grátis por 24h', submenu: 'teste_dispositivo' },
-          { id: '2', icon: <Zap />, text: '⚡ Quero assinar agora', submenu: 'assinar_codigo' },
-          { id: '3', icon: <Tv />, text: '📺 Qual o conteúdo?', submenu: 'info_conteudo' },
-          { id: '4', icon: <DollarSign />, text: '💰 Qual o valor?', submenu: 'info_valores' },
-          { id: '5', icon: <Monitor />, text: '📱 Por onde consigo assistir?', submenu: 'info_dispositivos' },
-          { id: '6', icon: <HelpCircle />, text: '❓ Saber mais', submenu: 'info_detalhes' },
-          { id: '7', icon: <Headphones />, text: '🎧 Falar com atendente', action: 'humano' },
-          { id: '8', icon: <UserCheck />, text: '✅ Já sou cliente', action: 'humano' },
-          { id: '9', icon: <Star />, text: '⭐ Avaliações de clientes', submenu: 'avaliacoes' },
-          { id: '10', icon: <Shield />, text: '🛡️ Garantias e segurança', submenu: 'garantias' }
+          { id: '1', icon: <Gift />, text: 'Teste grátis por 24h', submenu: 'teste_dispositivo' },
+          { id: '2', icon: <Zap />, text: 'Quero assinar agora', submenu: 'assinar_codigo' },
+          { id: '3', icon: <Tv />, text: 'Qual o conteúdo?', submenu: 'info_conteudo' },
+          { id: '4', icon: <DollarSign />, text: 'Qual o valor?', submenu: 'info_valores' },
+          { id: '5', icon: <Monitor />, text: 'Por onde consigo assistir?', submenu: 'info_dispositivos' },
+          { id: '6', icon: <HelpCircle />, text: 'Saber mais', submenu: 'info_detalhes' },
+          { id: '7', icon: <Headphones />, text: 'Falar com atendente', action: 'humano' },
+          { id: '8', icon: <UserCheck />, text: 'Já sou cliente', action: 'humano' }
         ]
       },
       submenus: {
@@ -301,126 +299,37 @@ export default function BotMenu() {
         info_conteudo: {
           title: 'Conteúdo Disponível',
           icon: <Tv />,
-          message: '📺 *CONTEÚDO COMPLETO DA TvON*\n\n🔴 *CANAIS AO VIVO (200+):*\n• Abertos: Globo, SBT, Record, Band, RedeTV\n• Esportes: SporTV (1-4), ESPN (1-4), Fox Sports, Premiere FC, Combate\n• Filmes: Telecine (todos), HBO (todos), Cinemax, Space, TNT\n• Séries: Warner, Sony, AXN, Universal, FX, AMC\n• Infantis: Cartoon Network, Discovery Kids, Disney, Nick, Gloob\n• Notícias: GloboNews, CNN, BandNews, Record News\n• Documentários: Discovery, NatGeo, History, Animal Planet\n\n🎬 *PLATAFORMAS INCLUÍDAS:*\n• Netflix completo\n• Prime Video\n• Disney+\n• HBO Max\n• Paramount+\n• Star+\n• Apple TV+\n• Globoplay\n\n🎯 *CONTEÚDO ESPECIAL:*\n• Premiere League, Champions League\n• Brasileirão Série A e B\n• NBA, NFL\n• UFC e Box\n• Fórmula 1\n• BBB 24 horas\n\n✅ Qualidade 4K/Full HD\n✅ Sem travamentos\n✅ Atualização diária de conteúdo',
+          message: '📺 A TvON te dá acesso a:\n\n• Todos os canais ao vivo (Globo, SBT, Record, SporTV, Premiere, Discovery, Cartoon, etc)\n• Todos os filmes e séries das principais plataformas: Netflix, Prime Video, Disney+, Paramount+, HBO Max e outras\n• Programação infantil, esportiva, documentários, realities, filmes em lançamento e muito mais\n• Qualidade até 4K, sem travar\n• Suporte 24 horas!',
           options: [
-            { id: '1', text: '💳 Assinar agora', submenu: 'assinar_codigo' },
-            { id: '2', text: '🎁 Testar grátis por 24h', submenu: 'teste_dispositivo' },
-            { id: '3', text: '🏆 Ver canais esportivos', submenu: 'canais_esportes' },
-            { id: '4', text: '🎬 Ver catálogo de filmes', submenu: 'catalogo_filmes' }
+            { id: '1', text: 'Assinar agora', submenu: 'assinar_codigo' },
+            { id: '2', text: 'Testar grátis por 24h', submenu: 'teste_dispositivo' }
           ]
         },
         info_valores: {
           title: 'Valores dos Planos',
           icon: <DollarSign />,
-          message: '💰 *TABELA DE PREÇOS TVON*\n\n📌 *PLANO MENSAL*\n• R$ 29,90/mês\n• 1 ponto incluso\n• Renovação automática\n\n📌 *PLANO TRIMESTRAL* 🔥\n• R$ 79,90 (3 meses)\n• Economia: R$ 9,80 (10% OFF)\n• R$ 26,63/mês\n• 1 ponto incluso\n\n📌 *PLANO SEMESTRAL* ⭐\n• R$ 139,90 (6 meses)\n• Economia: R$ 39,50 (20% OFF)\n• R$ 23,31/mês\n• 1 ponto incluso\n\n📌 *PLANO ANUAL* 💎 MELHOR CUSTO\n• R$ 249,90 (12 meses)\n• Economia: R$ 108,90 (30% OFF)\n• R$ 20,82/mês\n• 2 pontos inclusos\n\n💳 *FORMAS DE PAGAMENTO:*\n• PIX (liberação imediata)\n• Cartão de crédito\n• Boleto bancário\n\n✅ Sem fidelidade\n✅ Cancele quando quiser\n✅ Reembolso proporcional\n✅ Suporte 24h\n\n🎁 *BÔNUS:*\nGanhe 1 mês grátis ao indicar 3 amigos!',
+          message: '💰 Planos TvON:\n\n• 🔹 Mensal: R$ 29,90\n• 🔹 Trimestral: R$ 79,90 (10% OFF)\n• 🔹 Semestral: R$ 139,90 (20% OFF)\n• 🔹 Anual: R$ 249,90 (30% OFF)\n\n• ✅ Pode cancelar quando quiser\n• ✅ Sem taxas extras\n• ✅ Reembolso proporcional',
           options: [
-            { id: '1', text: '💳 Assinar agora', submenu: 'assinar_codigo' },
-            { id: '2', text: '🎁 Testar grátis por 24h', submenu: 'teste_dispositivo' },
-            { id: '3', text: '🤝 Como funciona indicação?', submenu: 'como_indicar' },
-            { id: '4', text: '📊 Comparar planos', submenu: 'comparar_planos' }
+            { id: '1', text: 'Assinar agora', submenu: 'assinar_codigo' },
+            { id: '2', text: 'Testar grátis por 24h', submenu: 'teste_dispositivo' }
           ]
         },
         info_dispositivos: {
           title: 'Dispositivos Compatíveis',
           icon: <Wifi />,
-          message: '📱 *DISPOSITIVOS COMPATÍVEIS*\n\n🤖 *ANDROID:*\n• Celulares (Android 5.0+)\n• Tablets\n• TV Box (qualquer modelo)\n• Smart TV Android\n• Chromecast\n\n🍎 *APPLE:*\n• iPhone (iOS 12+)\n• iPad\n• Apple TV\n• Mac/MacBook\n\n📺 *SMART TVS:*\n• Samsung (2016+)\n• LG WebOS\n• TCL\n• Philips\n• Sony\n• Panasonic\n• AOC Roku TV\n\n💻 *COMPUTADORES:*\n• Windows (7/8/10/11)\n• Linux\n• Chrome OS\n\n🎮 *CONSOLES:*\n• Xbox One/Series\n• PlayStation 4/5\n\n📦 *TV BOX COMPATÍVEIS:*\n• Mi Box\n• Fire TV Stick\n• Roku\n• Qualquer box Android\n\n⚙️ *REQUISITOS MÍNIMOS:*\n• Internet: 10 Mbps (HD) / 25 Mbps (4K)\n• Memória: 2GB RAM\n• Armazenamento: 100MB livre',
+          message: 'Você pode usar a TvON em praticamente qualquer dispositivo com internet:\n\n• 📱 Celulares Android e iPhone\n• 📺 Todas as Smart TVs\n• 🖥️ TV Box\n• 💻 Notebooks e PCs\n• 📦 Outros aparelhos conectados',
           options: [
-            { id: '1', text: '💳 Assinar agora', submenu: 'assinar_codigo' },
-            { id: '2', text: '🎁 Testar grátis por 24h', submenu: 'teste_dispositivo' },
-            { id: '3', text: '📲 Tutorial de instalação', submenu: 'tutorial_instalacao' },
-            { id: '4', text: '🔧 Configurações recomendadas', submenu: 'config_recomendadas' }
+            { id: '1', text: 'Assinar agora', submenu: 'assinar_codigo' },
+            { id: '2', text: 'Testar grátis por 24h', submenu: 'teste_dispositivo' }
           ]
         },
         info_detalhes: {
           title: 'Sobre a TvON',
           icon: <Info />,
-          message: '🏢 *SOBRE A TVON*\n\n📅 *EMPRESA:*\n• No mercado desde 2019\n• + de 50.000 clientes ativos\n• Nota 4.8/5 no Reclame Aqui\n• Empresa 100% brasileira\n• CNPJ: XX.XXX.XXX/0001-XX\n\n🎯 *NOSSO DIFERENCIAL:*\n• Servidor próprio no Brasil (baixa latência)\n• Atualização diária de conteúdo\n• App exclusivo otimizado\n• Suporte via WhatsApp 24h\n• Garantia de 7 dias ou dinheiro de volta\n\n🏆 *PRÊMIOS E RECONHECIMENTOS:*\n• Melhor IPTV 2023 - TechBrasil\n• Top 10 Apps de Streaming - Google Play\n• Certificado SSL de Segurança\n\n📊 *NÚMEROS:*\n• 200+ canais ao vivo\n• 50.000+ filmes e séries\n• 99.9% de uptime\n• Suporte em -5min\n\n🤝 *COMPROMISSO:*\n• Transparência total\n• Sem letras miúdas\n• Sem pegadinhas\n• Cancelamento fácil\n\n💚 *RESPONSABILIDADE:*\n• Parte da renda revertida para projetos sociais\n• Apoiamos creators brasileiros',
+          message: 'A *TvON* é uma central de conteúdo que reúne:\n\n• ✅ Canais ao vivo de todas as categorias\n• ✅ Filmes e séries completas\n• ✅ Qualidade até 4K\n• ✅ Suporte técnico 24h\n• ✅ Sem fidelidade\n• ✅ Acesso multiplataforma',
           options: [
-            { id: '1', text: '💳 Assinar agora', submenu: 'assinar_codigo' },
-            { id: '2', text: '🎁 Testar grátis por 24h', submenu: 'teste_dispositivo' },
-            { id: '3', text: '📞 Falar com vendedor', action: 'humano' },
-            { id: '4', text: '🏆 Ver depoimentos', submenu: 'depoimentos' }
-          ]
-        },
-        avaliacoes: {
-          title: 'Avaliações de Clientes',
-          icon: <Star />,
-          message: '⭐ *AVALIAÇÕES DE CLIENTES*\n\n👥 *Maria Silva (SP)*\n⭐⭐⭐⭐⭐\n"Melhor decisão! Cancellei Netflix e outros, agora tenho tudo em um lugar só. Super recomendo!"\n\n👥 *João Santos (RJ)*\n⭐⭐⭐⭐⭐\n"Funciona perfeitamente na minha Smart TV. Qualidade 4K impecável, nunca trava!"\n\n👥 *Pedro Oliveira (MG)*\n⭐⭐⭐⭐⭐\n"Suporte top! Tive uma dúvida às 23h e me responderam na hora. Empresa séria."\n\n👥 *Ana Costa (RS)*\n⭐⭐⭐⭐☆\n"Excelente! Só não dou 5 estrelas porque queria mais canais infantis, mas já tem bastante."\n\n📊 *MÉDIA GERAL: 4.9/5.0*\n📝 +2.500 avaliações',
-          options: [
-            { id: '1', text: '💳 Quero assinar', submenu: 'assinar_codigo' },
-            { id: '2', text: '🎁 Testar primeiro', submenu: 'teste_dispositivo' }
-          ]
-        },
-        garantias: {
-          title: 'Garantias e Segurança',
-          icon: <Shield />,
-          message: '🛡️ *GARANTIAS E SEGURANÇA*\n\n🔒 *SEGURANÇA:*\n• Pagamento via PIX seguro\n• Dados criptografados\n• Certificado SSL\n• Conformidade LGPD\n\n🌟 *GARANTIAS:*\n• 7 dias de garantia total\n• Dinheiro de volta se não gostar\n• Sem perguntas ou burocracia\n• Devolução em até 24h\n\n📄 *TERMOS CLAROS:*\n• Sem letras miúdas\n• Sem contratos abusivos\n• Cancelamento imediato\n• Sem multas\n\n✅ *COMPROMISSOS:*\n• Estabilidade 99.9%\n• Atualizações constantes\n• Suporte humanizado\n• Transparência total',
-          options: [
-            { id: '1', text: '💳 Assinar com segurança', submenu: 'assinar_codigo' },
-            { id: '2', text: '🎁 Testar sem compromisso', submenu: 'teste_dispositivo' }
-          ]
-        },
-        canais_esportes: {
-          title: 'Canais Esportivos',
-          icon: <Tv />,
-          message: '⚽ *CANAIS DE ESPORTES COMPLETOS*\n\n🏆 *FUTEBOL:*\n• Premiere FC (todos)\n• SporTV (1, 2, 3, 4)\n• ESPN (1, 2, 3, 4)\n• Fox Sports (1, 2)\n• DAZN\n• Conmebol TV\n\n🎾 *OUTROS ESPORTES:*\n• NBA TV\n• NFL Network\n• Tennis Channel\n• Golf Channel\n• Combate (UFC)\n• BandSports\n\n🏎️ *MOTORSPORT:*\n• Fórmula 1 (todos GPs)\n• MotoGP\n• NASCAR\n• Stock Car\n\n🌍 *INTERNACIONAIS:*\n• Sky Sports (UK)\n• beIN Sports\n• Eurosport\n\n✨ Transmissões em 4K!',
-          options: [
-            { id: '1', text: '💳 Assinar agora', submenu: 'assinar_codigo' },
-            { id: '2', text: '🎁 Testar grátis', submenu: 'teste_dispositivo' }
-          ]
-        },
-        catalogo_filmes: {
-          title: 'Catálogo de Filmes',
-          icon: <Tv />,
-          message: '🎬 *CATÁLOGO DE FILMES 2024*\n\n🎆 *LANÇAMENTOS:*\n• Duna: Parte 2\n• Godzilla x Kong\n• Kung Fu Panda 4\n• Bad Boys 4\n• Deadpool 3\n• Divertida Mente 2\n\n🏆 *OSCAR 2024:*\n• Oppenheimer\n• Barbie\n• Pobres Criaturas\n• Zona de Interesse\n• Assassinos da Lua\n\n📺 *SÉRIES COMPLETAS:*\n• The Last of Us\n• House of Dragon\n• The Boys S4\n• Fallout\n• One Piece (Netflix)\n\n🌟 *CLÁSSICOS:*\n• Harry Potter (todos)\n• Senhor dos Anéis\n• Marvel (todos MCU)\n• DC Universe\n• Star Wars\n\n+50.000 títulos disponíveis!',
-          options: [
-            { id: '1', text: '💳 Assinar agora', submenu: 'assinar_codigo' },
-            { id: '2', text: '🎁 Testar grátis', submenu: 'teste_dispositivo' }
-          ]
-        },
-        como_indicar: {
-          title: 'Como Funciona Indicação',
-          icon: <Gift />,
-          message: '🎁 *PROGRAMA INDIQUE E GANHE*\n\n👉 *COMO FUNCIONA:*\n\n1️⃣ *SEU CÓDIGO*\n• Seu telefone é seu código\n• Ex: 55149998888\n\n2️⃣ *COMPARTILHE*\n• Envie para amigos\n• Poste nas redes\n• Grupos de WhatsApp\n\n3️⃣ *AMIGO USA CÓDIGO*\n• Ele ganha 10% desconto\n• Você acumula pontos\n\n4️⃣ *GANHE PRÊMIOS*\n• 3 amigos = 1 mês grátis\n• 5 amigos = 2 meses grátis\n• 10 amigos = 3 meses grátis\n\n💰 *BENEFÍCIOS:*\n• Sem limite de indicações\n• Acumula com promoções\n• Vale para sempre\n\n🎉 Comece a indicar agora!',
-          options: [
-            { id: '1', text: '🤝 Já tenho código', next: 'aguardando_codigo' },
-            { id: '2', text: '💳 Quero assinar', submenu: 'assinar_codigo' }
-          ]
-        },
-        comparar_planos: {
-          title: 'Comparativo de Planos',
-          icon: <DollarSign />,
-          message: '📊 *COMPARATIVO DE PLANOS*\n\n📌 *MENSAL*\n✔️ 1 ponto\n✔️ R$ 29,90/mês\n✔️ Cancela quando quiser\n❌ Sem desconto\n\n📌 *TRIMESTRAL* ⭐\n✔️ 1 ponto\n✔️ R$ 26,63/mês\n✔️ 10% desconto\n✔️ Economia: R$ 9,80\n\n📌 *SEMESTRAL* ⭐⭐\n✔️ 1 ponto\n✔️ R$ 23,31/mês\n✔️ 20% desconto\n✔️ Economia: R$ 39,50\n\n📌 *ANUAL* 👑 MELHOR\n✔️ 2 pontos (BÔNUS!)\n✔️ R$ 20,82/mês\n✔️ 30% desconto\n✔️ Economia: R$ 108,90\n✔️ Prioridade suporte\n\n👉 Recomendamos: ANUAL',
-          options: [
-            { id: '1', text: '👑 Quero o anual', action: 'gerar_pagamento', context: 'R$ 249,90' },
-            { id: '2', text: '💳 Ver outras opções', submenu: 'assinar_codigo' }
-          ]
-        },
-        tutorial_instalacao: {
-          title: 'Tutorial de Instalação',
-          icon: <Smartphone />,
-          message: '📲 *TUTORIAL DE INSTALAÇÃO*\n\n🤖 *ANDROID:*\n1. Baixe o app em tv-on.site/app\n2. Permita fontes desconhecidas\n3. Instale o APK\n4. Entre com usuário e senha\n\n🍎 *iPHONE:*\n1. Acesse tv-on.site\n2. Clique em "Compartilhar"\n3. "Adicionar à Tela Inicial"\n4. Entre com seus dados\n\n📺 *SMART TV:*\n1. Abra a loja de apps\n2. Busque "TVON Player"\n3. Instale e abra\n4. Digite o código de ativação\n\n📦 *TV BOX:*\n1. Vá em Configurações\n2. Segurança > Fontes desconhecidas\n3. Baixe em tv-on.site/box\n4. Instale e aproveite\n\n🎆 Vídeos tutoriais em: tv-on.site/ajuda',
-          options: [
-            { id: '1', text: '📥 Baixar app', action: 'humano' },
-            { id: '2', text: '🎥 Ver vídeo tutorial', action: 'humano' }
-          ]
-        },
-        config_recomendadas: {
-          title: 'Configurações Recomendadas',
-          icon: <Monitor />,
-          message: '⚙️ *CONFIGURAÇÕES RECOMENDADAS*\n\n🌐 *INTERNET:*\n• Mínimo: 10 Mbps\n• HD: 15 Mbps\n• Full HD: 25 Mbps\n• 4K: 50 Mbps\n\n📱 *NO APP:*\n• Player: ExoPlayer\n• Decodificação: Hardware\n• Buffer: 3 segundos\n• Qualidade: Automática\n\n📺 *NA TV:*\n• Modo Imagem: Cinema\n• Modo Som: Estéreo\n• HDMI: 2.0 ou superior\n• Resolução: 1080p/4K\n\n🔧 *SOLUÇÃO DE PROBLEMAS:*\n• Travando: Reduza qualidade\n• Sem som: Verifique HDMI\n• Erro login: Limpe cache\n• Tela preta: Reinicie app\n\n🎆 Suporte 24h: WhatsApp',
-          options: [
-            { id: '1', text: '🎧 Falar com suporte', action: 'humano' },
-            { id: '2', text: '🔙 Voltar', action: 'voltar' }
-          ]
-        },
-        depoimentos: {
-          title: 'Depoimentos Reais',
-          icon: <Star />,
-          message: '🏆 *DEPOIMENTOS DE CLIENTES*\n\n🗣️ *Carlos - Empresário (SP)*\n"Economia de R$ 200/mês! Cancelei 4 assinaturas e agora tenho tudo na TVON. Atendimento nota 10!"\n\n🗣️ *Fernanda - Médica (RJ)*\n"Perfeito para a família! Meus filhos assistem desenhos, meu marido futebol e eu séries. Todos felizes!"\n\n🗣️ *Roberto - Aposentado (MG)*\n"Fácil de usar! Tenho 68 anos e consigo usar tranquilo. Meus netos configuraram em 5 minutos."\n\n🗣️ *Juliana - Estudante (RS)*\n"Preço justo! Divido com 2 amigas da faculdade, sai R$ 10 para cada. Muito barato!"\n\n🗣️ *Marcos - Técnico TI (PR)*\n"Tecnicamente impecável! Servidores rápidos, sem lag, qualidade constante. Recomendo!"\n\n🌟 98% dos clientes recomendam!',
-          options: [
-            { id: '1', text: '💳 Quero ser cliente', submenu: 'assinar_codigo' },
-            { id: '2', text: '🎁 Testar primeiro', submenu: 'teste_dispositivo' }
+            { id: '1', text: 'Assinar agora', submenu: 'assinar_codigo' },
+            { id: '2', text: 'Testar grátis por 24h', submenu: 'teste_dispositivo' }
           ]
         }
       }
