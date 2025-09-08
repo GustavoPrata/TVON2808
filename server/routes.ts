@@ -5055,18 +5055,21 @@ Como posso ajudar você hoje?
       let apiSystems: any[] = [];
       let apiUsers: any[] = [];
       let apiConnected = false;
-      let apiUrl = "";
+      let apiRedirectUrl = "";
 
       try {
         apiSystems = await externalApiService.getSystemCredentials();
         apiUsers = await externalApiService.getUsers();
         apiConnected = true;
         
-        // Get API URL from external service config
-        const apiConfig = await storage.getIntegracaoByTipo("api_externa");
-        if (apiConfig?.configuracoes) {
-          const config = apiConfig.configuracoes as any;
-          apiUrl = config.baseUrl || "";
+        // Get redirect_base_url from API externa
+        try {
+          const redirectUrlSetting = await externalApiService.getSetting("redirect_base_url");
+          if (redirectUrlSetting?.setting_value) {
+            apiRedirectUrl = redirectUrlSetting.setting_value;
+          }
+        } catch (settingError) {
+          console.log("Não foi possível obter redirect_base_url da API:", settingError);
         }
       } catch (error) {
         console.log("API não conectada para verificação de sincronização");
@@ -5091,7 +5094,7 @@ Como posso ajudar você hoje?
         inSync: apiConnected && localSystems.length === apiSystems.length,
         lastSync: integration?.ultimaAtualizacao || null,
         localUrl: principalUrl?.url || "Nenhuma URL principal configurada",
-        apiUrl: apiUrl || "API não configurada",
+        apiRedirectUrl: apiRedirectUrl || "Nenhuma URL configurada na API",
       });
     } catch (error) {
       console.error("Erro ao verificar status de sincronização:", error);

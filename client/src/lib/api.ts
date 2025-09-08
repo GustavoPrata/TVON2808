@@ -207,7 +207,7 @@ export const api = {
     inSync: boolean; 
     lastSync: string | null;
     localUrl: string;
-    apiUrl: string;
+    apiRedirectUrl: string;
   }> => {
     const response = await apiRequest('GET', '/api/sync/status');
     return response.json();

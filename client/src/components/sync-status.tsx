@@ -228,11 +228,17 @@ export function SyncStatus() {
           <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
             <div className="flex items-center gap-2 mb-2">
               <Cloud className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-medium text-white">URL API Externa</span>
+              <span className="text-sm font-medium text-white">URL Redirect (API Externa)</span>
             </div>
             <code className="text-xs bg-slate-900 px-2 py-1 rounded text-purple-300 block truncate">
-              {syncStatus.apiUrl || 'API não configurada'}
+              {syncStatus.apiRedirectUrl || 'Nenhuma URL configurada na API'}
             </code>
+            {syncStatus.localUrl && syncStatus.apiRedirectUrl && syncStatus.localUrl !== syncStatus.apiRedirectUrl && (
+              <div className="mt-2 text-xs text-yellow-400 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                URLs diferentes
+              </div>
+            )}
           </div>
         </div>
 
