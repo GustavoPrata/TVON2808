@@ -586,30 +586,30 @@ export default function ClienteDetalhes() {
   return (
     <div className="space-y-6" onDragOver={handleDragOver} onDrop={handleDrop}>
       {/* Header Beautiful */}
-      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <div className="mb-4 md:mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 w-full">
             <Button
               variant="ghost"
               onClick={() => setLocation('/clientes')}
-              className="bg-white/5 backdrop-blur-sm"
+              className="bg-white/5 backdrop-blur-sm px-3 py-2 text-sm md:text-base"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="w-4 h-4 mr-1 md:mr-2" />
               Voltar
             </Button>
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-                <Users className="w-8 h-8 text-white" />
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+                <Users className="w-6 h-6 md:w-8 md:h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                   Detalhes do Cliente
                 </h1>
-                <p className="text-sm text-slate-400 mt-1">Gerenciar informações e pontos de acesso</p>
+                <p className="text-xs md:text-sm text-slate-400 mt-0.5 md:mt-1">Gerenciar informações e pontos</p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
             {cliente.status !== 'cancelado' && (
               <Button
                 variant="outline"
@@ -618,10 +618,11 @@ export default function ClienteDetalhes() {
                     updateClienteMutation.mutate({ status: 'cancelado' });
                   }
                 }}
-                className="border-red-500/50 text-red-400 hover:bg-red-500/20"
+                className="border-red-500/50 text-red-400 hover:bg-red-500/20 text-xs md:text-sm px-3 py-2 w-full sm:w-auto"
               >
-                <XCircle className="w-4 h-4 mr-2" />
-                Cancelar Cliente
+                <XCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">Cancelar Cliente</span>
+                <span className="sm:hidden">Cancelar</span>
               </Button>
             )}
             <Button
@@ -631,29 +632,30 @@ export default function ClienteDetalhes() {
                   deleteClienteMutation.mutate();
                 }
               }}
-              className="border-red-600 text-red-500 hover:bg-red-600/20"
+              className="border-red-600 text-red-500 hover:bg-red-600/20 text-xs md:text-sm px-3 py-2 w-full sm:w-auto"
             >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Deletar Cliente
+              <Trash2 className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Deletar Cliente</span>
+              <span className="sm:hidden">Deletar</span>
             </Button>
           </div>
         </div>
       </div>
 
       {/* Grid de Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
         {/* Informações Principais */}
         <Card className="lg:col-span-2 bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-slate-700/50 pb-6">
-            <CardTitle className="text-2xl font-bold flex items-center justify-between w-full">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/30">
-                  <User className="w-7 h-7 text-white" />
+          <CardHeader className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border-b border-slate-700/50 pb-4 md:pb-6">
+            <CardTitle className="text-lg md:text-2xl font-bold flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-2">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg shadow-blue-500/30">
+                  <User className="w-5 h-5 md:w-7 md:h-7 text-white" />
                 </div>
-                Informações do Cliente
+                <span className="text-base md:text-xl">Informações do Cliente</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-lg font-semibold text-blue-400">ID: #{cliente.id}</span>
+                <span className="font-mono text-sm md:text-lg font-semibold text-blue-400">ID: #{cliente.id}</span>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(cliente.id.toString());
@@ -764,7 +766,7 @@ export default function ClienteDetalhes() {
             </div>
 
             {/* Tipo e Status */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Tipo */}
               <div className="space-y-2">
                 <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tipo de Cliente</label>
@@ -934,12 +936,12 @@ export default function ClienteDetalhes() {
 
         {/* Card de Vencimento */}
         <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border-b border-slate-700/50 pb-6">
-            <CardTitle className="text-2xl font-bold flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl shadow-lg shadow-orange-500/30">
-                <Calendar className="w-7 h-7 text-white" />
+          <CardHeader className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border-b border-slate-700/50 pb-4 md:pb-6">
+            <CardTitle className="text-lg md:text-2xl font-bold flex items-center gap-2 md:gap-3">
+              <div className="p-2 md:p-3 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl shadow-lg shadow-orange-500/30">
+                <Calendar className="w-5 h-5 md:w-7 md:h-7 text-white" />
               </div>
-              Vencimento
+              <span className="text-base md:text-xl">Vencimento</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
