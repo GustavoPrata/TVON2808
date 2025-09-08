@@ -1605,8 +1605,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             await externalApiService.updateUser(ponto.apiUserId, apiData);
             console.log("Usuário atualizado na API com sucesso");
-          } catch (apiError) {
+          } catch (apiError: any) {
             console.error("Erro ao atualizar usuário na API:", apiError);
+            
+            // Se o usuário não existe mais na API (erro 404), criar um novo
+            if (apiError.status === 404 || apiError.response?.status === 404) {
+              console.log("Usuário não encontrado na API, criando novo...");
+              try {
+                const newUser = await externalApiService.createUser(apiData);
+                if (newUser && newUser.id) {
+                  // Atualizar o ponto com o novo apiUserId
+                  await storage.updatePonto(ponto.id, { apiUserId: newUser.id });
+                  console.log("Novo usuário criado na API com ID:", newUser.id);
+                }
+              } catch (createError) {
+                console.error("Erro ao criar novo usuário na API:", createError);
+              }
+            }
           }
         }
       }
@@ -4683,10 +4698,25 @@ Como posso ajudar você hoje?
         res.json(createResult);
       } else {
         // Normal update (just username/password)
-        const result = await externalApiService.updateSystemCredential(
-          parseInt(id),
-          { username, password },
-        );
+        let result;
+        try {
+          result = await externalApiService.updateSystemCredential(
+            parseInt(id),
+            { username, password },
+          );
+        } catch (updateError: any) {
+          // If system doesn't exist in API (404), create it
+          if (updateError.status === 404 || updateError.response?.status === 404) {
+            console.log(`Sistema ${id} não encontrado na API, criando novo...`);
+            result = await externalApiService.createSystemCredential({
+              system_id: id,
+              username,
+              password,
+            });
+          } else {
+            throw updateError;
+          }
+        }
 
         // Also update in local database
         if (result) {
