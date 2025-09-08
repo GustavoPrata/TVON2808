@@ -518,18 +518,18 @@ export default function ConfigTV() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
+    <div className="space-y-4 md:space-y-6">
+      <div className="mb-4 md:mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <Tv className="w-10 h-10 text-white" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <Tv className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Config. TV
               </h1>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-xs md:text-sm text-slate-400 mt-1">
                 Configure as URLs e sistemas da sua TV
               </p>
             </div>
@@ -537,44 +537,46 @@ export default function ConfigTV() {
         </div>
       </div>
 
-      <Tabs defaultValue="settings" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 bg-slate-900 border border-slate-700">
-          <TabsTrigger value="settings" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white">
-            <Settings className="w-4 h-4 mr-2" />
-            Configurações
+      <Tabs defaultValue="settings" className="space-y-4 md:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-slate-900 border border-slate-700">
+          <TabsTrigger value="settings" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white text-xs md:text-sm">
+            <Settings className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+            <span className="hidden sm:inline">Configurações</span>
+            <span className="sm:hidden">Config</span>
           </TabsTrigger>
-          <TabsTrigger value="systems" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white">
-            <Server className="w-4 h-4 mr-2" />
+          <TabsTrigger value="systems" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white text-xs md:text-sm">
+            <Server className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
             Sistemas
           </TabsTrigger>
-          <TabsTrigger value="api" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white">
-            <Key className="w-4 h-4 mr-2" />
+          <TabsTrigger value="api" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white text-xs md:text-sm">
+            <Key className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
             Api
           </TabsTrigger>
-          <TabsTrigger value="sync" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white">
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Sincronização
+          <TabsTrigger value="sync" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-green-600 data-[state=active]:text-white text-xs md:text-sm">
+            <CheckCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+            <span className="hidden sm:inline">Sincronização</span>
+            <span className="sm:hidden">Sync</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="settings">
           <Card className="bg-dark-card border-slate-600">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <CardTitle className="text-white text-xl flex items-center gap-2">
-                    <Link className="w-5 h-5 text-blue-400" />
+                  <CardTitle className="text-white text-lg md:text-xl flex items-center gap-2">
+                    <Link className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
                     URLs de Redirecionamento
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-xs md:text-sm text-slate-400">
                     Gerencie múltiplas URLs e defina qual será a principal
                   </CardDescription>
                 </div>
                 <Button 
                   onClick={handleNewUrl}
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-xs md:text-sm"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                   Nova URL
                 </Button>
               </div>
@@ -699,21 +701,21 @@ export default function ConfigTV() {
         <TabsContent value="systems">
           <Card className="bg-dark-card border-slate-600">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <CardTitle className="text-white text-xl flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-blue-400" />
+                  <CardTitle className="text-white text-lg md:text-xl flex items-center gap-2">
+                    <Shield className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
                     Sistemas Cadastrados
                   </CardTitle>
-                  <CardDescription className="text-slate-400">
+                  <CardDescription className="text-xs md:text-sm text-slate-400">
                     Gerencie os sistemas de acesso
                   </CardDescription>
                 </div>
                 <Button
                   onClick={handleNewSystem}
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-xs md:text-sm"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
                   Novo Sistema
                 </Button>
               </div>
