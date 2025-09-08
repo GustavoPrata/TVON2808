@@ -598,7 +598,8 @@ export default function Vencimentos() {
       {/* Table */}
       <Card className="bg-dark-card border-slate-600">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-700">
@@ -748,6 +749,119 @@ export default function Vencimentos() {
                 })}
               </tbody>
             </table>
+          </div>
+          
+          {/* Mobile Cards View */}
+          <div className="block md:hidden p-4 space-y-4">
+            {filteredClientes?.map((cliente) => {
+              const days = cliente.vencimento ? getDaysUntilExpiry(cliente.vencimento) : null;
+              const notified = checkIfNotified(cliente.id);
+              const clienteAvisos = getClienteAvisos(cliente.id);
+              const avisosHoje = clienteAvisos.filter(a => {
+                const avisoDate = new Date(a.dataAviso);
+                const today = new Date();
+                return avisoDate.toDateString() === today.toDateString();
+              });
+              
+              return (
+                <div
+                  key={cliente.id}
+                  className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-3"
+                >
+                  {/* Header with Name and Status */}
+                  <div className="flex items-start justify-between">
+                    <div 
+                      className="flex items-center gap-3 flex-1"
+                      onClick={() => navigate(`/clientes/${cliente.id}`)}
+                    >
+                      <Avatar className="w-10 h-10 shadow-md">
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+                          <span className="text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text font-bold">
+                            {cliente.nome?.charAt(0).toUpperCase() || '?'}
+                          </span>
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-semibold text-white">{cliente.nome}</p>
+                        <p className="text-xs text-slate-400">{formatPhoneNumber(cliente.telefone)}</p>
+                      </div>
+                    </div>
+                    <Badge 
+                      className={`
+                        text-xs px-2 py-1
+                        ${cliente.status === 'ativo' ? 'bg-green-500/20 text-green-400 border-green-500/50' : ''}
+                        ${cliente.status === 'inativo' ? 'bg-red-500/20 text-red-400 border-red-500/50' : ''}
+                        ${cliente.status === 'suspenso' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' : ''}
+                      `}
+                    >
+                      {cliente.status}
+                    </Badge>
+                  </div>
+                  
+                  {/* Vencimento Info */}
+                  <div className="bg-slate-900/50 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-slate-400">Vencimento</span>
+                      {days !== null && (
+                        <Badge className={`${getDaysRemainingBadge(days)} text-xs`}>
+                          {getDaysText(days)}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-white font-medium">
+                      {cliente.vencimento 
+                        ? new Date(cliente.vencimento).toLocaleDateString('pt-BR')
+                        : 'Não definido'
+                      }
+                    </p>
+                  </div>
+                  
+                  {/* Avisos e Ações */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
+                    <div className="flex items-center gap-2">
+                      {avisosHoje.length > 0 ? (
+                        <div className="flex items-center gap-1">
+                          <Bell className="w-4 h-4 text-green-400" />
+                          <span className="text-xs text-green-400">{avisosHoje.length} aviso(s) hoje</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-500">Sem avisos hoje</span>
+                      )}
+                    </div>
+                    
+                    <Button
+                      onClick={() => sendManualNotificationMutation.mutate(cliente.id)}
+                      disabled={sendManualNotificationMutation.isPending || notified}
+                      size="sm"
+                      className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                    >
+                      <Send className="w-3 h-3 mr-1" />
+                      {notified ? 'Enviado' : 'Avisar'}
+                    </Button>
+                  </div>
+                  
+                  {cliente.observacoes && (
+                    <div className="pt-2 border-t border-slate-700/50">
+                      <p className="text-xs text-slate-400">{cliente.observacoes}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            
+            {(!filteredClientes || filteredClientes.length === 0) && (
+              <div className="py-8">
+                <div className="flex flex-col items-center justify-center">
+                  <Calendar className="w-12 h-12 text-slate-500 mb-3" />
+                  <p className="text-slate-400 text-base font-medium text-center">
+                    Nenhum vencimento encontrado
+                  </p>
+                  <p className="text-slate-500 text-sm mt-2 text-center">
+                    {searchTerm ? 'Tente ajustar os filtros' : 'Todos os clientes estão em dia'}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
           
           {!filteredClientes?.length && (
