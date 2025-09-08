@@ -485,19 +485,19 @@ export default function Ajuda() {
   }, [isLoading, messages]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Beautiful Header matching other pages */}
-      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
+      <div className="mb-4 md:mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <MessageSquare className="w-10 h-10 text-white" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <MessageSquare className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Central de Ajuda
               </h1>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-xs md:text-sm text-slate-400 mt-1">
                 Configure mensagens rápidas para agilizar o atendimento ao cliente
               </p>
             </div>
@@ -506,20 +506,20 @@ export default function Ajuda() {
       </div>
 
       {/* Current greeting preview */}
-      <div className="p-4 mb-6 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-xl backdrop-blur-sm border border-slate-700/50">
+      <div className="p-3 md:p-4 mb-4 md:mb-6 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-lg md:rounded-xl backdrop-blur-sm border border-slate-700/50">
         <div className="flex items-center gap-2 mb-2">
           {getTimeIcon()}
-          <span className="text-sm font-medium text-slate-300">Saudação atual:</span>
+          <span className="text-xs md:text-sm font-medium text-slate-300">Saudação atual:</span>
         </div>
-        <p className="text-lg font-semibold text-white">{getGreetingText()}</p>
+        <p className="text-base md:text-lg font-semibold text-white">{getGreetingText()}</p>
       </div>
 
       {/* Action buttons */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="text-sm text-muted-foreground">
-          {messages.length} mensagens cadastradas • {messages.filter(m => m.ativo).length} ativas
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 md:mb-6">
+        <div className="text-xs md:text-sm text-muted-foreground">
+          {messages.length} mensagens • {messages.filter(m => m.ativo).length} ativas
         </div>
-        <Button onClick={() => { resetForm(); setIsDialogOpen(true); }}>
+        <Button onClick={() => { resetForm(); setIsDialogOpen(true); }} className="w-full sm:w-auto text-sm md:text-base">
           <Plus className="h-4 w-4 mr-2" />
           Nova Mensagem
         </Button>
@@ -536,7 +536,7 @@ export default function Ajuda() {
           items={messages.map(m => m.id)}
           strategy={rectSortingStrategy}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {messages.sort((a, b) => a.ordem - b.ordem).map((message) => (
               <SortableMessageCard
                 key={message.id}
@@ -730,7 +730,7 @@ export default function Ajuda() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <Label htmlFor="tipo">Tipo</Label>
                 <Select
@@ -761,7 +761,7 @@ export default function Ajuda() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               <div>
                 <Label htmlFor="ordem">Ordem de Exibição</Label>
                 <Input
