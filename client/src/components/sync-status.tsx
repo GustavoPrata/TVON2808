@@ -213,64 +213,88 @@ export function SyncStatus() {
       </TabsList>
 
       <TabsContent value="overview" className="space-y-6">
-        {/* Status Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-slate-400">Status Geral</span>
-              {getSyncStatusBadge()}
-            </div>
-            <p className="text-xs text-slate-500">
-              {syncStatus.lastSync 
-                ? `Última sync: ${format(new Date(syncStatus.lastSync), "dd/MM/yyyy HH:mm", { locale: ptBR })}`
-                : 'Nunca sincronizado'
-              }
-            </p>
-          </div>
-
-          <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
+        {/* URLs Configuration */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
             <div className="flex items-center gap-2 mb-2">
+              <Database className="w-4 h-4 text-blue-400" />
+              <span className="text-sm font-medium text-white">URL Principal (Banco)</span>
+            </div>
+            <code className="text-xs bg-slate-900 px-2 py-1 rounded text-blue-300 block truncate">
+              {syncStatus.localUrl || 'Nenhuma URL configurada'}
+            </code>
+          </div>
+          
+          <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+            <div className="flex items-center gap-2 mb-2">
+              <Cloud className="w-4 h-4 text-purple-400" />
+              <span className="text-sm font-medium text-white">URL API Externa</span>
+            </div>
+            <code className="text-xs bg-slate-900 px-2 py-1 rounded text-purple-300 block truncate">
+              {syncStatus.apiUrl || 'API não configurada'}
+            </code>
+          </div>
+        </div>
+
+        {/* Status Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
+            <div className="flex items-center gap-2 mb-3">
               <Database className="w-4 h-4 text-blue-400" />
               <span className="text-sm text-slate-400">Banco Local</span>
             </div>
-            <p className="text-2xl font-bold text-white">{syncStatus.localSystemsCount || 0}</p>
-            <p className="text-xs text-slate-500">sistemas cadastrados</p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">Usuários:</span>
+                <span className="text-lg font-bold text-white">{syncStatus.localUsersCount || 0}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">Sistemas:</span>
+                <span className="text-lg font-bold text-white">{syncStatus.localSystemsCount || 0}</span>
+              </div>
+            </div>
           </div>
 
           <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-3">
               <Cloud className="w-4 h-4 text-purple-400" />
               <span className="text-sm text-slate-400">API Externa</span>
             </div>
-            <p className="text-2xl font-bold text-white">
-              {syncStatus.apiConnected ? (syncStatus.apiSystemsCount || 0) : '-'}
-            </p>
-            <p className="text-xs text-slate-500">
-              {syncStatus.apiConnected ? 'sistemas na API' : 'não conectado'}
-            </p>
-            {syncStatus.apiUrl && (
-              <p className="text-xs text-slate-400 mt-2 truncate" title={syncStatus.apiUrl}>
-                {syncStatus.apiUrl}
-              </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">Usuários:</span>
+                <span className="text-lg font-bold text-white">
+                  {syncStatus.apiConnected ? (syncStatus.apiUsersCount || 0) : '-'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">Sistemas:</span>
+                <span className="text-lg font-bold text-white">
+                  {syncStatus.apiConnected ? (syncStatus.apiSystemsCount || 0) : '-'}
+                </span>
+              </div>
+            </div>
+            {!syncStatus.apiConnected && (
+              <p className="text-xs text-red-400 mt-2">Desconectado</p>
             )}
           </div>
         </div>
 
-        {/* API Configuration Info */}
-        {syncStatus.apiUrl && (
-          <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-            <div className="flex items-center gap-2 mb-2">
-              <Server className="w-4 h-4 text-blue-400" />
-              <span className="text-sm font-medium text-white">Configuração da API</span>
+        {/* Sync Status Badge */}
+        <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-sm text-slate-400">Status de Sincronização</span>
+              <p className="text-xs text-slate-500 mt-1">
+                {syncStatus.lastSync 
+                  ? `Última sync: ${format(new Date(syncStatus.lastSync), "dd/MM/yyyy HH:mm", { locale: ptBR })}`
+                  : 'Nunca sincronizado'
+                }
+              </p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">URL:</span>
-              <code className="text-xs bg-slate-900 px-2 py-1 rounded text-blue-300 flex-1">
-                {syncStatus.apiUrl}
-              </code>
-            </div>
+            {getSyncStatusBadge()}
           </div>
-        )}
+        </div>
 
         {/* Sync Actions */}
         <div className="flex flex-col gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">

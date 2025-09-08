@@ -4512,7 +4512,7 @@ Como posso ajudar você hoje?
   });
 
   // Check for divergences between API and database
-  app.get("/api/system-divergences", requireAuth, async (req, res) => {
+  app.get("/api/system-divergences", async (req, res) => {
     try {
       const apiSystems = await externalApiService.getSystemCredentials();
       const localSistemas = await db.select().from(sistemas);
@@ -5039,14 +5039,31 @@ Como posso ajudar você hoje?
 
       // Get API systems
       let apiSystems: any[] = [];
+      let apiUsers: any[] = [];
       let apiConnected = false;
+      let apiUrl = "";
 
       try {
         apiSystems = await externalApiService.getSystemCredentials();
+        apiUsers = await externalApiService.getUsers();
         apiConnected = true;
+        
+        // Get API URL from external service config
+        const apiConfig = await storage.getIntegracaoByTipo("api_externa");
+        if (apiConfig?.configuracoes) {
+          const config = apiConfig.configuracoes as any;
+          apiUrl = config.baseUrl || "";
+        }
       } catch (error) {
         console.log("API não conectada para verificação de sincronização");
       }
+
+      // Get local users (pontos)
+      const localPontos = await storage.getPontos();
+      
+      // Get redirect URLs
+      const redirectUrls = await storage.getRedirectUrls();
+      const principalUrl = redirectUrls.find(url => url.isPrincipal);
 
       // Get integration status
       const integration = await storage.getIntegracaoByTipo("api_externa");
@@ -5055,9 +5072,12 @@ Como posso ajudar você hoje?
         apiConnected,
         localSystemsCount: localSystems.length,
         apiSystemsCount: apiSystems.length,
+        localUsersCount: localPontos.length,
+        apiUsersCount: apiUsers.length,
         inSync: apiConnected && localSystems.length === apiSystems.length,
         lastSync: integration?.ultimaAtualizacao || null,
-        apiUrl: integration?.baseUrl || null,
+        localUrl: principalUrl?.url || "Nenhuma URL principal configurada",
+        apiUrl: apiUrl || "API não configurada",
       });
     } catch (error) {
       console.error("Erro ao verificar status de sincronização:", error);

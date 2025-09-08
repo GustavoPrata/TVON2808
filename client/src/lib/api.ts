@@ -202,8 +202,12 @@ export const api = {
     apiConnected: boolean; 
     localSystemsCount: number; 
     apiSystemsCount: number; 
+    localUsersCount: number;
+    apiUsersCount: number;
     inSync: boolean; 
-    lastSync: string | null 
+    lastSync: string | null;
+    localUrl: string;
+    apiUrl: string;
   }> => {
     const response = await apiRequest('GET', '/api/sync/status');
     return response.json();
