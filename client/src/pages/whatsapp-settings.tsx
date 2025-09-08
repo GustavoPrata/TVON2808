@@ -315,21 +315,21 @@ export default function WhatsAppSettings() {
   return (
     <div className="h-full overflow-auto">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-6 backdrop-blur-sm border-b border-slate-700/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <Settings className="w-8 h-8 text-white" />
+      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-4 md:p-6 backdrop-blur-sm border-b border-slate-700/50">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <Settings className="w-6 h-6 md:w-8 md:h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Configurações do WhatsApp
               </h1>
-              <p className="text-slate-400 mt-1">Personalize seu WhatsApp Business</p>
+              <p className="text-xs md:text-sm text-slate-400 mt-1">Personalize seu WhatsApp Business</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full md:w-auto">
             {isConnected ? (
               <>
                 <Button
@@ -389,7 +389,7 @@ export default function WhatsAppSettings() {
         </div>
       </div>
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
         {/* Connection Card */}
         {!isConnected && (
           <Card className="bg-slate-800 border-slate-700 shadow-xl">
@@ -408,23 +408,23 @@ export default function WhatsAppSettings() {
                   size="sm"
                   variant={connectionMode === 'qr' ? 'default' : 'ghost'}
                   onClick={() => setConnectionMode('qr')}
-                  className={connectionMode === 'qr' 
+                  className={`flex-1 md:flex-initial ${connectionMode === 'qr' 
                     ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'text-slate-400 hover:text-white'}
+                    : 'text-slate-400 hover:text-white'}`}
                 >
-                  <QrCode className="w-4 h-4 mr-2" />
-                  QR Code
+                  <QrCode className="w-4 h-4 mr-1 md:mr-2" />
+                  <span className="text-xs md:text-sm">QR Code</span>
                 </Button>
                 <Button
                   size="sm"
                   variant={connectionMode === 'phone' ? 'default' : 'ghost'}
                   onClick={() => setConnectionMode('phone')}
-                  className={connectionMode === 'phone' 
+                  className={`flex-1 md:flex-initial ${connectionMode === 'phone' 
                     ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                    : 'text-slate-400 hover:text-white'}
+                    : 'text-slate-400 hover:text-white'}`}
                 >
-                  <Phone className="w-4 h-4 mr-2" />
-                  Número
+                  <Phone className="w-4 h-4 mr-1 md:mr-2" />
+                  <span className="text-xs md:text-sm">Número</span>
                 </Button>
               </div>
 
