@@ -5,6 +5,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { MobileHeader } from "@/components/layout/mobile-header";
+import { MobileSidebar } from "@/components/layout/mobile-sidebar";
+import { useMobileMenu } from "@/hooks/useMobileMenu";
 import { SettingsProvider } from "@/contexts/settings-context";
 import { WebSocketProvider } from "@/contexts/websocket-context";
 import { WhatsAppNotifier } from "@/components/whatsapp-notifier";
@@ -61,6 +64,7 @@ function Router() {
 
 function AuthProtectedApp() {
   const { isAuthenticated, isLoading } = useAuth();
+  const { isMobile, isMobileMenuOpen, toggleMobileMenu, closeMobileMenu } = useMobileMenu();
 
   if (isLoading) {
     return (
@@ -83,8 +87,29 @@ function AuthProtectedApp() {
         <TooltipProvider>
           <WhatsAppNotifier />
           <div className="flex h-screen bg-slate-950 text-white">
-            <Sidebar />
-            <main className="flex-1 overflow-auto p-6 bg-gradient-to-br from-slate-900 to-slate-950">
+            {/* Desktop Sidebar */}
+            <div className="hidden md:block">
+              <Sidebar />
+            </div>
+            
+            {/* Mobile Header */}
+            {isMobile && (
+              <MobileHeader 
+                isOpen={isMobileMenuOpen} 
+                onToggle={toggleMobileMenu} 
+              />
+            )}
+            
+            {/* Mobile Sidebar */}
+            {isMobile && (
+              <MobileSidebar 
+                isOpen={isMobileMenuOpen} 
+                onClose={closeMobileMenu} 
+              />
+            )}
+            
+            {/* Main Content */}
+            <main className="flex-1 overflow-auto p-3 md:p-6 bg-gradient-to-br from-slate-900 to-slate-950 pt-16 md:pt-0">
               <Router />
             </main>
           </div>

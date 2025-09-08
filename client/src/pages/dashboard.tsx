@@ -54,17 +54,17 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Beautiful Header */}
-      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <TrendingUp className="w-10 h-10 text-white" />
+      <div className="mb-4 md:mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <TrendingUp className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Dashboard Principal
               </h1>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-xs md:text-sm text-slate-400 mt-1">
                 Visão geral do sistema TV ON
               </p>
             </div>
@@ -73,7 +73,7 @@ export default function Dashboard() {
             onClick={handleToggleNotifications}
             variant="outline"
             size="sm"
-            className={`gap-2 transition-all ${
+            className={`w-full md:w-auto gap-2 transition-all ${
               notificationsSilenced 
                 ? 'border-red-500/50 hover:border-red-500 text-red-400 hover:text-red-300' 
                 : 'border-green-500/50 hover:border-green-500 text-green-400 hover:text-green-300'
@@ -82,135 +82,135 @@ export default function Dashboard() {
             {notificationsSilenced ? (
               <>
                 <BellOff className="w-4 h-4" />
-                Notificações Silenciadas
+                <span className="text-xs md:text-sm">Notificações Silenciadas</span>
               </>
             ) : (
               <>
                 <Bell className="w-4 h-4" />
-                Notificações Ativas
+                <span className="text-xs md:text-sm">Notificações Ativas</span>
               </>
             )}
           </Button>
         </div>
       </div>
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
         <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden shadow-xl">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium">Total Clientes</p>
-                <p className="text-3xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text mt-1">
+                <p className="text-slate-400 text-xs md:text-sm font-medium">Total Clientes</p>
+                <p className="text-2xl md:text-3xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text mt-1">
                   {Number(stats.totalClientes) || 0}
                 </p>
               </div>
-              <div className="p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl">
-                <Users className="w-6 h-6 text-blue-400" />
+              <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl">
+                <Users className="w-5 h-5 md:w-6 md:h-6 text-blue-400" />
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-2">
-              <span className="text-slate-500 text-sm">Total de clientes cadastrados</span>
+            <div className="mt-3 md:mt-4 flex items-center gap-2">
+              <span className="text-slate-500 text-xs md:text-sm">Total de clientes cadastrados</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden shadow-xl">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium">Clientes Ativos</p>
-                <p className="text-3xl font-bold text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text mt-1">
+                <p className="text-slate-400 text-xs md:text-sm font-medium">Clientes Ativos</p>
+                <p className="text-2xl md:text-3xl font-bold text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text mt-1">
                   {Number(stats.clientesAtivos) || 0}
                 </p>
               </div>
-              <div className="p-3 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl">
-                <CheckCircle className="w-6 h-6 text-green-400" />
+              <div className="p-2 md:p-3 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl">
+                <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-400" />
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-2">
-              <span className="text-green-400 text-sm font-semibold">
+            <div className="mt-3 md:mt-4 flex items-center gap-2">
+              <span className="text-green-400 text-xs md:text-sm font-semibold">
                 {Number(stats.totalClientes) > 0 ? ((Number(stats.clientesAtivos) / Number(stats.totalClientes)) * 100).toFixed(0) : 0}%
               </span>
-              <span className="text-slate-500 text-sm">dos clientes</span>
+              <span className="text-slate-500 text-xs md:text-sm">dos clientes</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden shadow-xl">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium">Vencendo em 5 dias</p>
-                <p className="text-3xl font-bold text-transparent bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text mt-1">
+                <p className="text-slate-400 text-xs md:text-sm font-medium">Vencendo em 5 dias</p>
+                <p className="text-2xl md:text-3xl font-bold text-transparent bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text mt-1">
                   {Number(stats.vencendo5Dias) || 0}
                 </p>
               </div>
-              <div className="p-3 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-xl">
-                <AlertTriangle className="w-6 h-6 text-yellow-400" />
+              <div className="p-2 md:p-3 bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-xl">
+                <AlertTriangle className="w-5 h-5 md:w-6 md:h-6 text-yellow-400" />
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-2">
-              <span className="text-yellow-400 text-sm font-semibold">
+            <div className="mt-3 md:mt-4 flex items-center gap-2">
+              <span className="text-yellow-400 text-xs md:text-sm font-semibold">
                 {Number(stats.totalClientes) > 0 ? ((Number(stats.vencendo5Dias) / Number(stats.totalClientes)) * 100).toFixed(0) : 0}%
               </span>
-              <span className="text-slate-500 text-sm">do total</span>
+              <span className="text-slate-500 text-xs md:text-sm">do total</span>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden shadow-xl">
-          <CardContent className="p-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium">Receita Mensal</p>
-                <p className="text-3xl font-bold text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text mt-1">
+                <p className="text-slate-400 text-xs md:text-sm font-medium">Receita Mensal</p>
+                <p className="text-2xl md:text-3xl font-bold text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text mt-1">
                   R$ {(Number(stats.receitaMensal) || 0).toFixed(2)}
                 </p>
               </div>
-              <div className="p-3 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl">
-                <DollarSign className="w-6 h-6 text-green-400" />
+              <div className="p-2 md:p-3 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl">
+                <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-green-400" />
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-2">
-              <span className="text-slate-500 text-sm">Soma dos valores ativos</span>
+            <div className="mt-3 md:mt-4 flex items-center gap-2">
+              <span className="text-slate-500 text-xs md:text-sm">Soma dos valores ativos</span>
             </div>
           </CardContent>
         </Card>
       </div>
       {/* Referral Stats Card */}
       {stats.indicacoesStats && (
-        <Card className="bg-gradient-to-br from-purple-800/20 to-pink-900/20 border-purple-700/50 backdrop-blur-sm overflow-hidden shadow-xl mb-6">
-          <CardContent className="p-8">
-            <div className="flex items-start justify-between mb-6">
+        <Card className="bg-gradient-to-br from-purple-800/20 to-pink-900/20 border-purple-700/50 backdrop-blur-sm overflow-hidden shadow-xl mb-4 md:mb-6">
+          <CardContent className="p-4 md:p-8">
+            <div className="flex flex-col md:flex-row items-start justify-between mb-4 md:mb-6 gap-3">
               <div>
-                <h3 className="text-purple-300 text-lg font-semibold mb-1">Programa de Indicações</h3>
-                <p className="text-slate-400 text-sm">Acompanhe o desempenho das indicações</p>
+                <h3 className="text-purple-300 text-base md:text-lg font-semibold mb-1">Programa de Indicações</h3>
+                <p className="text-slate-400 text-xs md:text-sm">Acompanhe o desempenho das indicações</p>
               </div>
-              <div className="p-4 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl">
-                <Trophy className="w-8 h-8 text-purple-400" />
+              <div className="p-3 md:p-4 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl">
+                <Trophy className="w-6 h-6 md:w-8 md:h-8 text-purple-400" />
               </div>
             </div>
             
-            <div className="grid grid-cols-3 gap-6 mb-6">
-              <div className="text-center p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-                <p className="text-3xl font-bold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text mb-2">
+            <div className="grid grid-cols-3 gap-3 md:gap-6 mb-4 md:mb-6">
+              <div className="text-center p-3 md:p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+                <p className="text-xl md:text-3xl font-bold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text mb-1 md:mb-2">
                   {stats.indicacoesStats.total}
                 </p>
-                <p className="text-sm text-slate-400 font-medium">Total de Indicações</p>
+                <p className="text-xs md:text-sm text-slate-400 font-medium">Total de Indicações</p>
               </div>
               
-              <div className="text-center p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-                <p className="text-3xl font-bold text-green-400 mb-2">
+              <div className="text-center p-3 md:p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+                <p className="text-xl md:text-3xl font-bold text-green-400 mb-1 md:mb-2">
                   {stats.indicacoesStats.confirmadas}
                 </p>
-                <p className="text-sm text-slate-400 font-medium">Confirmadas</p>
+                <p className="text-xs md:text-sm text-slate-400 font-medium">Confirmadas</p>
               </div>
               
-              <div className="text-center p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
-                <p className="text-3xl font-bold text-yellow-400 mb-2">
+              <div className="text-center p-3 md:p-4 bg-slate-800/30 rounded-xl border border-slate-700/50">
+                <p className="text-xl md:text-3xl font-bold text-yellow-400 mb-1 md:mb-2">
                   {stats.indicacoesStats.pendentes}
                 </p>
-                <p className="text-sm text-slate-400 font-medium">Pendentes</p>
+                <p className="text-xs md:text-sm text-slate-400 font-medium">Pendentes</p>
               </div>
             </div>
             
