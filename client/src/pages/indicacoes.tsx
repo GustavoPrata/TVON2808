@@ -84,18 +84,18 @@ export default function Indicacoes() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
+    <div className="space-y-4 md:space-y-6">
+      <div className="mb-4 md:mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <Trophy className="w-10 h-10 text-white" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <Trophy className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Indicações
               </h1>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-xs md:text-sm text-slate-400 mt-1">
                 Gerencie o programa "Indique e Ganhe" da TV ON
               </p>
             </div>
@@ -103,18 +103,18 @@ export default function Indicacoes() {
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         {/* Cards de Estatísticas */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
               <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm shadow-xl">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-400">Total de Indicações</CardTitle>
-                  <div className="p-2 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-lg">
-                    <Users className="h-4 w-4 text-blue-400" />
+                  <CardTitle className="text-xs md:text-sm font-medium text-slate-400">Total de Indicações</CardTitle>
+                  <div className="p-1.5 md:p-2 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-lg">
+                    <Users className="h-3 w-3 md:h-4 md:w-4 text-blue-400" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text">
+                  <div className="text-xl md:text-2xl font-bold text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text">
                     {totalIndicacoes}
                   </div>
                 </CardContent>
@@ -123,13 +123,13 @@ export default function Indicacoes() {
 
               <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm shadow-xl">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-400">Confirmadas</CardTitle>
-                  <div className="p-2 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg">
-                    <CheckCircle className="h-4 w-4 text-green-400" />
+                  <CardTitle className="text-xs md:text-sm font-medium text-slate-400">Confirmadas</CardTitle>
+                  <div className="p-1.5 md:p-2 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg">
+                    <CheckCircle className="h-3 w-3 md:h-4 md:w-4 text-green-400" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text">
+                  <div className="text-xl md:text-2xl font-bold text-transparent bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text">
                     {confirmadas}
                   </div>
                 </CardContent>
@@ -137,13 +137,13 @@ export default function Indicacoes() {
 
               <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm shadow-xl">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium text-slate-400">Meses Distribuídos</CardTitle>
-                  <div className="p-2 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg">
-                    <Gift className="h-4 w-4 text-purple-400" />
+                  <CardTitle className="text-xs md:text-sm font-medium text-slate-400">Meses Distribuídos</CardTitle>
+                  <div className="p-1.5 md:p-2 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg">
+                    <Gift className="h-3 w-3 md:h-4 md:w-4 text-purple-400" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text">
+                  <div className="text-xl md:text-2xl font-bold text-transparent bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text">
                     {mesesDistribuidos}
                   </div>
                 </CardContent>
