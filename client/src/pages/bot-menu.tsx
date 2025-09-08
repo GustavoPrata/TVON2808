@@ -678,8 +678,8 @@ export default function BotMenu() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 p-6 rounded-xl border border-slate-700">
-        <h1 className="text-3xl font-bold text-white mb-2">🤖 Menu Completo do Bot WhatsApp</h1>
+      <div>
+        <h1 className="text-3xl font-bold text-white mb-2">Menu do Bot WhatsApp</h1>
         <p className="text-slate-400">Navegue interativamente por todos os fluxos e menus do bot de atendimento</p>
       </div>
 
