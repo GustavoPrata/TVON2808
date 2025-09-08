@@ -594,7 +594,8 @@ export default function Clientes() {
         /* Clients Table */
         <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700/50 backdrop-blur-sm overflow-hidden">
           <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gradient-to-r from-blue-500/10 to-purple-500/10">
                 <tr className="border-b border-slate-700/50">
@@ -767,6 +768,122 @@ export default function Clientes() {
                     {searchTerm 
                       ? 'Tente ajustar os filtros de busca' 
                       : 'Clique no botão acima para adicionar o primeiro cliente'
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Mobile Cards View */}
+          <div className="block md:hidden p-4 space-y-4">
+            {clientes?.filter(cliente => {
+              const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   cliente.telefone.includes(searchTerm);
+              const matchesStatus = showCanceled ? cliente.status === 'cancelado' : cliente.status !== 'cancelado';
+              const matchesType = cliente.tipo === clienteType;
+              return matchesSearch && matchesStatus && matchesType;
+            }).map((cliente) => {
+              const daysUntilExpiry = cliente.vencimento ? getDaysUntilExpiry(cliente.vencimento) : null;
+              
+              return (
+                <div
+                  key={cliente.id}
+                  onClick={() => handleViewClient(cliente.id)}
+                  className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-3 active:scale-[0.98] transition-transform"
+                >
+                  {/* Header with Avatar and Name */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-10 h-10 shadow-md">
+                        {showPhotosClientes && phoneToProfilePicture.get(cliente.telefone) ? (
+                          <AvatarImage 
+                            src={phoneToProfilePicture.get(cliente.telefone)} 
+                            alt={cliente.nome}
+                            className="object-cover"
+                          />
+                        ) : null}
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm font-semibold">
+                          {cliente.nome.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <p className="font-semibold text-white">{cliente.nome}</p>
+                        <p className="text-xs text-slate-400">{formatPhoneNumber(cliente.telefone)}</p>
+                      </div>
+                    </div>
+                    <Badge className={`${getStatusBadge(cliente.status)} px-2 py-1 text-xs font-semibold border-0`}>
+                      {cliente.status}
+                    </Badge>
+                  </div>
+                  
+                  {/* Info Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-slate-400 mb-0.5">Valor Total</p>
+                      <p className="font-bold text-green-400">
+                        R$ {typeof cliente.valorTotal === 'number' 
+                          ? cliente.valorTotal.toFixed(2) 
+                          : parseFloat(cliente.valorTotal || '0').toFixed(2)}
+                      </p>
+                      {clienteType === 'familia' && cliente.pontosAtivos && (
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {cliente.pontosAtivos} {cliente.pontosAtivos === 1 ? 'ponto' : 'pontos'}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-0.5">Vencimento</p>
+                      <p className="font-medium text-white text-sm">
+                        {cliente.vencimento 
+                          ? new Date(cliente.vencimento).toLocaleDateString('pt-BR')
+                          : '-'
+                        }
+                      </p>
+                      {daysUntilExpiry !== null && (
+                        <p className={`text-xs font-medium mt-0.5 ${getExpiryColor(daysUntilExpiry)}`}>
+                          {daysUntilExpiry === 0 
+                            ? 'Vence hoje' 
+                            : daysUntilExpiry < 0
+                              ? `Vencido há ${Math.abs(daysUntilExpiry)} dias`
+                              : `Faltam ${daysUntilExpiry} dias`
+                          }
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {cliente.email && (
+                    <div className="pt-2 border-t border-slate-700/50">
+                      <p className="text-xs text-slate-400">{cliente.email}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            
+            {(!clientes || clientes.filter(cliente => {
+              const matchesSearch = cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   cliente.telefone.includes(searchTerm);
+              const matchesStatus = showCanceled ? cliente.status === 'cancelado' : cliente.status !== 'cancelado';
+              const matchesType = cliente.tipo === clienteType;
+              return matchesSearch && matchesStatus && matchesType;
+            }).length === 0) && (
+              <div className="py-8">
+                <div className="flex flex-col items-center justify-center">
+                  <div className="p-4 bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-2xl mb-4">
+                    <Users className="w-12 h-12 text-slate-500" />
+                  </div>
+                  <p className="text-slate-400 text-base font-medium text-center">
+                    {searchTerm 
+                      ? 'Nenhum cliente encontrado' 
+                      : 'Nenhum cliente cadastrado'
+                    }
+                  </p>
+                  <p className="text-slate-500 text-sm mt-2 text-center">
+                    {searchTerm 
+                      ? 'Tente ajustar os filtros' 
+                      : 'Clique em "Novo Cliente" para começar'
                     }
                   </p>
                 </div>
