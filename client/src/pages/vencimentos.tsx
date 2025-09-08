@@ -204,6 +204,34 @@ export default function Vencimentos() {
     },
   });
 
+  // Send manual notification mutation
+  const sendManualNotificationMutation = useMutation({
+    mutationFn: async (clienteId: number) => {
+      const response = await fetch('/api/avisos/enviar-manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clienteId }),
+      });
+      if (!response.ok) throw new Error('Failed to send manual notification');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Notificação enviada',
+        description: 'Notificação manual enviada com sucesso.',
+      });
+      refetchAvisos();
+      queryClient.invalidateQueries({ queryKey: ['/api/avisos'] });
+    },
+    onError: () => {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao enviar notificação manual.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Check all expired today mutation
   const checkExpiredMutation = useMutation({
     mutationFn: async () => {

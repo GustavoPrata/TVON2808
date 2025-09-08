@@ -177,7 +177,9 @@ export default function Indicacoes() {
                     <p className="text-slate-400">Nenhuma indicação encontrada</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto rounded-lg border border-slate-700/50">
+                  <>
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-700/50">
                     <Table>
                       <TableHeader>
                         <TableRow className="border-slate-700/50 bg-slate-800/30">
@@ -237,6 +239,59 @@ export default function Indicacoes() {
                       </TableBody>
                     </Table>
                   </div>
+                  
+                  {/* Mobile Cards View */}
+                  <div className="block md:hidden space-y-3">
+                    {indicacoes.map((indicacao) => (
+                      <div key={indicacao.id} className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-3">
+                        {/* Header with Status */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-semibold text-white">Indicador</p>
+                            <p className="text-sm text-white mt-0.5">{indicacao.indicadorNome}</p>
+                            <p className="text-xs text-slate-400">{formatPhoneNumber(indicacao.indicadorTelefone || '')}</p>
+                          </div>
+                          {getStatusBadge(indicacao.status)}
+                        </div>
+                        
+                        {/* Indicado Info */}
+                        <div className="pt-2 border-t border-slate-700/50">
+                          <p className="text-xs text-slate-400 mb-1">Indicado</p>
+                          <p className="text-sm text-white">{indicacao.indicadoNome}</p>
+                          <p className="text-xs text-slate-400">{formatPhoneNumber(indicacao.indicadoTelefone || '')}</p>
+                        </div>
+                        
+                        {/* Details Grid */}
+                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-700/50">
+                          <div>
+                            <p className="text-xs text-slate-400 mb-1">Código</p>
+                            <p className="text-sm text-purple-400 font-mono">{formatPhoneNumber(indicacao.codigoIndicacao)}</p>
+                          </div>
+                          
+                          <div>
+                            <p className="text-xs text-slate-400 mb-1">Data</p>
+                            <p className="text-sm text-white">{format(new Date(indicacao.dataIndicacao), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                            {indicacao.dataConfirmacao && (
+                              <p className="text-xs text-green-400 mt-0.5">
+                                Confirmada: {format(new Date(indicacao.dataConfirmacao), 'dd/MM', { locale: ptBR })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Mês Aplicado */}
+                        {indicacao.mesGratisAplicado && (
+                          <div className="pt-2 border-t border-slate-700/50">
+                            <Badge className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border-blue-500/30">
+                              <Gift className="w-3 h-3 mr-1" />
+                              Mês aplicado
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  </>
                 )}
               </CardContent>
             </Card>

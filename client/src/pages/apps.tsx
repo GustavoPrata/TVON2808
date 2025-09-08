@@ -312,10 +312,10 @@ export default function Apps() {
               key={ponto.id} 
               className="bg-slate-800 border-slate-700 hover:border-slate-600 transition-all"
             >
-              <CardContent className="p-6">
-                <div className="grid lg:grid-cols-12 gap-6 items-center">
+              <CardContent className="p-4 lg:p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-start lg:items-center">
                   {/* App Icon & Info */}
-                  <div className="lg:col-span-4 flex items-center gap-4">
+                  <div className="lg:col-span-4 flex items-center gap-3 lg:gap-4">
                     <div className="p-3 rounded-xl bg-slate-700">
                       <DeviceIcon className="w-6 h-6 text-slate-400" />
                     </div>
@@ -355,7 +355,7 @@ export default function Apps() {
                   </div>
 
                   {/* Device & MAC */}
-                  <div className="lg:col-span-3">
+                  <div className="lg:col-span-3 mt-2 lg:mt-0">
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Wifi className="w-4 h-4 text-slate-400" />
@@ -399,8 +399,8 @@ export default function Apps() {
 
                   {/* Expiration */}
                   {ponto.aplicativo !== 'shamel' && (
-                    <div className="lg:col-span-3">
-                      <div className="flex flex-col items-center gap-2">
+                    <div className="lg:col-span-3 mt-2 lg:mt-0">
+                      <div className="flex flex-col items-start lg:items-center gap-2">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-blue-400" />
                           <span className="text-sm text-slate-300">
@@ -425,7 +425,7 @@ export default function Apps() {
                   )}
 
                   {/* Actions */}
-                  <div className="lg:col-span-2 flex items-center justify-end gap-2">
+                  <div className="lg:col-span-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-start lg:justify-end gap-2 mt-3 lg:mt-0">
                     {ponto.aplicativo !== 'shamel' ? (
                       <Popover open={openPopover === ponto.id} onOpenChange={(open) => {
                         setOpenPopover(open ? ponto.id : null);
