@@ -29,7 +29,24 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    // Ensure queryKey is an array and filter out any undefined/null values
+    const cleanQueryKey = Array.isArray(queryKey) 
+      ? queryKey.filter(key => key !== undefined && key !== null && key !== '')
+      : [queryKey];
+    
+    // Build the URL safely
+    const url = cleanQueryKey
+      .map(segment => String(segment))
+      .filter(segment => segment.length > 0)
+      .join("/");
+    
+    // Validate the URL doesn't contain invalid patterns
+    if (url.includes(':') && !url.includes('http')) {
+      console.error('Invalid URL pattern detected:', url, 'from queryKey:', queryKey);
+      throw new Error(`Invalid URL pattern: ${url}`);
+    }
+    
+    const res = await fetch(url, {
       credentials: "include",
     });
 
