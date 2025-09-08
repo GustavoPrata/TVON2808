@@ -227,8 +227,17 @@ export class ExternalApiService {
 
   async updateSystemCredential(id: number, credentialData: any): Promise<any | null> {
     try {
+      console.log(`Atualizando sistema ${id} na API externa:`, credentialData);
       const response = await this.client.put<ExternalApiResponse<any>>(`/system_credentials/editar/${id}`, credentialData);
-      return response.data.data || null;
+      
+      // Se a API não retornar os dados, retornamos os dados enviados
+      const result = response.data.data || { 
+        system_id: id.toString(), 
+        ...credentialData 
+      };
+      
+      console.log(`Resposta da API para sistema ${id}:`, result);
+      return result;
     } catch (error) {
       console.error('Erro ao atualizar credencial do sistema:', error);
       throw error;

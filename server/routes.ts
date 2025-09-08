@@ -4723,18 +4723,32 @@ Como posso ajudar você hoje?
           const localSystem = await storage.getSistemaBySystemId(id);
           if (localSystem) {
             // Update existing system in local database
+            console.log(`Atualizando sistema ${id} no banco local:`, { username, password });
             await storage.updateSistema(localSystem.id, {
-              username: result.username || username,
-              password: result.password || password,
+              username: username || localSystem.username,
+              password: password || localSystem.password,
             });
+            console.log(`Sistema ${id} atualizado com sucesso no banco local`);
           } else {
             // Create new system in local database if it doesn't exist
             console.log(`Sistema ${id} não encontrado no banco local, criando...`);
             await storage.createSistema({
               systemId: id,
-              username: result.username || username,
-              password: result.password || password,
+              username: username,
+              password: password,
             });
+            console.log(`Sistema ${id} criado com sucesso no banco local`);
+          }
+        } else {
+          // Even if API didn't return a result, update local database
+          console.log(`Atualizando sistema ${id} no banco local (sem resposta da API)...`);
+          const localSystem = await storage.getSistemaBySystemId(id);
+          if (localSystem) {
+            await storage.updateSistema(localSystem.id, {
+              username: username || localSystem.username,
+              password: password || localSystem.password,
+            });
+            console.log(`Sistema ${id} atualizado no banco local`);
           }
         }
 
