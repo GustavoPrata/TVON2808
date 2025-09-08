@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
-import { FileText, Trash2, Eye, AlertCircle, Info, AlertTriangle, Search, Filter, Clock, Activity, Database, Layers, MessageSquare, Wrench } from 'lucide-react';
+import { FileText, Trash2, Eye, AlertCircle, Info, AlertTriangle, Search, Filter, Clock, Activity, Database, Layers, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import type { Log } from '@/types';
@@ -39,45 +39,6 @@ export default function Logs() {
     },
   });
 
-  const fixLidsMutation = useMutation({
-    mutationFn: () => fetch('/api/conversas/fix-lids', { 
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    }).then(res => res.json()),
-    onSuccess: (data) => {
-      toast({ 
-        title: 'Correção concluída!',
-        description: `${data.totalFixed || 0} conversas com LID foram corrigidas.`
-      });
-    },
-    onError: () => {
-      toast({ 
-        title: 'Erro ao corrigir conversas', 
-        description: 'Não foi possível corrigir as conversas com LID.',
-        variant: 'destructive' 
-      });
-    },
-  });
-
-  const fixViewOnceMessagesMutation = useMutation({
-    mutationFn: () => fetch('/api/fix-view-once-messages', { 
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    }).then(res => res.json()),
-    onSuccess: (data) => {
-      toast({ 
-        title: 'Correção concluída!',
-        description: data.message || 'Mensagens corrigidas com sucesso.'
-      });
-    },
-    onError: () => {
-      toast({ 
-        title: 'Erro ao corrigir mensagens', 
-        description: 'Não foi possível corrigir as mensagens de visualização única.',
-        variant: 'destructive' 
-      });
-    },
-  });
 
   const filteredLogs = logs?.filter(log => {
     const matchesLevel = filterLevel === 'all' || log.nivel === filterLevel;
@@ -230,30 +191,6 @@ export default function Logs() {
           <Button variant="outline" onClick={() => refetch()}>
             <FileText className="w-4 h-4 mr-2" />
             Atualizar
-          </Button>
-          <Button 
-            variant="secondary" 
-            onClick={() => {
-              if (window.confirm('Deseja corrigir conversas com LIDs incorretos do WhatsApp? Isso irá mesclar conversas duplicadas baseadas no nome do contato.')) {
-                fixLidsMutation.mutate();
-              }
-            }}
-            disabled={fixLidsMutation.isPending}
-          >
-            <Wrench className="w-4 h-4 mr-2" />
-            Corrigir LIDs
-          </Button>
-          <Button 
-            variant="secondary" 
-            onClick={() => {
-              if (window.confirm('Deseja corrigir mensagens incorretamente marcadas como "Visualização única"? Isso mudará essas mensagens para "[Mensagem não suportada]".')) {
-                fixViewOnceMessagesMutation.mutate();
-              }
-            }}
-            disabled={fixViewOnceMessagesMutation.isPending}
-          >
-            <Eye className="w-4 h-4 mr-2" />
-            Corrigir View-Once
           </Button>
           <Button 
             variant="destructive" 
