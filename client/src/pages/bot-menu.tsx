@@ -678,9 +678,22 @@ export default function BotMenu() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Menu do Bot WhatsApp</h1>
-        <p className="text-slate-400">Navegue interativamente por todos os fluxos e menus do bot de atendimento</p>
+      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <Bot className="w-10 h-10 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Menu do Bot WhatsApp
+              </h1>
+              <p className="text-sm text-slate-400 mt-1">
+                Navegue interativamente por todos os fluxos e menus do bot de atendimento
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Flow Selector com estatísticas */}
