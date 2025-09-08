@@ -71,29 +71,27 @@ export default function PainelOffice() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <Card className="bg-gradient-to-br from-purple-600 to-blue-600 border-0 shadow-xl">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-white/20 rounded-xl backdrop-blur">
-                <Monitor className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-white mb-1">
-                  Painel Office
-                </h1>
-                <p className="text-white/80">
-                  Automação para geração de testes IPTV
-                </p>
-              </div>
+      <div className="mb-6 bg-gradient-to-r from-purple-500/10 to-blue-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl shadow-lg shadow-purple-500/30">
+              <Monitor className="w-10 h-10 text-white" />
             </div>
-            <Badge className="bg-green-500/20 text-green-400">
-              <Wifi className="w-3 h-3 mr-1" />
-              OnlineOffice.zip
-            </Badge>
+            <div>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                Painel Office
+              </h1>
+              <p className="text-sm text-slate-400 mt-1">
+                Automação para geração de testes IPTV
+              </p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+          <Badge className="bg-green-500/20 text-green-400">
+            <Wifi className="w-3 h-3 mr-1" />
+            OnlineOffice.zip
+          </Badge>
+        </div>
+      </div>
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Action Card */}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CheckCircle2, Circle, GripVertical, Plus, Trash2, StickyNote } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -203,24 +203,24 @@ export default function Anotacoes() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <Card className="bg-gradient-to-br from-purple-600 to-blue-600 border-0 shadow-xl">
-        <CardContent className="p-6">
+      {/* Beautiful Header - igual ao site */}
+      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 rounded-xl backdrop-blur">
-              <StickyNote className="w-8 h-8 text-white" />
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <StickyNote className="w-10 h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white mb-1">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Anotações
               </h1>
-              <p className="text-white/80">
+              <p className="text-sm text-slate-400 mt-1">
                 {pendingNotes.length} {pendingNotes.length === 1 ? 'anotação pendente' : 'anotações pendentes'}
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Input Form - Simples e Rápido */}
       <form onSubmit={handleSubmit} className="flex gap-2">
