@@ -102,19 +102,19 @@ export default function Logs() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Beautiful Header */}
-      <div className="mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-6 backdrop-blur-sm border border-slate-700/50">
+      <div className="mb-4 md:mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-              <FileText className="w-10 h-10 text-white" />
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="p-2 md:p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <FileText className="w-8 h-8 md:w-10 md:h-10 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                 Logs do Sistema
               </h1>
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-xs md:text-sm text-slate-400 mt-1">
                 Acompanhe as atividades do sistema
               </p>
             </div>
@@ -123,59 +123,59 @@ export default function Logs() {
       </div>
       
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="relative">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1 md:flex-initial">
             <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
             <Input
               placeholder="Buscar logs..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64 bg-dark-surface border-slate-600"
+              className="pl-10 w-full md:w-64 bg-dark-surface border-slate-600"
             />
           </div>
           
-          <div className="flex bg-dark-surface border border-slate-600 rounded-lg">
+          <div className="flex bg-dark-surface border border-slate-600 rounded-lg overflow-x-auto">
             <Button
               variant={filterLevel === 'all' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setFilterLevel('all')}
-              className="rounded-r-none"
+              className="rounded-r-none text-xs md:text-sm"
             >
-              <Filter className="w-4 h-4 mr-2" />
+              <Filter className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
               Todos
             </Button>
             <Button
               variant={filterLevel === 'info' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setFilterLevel('info')}
-              className="rounded-none"
+              className="rounded-none text-xs md:text-sm"
             >
-              <Info className="w-4 h-4 mr-2" />
+              <Info className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
               Info
             </Button>
             <Button
               variant={filterLevel === 'warn' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setFilterLevel('warn')}
-              className="rounded-none"
+              className="rounded-none text-xs md:text-sm"
             >
-              <AlertTriangle className="w-4 h-4 mr-2" />
+              <AlertTriangle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
               Aviso
             </Button>
             <Button
               variant={filterLevel === 'error' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setFilterLevel('error')}
-              className="rounded-l-none"
+              className="rounded-l-none text-xs md:text-sm"
             >
-              <AlertCircle className="w-4 h-4 mr-2" />
+              <AlertCircle className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
               Erro
             </Button>
           </div>
 
           <Select value={logLimit.toString()} onValueChange={(value) => setLogLimit(Number(value))}>
-            <SelectTrigger className="w-32 bg-dark-surface border-slate-600">
+            <SelectTrigger className="w-full md:w-32 bg-dark-surface border-slate-600">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -187,17 +187,18 @@ export default function Logs() {
           </Select>
         </div>
         
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => refetch()}>
-            <FileText className="w-4 h-4 mr-2" />
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={() => refetch()} className="text-xs md:text-sm">
+            <FileText className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
             Atualizar
           </Button>
           <Button 
             variant="destructive" 
             onClick={handleClearLogs}
             disabled={clearLogsMutation.isPending}
+            className="text-xs md:text-sm"
           >
-            <Trash2 className="w-4 h-4 mr-2" />
+            <Trash2 className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
             Limpar Logs
           </Button>
         </div>
