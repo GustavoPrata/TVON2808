@@ -23,7 +23,8 @@ import {
   LogOut,
   StickyNote,
   Activity,
-  Workflow
+  Workflow,
+  AlertTriangle
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -57,7 +58,7 @@ const menuItems = [
 ];
 
 export function Sidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { notificationsSilenced, toggleNotifications } = useSettings();
   const { toast } = useToast();
@@ -66,6 +67,18 @@ export function Sidebar() {
     queryKey: ['/api/conversas'],
     queryFn: api.getConversas,
     refetchInterval: 3000, // Auto-refresh every 3 seconds for real-time badge updates
+    staleTime: 0,
+  });
+
+  // Check for system divergences
+  const { data: divergences } = useQuery({
+    queryKey: ['/api/system-divergences'],
+    queryFn: async () => {
+      const response = await fetch('/api/system-divergences');
+      if (!response.ok) throw new Error('Failed to fetch divergences');
+      return response.json();
+    },
+    refetchInterval: 30000, // Check every 30 seconds
     staleTime: 0,
   });
 
@@ -116,14 +129,58 @@ export function Sidebar() {
           "flex items-center gap-3",
           isCollapsed && "justify-center"
         )}>
-          <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
-            <Tv className="w-8 h-8 text-white" />
-          </div>
+          {isCollapsed && divergences?.hasDivergences ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setLocation('/config-tv')}
+                  className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30 relative hover:shadow-blue-500/50 transition-all"
+                >
+                  <Tv className="w-8 h-8 text-white" />
+                  <div className="absolute -top-1 -right-1 p-0.5 bg-yellow-500 rounded-full animate-pulse">
+                    <AlertTriangle className="w-3 h-3 text-white" />
+                  </div>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <div className="space-y-1">
+                  <p className="font-semibold text-yellow-400">Atenção: Divergências detectadas!</p>
+                  <p className="text-sm">{divergences.count} divergência(s) entre API e banco de dados</p>
+                  <p className="text-xs text-slate-400">Clique para verificar</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg shadow-blue-500/30">
+              <Tv className="w-8 h-8 text-white" />
+            </div>
+          )}
           {!isCollapsed && (
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                TV ON
-              </h1>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  TV ON
+                </h1>
+                {divergences?.hasDivergences && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setLocation('/config-tv')}
+                        className="p-1.5 bg-yellow-500/20 rounded-lg hover:bg-yellow-500/30 transition-all animate-pulse"
+                      >
+                        <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <div className="space-y-1">
+                        <p className="font-semibold text-yellow-400">Atenção: Divergências detectadas!</p>
+                        <p className="text-sm">{divergences.count} divergência(s) entre API e banco de dados</p>
+                        <p className="text-xs text-slate-400">Clique para verificar</p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
               <p className="text-slate-400 text-sm">Sistema de Gestão</p>
             </div>
           )}

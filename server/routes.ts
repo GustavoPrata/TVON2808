@@ -4496,6 +4496,55 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Check for divergences between API and database
+  app.get("/api/system-divergences", requireAuth, async (req, res) => {
+    try {
+      const apiSystems = await externalApiService.getSystemCredentials();
+      const localSistemas = await db.select().from(sistemas);
+      
+      const divergences = [];
+      
+      // Check for systems in API but not in database
+      for (const apiSystem of apiSystems) {
+        const localSystem = localSistemas.find(s => s.systemId === apiSystem.system_id);
+        if (!localSystem) {
+          divergences.push({
+            type: 'missing_in_db',
+            systemId: apiSystem.system_id,
+            message: `Sistema ${apiSystem.system_id} existe na API mas não no banco de dados`
+          });
+        } else if (localSystem.username !== apiSystem.username || localSystem.password !== apiSystem.password) {
+          divergences.push({
+            type: 'credentials_mismatch',
+            systemId: apiSystem.system_id,
+            message: `Credenciais do sistema ${apiSystem.system_id} diferem entre API e banco`
+          });
+        }
+      }
+      
+      // Check for systems in database but not in API
+      for (const localSystem of localSistemas) {
+        const apiSystem = apiSystems.find((s: any) => s.system_id === localSystem.systemId);
+        if (!apiSystem) {
+          divergences.push({
+            type: 'missing_in_api',
+            systemId: localSystem.systemId,
+            message: `Sistema ${localSystem.systemId} existe no banco mas não na API`
+          });
+        }
+      }
+      
+      res.json({
+        hasDivergences: divergences.length > 0,
+        count: divergences.length,
+        divergences
+      });
+    } catch (error) {
+      console.error("Erro ao verificar divergências:", error);
+      res.status(500).json({ error: "Erro ao verificar divergências" });
+    }
+  });
+
   // Config TV - Systems endpoints
   app.get("/api/external-api/systems", async (req, res) => {
     try {
