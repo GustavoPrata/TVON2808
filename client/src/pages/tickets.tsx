@@ -414,10 +414,10 @@ export default function Tickets() {
                       statusConfig.color
                     )} />
                     
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between gap-4">
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col md:flex-row items-start md:justify-between gap-4">
                         {/* Left Section */}
-                        <div className="flex items-start gap-4 flex-1">
+                        <div className="flex items-start gap-3 md:gap-4 flex-1 w-full">
                           <div className="relative">
                             <div className={cn(
                               "w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold shadow-lg",
@@ -439,17 +439,17 @@ export default function Tickets() {
                                   {ticket.titulo}
                                   <span className="text-xs font-mono text-slate-500">#{ticket.id}</span>
                                 </h3>
-                                <div className="flex items-center gap-4 text-sm text-slate-400">
+                                <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm text-slate-400">
                                   <div className="flex items-center gap-1">
-                                    <PhoneCall className="w-4 h-4" />
+                                    <PhoneCall className="w-3 h-3 md:w-4 md:h-4" />
                                     <span>{formatPhoneNumber(ticket.telefone)}</span>
                                   </div>
                                   <div className="flex items-center gap-1">
-                                    <Clock3 className="w-4 h-4" />
+                                    <Clock3 className="w-3 h-3 md:w-4 md:h-4" />
                                     <span>{getTimeAgo(ticket.dataCriacao)}</span>
                                   </div>
                                   <div className="flex items-center gap-1">
-                                    <Calendar className="w-4 h-4" />
+                                    <Calendar className="w-3 h-3 md:w-4 md:h-4" />
                                     <span>{formatDate(ticket.dataCriacao)}</span>
                                   </div>
                                 </div>
@@ -460,19 +460,19 @@ export default function Tickets() {
                               {ticket.descricao}
                             </p>
                             
-                            <div className="flex items-center gap-2">
-                              <Badge className={cn("flex items-center gap-1", statusConfig.badge)}>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge className={cn("flex items-center gap-1 text-xs", statusConfig.badge)}>
                                 {statusConfig.icon}
-                                {statusConfig.label}
+                                <span className="hidden sm:inline">{statusConfig.label}</span>
                               </Badge>
-                              <Badge className={cn("flex items-center gap-1", priorityConfig.badge)}>
+                              <Badge className={cn("flex items-center gap-1 text-xs", priorityConfig.badge)}>
                                 {priorityConfig.icon}
-                                Prioridade {priorityConfig.label}
+                                <span className="hidden sm:inline">Prioridade</span> {priorityConfig.label}
                               </Badge>
                               {ticket.clienteNome && (
-                                <Badge className="bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center gap-1">
+                                <Badge className="bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center gap-1 text-xs">
                                   <User className="w-3 h-3" />
-                                  {ticket.clienteNome}
+                                  <span className="truncate max-w-[100px]">{ticket.clienteNome}</span>
                                 </Badge>
                               )}
                             </div>
@@ -480,12 +480,12 @@ export default function Tickets() {
                         </div>
                         
                         {/* Right Section - Actions */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col md:flex-row items-end md:items-center gap-2">
                           <Select
                             value={ticket.status}
                             onValueChange={(value) => handleStatusChange(ticket.id, value)}
                           >
-                            <SelectTrigger className="w-40 bg-slate-900/50 border-slate-700">
+                            <SelectTrigger className="w-full md:w-40 bg-slate-900/50 border-slate-700">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
