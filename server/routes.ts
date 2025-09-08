@@ -4501,6 +4501,19 @@ Como posso ajudar você hoje?
     try {
       const systems = await externalApiService.getSystemCredentials();
 
+      // Sync systems from API to local database (create missing ones)
+      for (const system of systems) {
+        const localSystem = await storage.getSistemaBySystemId(system.system_id);
+        if (!localSystem) {
+          console.log(`Sistema ${system.system_id} não encontrado no banco local, criando...`);
+          await storage.createSistema({
+            systemId: system.system_id,
+            username: system.username,
+            password: system.password,
+          });
+        }
+      }
+
       // Enrich systems with pontos counts from local database
       const localSistemas = await db.select().from(sistemas);
 
@@ -4607,6 +4620,14 @@ Como posso ajudar você hoje?
               username: createResult.username || username,
               password: createResult.password || password,
             });
+          } else {
+            // Create new system in local database if it doesn't exist
+            console.log(`Sistema ${id} não encontrado no banco local, criando com novo ID ${system_id}...`);
+            await storage.createSistema({
+              systemId: system_id,
+              username: createResult.username || username,
+              password: createResult.password || password,
+            });
           }
         }
 
@@ -4622,7 +4643,16 @@ Como posso ajudar você hoje?
         if (result) {
           const localSystem = await storage.getSistemaBySystemId(id);
           if (localSystem) {
+            // Update existing system in local database
             await storage.updateSistema(localSystem.id, {
+              username: result.username || username,
+              password: result.password || password,
+            });
+          } else {
+            // Create new system in local database if it doesn't exist
+            console.log(`Sistema ${id} não encontrado no banco local, criando...`);
+            await storage.createSistema({
+              systemId: id,
               username: result.username || username,
               password: result.password || password,
             });
