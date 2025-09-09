@@ -491,10 +491,10 @@ export function TestDetailsDialog({
                       <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white h-10">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ibo_pro">IBO Pro</SelectItem>
-                        <SelectItem value="ibo_player">IBO Player</SelectItem>
-                        <SelectItem value="shamel">Shamel</SelectItem>
+                      <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectItem value="ibo_pro" className="text-white hover:bg-slate-700">IBO Pro</SelectItem>
+                        <SelectItem value="ibo_player" className="text-white hover:bg-slate-700">IBO Player</SelectItem>
+                        <SelectItem value="shamel" className="text-white hover:bg-slate-700">Shamel</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
@@ -518,11 +518,11 @@ export function TestDetailsDialog({
                       <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white h-10">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="celular">Celular</SelectItem>
-                        <SelectItem value="smart_tv">Smart TV</SelectItem>
-                        <SelectItem value="tv_box">TV Box</SelectItem>
-                        <SelectItem value="notebook">Notebook</SelectItem>
+                      <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectItem value="celular" className="text-white hover:bg-slate-700">Celular</SelectItem>
+                        <SelectItem value="smart_tv" className="text-white hover:bg-slate-700">Smart TV</SelectItem>
+                        <SelectItem value="tv_box" className="text-white hover:bg-slate-700">TV Box</SelectItem>
+                        <SelectItem value="notebook" className="text-white hover:bg-slate-700">Notebook</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
