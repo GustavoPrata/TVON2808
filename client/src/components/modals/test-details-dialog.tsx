@@ -83,58 +83,6 @@ export function TestDetailsDialog({
     staleTime: 0, // Always refetch when needed
   });
 
-  // Initialize current test and edit data when test changes
-  useEffect(() => {
-    const sourceTest = testData || teste;
-    if (sourceTest) {
-      setCurrentTest(sourceTest);
-      setEditData({
-        mac: sourceTest.mac || '',
-        deviceKey: sourceTest.deviceKey || '',
-        aplicativo: sourceTest.aplicativo || '',
-        dispositivo: sourceTest.dispositivo || '',
-        expiraEm: sourceTest.expiraEm ? new Date(sourceTest.expiraEm).toISOString().slice(0, 16) : ''
-      });
-    }
-  }, [testData, teste]);
-
-  const test = currentTest || testData || teste;
-
-  // Early return if dialog should not be shown
-  if (!open || (!teste && !phoneNumber)) {
-    return null;
-  }
-
-  const formatPhoneNumber = (phone: string) => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length === 13 && cleanPhone.startsWith('55')) {
-      const number = cleanPhone.slice(2);
-      return `(${number.slice(0, 2)}) ${number.slice(2, 7)}-${number.slice(7)}`;
-    }
-    return phone;
-  };
-
-  const formatMacAddress = (mac: string) => {
-    // Remove all non-hex characters except colons
-    const cleanMac = mac.replace(/[^a-fA-F0-9:]/g, '');
-    
-    // Remove existing colons to reformat
-    const noColons = cleanMac.replace(/:/g, '');
-    
-    // Limit to 12 characters and convert to uppercase
-    const limitedMac = noColons.slice(0, 12).toUpperCase();
-    
-    // Add colons every 2 characters
-    const formatted = limitedMac.match(/.{1,2}/g)?.join(':') || limitedMac;
-    
-    return formatted;
-  };
-
-  const handleMacChange = (value: string) => {
-    const formatted = formatMacAddress(value);
-    setEditData(prev => ({ ...prev, mac: formatted }));
-  };
-
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -188,7 +136,10 @@ export function TestDetailsDialog({
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/testes/${test.id}`, {
+      const testId = currentTest?.id || testData?.id || teste?.id;
+      if (!testId) throw new Error('ID do teste não encontrado');
+      
+      const response = await fetch(`/api/testes/${testId}`, {
         method: 'DELETE'
       });
       if (!response.ok) {
@@ -215,6 +166,58 @@ export function TestDetailsDialog({
       });
     },
   });
+
+  // Initialize current test and edit data when test changes
+  useEffect(() => {
+    const sourceTest = testData || teste;
+    if (sourceTest) {
+      setCurrentTest(sourceTest);
+      setEditData({
+        mac: sourceTest.mac || '',
+        deviceKey: sourceTest.deviceKey || '',
+        aplicativo: sourceTest.aplicativo || '',
+        dispositivo: sourceTest.dispositivo || '',
+        expiraEm: sourceTest.expiraEm ? new Date(sourceTest.expiraEm).toISOString().slice(0, 16) : ''
+      });
+    }
+  }, [testData, teste]);
+
+  // Early return if dialog should not be shown
+  if (!open || (!teste && !phoneNumber)) {
+    return null;
+  }
+
+  const test = currentTest || testData || teste;
+
+  const formatPhoneNumber = (phone: string) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length === 13 && cleanPhone.startsWith('55')) {
+      const number = cleanPhone.slice(2);
+      return `(${number.slice(0, 2)}) ${number.slice(2, 7)}-${number.slice(7)}`;
+    }
+    return phone;
+  };
+
+  const formatMacAddress = (mac: string) => {
+    // Remove all non-hex characters except colons
+    const cleanMac = mac.replace(/[^a-fA-F0-9:]/g, '');
+    
+    // Remove existing colons to reformat
+    const noColons = cleanMac.replace(/:/g, '');
+    
+    // Limit to 12 characters and convert to uppercase
+    const limitedMac = noColons.slice(0, 12).toUpperCase();
+    
+    // Add colons every 2 characters
+    const formatted = limitedMac.match(/.{1,2}/g)?.join(':') || limitedMac;
+    
+    return formatted;
+  };
+
+  const handleMacChange = (value: string) => {
+    const formatted = formatMacAddress(value);
+    setEditData(prev => ({ ...prev, mac: formatted }));
+  };
 
   const handleSave = () => {
     const updateData: any = {};
