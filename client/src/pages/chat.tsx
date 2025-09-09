@@ -3038,17 +3038,102 @@ export default function Chat() {
                           let value = e.target.value;
                           const inputType = (e.nativeEvent as any).inputType;
                           
+                          // Correção ortográfica inteligente em português
+                          const correcoes: { [key: string]: string } = {
+                            // Erros comuns de digitação
+                            'vc': 'você',
+                            'vcs': 'vocês',
+                            'tb': 'também',
+                            'tbm': 'também',
+                            'q': 'que',
+                            'pq': 'porque',
+                            'oq': 'o que',
+                            'td': 'tudo',
+                            'tds': 'todos',
+                            'msg': 'mensagem',
+                            'obg': 'obrigado',
+                            'obgd': 'obrigado',
+                            'obgda': 'obrigada',
+                            'dps': 'depois',
+                            'hj': 'hoje',
+                            'amanha': 'amanhã',
+                            'voce': 'você',
+                            'esta': 'está',
+                            'ja': 'já',
+                            'nao': 'não',
+                            'entao': 'então',
+                            'tambem': 'também',
+                            'ate': 'até',
+                            'proximo': 'próximo',
+                            'numero': 'número',
+                            'atraves': 'através',
+                            'porque': 'por que', // quando é pergunta
+                            'por que': 'porque', // quando é resposta
+                            // Concordância
+                            'a gente': 'a gente',
+                            'agente': 'a gente',
+                            'mim fazer': 'eu fazer',
+                            'mim falar': 'eu falar',
+                            'mim ir': 'eu ir',
+                            // Erros comuns
+                            'concerteza': 'com certeza',
+                            'com certeza': 'com certeza',
+                            'derrepente': 'de repente',
+                            'de repente': 'de repente',
+                            'porisso': 'por isso',
+                            'por isso': 'por isso',
+                            'apartir': 'a partir',
+                            'a partir': 'a partir',
+                            // Palavras frequentes
+                            'bom dia': 'Bom dia',
+                            'boa tarde': 'Boa tarde',
+                            'boa noite': 'Boa noite',
+                            'ola': 'Olá',
+                            'oi': 'Oi',
+                            // Correções contextuais
+                            'mas': 'mas',
+                            'mais': 'mais',
+                            'mal': 'mal',
+                            'mau': 'mau'
+                          };
+                          
+                          // Aplica correções automáticas quando há espaço ou pontuação
+                          const insertedChar = (e.nativeEvent as any).data;
+                          if (inputType === 'insertText' && (insertedChar === ' ' || insertedChar === '.' || insertedChar === '!' || insertedChar === '?')) {
+                            const words = value.split(/(\s+)/);
+                            const lastWordIndex = words.length - 3; // Última palavra antes do espaço
+                            
+                            if (lastWordIndex >= 0) {
+                              const lastWord = words[lastWordIndex].toLowerCase();
+                              
+                              // Verifica correções simples
+                              if (correcoes[lastWord]) {
+                                words[lastWordIndex] = correcoes[lastWord];
+                                value = words.join('');
+                              }
+                              
+                              // Verifica frases de duas palavras
+                              if (lastWordIndex >= 2) {
+                                const twoWords = words[lastWordIndex - 2].toLowerCase() + ' ' + lastWord;
+                                if (correcoes[twoWords]) {
+                                  words[lastWordIndex - 2] = correcoes[twoWords].split(' ')[0];
+                                  words[lastWordIndex] = correcoes[twoWords].split(' ')[1];
+                                  value = words.join('');
+                                }
+                              }
+                            }
+                          }
+                          
                           // Auto-capitalização inteligente
                           if (value.length > 0) {
                             // Capitaliza a primeira letra da mensagem
-                            if (value.length === 1 && value[0].match(/[a-z]/)) {
+                            if (value.length === 1 && value[0].match(/[a-záàâãéèêíïóôõöúç]/i)) {
                               value = value.charAt(0).toUpperCase();
                             }
                             
                             // Capitaliza após pontuação final seguida de espaço
                             if (inputType === 'insertText' && value.length > 2) {
-                              // Procura por padrões como ". a" ou "! a" ou "? a"
-                              const match = value.match(/([.!?]\s+)([a-z])$/);
+                              const match = value.match(/([.!?]\s+)([a-záàâãéèêíïóôõöúç])$/i);
                               if (match) {
                                 value = value.slice(0, -1) + match[2].toUpperCase();
                               }
@@ -3058,7 +3143,7 @@ export default function Chat() {
                             const lines = value.split('\n');
                             if (lines.length > 1) {
                               const lastLine = lines[lines.length - 1];
-                              if (lastLine.length === 1 && lastLine[0].match(/[a-z]/)) {
+                              if (lastLine.length === 1 && lastLine[0].match(/[a-záàâãéèêíïóôõöúç]/i)) {
                                 lines[lines.length - 1] = lastLine.charAt(0).toUpperCase();
                                 value = lines.join('\n');
                               }
