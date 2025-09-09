@@ -19,6 +19,7 @@ import { EventEmitter } from "events";
 
 // Import sharp for image processing - required by Baileys
 import sharp from "sharp";
+import { addMonths } from 'date-fns';
 
 // Helper function to format phone number
 function formatPhoneNumber(phone: string) {
@@ -4120,8 +4121,8 @@ export class WhatsAppService extends EventEmitter {
     
     // If expired, count from today. If not expired, count from current expiration
     const baseDate = planoVencido ? hoje : vencimentoAtual;
-    const novoVencimento = new Date(baseDate);
-    novoVencimento.setMonth(novoVencimento.getMonth() + periodo.meses);
+    // Usar date-fns para adicionar meses corretamente
+    let novoVencimento = addMonths(baseDate, periodo.meses);
     
     // Ajustar para 23:59:59 do dia de vencimento
     novoVencimento.setHours(23, 59, 59, 999);

@@ -4,6 +4,7 @@ import { db } from '../db';
 import { pagamentosManual, pagamentos } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
 import { whatsappService } from './whatsapp';
+import { addMonths } from 'date-fns';
 
 export interface PixPayment {
   id: string;
@@ -200,8 +201,8 @@ export class PixService {
       console.log('💾 Pagamento criado no banco:', pagamento.id);
 
       try {
-        // Criar charge no Woovi
-        const wooviCharge = await this.createWooviCharge(amount, description, cliente);
+        // Criar charge no Woovi - passar metadata para incluir número de meses
+        const wooviCharge = await this.createWooviCharge(amount, description, cliente, metadata);
         
         console.log('✅ Charge criado no Woovi:', {
           id: wooviCharge.id,
@@ -324,7 +325,7 @@ export class PixService {
     }
   }
 
-  private async createWooviCharge(amount: number, description: string, cliente: any) {
+  private async createWooviCharge(amount: number, description: string, cliente: any, metadata?: any) {
     try {
       // Verificar se a API key está configurada
       if (!this.appId) {
@@ -336,7 +337,7 @@ export class PixService {
       const timestamp = Date.now();
       const uniqueCorrelationID = `${this.correlationID}_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
       
-      const charge = {
+      const charge: any = {
         correlationID: uniqueCorrelationID,
         value: Math.round(amount * 100), // Woovi espera valor em centavos como inteiro
         comment: description,
@@ -347,6 +348,16 @@ export class PixService {
           email: cliente.email || `${cliente.telefone}@tvon.com`
         }
       };
+      
+      // Adicionar metadata se fornecido (incluindo número de meses para renovação)
+      if (metadata) {
+        // Adicionar meses no comment para recuperar no webhook
+        if (metadata.meses) {
+          charge.comment = `${description} [MESES:${metadata.meses}]`;
+        }
+        // Adicionar metadata adicional se a API suportar
+        charge.additionalInfo = metadata;
+      }
 
       console.log('📤 Enviando charge para Woovi:', charge);
       console.log('🔑 Authorization header:', this.appId ? `Set (${this.appId.substring(0, 10)}...)` : 'Not set');
@@ -677,8 +688,24 @@ export class PixService {
             ? new Date(cliente.vencimento) 
             : new Date();
           
-          const novoVencimento = new Date(baseDate);
-          novoVencimento.setMonth(novoVencimento.getMonth() + 1); // Adicionar 1 mês
+          // Verificar se o pagamento tem metadata com número de meses
+          // Primeiro tentar extrair do comment no formato [MESES:X]
+          let meses = 1; // Padrão 1 mês
+          
+          const comment = charge?.comment || charge?.description || '';
+          const mesesMatch = comment.match(/\[MESES:(\d+)\]/);
+          if (mesesMatch) {
+            meses = parseInt(mesesMatch[1], 10);
+            console.log(`📅 Número de meses extraído do comment: ${meses}`);
+          } else {
+            // Tentar outras fontes de metadata
+            meses = charge?.metadata?.meses || charge?.meses || charge?.additionalInfo?.meses || pagamento.metadata?.meses || 1;
+          }
+          
+          console.log(`📅 Adicionando ${meses} meses ao vencimento do cliente`);
+          
+          // Usar date-fns para adicionar meses corretamente
+          let novoVencimento = addMonths(baseDate, meses);
           // Ajustar para 23:59:59 do dia de vencimento
           novoVencimento.setHours(23, 59, 59, 999);
           
@@ -710,8 +737,8 @@ export class PixService {
           
           // Formatar a data de vencimento para exibição
           const dataVencimento = novoVencimento.toLocaleDateString('pt-BR', {
-            day: '2d',
-            month: '2d',
+            day: '2-digit',
+            month: '2-digit',
             year: 'numeric'
           });
           
