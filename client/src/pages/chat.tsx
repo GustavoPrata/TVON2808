@@ -3035,7 +3035,37 @@ export default function Chat() {
                       <textarea
                         value={messageText}
                         onChange={(e) => {
-                          setMessageText(e.target.value);
+                          let value = e.target.value;
+                          const inputType = (e.nativeEvent as any).inputType;
+                          
+                          // Auto-capitalização inteligente
+                          if (value.length > 0) {
+                            // Capitaliza a primeira letra da mensagem
+                            if (value.length === 1 && value[0].match(/[a-z]/)) {
+                              value = value.charAt(0).toUpperCase();
+                            }
+                            
+                            // Capitaliza após pontuação final seguida de espaço
+                            if (inputType === 'insertText' && value.length > 2) {
+                              // Procura por padrões como ". a" ou "! a" ou "? a"
+                              const match = value.match(/([.!?]\s+)([a-z])$/);
+                              if (match) {
+                                value = value.slice(0, -1) + match[2].toUpperCase();
+                              }
+                            }
+                            
+                            // Capitaliza após quebra de linha
+                            const lines = value.split('\n');
+                            if (lines.length > 1) {
+                              const lastLine = lines[lines.length - 1];
+                              if (lastLine.length === 1 && lastLine[0].match(/[a-z]/)) {
+                                lines[lines.length - 1] = lastLine.charAt(0).toUpperCase();
+                                value = lines.join('\n');
+                              }
+                            }
+                          }
+                          
+                          setMessageText(value);
                           // Auto-resize
                           e.target.style.height = '40px'; // Reset to single line height
                           e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
@@ -3050,6 +3080,10 @@ export default function Chat() {
                         }}
                         placeholder="Digite sua mensagem..."
                         className="w-full h-[40px] max-h-[200px] px-3 py-2 bg-dark-card border border-slate-600 rounded-lg text-white placeholder:text-slate-500 pr-12 resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        spellCheck={true}
+                        lang="pt-BR"
+                        autoCapitalize="sentences"
+                        autoCorrect="on"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
