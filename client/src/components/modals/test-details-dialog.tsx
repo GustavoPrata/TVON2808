@@ -83,13 +83,6 @@ export function TestDetailsDialog({
     staleTime: 0, // Always refetch when needed
   });
 
-  const test = currentTest || testData || teste;
-
-  // Early return if dialog should not be shown
-  if (!open || (!teste && !phoneNumber)) {
-    return null;
-  }
-
   // Initialize current test and edit data when test changes
   useEffect(() => {
     const sourceTest = testData || teste;
@@ -104,6 +97,13 @@ export function TestDetailsDialog({
       });
     }
   }, [testData, teste]);
+
+  const test = currentTest || testData || teste;
+
+  // Early return if dialog should not be shown
+  if (!open || (!teste && !phoneNumber)) {
+    return null;
+  }
 
   const formatPhoneNumber = (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
