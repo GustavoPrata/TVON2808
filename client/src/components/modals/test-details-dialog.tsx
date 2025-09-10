@@ -434,7 +434,6 @@ export function TestDetailsDialog({
                       value={editData.expiraEm}
                       onChange={(e) => setEditData(prev => ({ ...prev, expiraEm: e.target.value }))}
                       className="bg-slate-700/50 border-slate-600 text-white h-10 w-full"
-                      min={new Date().toISOString().slice(0, 16)}
                     />
                   ) : (
                     <span className={cn(
