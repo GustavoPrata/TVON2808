@@ -2384,6 +2384,56 @@ export class WhatsAppService extends EventEmitter {
           );
         }
         break;
+        
+      case "teste_expirado_menu":
+        // Tratamento para o menu de teste expirado
+        if (opcaoId === "1") {
+          // Ativar plano agora
+          await this.sendMessage(
+            telefone,
+            `Show! 🎉 Agora me diz, você tem um código de indicação?\n\n` +
+              `1️⃣ Sim, tenho código\n` +
+              `2️⃣ Não tenho\n` +
+              `0️⃣ Voltar`,
+          );
+          this.conversaStates.set(telefone, {
+            submenu: "assinar_codigo",
+            lastActivity: new Date(),
+            previousMenu: "teste_expirado_menu",
+          });
+        } else if (opcaoId === "2") {
+          // Falar com atendente
+          // Abre um ticket de suporte
+          const ticket = await storage.createTicket({
+            conversaId: conversa.id,
+            titulo: "Cliente com teste expirado",
+            descricao: "Cliente solicitou falar com atendente após teste expirar",
+            status: "aberto",
+            tipo: "expiracao",
+            prioridade: "alta"
+          });
+          
+          // Switch conversation to human mode
+          await storage.updateConversa(conversa.id, { modoAtual: "humano" });
+          
+          // Clear conversation state
+          this.conversaStates.delete(telefone);
+          
+          await this.sendMessage(
+            telefone,
+            `🙋 *Aguarde!* Um atendente entrará em contato em breve para ajudá-lo com a ativação do seu plano.\n\n` +
+            `⏰ *Horário de atendimento:* Das 8h às 22h`,
+          );
+        } else {
+          await this.sendMessage(
+            telefone,
+            `❌ *Opção inválida!* Por favor, escolha uma das opções disponíveis.\n\n` +
+            `1️⃣ Ativar plano agora\n` +
+            `2️⃣ Falar com atendente`,
+          );
+        }
+        break;
+        
       default:
         console.log(`Submenu não reconhecido: ${submenu}`);
         await this.sendMessage(
@@ -2437,6 +2487,7 @@ export class WhatsAppService extends EventEmitter {
       teste_virar_cliente: ["0", "1", "2", "3", "4", "5"], // Become a client plans
       teste_reportar: ["0", "1", "2", "3", "4", "5", "6"], // Report problems
       teste_suporte: ["0", "1", "2", "3", "4", "5"], // Technical support
+      teste_expirado_menu: ["1", "2"], // Expired test menu - activate plan or contact support
     };
 
     return validOptions[submenu] || [];
