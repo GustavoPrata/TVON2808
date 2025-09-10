@@ -1687,7 +1687,16 @@ export class WhatsAppService extends EventEmitter {
           console.log(
             `Mensagem inicial recebida: "${messageText}" - enviando menu principal`,
           );
-          await this.sendBotMenu(conversa.telefone, botConfig);
+          console.log(`Tipo de bot para menu principal: ${tipoBot}`);
+          
+          // Para bot de testes, passar tipo correto para sendBotMenu
+          if (tipoBot === "testes") {
+            // Create proper test bot config with tipo
+            const testBotConfig = { tipo: "testes", ativo: true, opcoes: [] };
+            await this.sendBotMenu(conversa.telefone, testBotConfig);
+          } else {
+            await this.sendBotMenu(conversa.telefone, botConfig);
+          }
         }
       }
     } catch (error) {
