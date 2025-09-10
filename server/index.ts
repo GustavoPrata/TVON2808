@@ -69,8 +69,8 @@ app.use((req, res, next) => {
           const sucesso = await whatsappService.sendMessage(telefone, mensagem);
           
           if (sucesso) {
-            // Marca o teste como expirado para não enviar notificação duplicada
-            await storage.updateTeste(teste.id, { status: "expirado" });
+            // Marca o teste como notificado através do expireOldTestes
+            await storage.markTesteAsNotificado(teste.id);
             console.log(`✅ Notificação de teste expirado enviada para ${telefone}`);
           } else {
             console.log(`❌ Falha ao enviar notificação de teste expirado para ${telefone}`);

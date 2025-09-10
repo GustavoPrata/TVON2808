@@ -1291,6 +1291,12 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
+  async markTesteAsNotificado(id: number): Promise<void> {
+    await db.update(testes)
+      .set({ status: 'expirado' })
+      .where(eq(testes.id, id));
+  }
+
   // Referral System Methods
   async getIndicacoesByIndicadorId(indicadorId: number): Promise<Indicacao[]> {
     return await db.select().from(indicacoes)
