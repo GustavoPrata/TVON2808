@@ -59,8 +59,7 @@ app.use((req, res, next) => {
         const telefone = teste.telefone.replace(/\D/g, "");
         
         // Mensagem de notificação sobre teste expirado
-        const mensagem = `🔴 *Teste Expirado*\n\n` +
-          `Seu teste expirou.\n\n` +
+        const mensagem = `Seu teste acabou, ative seu plano agora por apenas 19,90!\n\n` +
           `Escolha uma opção:\n\n` +
           `1️⃣ Ativar plano agora\n` +
           `2️⃣ Falar com atendente`;
