@@ -157,6 +157,8 @@ export default function Chat() {
   const [autoCloseCountdown, setAutoCloseCountdown] = useState<number>(0);
   const [autoCloseActive, setAutoCloseActive] = useState(false);
   const [ticketExpanded, setTicketExpanded] = useState(false); // Collapsed by default
+  const [showPhotoEnlarged, setShowPhotoEnlarged] = useState(false);
+  const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null);
   // Estado do PIX por conversa
   const [pixStateByConversation, setPixStateByConversation] = useState<Map<string, any>>(new Map());
   const [isLoadingPixState, setIsLoadingPixState] = useState(false);
@@ -2250,8 +2252,12 @@ export default function Chat() {
                   
                   {/* Avatar */}
                   <Avatar 
-                    className="w-12 h-12 cursor-pointer"
-                    onClick={() => setShowContactInfo(true)}
+                    className="w-12 h-12 cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => {
+                      const photo = showPhotosChat && selectedConversa.profilePicture ? selectedConversa.profilePicture : defaultProfileIcon;
+                      setEnlargedPhoto(photo);
+                      setShowPhotoEnlarged(true);
+                    }}
                   >
                     <AvatarImage 
                       src={showPhotosChat && selectedConversa.profilePicture ? selectedConversa.profilePicture : defaultProfileIcon} 
@@ -3909,6 +3915,60 @@ export default function Chat() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Foto Ampliada */}
+      {showPhotoEnlarged && enlargedPhoto && (
+        <div 
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[10000] p-4"
+          onClick={() => {
+            setShowPhotoEnlarged(false);
+            setEnlargedPhoto(null);
+          }}
+        >
+          <div 
+            className="relative max-w-4xl max-h-[90vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Botão de fechar */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute -top-12 right-0 text-white hover:bg-white/10 z-10"
+              onClick={() => {
+                setShowPhotoEnlarged(false);
+                setEnlargedPhoto(null);
+              }}
+            >
+              <X className="w-6 h-6" />
+            </Button>
+            
+            {/* Imagem ampliada */}
+            <img
+              src={enlargedPhoto}
+              alt="Foto ampliada do contato"
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = defaultProfileIcon;
+              }}
+            />
+            
+            {/* Informações do contato */}
+            {selectedConversa && (
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6 rounded-b-lg">
+                <div className="text-white">
+                  <h3 className="text-xl font-semibold">
+                    {selectedConversa.clienteNome || selectedConversa.nome || formatPhoneNumber(selectedConversa.telefone)}
+                  </h3>
+                  <p className="text-sm text-gray-300 mt-1">
+                    {formatPhoneNumber(selectedConversa.telefone)}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
