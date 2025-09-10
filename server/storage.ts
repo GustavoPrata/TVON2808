@@ -1204,13 +1204,28 @@ export class DatabaseStorage implements IStorage {
   
   async getAnyTesteByTelefone(telefone: string): Promise<Teste | undefined> {
     // Get any test (active or expired) for this phone number
+    // Normalize phone number for search - try multiple formats
+    const normalizedPhone = telefone.replace(/\D/g, ''); // Remove all non-digits
+    
+    // Try different phone formats
+    const phoneVariants = [
+      telefone, // Original format
+      normalizedPhone, // Just digits
+      normalizedPhone.replace(/^55/, ''), // Without country code
+      '55' + normalizedPhone.replace(/^55/, ''), // With country code
+    ];
+    
+    console.log(`[STORAGE DEBUG] Searching for test with phone variants:`, phoneVariants);
+    
     const result = await db.select().from(testes)
       .where(and(
-        eq(testes.telefone, telefone),
+        or(...phoneVariants.map(p => eq(testes.telefone, p))),
         ne(testes.status, 'deletado')
       ))
       .orderBy(desc(testes.criadoEm))
       .limit(1);
+    
+    console.log(`[STORAGE DEBUG] Test search result:`, result[0] ? `Found test ID ${result[0].id}` : 'No test found');
     return result[0];
   }
   
