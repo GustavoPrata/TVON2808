@@ -69,6 +69,13 @@ app.use((req, res, next) => {
           const sucesso = await whatsappService.sendMessage(telefone, mensagem);
           
           if (sucesso) {
+            // Configura o estado da conversa para aguardar resposta do menu expirado
+            whatsappService.setConversationState(telefone, {
+              submenu: "teste_expirado_menu",
+              lastActivity: new Date(),
+              previousMenu: "main"
+            });
+            
             // Marca o teste como notificado através do expireOldTestes
             await storage.markTesteAsNotificado(teste.id);
             console.log(`✅ Notificação de teste expirado enviada para ${telefone}`);

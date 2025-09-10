@@ -5276,6 +5276,10 @@ export class WhatsAppService extends EventEmitter {
     }
   }
 
+  setConversationState(telefone: string, state: any) {
+    this.conversaStates.set(telefone, state);
+  }
+
   async sendImage(
     to: string,
     imageUrl: string,
