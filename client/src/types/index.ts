@@ -50,6 +50,7 @@ export interface Conversa {
   status: 'ativo' | 'arquivado';
   modoAtendimento: 'bot' | 'humano';
   mensagensNaoLidas: number;
+  iniciadoPorAnuncio?: boolean;
 }
 
 export interface Mensagem {

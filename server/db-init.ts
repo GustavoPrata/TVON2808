@@ -52,6 +52,12 @@ export async function initDatabase() {
       ADD COLUMN IF NOT EXISTS tipo_ultima_mensagem VARCHAR(20)
     `);
     
+    // Add iniciado_por_anuncio column to conversas table
+    await db.execute(sql`
+      ALTER TABLE conversas 
+      ADD COLUMN IF NOT EXISTS iniciado_por_anuncio BOOLEAN DEFAULT FALSE
+    `);
+    
     // Add columns for message delete/edit functionality
     await db.execute(sql`
       ALTER TABLE mensagens 

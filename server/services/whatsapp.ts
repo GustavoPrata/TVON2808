@@ -1169,6 +1169,20 @@ export class WhatsAppService extends EventEmitter {
               }
             }
 
+            // Detectar se a conversa foi iniciada por anúncio
+            // Anúncios do Facebook/Instagram geralmente contêm palavras específicas
+            const isFromAd = displayMessage && (
+              displayMessage.toLowerCase().includes("anúncio") ||
+              displayMessage.toLowerCase().includes("facebook") ||
+              displayMessage.toLowerCase().includes("instagram") ||
+              displayMessage.toLowerCase().includes("publicidade") ||
+              displayMessage.toLowerCase().includes("propaganda") ||
+              displayMessage.toLowerCase().includes("cliquei no anúncio") ||
+              displayMessage.toLowerCase().includes("vi o anúncio") ||
+              displayMessage.toLowerCase().includes("vi no face") ||
+              displayMessage.toLowerCase().includes("vi no insta")
+            );
+
             try {
               conversa = await storage.createConversa({
                 telefone: phone,
@@ -1181,6 +1195,7 @@ export class WhatsAppService extends EventEmitter {
                 ultimoRemetente: "cliente",
                 profilePicture: profilePictureUrl,
                 tipoUltimaMensagem: message?.type || "text",
+                iniciadoPorAnuncio: isFromAd,
               });
               
               console.log(`New conversation created for ${phone} with ID ${conversa.id}`);

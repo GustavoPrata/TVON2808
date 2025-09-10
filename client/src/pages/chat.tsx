@@ -96,6 +96,7 @@ interface ConversaWithDetails extends Conversa {
   ultimoRemetente?: string;
   mensagemLida?: boolean;
   metadados?: string | null;
+  iniciadoPorAnuncio?: boolean;
 }
 
 interface MessageStatus {
@@ -2005,6 +2006,13 @@ export default function Chat() {
                             />
                           </AvatarFallback>
                         </Avatar>
+                        
+                        {/* Anúncio Indicator - Star at top left */}
+                        {conversa.iniciadoPorAnuncio && (
+                          <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 flex items-center justify-center shadow-lg">
+                            <Star className="w-3 h-3 text-white fill-white" />
+                          </div>
+                        )}
                         
                         {/* Cliente/Novo/Teste Status Indicator */}
                         <div className={cn(

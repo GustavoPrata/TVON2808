@@ -162,6 +162,7 @@ export const conversas = pgTable("conversas", {
   profilePicture: text("profile_picture"), // URL da foto de perfil do cliente
   tipoUltimaMensagem: varchar("tipo_ultima_mensagem", { length: 20 }), // texto, imagem, video, audio, arquivo, sticker
   metadados: text("metadados"), // JSON string para armazenar metadados adicionais
+  iniciadoPorAnuncio: boolean("iniciado_por_anuncio").default(false), // Se a conversa foi iniciada por anúncio do Facebook/Instagram
 }, (table) => ({
   telefoneIdx: index("idx_conversas_telefone").on(table.telefone),
   telefoneUnique: unique("conversas_telefone_unique").on(table.telefone),
