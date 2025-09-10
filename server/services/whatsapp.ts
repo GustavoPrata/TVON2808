@@ -2209,19 +2209,6 @@ export class WhatsAppService extends EventEmitter {
         
         if (clienteIndicador) {
           // Valid referral code - save it and continue
-          await this.sendMessage(
-            telefone,
-            `✅ Código de indicação válido!\n` +
-            `Indicado por: *${clienteIndicador.nome}*\n\n` +
-            `Onde você vai assistir?\n\n` +
-            `1️⃣ Celular\n` +
-            `2️⃣ TV Box (caixinha)\n` +
-            `3️⃣ Smart TV\n` +
-            `4️⃣ Notebook ou Computador\n` +
-            `5️⃣ Outros\n` +
-            `0️⃣ Voltar`,
-          );
-          
           // Save the referral code in conversation metadata
           await storage.updateConversa(conversa.id, {
             metadados: JSON.stringify({
@@ -2231,25 +2218,68 @@ export class WhatsAppService extends EventEmitter {
             })
           });
           
-          const newState = {
-            submenu: "assinar_dispositivo",
-            lastActivity: new Date(),
-            codigoIndicacao: formattedCode,
-            nomeIndicador: clienteIndicador.nome,
-            previousMenu: "aguardando_codigo",
-          } as any;
+          // Check if user already has a test with device information
+          const teste = await storage.getAnyTesteByTelefone(telefone);
           
-          console.log("===== SETTING NEW STATE AFTER VALID CODE =====");
-          console.log("Phone key for setting:", telefone);
-          console.log("New state:", newState);
-          
-          this.conversaStates.set(telefone, newState);
-          
-          // Verify state was set correctly
-          const verifyState = this.conversaStates.get(telefone);
-          console.log("State after setting:", verifyState);
-          console.log("All keys in map:", Array.from(this.conversaStates.keys()));
-          console.log("==============================================");
+          if (teste && teste.dispositivo) {
+            // User has test with device info - skip device selection
+            console.log(`[BOT] Cliente com teste já tem dispositivo: ${teste.dispositivo}`);
+            
+            // Map device type to human-readable format
+            let dispositivoFormatado = teste.dispositivo;
+            if (teste.dispositivo === "smart_tv") {
+              dispositivoFormatado = "Smart TV";
+            } else if (teste.dispositivo === "tv_box") {
+              dispositivoFormatado = "TV Box";
+            } else if (teste.dispositivo === "celular") {
+              dispositivoFormatado = `Celular (${teste.aplicativo === "ibo_player" ? "iPhone" : "Android"})`;
+            } else if (teste.dispositivo === "notebook") {
+              dispositivoFormatado = "Notebook ou Computador";
+            }
+            
+            // Go directly to human signup with existing device info
+            await this.completeSignupWithHuman(
+              conversa,
+              telefone,
+              dispositivoFormatado,
+              formattedCode,
+              clienteIndicador.nome,
+            );
+          } else {
+            // No test or no device info - ask for device
+            await this.sendMessage(
+              telefone,
+              `✅ Código de indicação válido!\n` +
+              `Indicado por: *${clienteIndicador.nome}*\n\n` +
+              `Onde você vai assistir?\n\n` +
+              `1️⃣ Celular\n` +
+              `2️⃣ TV Box (caixinha)\n` +
+              `3️⃣ Smart TV\n` +
+              `4️⃣ Notebook ou Computador\n` +
+              `5️⃣ Outros\n` +
+              `0️⃣ Voltar`,
+            );
+            
+            const newState = {
+              submenu: "assinar_dispositivo",
+              lastActivity: new Date(),
+              codigoIndicacao: formattedCode,
+              nomeIndicador: clienteIndicador.nome,
+              previousMenu: "aguardando_codigo",
+            } as any;
+            
+            console.log("===== SETTING NEW STATE AFTER VALID CODE =====");
+            console.log("Phone key for setting:", telefone);
+            console.log("New state:", newState);
+            
+            this.conversaStates.set(telefone, newState);
+            
+            // Verify state was set correctly
+            const verifyState = this.conversaStates.get(telefone);
+            console.log("State after setting:", verifyState);
+            console.log("All keys in map:", Array.from(this.conversaStates.keys()));
+            console.log("==============================================");
+          }
           
           // IMPORTANT: Return here to prevent fall-through to invalid code handling
           return;
@@ -2302,21 +2332,51 @@ export class WhatsAppService extends EventEmitter {
           } as any);
         } else if (opcaoId === "2") {
           // Continue without code
-          await this.sendMessage(
-            telefone,
-            `Onde você vai assistir?\n\n` +
-              `1️⃣ Celular\n` +
-              `2️⃣ TV Box (caixinha)\n` +
-              `3️⃣ Smart TV\n` +
-              `4️⃣ Notebook ou Computador\n` +
-              `5️⃣ Outros\n` +
-              `0️⃣ Voltar`,
-          );
-          this.conversaStates.set(telefone, {
-            submenu: "assinar_dispositivo",
-            lastActivity: new Date(),
-            previousMenu: "codigo_invalido",
-          } as any);
+          // Check if user already has a test with device information
+          const teste = await storage.getAnyTesteByTelefone(telefone);
+          
+          if (teste && teste.dispositivo) {
+            // User has test with device info - skip device selection
+            console.log(`[BOT] Cliente com teste já tem dispositivo: ${teste.dispositivo}`);
+            
+            // Map device type to human-readable format
+            let dispositivoFormatado = teste.dispositivo;
+            if (teste.dispositivo === "smart_tv") {
+              dispositivoFormatado = "Smart TV";
+            } else if (teste.dispositivo === "tv_box") {
+              dispositivoFormatado = "TV Box";
+            } else if (teste.dispositivo === "celular") {
+              dispositivoFormatado = `Celular (${teste.aplicativo === "ibo_player" ? "iPhone" : "Android"})`;
+            } else if (teste.dispositivo === "notebook") {
+              dispositivoFormatado = "Notebook ou Computador";
+            }
+            
+            // Go directly to human signup with existing device info
+            await this.completeSignupWithHuman(
+              conversa,
+              telefone,
+              dispositivoFormatado,
+              "Não",
+              null,
+            );
+          } else {
+            // No test or no device info - ask for device
+            await this.sendMessage(
+              telefone,
+              `Onde você vai assistir?\n\n` +
+                `1️⃣ Celular\n` +
+                `2️⃣ TV Box (caixinha)\n` +
+                `3️⃣ Smart TV\n` +
+                `4️⃣ Notebook ou Computador\n` +
+                `5️⃣ Outros\n` +
+                `0️⃣ Voltar`,
+            );
+            this.conversaStates.set(telefone, {
+              submenu: "assinar_dispositivo",
+              lastActivity: new Date(),
+              previousMenu: "codigo_invalido",
+            } as any);
+          }
         } else {
           await this.sendMessage(
             telefone,
@@ -2675,23 +2735,53 @@ export class WhatsAppService extends EventEmitter {
         previousMenu: "assinar_codigo",
       } as any);
     } else if (opcaoId === "2") {
-      // Não tem código - continuar para dispositivo
-      await this.sendMessage(
-        telefone,
-        `Onde você vai assistir?\n\n` +
-          `1️⃣ Celular\n` +
-          `2️⃣ TV Box (caixinha)\n` +
-          `3️⃣ Smart TV\n` +
-          `4️⃣ Notebook ou Computador\n` +
-          `5️⃣ Outros\n` +
-          `0️⃣ Voltar`,
-      );
-      this.conversaStates.set(telefone, {
-        submenu: "assinar_dispositivo",
-        lastActivity: new Date(),
-        codigoIndicacao: "Não",
-        previousMenu: "assinar_codigo",
-      } as any);
+      // Não tem código
+      // Check if user already has a test with device information
+      const teste = await storage.getAnyTesteByTelefone(telefone);
+      
+      if (teste && teste.dispositivo) {
+        // User has test with device info - skip device selection
+        console.log(`[BOT] Cliente com teste já tem dispositivo: ${teste.dispositivo}`);
+        
+        // Map device type to human-readable format
+        let dispositivoFormatado = teste.dispositivo;
+        if (teste.dispositivo === "smart_tv") {
+          dispositivoFormatado = "Smart TV";
+        } else if (teste.dispositivo === "tv_box") {
+          dispositivoFormatado = "TV Box";
+        } else if (teste.dispositivo === "celular") {
+          dispositivoFormatado = `Celular (${teste.aplicativo === "ibo_player" ? "iPhone" : "Android"})`;
+        } else if (teste.dispositivo === "notebook") {
+          dispositivoFormatado = "Notebook ou Computador";
+        }
+        
+        // Go directly to human signup with existing device info
+        await this.completeSignupWithHuman(
+          conversa,
+          telefone,
+          dispositivoFormatado,
+          "Não",
+          null,
+        );
+      } else {
+        // No test or no device info - ask for device
+        await this.sendMessage(
+          telefone,
+          `Onde você vai assistir?\n\n` +
+            `1️⃣ Celular\n` +
+            `2️⃣ TV Box (caixinha)\n` +
+            `3️⃣ Smart TV\n` +
+            `4️⃣ Notebook ou Computador\n` +
+            `5️⃣ Outros\n` +
+            `0️⃣ Voltar`,
+        );
+        this.conversaStates.set(telefone, {
+          submenu: "assinar_dispositivo",
+          lastActivity: new Date(),
+          codigoIndicacao: "Não",
+          previousMenu: "assinar_codigo",
+        } as any);
+      }
     }
   }
 
