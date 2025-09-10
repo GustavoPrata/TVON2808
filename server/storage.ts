@@ -1265,12 +1265,16 @@ export class DatabaseStorage implements IStorage {
   
   async getTestesExpiradosNaoNotificados(): Promise<Teste[]> {
     const now = new Date();
-    // Busca testes ativos que já expiraram
-    // Quando notificamos, mudamos o status para 'expirado'
+    // Busca testes que já expiraram mas não foram notificados
+    // Busca testes com status 'ativo' ou 'expirado' que não foram notificados
     return await db.select().from(testes)
       .where(and(
-        eq(testes.status, 'ativo'),
-        lte(testes.expiraEm, now)
+        lte(testes.expiraEm, now),
+        or(
+          eq(testes.status, 'ativo'),
+          eq(testes.status, 'expirado')
+        ),
+        ne(testes.status, 'notificado')
       ))
       .orderBy(desc(testes.criadoEm));
   }
@@ -1293,7 +1297,9 @@ export class DatabaseStorage implements IStorage {
 
   async markTesteAsNotificado(id: number): Promise<void> {
     await db.update(testes)
-      .set({ status: 'expirado' })
+      .set({ 
+        status: 'notificado'
+      })
       .where(eq(testes.id, id));
   }
 

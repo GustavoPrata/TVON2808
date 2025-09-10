@@ -493,7 +493,7 @@ export const testes = pgTable("testes", {
   apiUserId: integer("api_user_id"), // User ID in external API
   criadoEm: timestamp("criado_em").defaultNow().notNull(),
   expiraEm: timestamp("expira_em").notNull(),
-  status: varchar("status", { length: 20 }).notNull().default("ativo"), // ativo, expirado, deletado
+  status: varchar("status", { length: 20 }).notNull().default("ativo"), // ativo, expirado, deletado, notificado
   createdBy: integer("created_by").references(() => users.id), // User who created the test
 });
 
