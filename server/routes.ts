@@ -5283,6 +5283,12 @@ Como posso ajudar você hoje?
       const usernames = new Set([...pontosMap.keys(), ...apiUsersMap.keys()]);
 
       for (const username of usernames) {
+        // Skip test users (those starting with "teste_")
+        // They are local test users and don't need API sync
+        if (username && username.startsWith('teste_')) {
+          continue; // Skip test users
+        }
+        
         const ponto = pontosMap.get(username);
         const apiUser = apiUsersMap.get(username);
         const cliente = ponto ? clienteMap.get(ponto.clienteId) : null;
@@ -5377,6 +5383,12 @@ Como posso ajudar você hoje?
       // Create/update users in API from local pontos
       for (const ponto of pontosLocais) {
         if (ponto.status !== "ativo") continue;
+        
+        // Skip test users (those starting with "teste_")
+        // They are local test users and don't need API sync
+        if (ponto.usuario && ponto.usuario.startsWith('teste_')) {
+          continue; // Skip test users
+        }
 
         const cliente = clienteMap.get(ponto.clienteId);
         const sistema = await storage.getSistemaById(ponto.sistemaId);
@@ -5452,6 +5464,12 @@ Como posso ajudar você hoje?
         pontosLocais.filter((p) => p.status === "ativo").map((p) => p.usuario),
       );
       for (const apiUser of apiUsers) {
+        // Skip test users (those starting with "teste_")
+        // They should not be deleted from API even if not in local
+        if (apiUser.username && apiUser.username.startsWith('teste_')) {
+          continue; // Skip test users
+        }
+        
         if (!localUsernames.has(apiUser.username)) {
           try {
             await externalApiService.deleteUser(apiUser.id);
@@ -5516,6 +5534,12 @@ Como posso ajudar você hoje?
       let noMatch = 0;
       
       for (const ponto of pontos) {
+        // Skip test users (those starting with "teste_")
+        // They are local test users and don't need API sync
+        if (ponto.usuario && ponto.usuario.startsWith('teste_')) {
+          continue; // Skip this iteration for test users
+        }
+        
         let apiUser = null;
         
         // First try to match by apiUserId
