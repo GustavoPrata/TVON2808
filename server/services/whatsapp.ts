@@ -1148,23 +1148,25 @@ export class WhatsAppService extends EventEmitter {
 
             // For media messages, ensure we have proper display text
             let displayMessage = message?.message || "";
+            // Only set default message for media if there's absolutely no text
+            // This preserves text content from media messages (like video captions)
             if (message && message.type !== "text" && (!displayMessage || displayMessage === "")) {
-              // Use the JSON string we created for media messages
+              // Only use placeholder text if no actual message content exists
               switch (message.type) {
                 case "image":
-                  displayMessage = JSON.stringify({ type: "image" });
+                  displayMessage = "[Imagem]";
                   break;
                 case "video":
-                  displayMessage = JSON.stringify({ type: "video" });
+                  displayMessage = "[Vídeo]";
                   break;
                 case "audio":
-                  displayMessage = displayMessage || JSON.stringify({ duration: 0 });
+                  displayMessage = "[Áudio]";
                   break;
                 case "document":
-                  displayMessage = displayMessage || JSON.stringify({ fileName: "documento" });
+                  displayMessage = "[Documento]";
                   break;
                 case "sticker":
-                  displayMessage = displayMessage || JSON.stringify({ type: "sticker" });
+                  displayMessage = "[Sticker]";
                   break;
               }
             }
@@ -1363,31 +1365,28 @@ export class WhatsAppService extends EventEmitter {
 
         // For media messages, ensure we have proper display text
         let displayMessage = message.message;
+        // Only set default message for media if there's absolutely no text
+        // This preserves text content from media messages (like video captions)
         if (
           message.type !== "text" &&
           (!displayMessage || displayMessage === "")
         ) {
-          // Use the JSON string we created for media messages
+          // Only use placeholder text if no actual message content exists
           switch (message.type) {
             case "image":
-              displayMessage = JSON.stringify({ type: "image" });
+              displayMessage = "[Imagem]";
               break;
             case "video":
-              displayMessage = JSON.stringify({ type: "video" });
+              displayMessage = "[Vídeo]";
               break;
             case "audio":
-              // Should already have JSON with duration
-              displayMessage = displayMessage || JSON.stringify({ duration: 0 });
+              displayMessage = "[Áudio]";
               break;
             case "document":
-              // Should already have JSON with fileName
-              displayMessage =
-                displayMessage || JSON.stringify({ fileName: "documento" });
+              displayMessage = "[Documento]";
               break;
             case "sticker":
-              // Should already have JSON
-              displayMessage =
-                displayMessage || JSON.stringify({ type: "sticker" });
+              displayMessage = "[Sticker]";
               break;
           }
         }
