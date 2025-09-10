@@ -340,8 +340,14 @@ export default function Chat() {
   // Handle phone parameter from URL
   useEffect(() => {
     if (phoneFromUrl && conversas) {
+      // Normalize phone number for comparison (remove country code for comparison)
+      const normalizedUrlPhone = phoneFromUrl.replace(/^55/, '');
+      
       // Find conversation with matching phone number
-      const conversation = conversas.find(conv => conv.telefone === phoneFromUrl);
+      const conversation = conversas.find(conv => {
+        const normalizedConvPhone = conv.telefone.replace(/^55/, '');
+        return normalizedConvPhone === normalizedUrlPhone || conv.telefone === phoneFromUrl;
+      });
       if (conversation) {
         // Find open ticket for this conversation
         const openTicket = tickets.find((ticket: any) => 
@@ -354,10 +360,13 @@ export default function Chat() {
         });
       } else if (conversas.length >= 0) {
         // If conversation doesn't exist, create a temporary one
+        // Normalize phone number for the temporary conversation
+        const normalizedPhone = phoneFromUrl.replace(/^55/, '');
+        
         const tempConversa: ConversaWithDetails = {
           id: -1, // Temporary ID
-          telefone: phoneFromUrl,
-          nome: formatPhoneNumber(phoneFromUrl),
+          telefone: normalizedPhone,
+          nome: formatPhoneNumber(normalizedPhone),
           ultimaMensagem: '',
           dataUltimaMensagem: new Date().toISOString(),
           status: 'ativo',
