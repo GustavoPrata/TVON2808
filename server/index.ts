@@ -56,7 +56,12 @@ app.use((req, res, next) => {
       const testesExpirados = await storage.getTestesExpiradosNaoNotificados();
       
       for (const teste of testesExpirados) {
-        const telefone = teste.telefone.replace(/\D/g, "");
+        let telefone = teste.telefone.replace(/\D/g, "");
+        
+        // Adiciona o código do país se não tiver
+        if (!telefone.startsWith("55")) {
+          telefone = "55" + telefone;
+        }
         
         // Mensagem de notificação sobre teste expirado
         const mensagem = `Seu teste acabou, ative seu plano agora por apenas 19,90!\n\n` +
