@@ -1512,7 +1512,9 @@ export class WhatsAppService extends EventEmitter {
       const cliente = await storage.getClienteByTelefone(conversa.telefone);
 
       // Verificar se é um cliente teste (ativo ou expirado)
+      console.log(`[BOT DEBUG] Buscando teste para telefone: ${conversa.telefone}`);
       const teste = await storage.getAnyTesteByTelefone(conversa.telefone);
+      console.log(`[BOT DEBUG] Teste encontrado:`, teste ? `ID ${teste.id}, expira em ${teste.expiraEm}` : 'NENHUM');
 
 
 
@@ -1520,12 +1522,12 @@ export class WhatsAppService extends EventEmitter {
       let tipoBot = "novos";
       if (teste) {
         tipoBot = "testes";
-        console.log("TESTE DETECTADO - usando bot de testes (ativo ou expirado)");
+        console.log(`[BOT DEBUG] TESTE DETECTADO para ${conversa.telefone} - usando bot de testes (ativo ou expirado)`);
       } else if (cliente) {
         tipoBot = "clientes";
-        console.log("CLIENTE DETECTADO - usando bot de clientes");
+        console.log(`[BOT DEBUG] CLIENTE DETECTADO para ${conversa.telefone} - usando bot de clientes`);
       } else {
-        console.log("NOVO USUÁRIO - usando bot de novos");
+        console.log(`[BOT DEBUG] NOVO USUÁRIO para ${conversa.telefone} - usando bot de novos`);
       }
 
       console.log(`Tipo de bot determinado: ${tipoBot}`);
