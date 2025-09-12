@@ -1824,9 +1824,9 @@ export default function Chat() {
           "w-full md:w-96 lg:w-96", // Full width on mobile, fixed width on desktop
           selectedConversa && "hidden md:flex" // Hide on mobile when conversation is selected
         )}>
-          <div className="p-4 border-b border-slate-600 relative z-50" style={{ isolation: 'isolate' }}>
+          <div className="p-4 border-b border-slate-600 relative" style={{ isolation: 'isolate' }}>
             {/* Contact Type Filter */}
-            <div className="relative z-10">
+            <div className="relative">
               <Tabs value={contactFilter} onValueChange={(value) => {
                 setContactFilter(value as any);
                 // Clear test phone number when changing tabs to prevent TestDetailsDialog from rendering
@@ -1871,8 +1871,9 @@ export default function Chat() {
               </Tabs>
             </div>
             
+            {/* Search area - Otimizado para mobile */}
             <div className="flex gap-2 mt-4">
-              {/* Attendance Filter Button */}
+              {/* Attendance Filter Button - Compacto no mobile */}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1888,7 +1889,7 @@ export default function Chat() {
                         }
                       }}
                       className={cn(
-                        "p-2.5 transition-all",
+                        "p-2 md:p-2.5 transition-all flex-shrink-0",
                         attendanceFilter === 'bot' && "bg-green-600 hover:bg-green-700",
                         attendanceFilter === 'human' && "bg-blue-600 hover:bg-blue-700",
                         attendanceFilter === 'all' && "bg-slate-600 hover:bg-slate-700"
@@ -1896,11 +1897,11 @@ export default function Chat() {
                       size="icon"
                     >
                       {attendanceFilter === 'bot' ? (
-                        <Bot className="w-5 h-5" />
+                        <Bot className="w-4 h-4 md:w-5 md:h-5" />
                       ) : attendanceFilter === 'human' ? (
-                        <User className="w-5 h-5" />
+                        <User className="w-4 h-4 md:w-5 md:h-5" />
                       ) : (
-                        <Users className="w-5 h-5" />
+                        <Users className="w-4 h-4 md:w-5 md:h-5" />
                       )}
                     </Button>
                   </TooltipTrigger>
@@ -1914,23 +1915,24 @@ export default function Chat() {
                 </Tooltip>
               </TooltipProvider>
               
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+              {/* Campo de busca - Ocupa espaço disponível */}
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-2 md:left-3 top-2.5 md:top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                 <Input
-                  placeholder="Buscar conversa..."
+                  placeholder="Buscar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-dark-card border-slate-600"
+                  className="pl-8 md:pl-10 pr-2 bg-dark-card border-slate-600 text-sm md:text-base h-9 md:h-10"
                 />
               </div>
               
-              {/* New Chat Button */}
+              {/* New Chat Button - Compacto no mobile */}
               <Button
                 onClick={() => setShowNewChatDialog(true)}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 p-2.5"
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 p-2 md:p-2.5 flex-shrink-0"
                 size="icon"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4 md:w-5 md:h-5" />
               </Button>
             </div>
             
@@ -1960,7 +1962,7 @@ export default function Chat() {
             )}
           </div>
         
-        <div className="flex-1 overflow-y-auto relative z-10">
+        <div className="flex-1 overflow-y-auto relative">
           <div className="p-2 space-y-1 relative">
             {!isConnected ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400">
@@ -3262,18 +3264,11 @@ export default function Chat() {
                   <WifiOff className="w-16 h-16 text-slate-500 mx-auto" />
                   <h3 className="text-xl font-semibold text-slate-300">WhatsApp Desconectado</h3>
                   <p className="text-slate-400">Conecte o WhatsApp para ver suas conversas</p>
-                  <Button 
-                    onClick={() => connectMutation.mutate()}
-                    disabled={connectMutation.isPending}
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
-                  >
-                    {connectMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Wifi className="w-4 h-4 mr-2" />
-                    )}
-                    Conectar WhatsApp
-                  </Button>
+                  {/* Remover botão Conectar do centro da tela no mobile */}
+                  {/* O botão agora está apenas no header superior */}
+                  <p className="text-sm text-slate-400 mt-4 hidden md:block">
+                    Use o botão "Conectar" no topo da página
+                  </p>
                 </>
               ) : (
                 <>
@@ -3287,12 +3282,12 @@ export default function Chat() {
         )}
         </div>
           
-          {/* Floating Action Button for Mobile */}
+          {/* Floating Action Button for Mobile - Ajustado posição para não conflitar */}
           {selectedConversa && (
             <Button
               onClick={() => setShowMobileActions(!showMobileActions)}
               className={cn(
-                "fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full shadow-lg lg:hidden",
+                "fixed bottom-4 right-4 z-30 w-14 h-14 rounded-full shadow-lg lg:hidden",
                 "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700",
                 "flex items-center justify-center",
                 showMobileActions && "from-purple-600 to-blue-500"
