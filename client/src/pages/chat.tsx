@@ -1818,7 +1818,11 @@ export default function Chat() {
 
       <div className="flex-1 flex overflow-hidden relative">
         {/* Chat Sidebar */}
-        <div className="w-96 bg-dark-surface border-r border-slate-600 flex flex-col relative">
+        <div className={cn(
+          "bg-dark-surface border-r border-slate-600 flex flex-col relative",
+          "w-full md:w-96", // Full width on mobile, fixed width on desktop
+          selectedConversa && "hidden md:flex" // Hide on mobile when conversation is selected
+        )}>
           <div className="p-4 border-b border-slate-600 relative z-50" style={{ isolation: 'isolate' }}>
             {/* Contact Type Filter */}
             <div className="relative z-10">
@@ -2248,7 +2252,10 @@ export default function Chat() {
         </div>
 
         {/* Main Content Area with Chat and Sidebar */}
-        <div className="flex-1 flex bg-dark-card max-h-screen">
+        <div className={cn(
+          "flex bg-dark-card max-h-screen",
+          selectedConversa ? "flex-1" : "hidden md:flex md:flex-1" // Show only on desktop when no conversation selected
+        )}>
           {/* Chat Area */}
           <div className="flex-1 flex flex-col relative z-0">
         {selectedConversa ? (
@@ -2261,10 +2268,10 @@ export default function Chat() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="lg:hidden"
+                    className="md:hidden"
                     onClick={() => setSelectedConversa(null)}
                   >
-                    <X className="w-4 h-4" />
+                    <ArrowLeft className="w-4 h-4" />
                   </Button>
                   
                   {/* Avatar */}
@@ -3281,7 +3288,7 @@ export default function Chat() {
           
           {/* Sidebar Menu - Sempre Visível */}
           {selectedConversa && (
-          <div className="w-48 bg-dark-surface border-l border-slate-700 shadow-xl flex-shrink-0 h-screen">
+          <div className="hidden lg:flex w-48 bg-dark-surface border-l border-slate-700 shadow-xl flex-shrink-0 h-screen flex-col">
             {/* Sidebar Header */}
             <div className="p-2.5 border-b border-slate-700 bg-gradient-to-r from-slate-800/50 to-slate-900/50">
               <h3 className="text-xs font-semibold text-slate-200 text-center uppercase">Ações</h3>
