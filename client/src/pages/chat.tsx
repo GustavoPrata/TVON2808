@@ -164,6 +164,7 @@ export default function Chat() {
   const [pixStateByConversation, setPixStateByConversation] = useState<Map<string, any>>(new Map());
   const [isLoadingPixState, setIsLoadingPixState] = useState(false);
   const [isSavingPixState, setIsSavingPixState] = useState(false);
+  const [showMobileActions, setShowMobileActions] = useState(false); // Mobile actions sidebar state
   const pixStateSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1820,7 +1821,7 @@ export default function Chat() {
         {/* Chat Sidebar */}
         <div className={cn(
           "bg-dark-surface border-r border-slate-600 flex flex-col relative",
-          "w-full md:w-96", // Full width on mobile, fixed width on desktop
+          "w-full md:w-96 lg:w-96", // Full width on mobile, fixed width on desktop
           selectedConversa && "hidden md:flex" // Hide on mobile when conversation is selected
         )}>
           <div className="p-4 border-b border-slate-600 relative z-50" style={{ isolation: 'isolate' }}>
@@ -3058,7 +3059,7 @@ export default function Chat() {
                   )}
                   
                   {/* Input Area */}
-                  <div className="flex items-end gap-2">
+                  <div className="flex items-end gap-1 sm:gap-2">
                     <AttachmentMenu onAttachmentSelect={handleAttachment} />
                     
                     <div className="flex-1 relative">
@@ -3194,7 +3195,7 @@ export default function Chat() {
                           }, 0);
                         }}
                         placeholder="Digite sua mensagem..."
-                        className="w-full h-[40px] max-h-[200px] px-3 py-2 bg-dark-card border border-slate-600 rounded-lg text-white placeholder:text-slate-500 pr-12 resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        className="w-full h-[40px] max-h-[200px] px-2 sm:px-3 py-1.5 sm:py-2 bg-dark-card border border-slate-600 rounded-lg text-sm sm:text-base text-white placeholder:text-slate-500 pr-10 sm:pr-12 resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         spellCheck={true}
                         lang="pt-BR"
                         autoCapitalize="sentences"
@@ -3286,16 +3287,62 @@ export default function Chat() {
         )}
         </div>
           
-          {/* Sidebar Menu - Sempre Visível */}
+          {/* Floating Action Button for Mobile */}
           {selectedConversa && (
-          <div className="hidden lg:flex w-48 bg-dark-surface border-l border-slate-700 shadow-xl flex-shrink-0 h-screen flex-col">
+            <Button
+              onClick={() => setShowMobileActions(!showMobileActions)}
+              className={cn(
+                "fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full shadow-lg lg:hidden",
+                "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700",
+                "flex items-center justify-center",
+                showMobileActions && "from-purple-600 to-blue-500"
+              )}
+            >
+              {showMobileActions ? (
+                <X className="w-6 h-6 text-white" />
+              ) : (
+                <DollarSign className="w-6 h-6 text-white" />
+              )}
+            </Button>
+          )}
+          
+          {/* Sidebar Menu - Desktop always visible, Mobile as overlay */}
+          {selectedConversa && (
+          <div className={cn(
+            "bg-dark-surface border-l border-slate-700 shadow-xl flex-shrink-0 flex-col",
+            "lg:flex lg:w-48 lg:h-screen lg:relative",
+            "fixed inset-0 z-40 w-full h-full lg:static",
+            showMobileActions ? "flex" : "hidden lg:flex"
+          )}>
+            {/* Mobile Overlay Background */}
+            {showMobileActions && (
+              <div 
+                className="absolute inset-0 bg-black/50 lg:hidden"
+                onClick={() => setShowMobileActions(false)}
+              />
+            )}
+            
+            {/* Sidebar Content */}
+            <div className={cn(
+              "relative bg-dark-surface h-full flex flex-col",
+              "lg:w-48",
+              "w-full max-w-sm ml-auto" // Mobile: full width up to max-w-sm, aligned to right
+            )}>
             {/* Sidebar Header */}
-            <div className="p-2.5 border-b border-slate-700 bg-gradient-to-r from-slate-800/50 to-slate-900/50">
-              <h3 className="text-xs font-semibold text-slate-200 text-center uppercase">Ações</h3>
+            <div className="p-2.5 border-b border-slate-700 bg-gradient-to-r from-slate-800/50 to-slate-900/50 flex items-center justify-between">
+              <h3 className="text-xs font-semibold text-slate-200 uppercase">Ações</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowMobileActions(false)}
+                className="lg:hidden -mr-1"
+              >
+                <X className="w-4 h-4" />
+              </Button>
             </div>
             
             {/* Sidebar Content */}
-            <div className="p-2.5 space-y-3 overflow-y-auto h-[calc(100vh-50px)]">
+            <div className="p-2.5 space-y-3 overflow-y-auto flex-1 lg:h-[calc(100vh-50px)]">
               {/* Attendance Mode Section */}
               <div className="space-y-2">
                 <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide px-1">Atendimento</h4>
@@ -3483,6 +3530,7 @@ export default function Chat() {
                 </Button>
               </div>
               
+            </div>
             </div>
           </div>
         )}
