@@ -1570,6 +1570,11 @@ export class WhatsAppService extends EventEmitter {
       // Check if user is in a submenu
       const state = this.conversaStates.get(conversa.telefone);
       const isInSubmenu = state && state.submenu;
+      
+      // Debug log for expired client tracking
+      if (cliente && isInSubmenu) {
+        console.log(`[DEBUG] Cliente ${cliente.nome} - Estado: ${state.submenu} - Mensagem: ${messageText}`);
+      }
 
 
 
@@ -1654,8 +1659,9 @@ export class WhatsAppService extends EventEmitter {
         await this.sendBotMenu(conversa.telefone, botConfig);
       }
       // Special handling for clientes bot - always accept options 1-6
-      else if (tipoBot === "clientes" && ["1", "2", "3", "4", "5", "6"].includes(messageText)) {
-        console.log(`Opção ${messageText} selecionada para bot clientes`);
+      // BUT ONLY IF NOT IN A SUBMENU (fix for expired client menu bug)
+      else if (tipoBot === "clientes" && ["1", "2", "3", "4", "5", "6"].includes(messageText) && !isInSubmenu) {
+        console.log(`Opção ${messageText} selecionada para bot clientes (menu principal)`);
         await this.handleClientesBotOption(
           conversa,
           messageText,
@@ -1664,8 +1670,9 @@ export class WhatsAppService extends EventEmitter {
         );
       } 
       // Special handling for novos bot - accept options 1-8
-      else if (tipoBot === "novos" && ["1", "2", "3", "4", "5", "6", "7", "8"].includes(messageText)) {
-        console.log(`Opção ${messageText} selecionada para bot novos`);
+      // BUT ONLY IF NOT IN A SUBMENU
+      else if (tipoBot === "novos" && ["1", "2", "3", "4", "5", "6", "7", "8"].includes(messageText) && !isInSubmenu) {
+        console.log(`Opção ${messageText} selecionada para bot novos (menu principal)`);
         await this.handleNovosBotOption(
           conversa,
           messageText,
@@ -1673,8 +1680,9 @@ export class WhatsAppService extends EventEmitter {
         );
       }
       // Special handling for test bot - accept options 1-2
-      else if (tipoBot === "testes" && ["1", "2"].includes(messageText)) {
-        console.log(`Opção ${messageText} selecionada para bot testes`);
+      // BUT ONLY IF NOT IN A SUBMENU  
+      else if (tipoBot === "testes" && ["1", "2"].includes(messageText) && !isInSubmenu) {
+        console.log(`Opção ${messageText} selecionada para bot testes (menu principal)`);
         await this.handleTestesBotOption(
           conversa,
           messageText,
