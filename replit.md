@@ -5,6 +5,7 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 
 ## User Preferences
 - **UI Simplification**: Remove unnecessary buttons from chat interface (no mute notifications or contact info buttons)
+- **Modern Tab Interface**: Use elegant tabbed layouts with gradient colors and icons for menu organization (similar to bot-config page style)
 
 ## System Architecture
 

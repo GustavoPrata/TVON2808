@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { 
   Calendar, Clock, Bell, BellOff, Send, Search, Filter, AlertTriangle, 
   CheckCircle, Users, Phone, Settings, RefreshCw, MessageSquare, History,
-  AlertCircle, Timer, BellRing
+  AlertCircle, Timer, BellRing, Eye
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -64,16 +64,13 @@ export default function Vencimentos() {
   const [location, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDays, setFilterDays] = useState('todos');
-  const [configOpen, setConfigOpen] = useState(false);
   const [horaAviso, setHoraAviso] = useState('09:00');
   const [avisoAtivo, setAvisoAtivo] = useState(true);
   const [mensagemPadrao, setMensagemPadrao] = useState('');
-  const [showHistorico, setShowHistorico] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<number | null>(null);
   const { toast } = useToast();
   
   // Estados para notificações recorrentes
-  const [configRecorrenteOpen, setConfigRecorrenteOpen] = useState(false);
   const [recorrenteAtivo, setRecorrenteAtivo] = useState(false);
   const [recorrenteIntervalo, setRecorrenteIntervalo] = useState('3');
   const [recorrenteLimite, setRecorrenteLimite] = useState('10');
@@ -123,56 +120,41 @@ export default function Vencimentos() {
     refetchOnWindowFocus: true,
   });
 
-  // Fetch all avisos (histórico)
-  const { data: todosAvisos } = useQuery({
-    queryKey: ['/api/avisos'],
+  // Fetch avisos history
+  const { data: historico, refetch: refetchHistorico } = useQuery({
+    queryKey: ['/api/avisos/historico', selectedCliente],
     queryFn: async () => {
-      const response = await fetch('/api/avisos');
-      if (!response.ok) throw new Error('Failed to fetch all avisos');
+      const url = selectedCliente 
+        ? `/api/avisos/historico?clienteId=${selectedCliente}`
+        : '/api/avisos/historico';
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch history');
       return response.json() as Promise<AvisoVencimento[]>;
     },
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
-    staleTime: 0,
+    enabled: false, // Only fetch when needed
   });
 
-  // Fetch config avisos
-  const { data: config } = useQuery({
+  // Fetch configuration
+  const { data: config, refetch: refetchConfig } = useQuery({
     queryKey: ['/api/avisos/config'],
     queryFn: async () => {
       const response = await fetch('/api/avisos/config');
       if (!response.ok) throw new Error('Failed to fetch config');
       return response.json();
     },
-    refetchInterval: 15000, // Auto-refresh every 15 seconds
-    staleTime: 0,
-    refetchOnWindowFocus: true,
   });
 
-  // Fetch config recorrente
-  const { data: configRecorrente } = useQuery({
+  // Fetch recurrent config
+  const { data: configRecorrente, refetch: refetchConfigRecorrente } = useQuery({
     queryKey: ['/api/avisos/config-recorrente'],
     queryFn: async () => {
       const response = await fetch('/api/avisos/config-recorrente');
-      if (!response.ok) throw new Error('Failed to fetch config recorrente');
+      if (!response.ok) throw new Error('Failed to fetch recurrent config');
       return response.json();
     },
-    refetchInterval: 15000,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
   });
 
-  // Fetch notificações recorrentes status
-  const { data: notificacoesRecorrentes } = useQuery({
-    queryKey: ['/api/notificacoes-recorrentes'],
-    queryFn: async () => {
-      const response = await fetch('/api/notificacoes-recorrentes');
-      if (!response.ok) throw new Error('Failed to fetch notificações recorrentes');
-      return response.json() as Promise<NotificacaoRecorrente[]>;
-    },
-    refetchInterval: 30000,
-    staleTime: 0,
-  });
-
+  // Update states when config is loaded
   useEffect(() => {
     if (config) {
       setHoraAviso(config.horaAviso || '09:00');
@@ -181,164 +163,121 @@ export default function Vencimentos() {
     }
   }, [config]);
 
+  // Update states when recurrent config is loaded
   useEffect(() => {
     if (configRecorrente) {
-      setRecorrenteAtivo(configRecorrente.ativo ?? false);
-      setRecorrenteIntervalo(configRecorrente.intervaloRecorrente?.toString() || '3');
-      setRecorrenteLimite(configRecorrente.limiteNotificacoes?.toString() || '10');
-      setRecorrenteMensagem(configRecorrente.mensagemPadrao || '');
+      setRecorrenteAtivo(configRecorrente.notificacoesRecorrentes ?? false);
+      setRecorrenteIntervalo(String(configRecorrente.intervaloRecorrente || 3));
+      setRecorrenteLimite(String(configRecorrente.limiteNotificacoes || 10));
     }
   }, [configRecorrente]);
 
-  // Update config mutation
+  // Fetch notificações recorrentes ativas
+  const { data: notificacoesRecorrentes } = useQuery({
+    queryKey: ['/api/avisos/recorrentes-ativas'],
+    queryFn: async () => {
+      const response = await fetch('/api/avisos/recorrentes-ativas');
+      if (!response.ok) throw new Error('Failed to fetch recurrent notifications');
+      return response.json() as Promise<NotificacaoRecorrente[]>;
+    },
+    refetchInterval: 30000, // Atualiza a cada 30 segundos
+  });
+
+  // Update configuration mutation
   const updateConfigMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/avisos/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          horaAviso,
-          ativo: avisoAtivo,
-          mensagemPadrao,
-          diasAntecedencia: 0
-        }),
+      const response = await api.post('/api/avisos/config', {
+        horaAviso,
+        ativo: avisoAtivo,
+        mensagemPadrao
       });
-      if (!response.ok) throw new Error('Failed to update config');
-      return response.json();
+      return response.data;
     },
     onSuccess: () => {
       toast({
-        title: 'Configuração salva',
-        description: 'Configurações de avisos atualizadas com sucesso.',
+        title: "Configuração salva",
+        description: "As configurações de avisos foram atualizadas com sucesso.",
       });
-      setConfigOpen(false);
-      // Invalidate and refetch config to ensure UI is updated
-      queryClient.invalidateQueries({ queryKey: ['/api/avisos/config'] });
+      refetchConfig();
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
-        title: 'Erro',
-        description: 'Erro ao salvar configurações.',
-        variant: 'destructive',
+        title: "Erro ao salvar",
+        description: error.response?.data?.error || "Ocorreu um erro ao salvar as configurações.",
+        variant: "destructive",
       });
     },
   });
 
-  // Send aviso mutation
-  const sendAvisoMutation = useMutation({
-    mutationFn: async (cliente: Cliente) => {
-      const response = await fetch('/api/avisos/enviar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clienteId: cliente.id,
-          telefone: cliente.telefone,
-        }),
-      });
-      if (!response.ok) throw new Error('Failed to send aviso');
-      return response.json();
-    },
-    onSuccess: (_, cliente) => {
-      toast({
-        title: 'Aviso enviado',
-        description: `Aviso de vencimento enviado para ${cliente.nome}.`,
-      });
-      refetchAvisos();
-      queryClient.invalidateQueries({ queryKey: ['/api/avisos'] });
-    },
-    onError: () => {
-      toast({
-        title: 'Erro',
-        description: 'Erro ao enviar aviso.',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  // Send manual notification mutation
-  const sendManualNotificationMutation = useMutation({
-    mutationFn: async (clienteId: number) => {
-      const response = await fetch('/api/avisos/enviar-manual', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clienteId }),
-      });
-      if (!response.ok) throw new Error('Failed to send manual notification');
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Notificação enviada',
-        description: 'Notificação manual enviada com sucesso.',
-      });
-      refetchAvisos();
-      queryClient.invalidateQueries({ queryKey: ['/api/avisos'] });
-    },
-    onError: () => {
-      toast({
-        title: 'Erro',
-        description: 'Erro ao enviar notificação manual.',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  // Check all expired today mutation
-  const checkExpiredMutation = useMutation({
+  // Update recurrent configuration mutation
+  const updateConfigRecorrenteMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/avisos/verificar-vencimentos', {
-        method: 'POST',
+      const response = await api.post('/api/avisos/config-recorrente', {
+        notificacoesRecorrentes: recorrenteAtivo,
+        intervaloRecorrente: parseInt(recorrenteIntervalo),
+        limiteNotificacoes: parseInt(recorrenteLimite),
+        mensagemRecorrente: recorrenteMensagem || undefined
       });
-      if (!response.ok) throw new Error('Failed to check expired');
-      return response.json();
+      return response.data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
-        title: 'Verificação concluída',
-        description: `${data.avisosEnviados || 0} avisos enviados para clientes vencendo hoje.`,
+        title: "Configuração salva",
+        description: "As configurações de notificações recorrentes foram atualizadas.",
+      });
+      refetchConfigRecorrente();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao salvar",
+        description: error.response?.data?.error || "Ocorreu um erro ao salvar as configurações.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Send warning mutation
+  const sendWarningMutation = useMutation({
+    mutationFn: async (clienteId: number) => {
+      const response = await api.post(`/api/avisos/enviar/${clienteId}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Aviso enviado",
+        description: "O aviso de vencimento foi enviado com sucesso.",
       });
       refetchAvisos();
       refetchClientes();
-      queryClient.invalidateQueries({ queryKey: ['/api/avisos'] });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
-        title: 'Erro',
-        description: 'Erro ao verificar vencimentos.',
-        variant: 'destructive',
+        title: "Erro ao enviar",
+        description: error.response?.data?.error || "Ocorreu um erro ao enviar o aviso.",
+        variant: "destructive",
       });
     },
   });
 
-  // Update config recorrente mutation
-  const updateConfigRecorrenteMutation = useMutation({
+  // Manually trigger warnings
+  const triggerWarningsMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/avisos/config-recorrente', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ativo: recorrenteAtivo,
-          intervaloRecorrente: parseInt(recorrenteIntervalo),
-          limiteNotificacoes: parseInt(recorrenteLimite),
-          mensagemPadrao: recorrenteMensagem,
-        }),
-      });
-      if (!response.ok) throw new Error('Failed to update config recorrente');
-      return response.json();
+      const response = await api.post('/api/avisos/trigger');
+      return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
-        title: 'Configuração salva',
-        description: 'Configurações de notificações recorrentes atualizadas com sucesso.',
+        title: "Avisos enviados",
+        description: `${data.enviados} avisos foram enviados com sucesso.`,
       });
-      setConfigRecorrenteOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/avisos/config-recorrente'] });
+      refetchAvisos();
+      refetchClientes();
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
-        title: 'Erro',
-        description: 'Erro ao salvar configurações recorrentes.',
-        variant: 'destructive',
+        title: "Erro ao enviar avisos",
+        description: error.response?.data?.error || "Ocorreu um erro ao enviar os avisos.",
+        variant: "destructive",
       });
     },
   });
@@ -346,132 +285,83 @@ export default function Vencimentos() {
   // Reset notificação recorrente mutation
   const resetNotificacaoMutation = useMutation({
     mutationFn: async (clienteId: number) => {
-      const response = await fetch(`/api/notificacoes-recorrentes/reset/${clienteId}`, {
-        method: 'POST',
-      });
-      if (!response.ok) throw new Error('Failed to reset notificação');
-      return response.json();
+      const response = await api.post(`/api/avisos/reset-recorrente/${clienteId}`);
+      return response.data;
     },
     onSuccess: () => {
       toast({
-        title: 'Contador resetado',
-        description: 'Contador de notificações recorrentes foi resetado.',
+        title: "Contagem resetada",
+        description: "A contagem de notificações foi reiniciada.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/notificacoes-recorrentes'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/avisos/recorrentes-ativas'] });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
-        title: 'Erro',
-        description: 'Erro ao resetar contador.',
-        variant: 'destructive',
+        title: "Erro ao resetar",
+        description: error.response?.data?.error || "Ocorreu um erro ao resetar a contagem.",
+        variant: "destructive",
       });
     },
   });
 
-  const getDaysUntilExpiry = (vencimento: string) => {
-    const expiryDate = new Date(vencimento);
+  const getDaysUntilExpiry = (vencimento: string | null | undefined) => {
+    if (!vencimento) return 999;
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    const expiryDate = new Date(vencimento);
     expiryDate.setHours(0, 0, 0, 0);
+    
     const diffTime = expiryDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
     return diffDays;
   };
 
-  const getDaysRemainingBadge = (days: number) => {
-    if (days <= 0) return 'bg-red-500/20 text-red-400 border-red-500/50';
-    if (days <= 3) return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50';
-    if (days <= 7) return 'bg-orange-500/20 text-orange-400 border-orange-500/50';
-    return 'bg-green-500/20 text-green-400 border-green-500/50';
-  };
-
-  const getDaysText = (days: number) => {
-    if (days === 0) return 'Vence hoje';
-    if (days === 1) return '1 dia';
-    if (days === -1) return 'Venceu ontem';
-    if (days < 0) return `Vencido há ${Math.abs(days)} dias`;
-    return `${days} dias`;
-  };
-
-  const getTipoAvisoInfo = (tipo: string) => {
-    switch (tipo) {
-      case 'vence_hoje':
-        return {
-          label: 'Vence Hoje',
-          color: 'bg-orange-500/20 text-orange-400 border-orange-500/50',
-          icon: <AlertCircle className="w-3 h-3" />
-        };
-      case 'venceu_ontem':
-        return {
-          label: 'Venceu Ontem',
-          color: 'bg-red-500/20 text-red-400 border-red-500/50',
-          icon: <AlertTriangle className="w-3 h-3" />
-        };
-      case 'vencido_recorrente':
-        return {
-          label: 'Lembrete (3 dias)',
-          color: 'bg-purple-500/20 text-purple-400 border-purple-500/50',
-          icon: <Timer className="w-3 h-3" />
-        };
-      case 'manual':
-        return {
-          label: 'Manual',
-          color: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
-          icon: <Send className="w-3 h-3" />
-        };
-      default:
-        return {
-          label: 'Automático',
-          color: 'bg-green-500/20 text-green-400 border-green-500/50',
-          icon: <Bell className="w-3 h-3" />
-        };
+  const getStatusBadge = (days: number, avisoEnviado: boolean) => {
+    if (avisoEnviado) {
+      return <Badge className="bg-green-500/20 text-green-400 text-xs">Notificado</Badge>;
     }
-  };
-
-  const checkIfNotified = (clienteId: number) => {
-    return avisos?.some((aviso: AvisoVencimento) => aviso.clienteId === clienteId);
-  };
-
-  const getClienteAvisos = (clienteId: number) => {
-    return todosAvisos?.filter((aviso: AvisoVencimento) => aviso.clienteId === clienteId) || [];
-  };
-
-  const getAvisosStats = () => {
-    if (!avisos) return { hoje: 0, ontem: 0, recorrente: 0, manual: 0 };
     
-    return {
-      hoje: avisos.filter(a => a.tipoAviso === 'vence_hoje').length,
-      ontem: avisos.filter(a => a.tipoAviso === 'venceu_ontem').length,
-      recorrente: avisos.filter(a => a.tipoAviso === 'vencido_recorrente').length,
-      manual: avisos.filter(a => a.tipoAviso === 'manual').length,
-    };
-  };
-
-  const stats = getAvisosStats();
-
-  const filteredClientes = clientes?.filter(cliente => {
-    // Search filter
-    const matchesSearch = !searchTerm || 
-      cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.telefone.includes(searchTerm);
-    
-    // Days filter
-    let matchesDays = true;
-    if (filterDays !== 'todos' && cliente.vencimento) {
-      const days = getDaysUntilExpiry(cliente.vencimento);
-      if (filterDays === 'hoje') matchesDays = days === 0;
-      else if (filterDays === '3dias') matchesDays = days >= 0 && days <= 3;
-      else if (filterDays === '7dias') matchesDays = days >= 0 && days <= 7;
-      else if (filterDays === 'vencidos') matchesDays = days < 0;
+    if (days < 0) {
+      return <Badge className="bg-red-500/20 text-red-400 text-xs">Vencido há {Math.abs(days)} dias</Badge>;
+    } else if (days === 0) {
+      return <Badge className="bg-orange-500/20 text-orange-400 text-xs">Vence hoje</Badge>;
+    } else if (days <= 3) {
+      return <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">Vence em {days} dias</Badge>;
     }
+    return null;
+  };
 
-    return matchesSearch && matchesDays;
-  }).sort((a, b) => {
-    // Sort by days remaining (ascending - expiring first)
-    if (!a.vencimento && !b.vencimento) return 0;
-    if (!a.vencimento) return 1;
-    if (!b.vencimento) return -1;
-    
+  // Filter clients
+  let filteredClients = clientes || [];
+  
+  if (searchTerm) {
+    filteredClients = filteredClients.filter(cliente =>
+      cliente.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.telefone?.includes(searchTerm)
+    );
+  }
+
+  if (filterDays !== 'todos') {
+    const days = parseInt(filterDays);
+    if (days === -1) {
+      // Show only expired
+      filteredClients = filteredClients.filter(c => {
+        const d = getDaysUntilExpiry(c.vencimento);
+        return d < 0;
+      });
+    } else {
+      filteredClients = filteredClients.filter(c => {
+        const d = getDaysUntilExpiry(c.vencimento);
+        return d <= days && d >= 0;
+      });
+    }
+  }
+
+  // Sort by days until expiry
+  filteredClients = filteredClients.sort((a, b) => {
     const daysA = getDaysUntilExpiry(a.vencimento);
     const daysB = getDaysUntilExpiry(b.vencimento);
     return daysA - daysB;
@@ -508,32 +398,6 @@ export default function Vencimentos() {
                 Controle de vencimentos e avisos automáticos
               </p>
             </div>
-          </div>
-          
-          <div className="flex gap-2 w-full md:w-auto">
-            <Button
-              onClick={() => setShowHistorico(!showHistorico)}
-              variant="outline"
-              className="border-slate-600 hover:bg-slate-800 flex-1 md:flex-none text-xs md:text-sm"
-            >
-              <History className="w-4 h-4 mr-1 md:mr-2" />
-              Histórico
-            </Button>
-            <Button
-              onClick={() => setConfigOpen(!configOpen)}
-              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 flex-1 md:flex-none text-xs md:text-sm"
-            >
-              <Settings className="w-4 h-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">Configurar</span> Avisos
-            </Button>
-            <Button
-              onClick={() => setConfigRecorrenteOpen(!configRecorrenteOpen)}
-              variant="outline"
-              className="border-purple-600 hover:bg-purple-800/20 flex-1 md:flex-none text-xs md:text-sm"
-            >
-              <Timer className="w-4 h-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">Notif.</span> Recorrentes
-            </Button>
           </div>
         </div>
 
@@ -575,595 +439,425 @@ export default function Vencimentos() {
         </div>
       </div>
 
-      {/* Config Recorrente Panel */}
-      {configRecorrenteOpen && (
-        <Card className="bg-dark-card border-slate-600">
-          <CardHeader>
-            <CardTitle className="text-white">Configuração de Notificações Recorrentes</CardTitle>
-            <CardDescription className="text-slate-400">
-              Configure avisos recorrentes para clientes que continuam vencidos após os 2 primeiros dias
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-amber-500/10 rounded-lg p-4 border border-amber-500/30">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-amber-400">Como funcionam as notificações</p>
-                  <ul className="text-xs text-slate-300 space-y-1">
-                    <li>• <strong>Dia do vencimento:</strong> Sempre envia aviso automaticamente</li>
-                    <li>• <strong>1 dia após vencimento:</strong> Sempre envia com opção de desbloqueio</li>
-                    <li>• <strong>Notificações recorrentes:</strong> Configuração abaixo define o que acontece após os 2 primeiros dias</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
+      {/* Main Content with Tabs */}
+      <Tabs defaultValue="visualizar" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-slate-800/50 to-slate-900/50 p-1 rounded-lg">
+          <TabsTrigger 
+            value="configuracoes" 
+            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+          >
+            <Settings className="w-4 h-4" />
+            <span className="hidden sm:inline">Configurações</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="recorrentes" 
+            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-600 data-[state=active]:text-white"
+          >
+            <Timer className="w-4 h-4" />
+            <span className="hidden sm:inline">Recorrentes</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="historico" 
+            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-teal-600 data-[state=active]:text-white"
+          >
+            <History className="w-4 h-4" />
+            <span className="hidden sm:inline">Histórico</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="visualizar" 
+            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-600 data-[state=active]:text-white"
+          >
+            <Eye className="w-4 h-4" />
+            <span className="hidden sm:inline">Visualizar</span>
+          </TabsTrigger>
+        </TabsList>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2 flex flex-col justify-center">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="recorrente-ativo">Ativar Notificações Recorrentes</Label>
-                  <Switch
-                    id="recorrente-ativo"
-                    checked={recorrenteAtivo}
-                    onCheckedChange={setRecorrenteAtivo}
+        {/* Configurações Tab */}
+        <TabsContent value="configuracoes" className="mt-6">
+          <Card className="bg-dark-card border-slate-600">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                Configuração de Avisos
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Configure o horário e a mensagem padrão dos avisos de vencimento
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="hora-aviso">Horário de envio</Label>
+                  <Input
+                    id="hora-aviso"
+                    type="time"
+                    value={horaAviso}
+                    onChange={(e) => setHoraAviso(e.target.value)}
+                    className="bg-slate-800 border-slate-700"
                   />
+                  <p className="text-xs text-slate-400">
+                    Horário diário para verificar e enviar avisos
+                  </p>
                 </div>
-                <p className="text-xs text-slate-400">
-                  {recorrenteAtivo ? 'Continuará enviando avisos após 2 dias de vencimento' : 'Não enviará mais avisos após 2 dias'}
-                </p>
+                
+                <div className="space-y-2 flex flex-col justify-center">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="aviso-ativo">Avisos automáticos ativos</Label>
+                    <Switch
+                      id="aviso-ativo"
+                      checked={avisoAtivo}
+                      onCheckedChange={setAvisoAtivo}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {avisoAtivo ? 'Avisos serão enviados automaticamente' : 'Avisos automáticos desativados'}
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="intervalo">Intervalo entre notificações</Label>
-                <Select value={recorrenteIntervalo} onValueChange={setRecorrenteIntervalo}>
-                  <SelectTrigger id="intervalo" className="bg-slate-800 border-slate-700">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Diariamente</SelectItem>
-                    <SelectItem value="2">A cada 2 dias</SelectItem>
-                    <SelectItem value="3">A cada 3 dias</SelectItem>
-                    <SelectItem value="4">A cada 4 dias</SelectItem>
-                    <SelectItem value="5">A cada 5 dias</SelectItem>
-                    <SelectItem value="6">A cada 6 dias</SelectItem>
-                    <SelectItem value="7">Semanalmente</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-slate-400">
-                  Frequência dos avisos após o 2º dia
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="limite">Limite de notificações</Label>
-              <Input
-                id="limite"
-                type="number"
-                min="1"
-                max="30"
-                value={recorrenteLimite}
-                onChange={(e) => setRecorrenteLimite(e.target.value)}
-                className="bg-slate-800 border-slate-700"
-                disabled={!recorrenteAtivo}
-              />
-              <p className="text-xs text-slate-400">
-                Número máximo de notificações recorrentes (após isso, para de avisar)
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="mensagem-recorrente">Mensagem personalizada (opcional)</Label>
-              <Textarea
-                id="mensagem-recorrente"
-                placeholder="Digite uma mensagem adicional para as notificações recorrentes..."
-                value={recorrenteMensagem}
-                onChange={(e) => setRecorrenteMensagem(e.target.value)}
-                className="bg-slate-800 border-slate-700 min-h-[100px]"
-                disabled={!recorrenteAtivo}
-              />
-              <p className="text-xs text-slate-400">
-                Mensagem adicional que será incluída nas notificações recorrentes
-              </p>
-            </div>
-
-            {/* Status de Notificações Recorrentes Ativas */}
-            {notificacoesRecorrentes && notificacoesRecorrentes.length > 0 && (
-              <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                <h4 className="text-sm font-semibold text-white mb-3">Notificações Recorrentes Ativas</h4>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {notificacoesRecorrentes.map((notif) => (
-                    <div key={notif.id} className="flex items-center justify-between bg-slate-900/50 rounded p-2">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="w-6 h-6">
-                          <AvatarFallback className="text-xs bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                            {notif.cliente?.nome?.charAt(0).toUpperCase() || '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-xs font-medium text-white">{notif.cliente?.nome || 'Cliente'}</p>
-                          <p className="text-xs text-slate-400">
-                            {notif.contagemNotificacoes} notificações enviadas
-                          </p>
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => resetNotificacaoMutation.mutate(notif.clienteId)}
-                        className="text-xs hover:bg-slate-800"
-                      >
-                        <RefreshCw className="w-3 h-3 mr-1" />
-                        Resetar
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                onClick={() => updateConfigRecorrenteMutation.mutate()}
-                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700"
-                disabled={updateConfigRecorrenteMutation.isPending}
-              >
-                {updateConfigRecorrenteMutation.isPending ? 'Salvando...' : 'Salvar Configurações'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setConfigRecorrenteOpen(false)}
-                className="border-slate-600 hover:bg-slate-800"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Config Panel */}
-      {configOpen && (
-        <Card className="bg-dark-card border-slate-600">
-          <CardHeader>
-            <CardTitle className="text-white">Configuração de Avisos Automáticos</CardTitle>
-            <CardDescription className="text-slate-400">
-              Configure o horário e mensagem dos avisos automáticos de vencimento
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="hora">Horário de Envio</Label>
-                <Input
-                  id="hora"
-                  type="time"
-                  value={horaAviso}
-                  onChange={(e) => setHoraAviso(e.target.value)}
-                  className="bg-slate-800 border-slate-700"
+                <Label htmlFor="mensagem">Mensagem padrão</Label>
+                <Textarea
+                  id="mensagem"
+                  placeholder="Digite a mensagem padrão para os avisos..."
+                  value={mensagemPadrao}
+                  onChange={(e) => setMensagemPadrao(e.target.value)}
+                  className="bg-slate-800 border-slate-700 min-h-[120px]"
                 />
                 <p className="text-xs text-slate-400">
-                  Horário que os avisos serão enviados diariamente
+                  Use {'{nome}'} para o nome do cliente e {'{dias}'} para os dias até o vencimento
                 </p>
               </div>
-              
-              <div className="space-y-2 flex flex-col justify-center">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="ativo">Avisos Automáticos</Label>
-                  <Switch
-                    id="ativo"
-                    checked={avisoAtivo}
-                    onCheckedChange={setAvisoAtivo}
-                  />
-                </div>
-                <p className="text-xs text-slate-400">
-                  {avisoAtivo ? 'Avisos serão enviados automaticamente' : 'Avisos automáticos desativados'}
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-              <h4 className="text-sm font-semibold text-white mb-2">Regras de Avisos Automáticos</h4>
-              <ul className="space-y-2 text-xs text-slate-400">
-                <li className="flex items-center gap-2">
-                  <AlertCircle className="w-3 h-3 text-orange-400" />
-                  <span><strong className="text-orange-400">No dia do vencimento:</strong> Aviso de que o plano vence hoje</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <AlertTriangle className="w-3 h-3 text-red-400" />
-                  <span><strong className="text-red-400">1 dia após vencimento:</strong> Aviso com opção de desbloqueio de confiança</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Timer className="w-3 h-3 text-purple-400" />
-                  <span><strong className="text-purple-400">A cada 3 dias após:</strong> Lembretes recorrentes para renovação</span>
-                </li>
-              </ul>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button
-                onClick={() => updateConfigMutation.mutate()}
-                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-              >
-                Salvar Configurações
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setConfigOpen(false)}
-                className="border-slate-600 hover:bg-slate-800"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Histórico de Avisos */}
-      {showHistorico && todosAvisos && (
-        <Card className="bg-dark-card border-slate-600">
-          <CardHeader>
-            <CardTitle className="text-white">Histórico de Avisos</CardTitle>
-            <CardDescription className="text-slate-400">
-              Últimos avisos enviados para todos os clientes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="max-h-96 overflow-y-auto space-y-2">
-              {todosAvisos.slice(0, 50).map((aviso) => {
-                const tipoInfo = getTipoAvisoInfo(aviso.tipoAviso);
-                const cliente = clientes?.find(c => c.id === aviso.clienteId);
-                
-                return (
-                  <div key={aviso.id} className="bg-slate-800/30 rounded-lg p-3 border border-slate-700/50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback className="bg-gradient-to-br from-blue-500/20 to-purple-500/20 text-xs">
-                            {cliente?.nome?.charAt(0).toUpperCase() || '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium text-white">{cliente?.nome || 'Cliente Desconhecido'}</p>
-                          <p className="text-xs text-slate-400">
-                            {new Date(aviso.dataAviso).toLocaleString('pt-BR')}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge className={`flex items-center gap-1 ${tipoInfo.color}`}>
-                        {tipoInfo.icon}
-                        {tipoInfo.label}
-                      </Badge>
-                    </div>
-                    {aviso.mensagemEnviada && (
-                      <div className="mt-2 p-2 bg-slate-900/50 rounded text-xs text-slate-300 font-mono">
-                        {aviso.mensagemEnviada.substring(0, 100)}...
-                      </div>
-                    )}
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => updateConfigMutation.mutate()}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                  disabled={updateConfigMutation.isPending}
+                >
+                  {updateConfigMutation.isPending ? 'Salvando...' : 'Salvar Configurações'}
+                </Button>
+                <Button
+                  onClick={() => triggerWarningsMutation.mutate()}
+                  variant="outline"
+                  className="border-slate-600 hover:bg-slate-800"
+                  disabled={triggerWarningsMutation.isPending}
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {triggerWarningsMutation.isPending ? 'Enviando...' : 'Enviar Avisos Agora'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Notificações Recorrentes Tab */}
+        <TabsContent value="recorrentes" className="mt-6">
+          <Card className="bg-dark-card border-slate-600">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Timer className="w-5 h-5" />
+                Notificações Recorrentes
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Configure avisos recorrentes para clientes que continuam vencidos
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-amber-500/10 rounded-lg p-4 border border-amber-500/30">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-400 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-amber-400">Como funcionam as notificações</p>
+                    <ul className="text-xs text-slate-300 space-y-1">
+                      <li>• <strong>Dia do vencimento:</strong> Sempre envia aviso automaticamente</li>
+                      <li>• <strong>1 dia após vencimento:</strong> Sempre envia com opção de desbloqueio</li>
+                      <li>• <strong>Notificações recorrentes:</strong> Configuração abaixo define o que acontece após os 2 primeiros dias</li>
+                    </ul>
                   </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                </div>
+              </div>
 
-      {/* Filters and Actions */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 md:gap-4">
-        <div className="flex flex-col sm:flex-row gap-2 flex-1">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <Input
-              type="text"
-              placeholder="Buscar cliente..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-dark-surface border-slate-600 text-sm md:text-base"
-            />
-          </div>
-          
-          <Select value={filterDays} onValueChange={setFilterDays}>
-            <SelectTrigger className="w-full sm:w-[180px] bg-dark-surface border-slate-600 text-sm md:text-base">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-dark-surface border-slate-600">
-              <SelectItem value="todos">Todos</SelectItem>
-              <SelectItem value="hoje">Vence hoje</SelectItem>
-              <SelectItem value="3dias">Próximos 3 dias</SelectItem>
-              <SelectItem value="7dias">Próximos 7 dias</SelectItem>
-              <SelectItem value="vencidos">Vencidos</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <Button
-          onClick={() => checkExpiredMutation.mutate()}
-          disabled={checkExpiredMutation.isPending}
-          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 w-full md:w-auto text-sm md:text-base"
-        >
-          <RefreshCw className={`w-4 h-4 mr-1 md:mr-2 ${checkExpiredMutation.isPending ? 'animate-spin' : ''}`} />
-          <span className="sm:hidden">Avisar</span>
-          <span className="hidden sm:inline">Verificar e Avisar Todos</span>
-        </Button>
-      </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 flex flex-col justify-center">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="recorrente-ativo">Ativar Notificações Recorrentes</Label>
+                    <Switch
+                      id="recorrente-ativo"
+                      checked={recorrenteAtivo}
+                      onCheckedChange={setRecorrenteAtivo}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {recorrenteAtivo ? 'Continuará enviando avisos após 2 dias de vencimento' : 'Não enviará mais avisos após 2 dias'}
+                  </p>
+                </div>
 
-      {/* Table */}
-      <Card className="bg-dark-card border-slate-600">
-        <CardContent className="p-0">
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="text-left py-3 px-4 text-slate-400 font-semibold">Cliente</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-semibold">Telefone</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-semibold">Vencimento</th>
-                  <th className="text-left py-3 px-4 text-slate-400 font-semibold">Status</th>
-                  <th className="text-center py-3 px-4 text-slate-400 font-semibold">Avisos</th>
-                  <th className="text-right py-3 px-4 text-slate-400 font-semibold">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredClientes?.map((cliente) => {
-                  const days = cliente.vencimento ? getDaysUntilExpiry(cliente.vencimento) : null;
-                  const notified = checkIfNotified(cliente.id);
-                  const clienteAvisos = getClienteAvisos(cliente.id);
-                  const avisosHoje = clienteAvisos.filter(a => {
-                    const avisoDate = new Date(a.dataAviso);
-                    const today = new Date();
-                    return avisoDate.toDateString() === today.toDateString();
-                  });
-                  
-                  return (
-                    <tr key={cliente.id} className="border-b border-slate-700/50 hover:bg-slate-800/30 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar 
-                            className="w-12 h-12 shadow-md cursor-pointer"
-                            onClick={() => navigate(`/clientes/${cliente.id}`)}
-                          >
-                            <AvatarFallback className="bg-gradient-to-br from-blue-500/20 to-purple-500/20">
-                              <span className="text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-lg font-bold">
-                                {cliente.nome && cliente.nome.length > 0 ? cliente.nome.charAt(0).toUpperCase() : '?'}
-                              </span>
+                <div className="space-y-2">
+                  <Label htmlFor="intervalo">Intervalo entre notificações</Label>
+                  <Select value={recorrenteIntervalo} onValueChange={setRecorrenteIntervalo}>
+                    <SelectTrigger id="intervalo" className="bg-slate-800 border-slate-700">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Diariamente</SelectItem>
+                      <SelectItem value="2">A cada 2 dias</SelectItem>
+                      <SelectItem value="3">A cada 3 dias</SelectItem>
+                      <SelectItem value="4">A cada 4 dias</SelectItem>
+                      <SelectItem value="5">A cada 5 dias</SelectItem>
+                      <SelectItem value="6">A cada 6 dias</SelectItem>
+                      <SelectItem value="7">Semanalmente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-400">
+                    Frequência dos avisos após o 2º dia
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="limite">Limite de notificações</Label>
+                <Input
+                  id="limite"
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={recorrenteLimite}
+                  onChange={(e) => setRecorrenteLimite(e.target.value)}
+                  className="bg-slate-800 border-slate-700"
+                  disabled={!recorrenteAtivo}
+                />
+                <p className="text-xs text-slate-400">
+                  Número máximo de notificações recorrentes (após isso, para de avisar)
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="mensagem-recorrente">Mensagem personalizada (opcional)</Label>
+                <Textarea
+                  id="mensagem-recorrente"
+                  placeholder="Digite uma mensagem adicional para as notificações recorrentes..."
+                  value={recorrenteMensagem}
+                  onChange={(e) => setRecorrenteMensagem(e.target.value)}
+                  className="bg-slate-800 border-slate-700 min-h-[100px]"
+                  disabled={!recorrenteAtivo}
+                />
+                <p className="text-xs text-slate-400">
+                  Mensagem adicional que será incluída nas notificações recorrentes
+                </p>
+              </div>
+
+              {/* Status de Notificações Recorrentes Ativas */}
+              {notificacoesRecorrentes && notificacoesRecorrentes.length > 0 && (
+                <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                  <h4 className="text-sm font-semibold text-white mb-3">Notificações Recorrentes Ativas</h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {notificacoesRecorrentes.map((notif) => (
+                      <div key={notif.id} className="flex items-center justify-between bg-slate-900/50 rounded p-2">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="w-6 h-6">
+                            <AvatarFallback className="text-xs bg-gradient-to-br from-purple-500/20 to-pink-500/20">
+                              {notif.cliente?.nome?.charAt(0).toUpperCase() || '?'}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p 
-                              className="font-semibold text-white text-lg cursor-pointer hover:text-blue-400 transition-colors"
-                              onClick={() => navigate(`/clientes/${cliente.id}`)}
-                            >
-                              {cliente.nome}
+                            <p className="text-xs font-medium text-white">{notif.cliente?.nome || 'Cliente'}</p>
+                            <p className="text-xs text-slate-400">
+                              {notif.contagemNotificacoes} notificações enviadas
                             </p>
-                            {cliente.observacoes && (
-                              <p className="text-xs text-slate-400 mt-0.5">{cliente.observacoes}</p>
-                            )}
                           </div>
                         </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-medium text-slate-300">
-                          {formatPhoneNumber(cliente.telefone)}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        {cliente.vencimento ? (
-                          <div>
-                            <p className="text-white">
-                              {new Date(cliente.vencimento).toLocaleDateString('pt-BR')}
-                            </p>
-                            <Badge className={`${getDaysRemainingBadge(days!)} mt-1`}>
-                              {getDaysText(days!)}
-                            </Badge>
-                          </div>
-                        ) : (
-                          <span className="text-slate-500">Não definido</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge 
-                          className={`
-                            ${cliente.status === 'ativo' ? 'bg-green-500/20 text-green-400 border-green-500/50' : ''}
-                            ${cliente.status === 'inativo' ? 'bg-red-500/20 text-red-400 border-red-500/50' : ''}
-                            ${cliente.status === 'suspenso' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' : ''}
-                          `}
-                        >
-                          {cliente.status}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-col items-center gap-1">
-                          {avisosHoje.length > 0 ? (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <div className="flex items-center gap-1">
-                                    <CheckCircle className="w-4 h-4 text-green-400" />
-                                    <span className="text-xs text-green-400">{avisosHoje.length} hoje</span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent className="bg-slate-800 border-slate-700">
-                                  <div className="space-y-1">
-                                    {avisosHoje.map((aviso, idx) => {
-                                      const tipoInfo = getTipoAvisoInfo(aviso.tipoAviso);
-                                      return (
-                                        <div key={idx} className="flex items-center gap-2">
-                                          {tipoInfo.icon}
-                                          <span className="text-xs">{tipoInfo.label}</span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : days === 0 ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <AlertTriangle className="w-4 h-4 text-yellow-400" />
-                              <span className="text-xs text-yellow-400">Pendente</span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-slate-500">-</span>
-                          )}
-                          {clienteAvisos.length > 0 && (
-                            <span className="text-xs text-slate-400">
-                              Total: {clienteAvisos.length}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-right">
                         <Button
                           size="sm"
-                          onClick={() => sendAvisoMutation.mutate(cliente)}
-                          disabled={notified || !cliente.vencimento || sendAvisoMutation.isPending}
-                          className={
-                            notified 
-                              ? "bg-slate-700 text-slate-400 cursor-not-allowed" 
-                              : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                          }
+                          variant="ghost"
+                          onClick={() => resetNotificacaoMutation.mutate(notif.clienteId)}
+                          className="text-xs hover:bg-slate-800"
                         >
-                          {notified ? (
-                            <>
-                              <BellOff className="w-3 h-3 mr-1" />
-                              Avisado
-                            </>
-                          ) : (
-                            <>
-                              <Send className="w-3 h-3 mr-1" />
-                              Avisar
-                            </>
-                          )}
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Resetar
                         </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          
-          {/* Mobile Cards View */}
-          <div className="block md:hidden p-4 space-y-4">
-            {filteredClientes?.map((cliente) => {
-              const days = cliente.vencimento ? getDaysUntilExpiry(cliente.vencimento) : null;
-              const notified = checkIfNotified(cliente.id);
-              const clienteAvisos = getClienteAvisos(cliente.id);
-              const avisosHoje = clienteAvisos.filter(a => {
-                const avisoDate = new Date(a.dataAviso);
-                const today = new Date();
-                return avisoDate.toDateString() === today.toDateString();
-              });
-              
-              return (
-                <div
-                  key={cliente.id}
-                  className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4 space-y-3"
-                >
-                  {/* Header with Name and Status */}
-                  <div className="flex items-start justify-between">
-                    <div 
-                      className="flex items-center gap-3 flex-1"
-                      onClick={() => navigate(`/clientes/${cliente.id}`)}
-                    >
-                      <Avatar className="w-10 h-10 shadow-md">
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500/20 to-purple-500/20">
-                          <span className="text-transparent bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text font-bold">
-                            {cliente.nome?.charAt(0).toUpperCase() || '?'}
-                          </span>
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="font-semibold text-white">{cliente.nome}</p>
-                        <p className="text-xs text-slate-400">{formatPhoneNumber(cliente.telefone)}</p>
                       </div>
-                    </div>
-                    <Badge 
-                      className={`
-                        text-xs px-2 py-1
-                        ${cliente.status === 'ativo' ? 'bg-green-500/20 text-green-400 border-green-500/50' : ''}
-                        ${cliente.status === 'inativo' ? 'bg-red-500/20 text-red-400 border-red-500/50' : ''}
-                        ${cliente.status === 'suspenso' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' : ''}
-                      `}
-                    >
-                      {cliente.status}
-                    </Badge>
+                    ))}
                   </div>
-                  
-                  {/* Vencimento Info */}
-                  <div className="bg-slate-900/50 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-slate-400">Vencimento</span>
-                      {days !== null && (
-                        <Badge className={`${getDaysRemainingBadge(days)} text-xs`}>
-                          {getDaysText(days)}
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-white font-medium">
-                      {cliente.vencimento 
-                        ? new Date(cliente.vencimento).toLocaleDateString('pt-BR')
-                        : 'Não definido'
-                      }
-                    </p>
-                  </div>
-                  
-                  {/* Avisos e Ações */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
-                    <div className="flex items-center gap-2">
-                      {avisosHoje.length > 0 ? (
-                        <div className="flex items-center gap-1">
-                          <Bell className="w-4 h-4 text-green-400" />
-                          <span className="text-xs text-green-400">{avisosHoje.length} aviso(s) hoje</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-500">Sem avisos hoje</span>
-                      )}
-                    </div>
-                    
-                    <Button
-                      onClick={() => sendManualNotificationMutation.mutate(cliente.id)}
-                      disabled={sendManualNotificationMutation.isPending || notified}
-                      size="sm"
-                      className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
-                    >
-                      <Send className="w-3 h-3 mr-1" />
-                      {notified ? 'Enviado' : 'Avisar'}
-                    </Button>
-                  </div>
-                  
-                  {cliente.observacoes && (
-                    <div className="pt-2 border-t border-slate-700/50">
-                      <p className="text-xs text-slate-400">{cliente.observacoes}</p>
-                    </div>
-                  )}
                 </div>
-              );
-            })}
-            
-            {(!filteredClientes || filteredClientes.length === 0) && (
-              <div className="py-8">
-                <div className="flex flex-col items-center justify-center">
-                  <Calendar className="w-12 h-12 text-slate-500 mb-3" />
-                  <p className="text-slate-400 text-base font-medium text-center">
-                    Nenhum vencimento encontrado
-                  </p>
-                  <p className="text-slate-500 text-sm mt-2 text-center">
-                    {searchTerm ? 'Tente ajustar os filtros' : 'Todos os clientes estão em dia'}
-                  </p>
-                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => updateConfigRecorrenteMutation.mutate()}
+                  className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700"
+                  disabled={updateConfigRecorrenteMutation.isPending}
+                >
+                  {updateConfigRecorrenteMutation.isPending ? 'Salvando...' : 'Salvar Configurações'}
+                </Button>
               </div>
-            )}
-          </div>
-          
-          {!filteredClientes?.length && (
-            <div className="flex items-center justify-center py-12">
-              <p className="text-slate-400">Nenhum cliente encontrado com os filtros aplicados</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Histórico Tab */}
+        <TabsContent value="historico" className="mt-6">
+          <Card className="bg-dark-card border-slate-600">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <History className="w-5 h-5" />
+                Histórico de Avisos
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Visualize todos os avisos enviados recentemente
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {historico && historico.length > 0 ? (
+                  historico.map((aviso) => (
+                    <div key={aviso.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-8 h-8">
+                          <AvatarFallback className="text-xs bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+                            {aviso.cliente?.nome?.charAt(0).toUpperCase() || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium text-white">{aviso.cliente?.nome || 'Cliente'}</p>
+                          <p className="text-xs text-slate-400">
+                            {formatPhoneNumber(aviso.telefone)} • {new Date(aviso.dataAviso).toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className={aviso.statusEnvio === 'enviado' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}>
+                        {aviso.statusEnvio === 'enviado' ? 'Enviado' : 'Erro'}
+                      </Badge>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-slate-400">
+                    <History className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>Nenhum aviso foi enviado recentemente</p>
+                  </div>
+                )}
+              </div>
+              <Button
+                onClick={() => refetchHistorico()}
+                variant="outline"
+                className="mt-4 border-slate-600 hover:bg-slate-800"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Atualizar Histórico
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Visualizar Tab */}
+        <TabsContent value="visualizar" className="mt-6">
+          <Card className="bg-dark-card border-slate-600">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Eye className="w-5 h-5" />
+                Clientes e Vencimentos
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Visualize e gerencie os vencimentos dos clientes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Search and Filter */}
+              <div className="flex flex-col md:flex-row gap-3 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por nome ou telefone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-slate-800 border-slate-700"
+                  />
+                </div>
+                
+                <Select value={filterDays} onValueChange={setFilterDays}>
+                  <SelectTrigger className="w-full md:w-[180px] bg-slate-800 border-slate-700">
+                    <Filter className="w-4 h-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="0">Vence hoje</SelectItem>
+                    <SelectItem value="3">Próximos 3 dias</SelectItem>
+                    <SelectItem value="7">Próximos 7 dias</SelectItem>
+                    <SelectItem value="-1">Vencidos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Clients List */}
+              <div className="space-y-2">
+                {filteredClients.length > 0 ? (
+                  filteredClients.map((cliente) => {
+                    const days = getDaysUntilExpiry(cliente.vencimento);
+                    const avisoEnviado = avisos?.some(a => a.clienteId === cliente.id) || false;
+                    
+                    return (
+                      <div key={cliente.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-3 md:p-4 bg-slate-800/50 rounded-lg border border-slate-700 hover:bg-slate-800/70 transition-colors">
+                        <div className="flex items-center gap-3 mb-2 md:mb-0">
+                          <Avatar className="w-10 h-10">
+                            <AvatarFallback className="text-sm bg-gradient-to-br from-blue-500/20 to-purple-500/20">
+                              {cliente.nome?.charAt(0).toUpperCase() || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium text-white">{cliente.nome}</p>
+                            <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 text-xs text-slate-400">
+                              <span className="flex items-center gap-1">
+                                <Phone className="w-3 h-3" />
+                                {formatPhoneNumber(cliente.telefone || '')}
+                              </span>
+                              {cliente.vencimento && (
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {new Date(cliente.vencimento).toLocaleDateString('pt-BR')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                          {getStatusBadge(days, avisoEnviado)}
+                          {!avisoEnviado && days <= 7 && days >= -30 && (
+                            <Button
+                              size="sm"
+                              onClick={() => sendWarningMutation.mutate(cliente.id)}
+                              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-xs"
+                              disabled={sendWarningMutation.isPending}
+                            >
+                              <Bell className="w-3 h-3 mr-1" />
+                              Enviar Aviso
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => navigate(`/chat?telefone=${cliente.telefone}`)}
+                            className="text-xs hover:bg-slate-700"
+                          >
+                            <MessageSquare className="w-3 h-3 mr-1" />
+                            Chat
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-12 text-slate-400">
+                    <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>Nenhum cliente encontrado</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
