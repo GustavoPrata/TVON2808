@@ -81,7 +81,7 @@ export class NotificationService {
 
   private async checkExpiringClients() {
     try {
-      console.log('🔍 Iniciando verificação profissional de vencimentos...');
+      console.log('🔍 Iniciando verificação profissional de vencimentos com recorrência...');
       
       // Obter configuração de avisos
       const config = await storage.getConfigAvisos();
@@ -101,6 +101,7 @@ export class NotificationService {
       
       let clientesNotificados = 0;
       let clientesJaNotificados = 0;
+      let notificacoesRecorrentes = 0;
       
       for (const cliente of clientesComVencimento) {
         const vencimento = new Date(cliente.vencimento!);
@@ -112,47 +113,80 @@ export class NotificationService {
         const primeiroNome = cliente.nome.split(' ')[0];
         console.log(`📅 Cliente: ${primeiroNome} - Dias para vencimento: ${diasRestantes}`);
         
+        // Verificar se existe notificação recorrente para este cliente
+        const notificacaoRecorrente = await storage.getNotificacaoRecorrenteByClienteId(cliente.id);
+        
         // Lógica profissional de avisos
         let deveEnviarAviso = false;
         let tipoAviso = '';
         
-        // 1. No dia do vencimento (diasRestantes = 0)
+        // 1. No dia do vencimento (diasRestantes = 0) - SEMPRE envia
         if (diasRestantes === 0) {
           deveEnviarAviso = true;
           tipoAviso = 'vence_hoje';
-          console.log(`⏰ ${primeiroNome}: Vence HOJE - enviando aviso`);
+          console.log(`⏰ ${primeiroNome}: Vence HOJE - enviando aviso obrigatório`);
         }
-        // 2. No dia seguinte ao vencimento (diasRestantes = -1)
+        // 2. No dia seguinte ao vencimento (diasRestantes = -1) - SEMPRE envia
         else if (diasRestantes === -1) {
           deveEnviarAviso = true;
           tipoAviso = 'venceu_ontem';
-          console.log(`📛 ${primeiroNome}: Venceu ONTEM - enviando aviso com opção de desbloqueio`);
-        }
-        // 3. A cada 3 dias após vencimento (dias -4, -7, -10, -13, etc)
-        else if (diasRestantes < -1) {
-          const diasVencido = Math.abs(diasRestantes);
-          // Enviar no dia -4 (3 dias após o aviso do dia -1)
-          // Depois a cada 3 dias: -7, -10, -13, etc
-          // Formula: envia se (diasVencido - 1) é divisível por 3 e diasVencido >= 4
-          if (diasVencido >= 4 && (diasVencido - 1) % 3 === 0) {
-            deveEnviarAviso = true;
-            tipoAviso = 'vencido_recorrente';
-            console.log(`🔄 ${primeiroNome}: Vencido há ${diasVencido} dias - enviando lembrete (a cada 3 dias)`);
-          } else {
-            console.log(`⏭️ ${primeiroNome}: Vencido há ${diasVencido} dias - não é dia de aviso recorrente`);
+          console.log(`📛 ${primeiroNome}: Venceu ONTEM - enviando aviso obrigatório com opção de desbloqueio`);
+          
+          // Criar registro de notificação recorrente se ainda não existe e está configurado
+          if (!notificacaoRecorrente && config.notificacoesRecorrentes) {
+            await this.criarNotificacaoRecorrente(cliente.id, config.intervaloRecorrente || 3);
+            console.log(`🔄 ${primeiroNome}: Criada notificação recorrente a cada ${config.intervaloRecorrente || 3} dias`);
           }
-        } else {
-          console.log(`✅ ${primeiroNome}: ${diasRestantes > 0 ? `Vence em ${diasRestantes} dias` : 'Status OK'} - sem aviso necessário`);
+        }
+        // 3. Notificações recorrentes (após o segundo dia de vencimento)
+        else if (diasRestantes < -1 && config.notificacoesRecorrentes) {
+          const diasVencido = Math.abs(diasRestantes);
+          
+          if (notificacaoRecorrente && notificacaoRecorrente.ativo) {
+            // Verificar se é hora de enviar com base no registro de recorrência
+            const proximoEnvio = new Date(notificacaoRecorrente.proximoEnvio);
+            proximoEnvio.setHours(0, 0, 0, 0);
+            
+            // Verificar se já atingiu o limite de notificações
+            const limiteAtingido = config.limiteNotificacoes > 0 && 
+                                   notificacaoRecorrente.totalEnviado >= config.limiteNotificacoes;
+            
+            if (!limiteAtingido && hoje.getTime() >= proximoEnvio.getTime()) {
+              deveEnviarAviso = true;
+              tipoAviso = 'vencido_recorrente';
+              console.log(`🔄 ${primeiroNome}: Vencido há ${diasVencido} dias - enviando notificação recorrente #${notificacaoRecorrente.totalEnviado + 1}`);
+              notificacoesRecorrentes++;
+            } else if (limiteAtingido) {
+              console.log(`🚫 ${primeiroNome}: Limite de ${config.limiteNotificacoes} notificações atingido`);
+            } else {
+              const diasProximoEnvio = Math.ceil((proximoEnvio.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+              console.log(`⏭️ ${primeiroNome}: Próxima notificação em ${diasProximoEnvio} dias`);
+            }
+          } else if (!notificacaoRecorrente && config.notificacoesRecorrentes) {
+            // Criar registro retroativo se não existe mas deveria existir
+            await this.criarNotificacaoRecorrente(cliente.id, config.intervaloRecorrente || 3);
+            console.log(`🔄 ${primeiroNome}: Criada notificação recorrente retroativa`);
+          }
+        } else if (diasRestantes > 0) {
+          console.log(`✅ ${primeiroNome}: Vence em ${diasRestantes} dias - sem aviso necessário`);
         }
         
         if (deveEnviarAviso) {
-          // Verificar se já enviou aviso hoje para este cliente
+          // Verificar se já enviou aviso hoje para este cliente (para evitar duplicatas)
           const avisoExistente = await storage.getAvisoByClienteId(cliente.id, vencimento);
           
           if (!avisoExistente) {
             // Enviar notificação específica baseada no tipo
-            await this.sendProfessionalExpirationNotification(cliente, diasRestantes, tipoAviso);
-            clientesNotificados++;
+            const sucesso = await this.sendProfessionalExpirationNotification(cliente, diasRestantes, tipoAviso);
+            
+            if (sucesso) {
+              clientesNotificados++;
+              
+              // Atualizar registro de notificação recorrente se for o caso
+              if (tipoAviso === 'vencido_recorrente' && notificacaoRecorrente) {
+                await this.atualizarNotificacaoRecorrente(notificacaoRecorrente.id, config.intervaloRecorrente || 3);
+              }
+            }
           } else {
             console.log(`⏭️ ${primeiroNome}: Já foi notificado hoje`);
             clientesJaNotificados++;
@@ -160,18 +194,19 @@ export class NotificationService {
         }
       }
 
-      console.log(`\n✅ Verificação profissional concluída:`);
+      console.log(`\n✅ Verificação profissional com recorrência concluída:`);
       console.log(`   📤 ${clientesNotificados} avisos enviados`);
+      console.log(`   🔄 ${notificacoesRecorrentes} notificações recorrentes`);
       console.log(`   ⏭️ ${clientesJaNotificados} já notificados hoje\n`);
       
-      await this.logActivity('info', `Verificação profissional de vencimentos - ${clientesNotificados} avisos enviados`);
+      await this.logActivity('info', `Verificação de vencimentos - ${clientesNotificados} avisos (${notificacoesRecorrentes} recorrentes)`);
     } catch (error) {
       console.error('❌ Erro ao verificar vencimentos:', error);
       await this.logActivity('error', `Erro ao verificar vencimentos: ${error}`);
     }
   }
 
-  private async sendProfessionalExpirationNotification(cliente: any, diasRestantes: number, tipoAviso: string) {
+  private async sendProfessionalExpirationNotification(cliente: any, diasRestantes: number, tipoAviso: string): Promise<boolean> {
     try {
       // Pegar apenas o primeiro nome
       const primeiroNome = cliente.nome.split(' ')[0];
@@ -236,13 +271,140 @@ export class NotificationService {
         
         console.log(`✅ Notificação profissional (${tipoAviso}) enviada para ${primeiroNome}`);
         await this.logActivity('info', `Notificação profissional de vencimento (${tipoAviso}) enviada para ${primeiroNome}`);
+        return true;
       } else {
         console.log(`❌ Falha ao enviar notificação profissional para ${primeiroNome}`);
         await this.logActivity('error', `Falha ao enviar notificação profissional para ${primeiroNome}`);
+        return false;
       }
     } catch (error) {
       console.error('❌ Erro ao enviar notificação profissional:', error);
       await this.logActivity('error', `Erro ao enviar notificação profissional: ${error}`);
+      return false;
+    }
+  }
+
+  // Métodos auxiliares para notificações recorrentes
+  private async criarNotificacaoRecorrente(clienteId: number, intervalo: number) {
+    try {
+      const nowBrazil = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+      const hoje = new Date(nowBrazil);
+      hoje.setHours(0, 0, 0, 0);
+      
+      // Calcular próximo envio (intervalo dias após hoje)
+      const proximoEnvio = new Date(hoje);
+      proximoEnvio.setDate(proximoEnvio.getDate() + intervalo);
+      
+      await storage.createNotificacaoRecorrente({
+        clienteId: clienteId,
+        dataUltimoEnvio: hoje,
+        totalEnviado: 0, // Começará em 0, será incrementado no primeiro envio recorrente
+        proximoEnvio: proximoEnvio,
+        dataInicioRecorrencia: hoje,
+        ativo: true
+      });
+      
+      console.log(`📌 Criado registro de notificação recorrente para cliente ${clienteId} - Próximo envio: ${proximoEnvio.toLocaleDateString('pt-BR')}`);
+      await this.logActivity('info', `Notificação recorrente criada para cliente ${clienteId}`);
+    } catch (error) {
+      console.error('❌ Erro ao criar notificação recorrente:', error);
+      await this.logActivity('error', `Erro ao criar notificação recorrente: ${error}`);
+    }
+  }
+
+  private async atualizarNotificacaoRecorrente(notificacaoId: number, intervalo: number) {
+    try {
+      const nowBrazil = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+      const hoje = new Date(nowBrazil);
+      hoje.setHours(0, 0, 0, 0);
+      
+      // Buscar notificação atual
+      const notificacoes = await storage.getNotificacoesRecorrentes();
+      const notificacao = notificacoes.find(n => n.id === notificacaoId);
+      
+      if (!notificacao) {
+        console.error(`❌ Notificação recorrente ${notificacaoId} não encontrada`);
+        return;
+      }
+      
+      // Calcular próximo envio
+      const proximoEnvio = new Date(hoje);
+      proximoEnvio.setDate(proximoEnvio.getDate() + intervalo);
+      
+      // Atualizar registro
+      await storage.updateNotificacaoRecorrente(notificacaoId, {
+        dataUltimoEnvio: hoje,
+        totalEnviado: notificacao.totalEnviado + 1,
+        proximoEnvio: proximoEnvio
+      });
+      
+      console.log(`✅ Atualizado registro de notificação recorrente ${notificacaoId} - Próximo envio: ${proximoEnvio.toLocaleDateString('pt-BR')}`);
+      await this.logActivity('info', `Notificação recorrente ${notificacaoId} atualizada - Total enviado: ${notificacao.totalEnviado + 1}`);
+    } catch (error) {
+      console.error('❌ Erro ao atualizar notificação recorrente:', error);
+      await this.logActivity('error', `Erro ao atualizar notificação recorrente: ${error}`);
+    }
+  }
+
+  private async desativarNotificacaoRecorrente(clienteId: number) {
+    try {
+      const notificacao = await storage.getNotificacaoRecorrenteByClienteId(clienteId);
+      
+      if (notificacao) {
+        await storage.updateNotificacaoRecorrente(notificacao.id, {
+          ativo: false
+        });
+        
+        console.log(`🔕 Notificação recorrente desativada para cliente ${clienteId}`);
+        await this.logActivity('info', `Notificação recorrente desativada para cliente ${clienteId}`);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao desativar notificação recorrente:', error);
+      await this.logActivity('error', `Erro ao desativar notificação recorrente: ${error}`);
+    }
+  }
+
+  // Método público para reativar notificações recorrentes quando cliente renovar
+  async reativarNotificacoesRecorrentes(clienteId: number) {
+    try {
+      const notificacao = await storage.getNotificacaoRecorrenteByClienteId(clienteId);
+      
+      if (notificacao) {
+        // Deletar registro antigo
+        await storage.deleteNotificacaoRecorrente(notificacao.id);
+        
+        console.log(`♻️ Registro de notificação recorrente removido para cliente ${clienteId} (renovação)`);
+        await this.logActivity('info', `Notificação recorrente resetada para cliente ${clienteId} após renovação`);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao reativar notificações recorrentes:', error);
+      await this.logActivity('error', `Erro ao reativar notificações recorrentes: ${error}`);
+    }
+  }
+
+  // Método para verificar status de notificações recorrentes
+  async getStatusNotificacoesRecorrentes(): Promise<any> {
+    try {
+      const notificacoes = await storage.getNotificacoesRecorrentesAtivas();
+      const config = await storage.getConfigAvisos();
+      
+      const status = {
+        ativo: config?.notificacoesRecorrentes || false,
+        intervalo: config?.intervaloRecorrente || 3,
+        limite: config?.limiteNotificacoes || 0,
+        totalClientesComRecorrencia: notificacoes.length,
+        notificacoesProximas: notificacoes.map(n => ({
+          clienteId: n.clienteId,
+          totalEnviado: n.totalEnviado,
+          proximoEnvio: n.proximoEnvio,
+          diasRestantes: Math.ceil((new Date(n.proximoEnvio).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+        })).sort((a, b) => a.diasRestantes - b.diasRestantes).slice(0, 10)
+      };
+      
+      return status;
+    } catch (error) {
+      console.error('❌ Erro ao obter status de notificações recorrentes:', error);
+      return null;
     }
   }
 
