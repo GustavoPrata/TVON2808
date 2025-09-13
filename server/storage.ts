@@ -2,7 +2,7 @@ import { db } from "./db";
 import { 
   clientes, pontos, pagamentos, pagamentosManual, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
-  avisosVencimento, configAvisos, anotacoes,
+  avisosVencimento, configAvisos, anotacoes, notificacoesRecorrentes,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
@@ -14,7 +14,8 @@ import {
   type MensagemRapida, type InsertMensagemRapida,
   type AvisoVencimento, type InsertAvisoVencimento,
   type ConfigAvisos, type InsertConfigAvisos,
-  type Anotacao, type InsertAnotacao
+  type Anotacao, type InsertAnotacao,
+  type NotificacaoRecorrente, type InsertNotificacaoRecorrente
 } from "@shared/schema";
 import { eq, desc, asc, sql, and, or, gte, lte, ilike, ne, count } from "drizzle-orm";
 
@@ -197,6 +198,15 @@ export interface IStorage {
   
   // Conversas - Correção
   corrigirTelefoneConversa(telefoneIncorreto: string, telefoneCorreto: string): Promise<number>;
+  
+  // Notificações Recorrentes
+  getNotificacoesRecorrentes(): Promise<NotificacaoRecorrente[]>;
+  getNotificacaoRecorrenteByClienteId(clienteId: number): Promise<NotificacaoRecorrente | undefined>;
+  createNotificacaoRecorrente(notificacao: InsertNotificacaoRecorrente): Promise<NotificacaoRecorrente>;
+  updateNotificacaoRecorrente(id: number, notificacao: Partial<InsertNotificacaoRecorrente>): Promise<NotificacaoRecorrente>;
+  deleteNotificacaoRecorrente(id: number): Promise<void>;
+  getNotificacoesRecorrentesAtivas(): Promise<NotificacaoRecorrente[]>;
+  getNotificacoesRecorrentesParaEnviar(): Promise<NotificacaoRecorrente[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1557,6 +1567,52 @@ export class DatabaseStorage implements IStorage {
     );
     
     await Promise.all(updates);
+  }
+
+  // Notificações Recorrentes implementation
+  async getNotificacoesRecorrentes(): Promise<NotificacaoRecorrente[]> {
+    return await db.select().from(notificacoesRecorrentes)
+      .orderBy(desc(notificacoesRecorrentes.dataUltimoEnvio));
+  }
+
+  async getNotificacaoRecorrenteByClienteId(clienteId: number): Promise<NotificacaoRecorrente | undefined> {
+    const result = await db.select().from(notificacoesRecorrentes)
+      .where(eq(notificacoesRecorrentes.clienteId, clienteId))
+      .limit(1);
+    return result[0];
+  }
+
+  async createNotificacaoRecorrente(notificacao: InsertNotificacaoRecorrente): Promise<NotificacaoRecorrente> {
+    const result = await db.insert(notificacoesRecorrentes).values(notificacao).returning();
+    return result[0];
+  }
+
+  async updateNotificacaoRecorrente(id: number, notificacao: Partial<InsertNotificacaoRecorrente>): Promise<NotificacaoRecorrente> {
+    const result = await db.update(notificacoesRecorrentes)
+      .set(notificacao)
+      .where(eq(notificacoesRecorrentes.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteNotificacaoRecorrente(id: number): Promise<void> {
+    await db.delete(notificacoesRecorrentes).where(eq(notificacoesRecorrentes.id, id));
+  }
+
+  async getNotificacoesRecorrentesAtivas(): Promise<NotificacaoRecorrente[]> {
+    return await db.select().from(notificacoesRecorrentes)
+      .where(eq(notificacoesRecorrentes.ativo, true))
+      .orderBy(asc(notificacoesRecorrentes.proximoEnvio));
+  }
+
+  async getNotificacoesRecorrentesParaEnviar(): Promise<NotificacaoRecorrente[]> {
+    const now = new Date();
+    return await db.select().from(notificacoesRecorrentes)
+      .where(and(
+        eq(notificacoesRecorrentes.ativo, true),
+        lte(notificacoesRecorrentes.proximoEnvio, now)
+      ))
+      .orderBy(asc(notificacoesRecorrentes.proximoEnvio));
   }
 }
 

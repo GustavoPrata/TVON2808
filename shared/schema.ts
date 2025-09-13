@@ -73,6 +73,21 @@ export const configAvisos = pgTable("config_avisos", {
   ativo: boolean("ativo").notNull().default(true),
   mensagemPadrao: text("mensagem_padrao").notNull().default("Olá {nome}! 👋\n\nSeu plano vence hoje. Renove agora para continuar aproveitando nossos serviços!\n\n💳 PIX disponível para pagamento rápido."),
   ultimaExecucao: timestamp("ultima_execucao"),
+  // Campos para notificações recorrentes
+  notificacoesRecorrentes: boolean("notificacoes_recorrentes").notNull().default(false), // Ativa/desativa notificações recorrentes
+  intervaloRecorrente: integer("intervalo_recorrente").notNull().default(3), // Intervalo em dias para notificações recorrentes
+  limiteNotificacoes: integer("limite_notificacoes").notNull().default(10), // Limite máximo de notificações recorrentes
+});
+
+// Tabela para rastrear notificações recorrentes enviadas
+export const notificacoesRecorrentes = pgTable("notificacoes_recorrentes", {
+  id: serial("id").primaryKey(),
+  clienteId: integer("cliente_id").references(() => clientes.id, { onDelete: "cascade" }).notNull(),
+  dataUltimoEnvio: timestamp("data_ultimo_envio").notNull().defaultNow(),
+  totalEnviado: integer("total_enviado").notNull().default(1),
+  proximoEnvio: timestamp("proximo_envio").notNull(),
+  dataInicioRecorrencia: timestamp("data_inicio_recorrencia").notNull().defaultNow(),
+  ativo: boolean("ativo").notNull().default(true), // Permite pausar a recorrência para um cliente específico
 });
 
 // Mensagens Rápidas para Suporte
@@ -560,3 +575,16 @@ export const insertConfigAvisosSchema = createInsertSchema(configAvisos).omit({
 
 export type ConfigAvisos = typeof configAvisos.$inferSelect;
 export type InsertConfigAvisos = z.infer<typeof insertConfigAvisosSchema>;
+
+// Notificações Recorrentes types
+export const insertNotificacaoRecorrenteSchema = createInsertSchema(notificacoesRecorrentes).omit({
+  id: true,
+  dataUltimoEnvio: true,
+  totalEnviado: true,
+  dataInicioRecorrencia: true,
+}).extend({
+  proximoEnvio: z.coerce.date(),
+});
+
+export type NotificacaoRecorrente = typeof notificacoesRecorrentes.$inferSelect;
+export type InsertNotificacaoRecorrente = z.infer<typeof insertNotificacaoRecorrenteSchema>;
