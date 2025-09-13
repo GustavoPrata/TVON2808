@@ -207,6 +207,7 @@ export interface IStorage {
   deleteNotificacaoRecorrente(id: number): Promise<void>;
   getNotificacoesRecorrentesAtivas(): Promise<NotificacaoRecorrente[]>;
   getNotificacoesRecorrentesParaEnviar(): Promise<NotificacaoRecorrente[]>;
+  resetNotificacaoRecorrente(clienteId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1613,6 +1614,12 @@ export class DatabaseStorage implements IStorage {
         lte(notificacoesRecorrentes.proximoEnvio, now)
       ))
       .orderBy(asc(notificacoesRecorrentes.proximoEnvio));
+  }
+
+  async resetNotificacaoRecorrente(clienteId: number): Promise<void> {
+    // Delete the notification record to reset it
+    await db.delete(notificacoesRecorrentes)
+      .where(eq(notificacoesRecorrentes.clienteId, clienteId));
   }
 }
 

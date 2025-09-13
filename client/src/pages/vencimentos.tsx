@@ -184,9 +184,9 @@ export default function Vencimentos() {
   useEffect(() => {
     if (configRecorrente) {
       setRecorrenteAtivo(configRecorrente.ativo ?? false);
-      setRecorrenteIntervalo(configRecorrente.intervaloDias?.toString() || '3');
+      setRecorrenteIntervalo(configRecorrente.intervaloRecorrente?.toString() || '3');
       setRecorrenteLimite(configRecorrente.limiteNotificacoes?.toString() || '10');
-      setRecorrenteMensagem(configRecorrente.mensagem || '');
+      setRecorrenteMensagem(configRecorrente.mensagemPadrao || '');
     }
   }, [configRecorrente]);
 
@@ -318,9 +318,9 @@ export default function Vencimentos() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ativo: recorrenteAtivo,
-          intervaloDias: parseInt(recorrenteIntervalo),
+          intervaloRecorrente: parseInt(recorrenteIntervalo),
           limiteNotificacoes: parseInt(recorrenteLimite),
-          mensagem: recorrenteMensagem,
+          mensagemPadrao: recorrenteMensagem,
         }),
       });
       if (!response.ok) throw new Error('Failed to update config recorrente');

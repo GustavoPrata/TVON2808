@@ -1901,8 +1901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Update last execution time
-      await storage.updateConfigAvisos({ ultimaExecucao: new Date() });
+      // Update last execution time if needed
 
       res.json({
         message: `${avisosEnviados} avisos enviados com sucesso`,
@@ -1920,10 +1919,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const config = await storage.getConfigAvisos();
       res.json({
-        ativo: config?.recorrenteAtivo ?? false,
-        intervaloDias: config?.recorrenteIntervaloDias ?? 3,
-        limiteNotificacoes: config?.recorrenteLimiteNotificacoes ?? 10,
-        mensagem: config?.recorrenteMensagem ?? ''
+        ativo: config?.notificacoesRecorrentes ?? false,
+        intervaloRecorrente: config?.intervaloRecorrente ?? 3,
+        limiteNotificacoes: config?.limiteNotificacoes ?? 10,
+        mensagemPadrao: config?.mensagemPadrao ?? ''
       });
     } catch (error) {
       console.error("Error in /api/avisos/config-recorrente:", error);
@@ -1933,22 +1932,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/avisos/config-recorrente", async (req, res) => {
     try {
-      const { ativo, intervaloDias, limiteNotificacoes, mensagem } = req.body;
+      const { ativo, intervaloRecorrente, limiteNotificacoes, mensagemPadrao } = req.body;
       
-      const config = await storage.getConfigAvisos();
       const updated = await storage.updateConfigAvisos({
-        ...config,
-        recorrenteAtivo: ativo,
-        recorrenteIntervaloDias: intervaloDias,
-        recorrenteLimiteNotificacoes: limiteNotificacoes,
-        recorrenteMensagem: mensagem
+        notificacoesRecorrentes: ativo,
+        intervaloRecorrente: intervaloRecorrente,
+        limiteNotificacoes: limiteNotificacoes,
+        mensagemPadrao: mensagemPadrao
       });
       
       res.json({
-        ativo: updated.recorrenteAtivo,
-        intervaloDias: updated.recorrenteIntervaloDias,
-        limiteNotificacoes: updated.recorrenteLimiteNotificacoes,
-        mensagem: updated.recorrenteMensagem
+        ativo: updated.notificacoesRecorrentes,
+        intervaloRecorrente: updated.intervaloRecorrente,
+        limiteNotificacoes: updated.limiteNotificacoes,
+        mensagemPadrao: updated.mensagemPadrao
       });
     } catch (error) {
       console.error("Error in PUT /api/avisos/config-recorrente:", error);
