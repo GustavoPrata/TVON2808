@@ -1915,6 +1915,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Config recorrente routes
+  app.get("/api/avisos/config-recorrente", async (req, res) => {
+    try {
+      const config = await storage.getConfigAvisos();
+      res.json({
+        ativo: config?.recorrenteAtivo ?? false,
+        intervaloDias: config?.recorrenteIntervaloDias ?? 3,
+        limiteNotificacoes: config?.recorrenteLimiteNotificacoes ?? 10,
+        mensagem: config?.recorrenteMensagem ?? ''
+      });
+    } catch (error) {
+      console.error("Error in /api/avisos/config-recorrente:", error);
+      res.status(500).json({ error: "Erro ao buscar configuração recorrente" });
+    }
+  });
+
+  app.put("/api/avisos/config-recorrente", async (req, res) => {
+    try {
+      const { ativo, intervaloDias, limiteNotificacoes, mensagem } = req.body;
+      
+      const config = await storage.getConfigAvisos();
+      const updated = await storage.updateConfigAvisos({
+        ...config,
+        recorrenteAtivo: ativo,
+        recorrenteIntervaloDias: intervaloDias,
+        recorrenteLimiteNotificacoes: limiteNotificacoes,
+        recorrenteMensagem: mensagem
+      });
+      
+      res.json({
+        ativo: updated.recorrenteAtivo,
+        intervaloDias: updated.recorrenteIntervaloDias,
+        limiteNotificacoes: updated.recorrenteLimiteNotificacoes,
+        mensagem: updated.recorrenteMensagem
+      });
+    } catch (error) {
+      console.error("Error in PUT /api/avisos/config-recorrente:", error);
+      res.status(500).json({ error: "Erro ao atualizar configuração recorrente" });
+    }
+  });
+
+  // Notificações recorrentes routes
+  app.get("/api/notificacoes-recorrentes", async (req, res) => {
+    try {
+      const notificacoes = await storage.getNotificacoesRecorrentes();
+      
+      // Enrich with client data
+      const notificacoesComClientes = await Promise.all(
+        notificacoes.map(async (notif) => {
+          const cliente = await storage.getClienteById(notif.clienteId);
+          return { ...notif, cliente };
+        })
+      );
+      
+      res.json(notificacoesComClientes);
+    } catch (error) {
+      console.error("Error in /api/notificacoes-recorrentes:", error);
+      res.status(500).json({ error: "Erro ao buscar notificações recorrentes" });
+    }
+  });
+
+  app.post("/api/notificacoes-recorrentes/reset/:clienteId", async (req, res) => {
+    try {
+      const clienteId = parseInt(req.params.clienteId);
+      await storage.resetNotificacaoRecorrente(clienteId);
+      res.json({ success: true, message: "Contador de notificações resetado" });
+    } catch (error) {
+      console.error("Error in /api/notificacoes-recorrentes/reset:", error);
+      res.status(500).json({ error: "Erro ao resetar notificações recorrentes" });
+    }
+  });
+
+  app.post("/api/avisos/enviar-manual", async (req, res) => {
+    try {
+      const { clienteId } = req.body;
+      
+      const cliente = await storage.getClienteById(clienteId);
+      if (!cliente) {
+        return res.status(404).json({ error: "Cliente não encontrado" });
+      }
+
+      const message = `📢 *Lembrete de Pagamento*\n\n` +
+        `Olá ${cliente.nome}!\n\n` +
+        `Seu plano está vencido. Por favor, entre em contato para regularizar sua situação.\n\n` +
+        `_Mensagem enviada manualmente pelo administrador._`;
+
+      const sent = await whatsappService.sendMessage(cliente.telefone, message);
+      
+      if (sent) {
+        await storage.createAvisoVencimento({
+          clienteId: cliente.id,
+          telefone: cliente.telefone,
+          dataVencimento: cliente.vencimento || new Date(),
+          tipoAviso: 'manual',
+          statusEnvio: 'enviado',
+          mensagemEnviada: message
+        });
+        
+        res.json({ success: true, message: "Notificação enviada com sucesso" });
+      } else {
+        res.status(500).json({ error: "Erro ao enviar notificação" });
+      }
+    } catch (error) {
+      console.error("Error in /api/avisos/enviar-manual:", error);
+      res.status(500).json({ error: "Erro ao enviar notificação manual" });
+    }
+  });
+
   // Conversas
   app.get("/api/conversas", async (req, res) => {
     try {
