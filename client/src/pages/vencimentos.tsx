@@ -407,7 +407,7 @@ export default function Vencimentos() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-4 md:mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mt-4 md:mt-6">
           <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
             <div className="flex items-center justify-between">
               <span className="text-xs md:text-sm text-slate-400">Vencendo hoje</span>
@@ -434,11 +434,21 @@ export default function Vencimentos() {
           
           <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
             <div className="flex items-center justify-between">
-              <span className="text-xs md:text-sm text-slate-400">Status</span>
+              <span className="text-xs md:text-sm text-slate-400">Automático</span>
               <BellRing className={`w-3 h-3 md:w-4 md:h-4 ${avisoAtivo ? 'text-green-400' : 'text-red-400'}`} />
             </div>
             <p className={`text-xl md:text-2xl font-bold mt-1 ${avisoAtivo ? 'text-green-400' : 'text-red-400'}`}>
               {avisoAtivo ? 'Ativo' : 'Inativo'}
+            </p>
+          </div>
+          
+          <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+            <div className="flex items-center justify-between">
+              <span className="text-xs md:text-sm text-slate-400">Recorrente</span>
+              <Timer className={`w-3 h-3 md:w-4 md:h-4 ${recorrenteAtivo ? 'text-purple-400' : 'text-red-400'}`} />
+            </div>
+            <p className={`text-xl md:text-2xl font-bold mt-1 ${recorrenteAtivo ? 'text-purple-400' : 'text-red-400'}`}>
+              {recorrenteAtivo ? 'Ativo' : 'Inativo'}
             </p>
           </div>
         </div>
@@ -459,7 +469,7 @@ export default function Vencimentos() {
             className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white"
           >
             <Settings className="w-4 h-4" />
-            <span className="hidden sm:inline">Configurações</span>
+            <span className="hidden sm:inline">Automático</span>
           </TabsTrigger>
           <TabsTrigger 
             value="recorrentes" 
@@ -483,7 +493,7 @@ export default function Vencimentos() {
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
                 <Settings className="w-5 h-5" />
-                Configuração de Avisos
+                Avisos Automáticos
               </CardTitle>
               <CardDescription className="text-slate-400">
                 Configure o horário e a mensagem padrão dos avisos de vencimento
