@@ -1516,10 +1516,7 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.getConfigAvisos();
     if (existing) {
       const result = await db.update(configAvisos)
-        .set({
-          ...config,
-          ultimaExecucao: config.ultimaExecucao || existing.ultimaExecucao
-        })
+        .set(config)
         .where(eq(configAvisos.id, existing.id))
         .returning();
       return result[0];

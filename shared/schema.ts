@@ -72,7 +72,6 @@ export const configAvisos = pgTable("config_avisos", {
   diasAntecedencia: integer("dias_antecedencia").notNull().default(0), // 0 = no dia do vencimento
   ativo: boolean("ativo").notNull().default(true),
   mensagemPadrao: text("mensagem_padrao").notNull().default("Olá {nome}! 👋\n\nSeu plano vence hoje. Renove agora para continuar aproveitando nossos serviços!\n\n💳 PIX disponível para pagamento rápido."),
-  ultimaExecucao: timestamp("ultima_execucao"),
   // Campos para notificações recorrentes
   notificacoesRecorrentes: boolean("notificacoes_recorrentes").notNull().default(false), // Ativa/desativa notificações recorrentes
   intervaloRecorrente: integer("intervalo_recorrente").notNull().default(3), // Intervalo em dias para notificações recorrentes
