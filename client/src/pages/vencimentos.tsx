@@ -68,6 +68,7 @@ export default function Vencimentos() {
   const [avisoAtivo, setAvisoAtivo] = useState(true);
   const [mensagemPadrao, setMensagemPadrao] = useState('');
   const [selectedCliente, setSelectedCliente] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'visualizar' | 'configuracoes' | 'recorrentes' | 'historico'>('visualizar');
   const { toast } = useToast();
   
   // Estados para notificações recorrentes
@@ -131,7 +132,7 @@ export default function Vencimentos() {
       if (!response.ok) throw new Error('Failed to fetch history');
       return response.json() as Promise<AvisoVencimento[]>;
     },
-    enabled: false, // Only fetch when needed
+    enabled: activeTab === 'historico', // Fetch when historico tab is active
   });
 
   // Fetch configuration
@@ -186,7 +187,7 @@ export default function Vencimentos() {
   // Update configuration mutation
   const updateConfigMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post('/api/avisos/config', {
+      const response = await api.put('/api/avisos/config', {
         horaAviso,
         ativo: avisoAtivo,
         mensagemPadrao
@@ -212,7 +213,7 @@ export default function Vencimentos() {
   // Update recurrent configuration mutation
   const updateConfigRecorrenteMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.post('/api/avisos/config-recorrente', {
+      const response = await api.put('/api/avisos/config-recorrente', {
         notificacoesRecorrentes: recorrenteAtivo,
         intervaloRecorrente: parseInt(recorrenteIntervalo),
         limiteNotificacoes: parseInt(recorrenteLimite),
@@ -249,6 +250,8 @@ export default function Vencimentos() {
       });
       refetchAvisos();
       refetchClientes();
+      // Invalidate history cache
+      queryClient.invalidateQueries({ queryKey: ['/api/avisos/historico'] });
     },
     onError: (error: any) => {
       toast({
@@ -272,6 +275,8 @@ export default function Vencimentos() {
       });
       refetchAvisos();
       refetchClientes();
+      // Invalidate history cache
+      queryClient.invalidateQueries({ queryKey: ['/api/avisos/historico'] });
     },
     onError: (error: any) => {
       toast({
@@ -440,8 +445,15 @@ export default function Vencimentos() {
       </div>
 
       {/* Main Content with Tabs */}
-      <Tabs defaultValue="visualizar" className="w-full">
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="w-full">
         <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-slate-800/50 to-slate-900/50 p-1 rounded-lg">
+          <TabsTrigger 
+            value="visualizar" 
+            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-600 data-[state=active]:text-white"
+          >
+            <Eye className="w-4 h-4" />
+            <span className="hidden sm:inline">Visualizar</span>
+          </TabsTrigger>
           <TabsTrigger 
             value="configuracoes" 
             className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white"
@@ -462,13 +474,6 @@ export default function Vencimentos() {
           >
             <History className="w-4 h-4" />
             <span className="hidden sm:inline">Histórico</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="visualizar" 
-            className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-600 data-[state=active]:text-white"
-          >
-            <Eye className="w-4 h-4" />
-            <span className="hidden sm:inline">Visualizar</span>
           </TabsTrigger>
         </TabsList>
 
@@ -713,13 +718,21 @@ export default function Vencimentos() {
                   historico.map((aviso) => (
                     <div key={aviso.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700">
                       <div className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8">
+                        <Avatar 
+                          className="w-8 h-8 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                          onClick={() => aviso.cliente?.id && navigate(`/clientes/${aviso.cliente.id}`)}
+                        >
                           <AvatarFallback className="text-xs bg-gradient-to-br from-blue-500/20 to-purple-500/20">
                             {aviso.cliente?.nome?.charAt(0).toUpperCase() || '?'}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="text-sm font-medium text-white">{aviso.cliente?.nome || 'Cliente'}</p>
+                          <p 
+                            className="text-sm font-medium text-white cursor-pointer hover:text-blue-400 transition-colors"
+                            onClick={() => aviso.cliente?.id && navigate(`/clientes/${aviso.cliente.id}`)}
+                          >
+                            {aviso.cliente?.nome || 'Cliente'}
+                          </p>
                           <p className="text-xs text-slate-400">
                             {formatPhoneNumber(aviso.telefone)} • {new Date(aviso.dataAviso).toLocaleString('pt-BR')}
                           </p>
@@ -799,13 +812,21 @@ export default function Vencimentos() {
                     return (
                       <div key={cliente.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-3 md:p-4 bg-slate-800/50 rounded-lg border border-slate-700 hover:bg-slate-800/70 transition-colors">
                         <div className="flex items-center gap-3 mb-2 md:mb-0">
-                          <Avatar className="w-10 h-10">
+                          <Avatar 
+                            className="w-10 h-10 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                            onClick={() => navigate(`/clientes/${cliente.id}`)}
+                          >
                             <AvatarFallback className="text-sm bg-gradient-to-br from-blue-500/20 to-purple-500/20">
                               {cliente.nome?.charAt(0).toUpperCase() || '?'}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="text-sm font-medium text-white">{cliente.nome}</p>
+                            <p 
+                              className="text-sm font-medium text-white cursor-pointer hover:text-blue-400 transition-colors"
+                              onClick={() => navigate(`/clientes/${cliente.id}`)}
+                            >
+                              {cliente.nome}
+                            </p>
                             <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3 text-xs text-slate-400">
                               <span className="flex items-center gap-1">
                                 <Phone className="w-3 h-3" />
