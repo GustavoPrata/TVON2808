@@ -505,17 +505,35 @@ export function PixGeneratorSidebar({
             <QrCode className="w-4 h-4 text-green-400" />
             <span className="text-xs font-bold text-slate-200">Cobrança PIX</span>
           </div>
-          {selectedPayment && (
+          <div className="flex items-center gap-1">
+            {selectedPayment && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={resetForm}
+                className="h-6 w-6 p-0 hover:bg-slate-700/50"
+                title="Voltar"
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            )}
+            {/* Botão de fechar para mobile */}
             <Button
               variant="ghost"
               size="sm"
-              onClick={resetForm}
-              className="h-6 w-6 p-0 hover:bg-slate-700/50"
+              onClick={() => {
+                // Encontrar o botão de PIX no chat e clicar nele para fechar
+                const pixButton = document.querySelector('[data-testid="button-toggle-pix"]') as HTMLButtonElement;
+                if (pixButton) {
+                  pixButton.click();
+                }
+              }}
+              className="h-7 w-7 p-0 hover:bg-slate-700/50 md:hidden"
               title="Fechar"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </Button>
-          )}
+          </div>
         </div>
       </div>
 
