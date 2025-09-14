@@ -3316,10 +3316,10 @@ export default function Chat() {
             </div>
             
             {/* Sidebar Content */}
-            <div className="p-2.5 space-y-3 overflow-y-auto flex-1 h-full">
+            <div className="p-2.5 space-y-3">
               {/* Attendance Mode Section */}
               <div className="bg-slate-800/40 rounded-lg p-2 space-y-2">
-                  <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-400">Modo</span>
                     <span className={cn(
                       "text-xs font-medium",
@@ -3368,7 +3368,6 @@ export default function Chat() {
                       </div>
                     </div>
                   </div>
-                </div>
               </div>
               
               {/* Client Actions Section */}
@@ -3502,6 +3501,7 @@ export default function Chat() {
                 </Button>
               </div>
               
+            </div>
             </div>
           </div>
         )}
