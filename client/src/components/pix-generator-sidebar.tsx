@@ -706,7 +706,7 @@ export function PixGeneratorSidebar({
                           
                           {/* Linha inferior: Descrição e Horário */}
                           <div className="text-[10px] text-slate-400 truncate max-w-[160px]">
-                            {payment.descricao || 'Pagamento'}
+                            {payment.descricao || ''}
                           </div>
                           <div className="text-[10px] text-slate-500 text-right">
                             {formatShortInBrazil(payment.created_at)}
