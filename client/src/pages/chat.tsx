@@ -1797,7 +1797,7 @@ export default function Chat() {
         </div>
       )}
 
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex overflow-hidden relative h-screen">
         {/* Chat Sidebar */}
         <div className={cn(
           "bg-dark-surface border-r border-slate-600 flex flex-col relative",
@@ -2236,11 +2236,11 @@ export default function Chat() {
 
         {/* Main Content Area with Chat and Sidebar */}
         <div className={cn(
-          "flex bg-dark-card max-h-screen",
+          "flex bg-dark-card h-full",
           selectedConversa ? "flex-1" : "hidden md:flex md:flex-1" // Show only on desktop when no conversation selected
         )}>
           {/* Chat Area */}
-          <div className="flex-1 flex flex-col relative z-0">
+          <div className="flex-1 flex flex-col relative z-0 h-full overflow-hidden">
         {selectedConversa ? (
           <>
             {/* Chat Header */}
@@ -2754,7 +2754,7 @@ export default function Chat() {
               ref={messagesContainerRef}
               onScroll={handleScroll}
               className="relative flex-1 overflow-y-auto p-4 bg-gradient-to-b from-dark-background to-dark-surface/50"
-              style={{ scrollBehavior: 'auto' }}>
+              style={{ scrollBehavior: 'auto', WebkitOverflowScrolling: 'touch' }}>
               <TooltipProvider>
                 {allMessages.length === 0 && !isLoadingMessages ? (
                   <div className="flex flex-col items-center justify-center h-full text-slate-400">
@@ -2992,7 +2992,7 @@ export default function Chat() {
             )}
 
             {/* Message Input */}
-            <div className="p-4 border-t border-slate-600 bg-dark-surface">
+            <div className="p-4 border-t border-slate-600 bg-dark-surface flex-shrink-0">
               {!isConnected ? (
                 <Alert className="bg-red-500/10 border-red-500/20">
                   <AlertCircle className="h-4 w-4 text-red-500" />
@@ -3262,14 +3262,14 @@ export default function Chat() {
         )}
         </div>
           
-          {/* Floating Action Button for Mobile - Ajustado posição para não conflitar */}
+          {/* Floating Action Button for Mobile - Posicionado acima da área de input */}
           {selectedConversa && (
             <Button
               onClick={() => setShowMobileActions(!showMobileActions)}
               className={cn(
-                "fixed bottom-4 right-4 z-30 w-14 h-14 rounded-full shadow-lg lg:hidden",
+                "fixed bottom-20 right-4 z-30 w-14 h-14 rounded-full shadow-lg lg:hidden",
                 "bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700",
-                "flex items-center justify-center",
+                "flex items-center justify-center transition-all duration-300",
                 showMobileActions && "from-purple-600 to-blue-500"
               )}
             >
@@ -3284,7 +3284,7 @@ export default function Chat() {
           {/* Sidebar Menu - Desktop always visible, Mobile as overlay */}
           {selectedConversa && (
           <div className={cn(
-            "bg-dark-surface border-l border-slate-700 shadow-xl flex-shrink-0 flex-col",
+            "lg:bg-dark-surface lg:border-l lg:border-slate-700 lg:shadow-xl lg:flex-shrink-0 lg:flex-col",
             "lg:flex lg:w-48 lg:h-screen lg:relative",
             "fixed inset-0 z-40 w-full h-full lg:static",
             showMobileActions ? "flex" : "hidden lg:flex"
@@ -3299,24 +3299,27 @@ export default function Chat() {
             
             {/* Sidebar Content */}
             <div className={cn(
-              "relative bg-dark-surface h-full flex flex-col",
-              "lg:w-48",
+              "relative bg-slate-950 h-full flex flex-col overflow-y-auto",
+              "lg:bg-dark-surface lg:w-48",
               "w-full max-w-sm ml-auto" // Mobile: full width up to max-w-sm, aligned to right
             )}>
             {/* Mobile Close Button */}
-            <div className="lg:hidden absolute top-2 right-2 z-50">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowMobileActions(false)}
-                className="hover:bg-slate-800"
-              >
-                <X className="w-4 h-4" />
-              </Button>
+            <div className="lg:hidden sticky top-0 bg-slate-950 border-b border-slate-800 p-2 z-50">
+              <div className="flex items-center justify-between">
+                <span className="text-white font-medium">Ações</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowMobileActions(false)}
+                  className="hover:bg-slate-800"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
             </div>
             
             {/* Sidebar Content */}
-            <div className="p-2.5 space-y-3">
+            <div className="p-2.5 space-y-3 overflow-y-auto h-full pb-20 lg:pb-4">
               {/* Attendance Mode Section */}
               <div className="bg-slate-800/40 rounded-lg p-2 space-y-2">
                 <div className="flex items-center justify-between">
