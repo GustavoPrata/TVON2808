@@ -126,6 +126,24 @@ textarea::-webkit-scrollbar-thumb:hover {
     background: var(--tv-primary-hover);
   }
   
+  /* Thin scrollbar for payment lists */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 2px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
+  
   /* Radix UI Overlays - Dark background for modals */
   [data-radix-popper-content-wrapper] {
     z-index: 50 !important;

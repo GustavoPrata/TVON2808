@@ -477,6 +477,24 @@ export function PixGeneratorSidebar({
       default: return 'bg-slate-500/20 text-slate-400 border-slate-600/40';
     }
   };
+  
+  const calculateTimeRemaining = (payment: any): string => {
+    if (payment.status !== 'pendente' || !payment.data_vencimento) return '';
+    
+    const now = new Date();
+    const expiry = new Date(payment.data_vencimento);
+    const diff = expiry.getTime() - now.getTime();
+    
+    if (diff <= 0) return 'Expirado';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) {
+      return `${hours}h${minutes > 0 ? `:${minutes.toString().padStart(2, '0')}m` : ''}`;
+    }
+    return `${minutes}m`;
+  };
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-slate-900/90 to-slate-800/90 rounded-lg border border-slate-700/50">
@@ -511,38 +529,44 @@ export function PixGeneratorSidebar({
         ) : existingPayments.length > 0 && !selectedPayment ? (
           <div className="space-y-2">
             <h4 className="text-[11px] font-bold text-slate-400 uppercase">Pagamentos Recentes</h4>
-            <div className="space-y-1.5">
-              {existingPayments.slice(0, 3).map((payment: any) => (
-                <button
-                  key={payment.id || payment.charge_id}
-                  onClick={() => setSelectedPayment(payment)}
-                  className={cn(
-                    "w-full p-2 rounded-md border transition-all text-left",
-                    "hover:bg-slate-800/50 hover:border-slate-600",
-                    "border-slate-700 bg-slate-900/30"
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(payment.status)}
-                      <div>
+            <div className="space-y-1.5 max-h-[108px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+              {existingPayments.map((payment: any, index: number) => {
+                const timeRemaining = calculateTimeRemaining(payment);
+                return (
+                  <button
+                    key={payment.id || payment.charge_id}
+                    onClick={() => setSelectedPayment(payment)}
+                    className={cn(
+                      "w-full p-2 rounded-md border transition-all text-left",
+                      "hover:bg-slate-800/50 hover:border-slate-600",
+                      "border-slate-700 bg-slate-900/30",
+                      index >= 2 && "opacity-75" // Slightly fade payments after the first 2
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
                         <div className="text-xs font-bold text-white">
                           R$ {formatPaymentValue(payment.valor)}
                         </div>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <div className="text-[10px] text-slate-500">
-                          {format(new Date(payment.created_at), "dd/MM às HH:mm", { locale: ptBR })}
+                          {format(new Date(payment.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                        </div>
+                        <div className={cn(
+                          "p-1 rounded flex items-center gap-1",
+                          getStatusColor(payment.status)
+                        )}>
+                          {getStatusIcon(payment.status)}
+                          {payment.status === 'pendente' && timeRemaining && (
+                            <span className="text-[10px] font-mono">{timeRemaining}</span>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <div className={cn(
-                      "px-2 py-0.5 rounded text-[10px] font-bold",
-                      getStatusColor(payment.status)
-                    )}>
-                      {payment.status.toUpperCase()}
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : null}
