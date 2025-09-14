@@ -3303,25 +3303,22 @@ export default function Chat() {
               "lg:w-48",
               "w-full max-w-sm ml-auto" // Mobile: full width up to max-w-sm, aligned to right
             )}>
-            {/* Sidebar Header */}
-            <div className="p-2.5 border-b border-slate-700 bg-gradient-to-r from-slate-800/50 to-slate-900/50 flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-slate-200 uppercase">Ações</h3>
+            {/* Mobile Close Button */}
+            <div className="lg:hidden absolute top-2 right-2 z-50">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowMobileActions(false)}
-                className="lg:hidden -mr-1"
+                className="hover:bg-slate-800"
               >
                 <X className="w-4 h-4" />
               </Button>
             </div>
             
             {/* Sidebar Content */}
-            <div className="p-2.5 space-y-3 overflow-y-auto flex-1 lg:h-[calc(100vh-50px)]">
+            <div className="p-2.5 space-y-3 overflow-y-auto flex-1 h-full">
               {/* Attendance Mode Section */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide px-1">Atendimento</h4>
-                <div className="bg-slate-800/40 rounded-lg p-2 space-y-2">
+              <div className="bg-slate-800/40 rounded-lg p-2 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-400">Modo</span>
                     <span className={cn(
