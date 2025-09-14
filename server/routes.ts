@@ -33,6 +33,15 @@ import path from "path";
 import { nanoid } from "nanoid";
 import multer from "multer";
 
+// Helper function to get current date in Brazil timezone
+function getBrazilDate(): Date {
+  // Get current UTC time
+  const now = new Date();
+  // Convert to Brazil time (UTC-3)
+  const brazilTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Sao_Paulo"}));
+  return brazilTime;
+}
+
 // Configure multer for file uploads
 const multerStorage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -2862,7 +2871,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mensagemLida: true,
           clienteId: cliente?.id || null,
           tipoUltimaMensagem: "text",
-          dataUltimaMensagem: new Date(), // Set timestamp when creating conversation
+          dataUltimaMensagem: getBrazilDate(), // Set timestamp when creating conversation
         });
 
         // Send WebSocket event for new conversation
@@ -2890,7 +2899,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update conversation timestamp and last message
         await storage.updateConversa(conversa!.id, {
           ultimaMensagem: message,
-          dataUltimaMensagem: new Date(),
+          dataUltimaMensagem: getBrazilDate(),
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: "text",
         });
