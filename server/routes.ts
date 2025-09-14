@@ -3865,24 +3865,37 @@ Como posso ajudar você hoje?
         return res.status(404).json({ error: "Teste não encontrado" });
       }
 
-      // Delete from external API if has API user ID
-      if (teste.apiUserId) {
-        try {
-          await externalApiService.deleteUser(teste.apiUserId);
-        } catch (apiError) {
-          console.error("Error deleting user from external API:", apiError);
+      // If test is already deleted, permanently remove from database
+      if (teste.status === "deletado") {
+        // Permanently delete from database
+        await storage.deleteTeste(teste.id);
+        
+        // Broadcast test permanent delete event
+        broadcastMessage("test_permanently_deleted", {
+          id: teste.id,
+        });
+        
+        res.json({ message: "Teste excluído permanentemente do banco de dados" });
+      } else {
+        // Delete from external API if has API user ID
+        if (teste.apiUserId) {
+          try {
+            await externalApiService.deleteUser(teste.apiUserId);
+          } catch (apiError) {
+            console.error("Error deleting user from external API:", apiError);
+          }
         }
-      }
 
-      // Mark as deleted instead of removing from database
-      await storage.updateTeste(teste.id, { status: "deletado" });
-      
-      // Broadcast test delete event to all connected clients
-      broadcastMessage("test_deleted", {
-        id: teste.id,
-      });
-      
-      res.json({ message: "Teste deletado com sucesso" });
+        // Mark as deleted instead of removing from database
+        await storage.updateTeste(teste.id, { status: "deletado" });
+        
+        // Broadcast test delete event to all connected clients
+        broadcastMessage("test_deleted", {
+          id: teste.id,
+        });
+        
+        res.json({ message: "Teste deletado com sucesso" });
+      }
     } catch (error) {
       res.status(500).json({ error: "Erro ao deletar teste" });
     }
