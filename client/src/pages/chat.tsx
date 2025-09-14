@@ -3503,7 +3503,6 @@ export default function Chat() {
               </div>
               
             </div>
-            </div>
           </div>
         )}
         </div>
