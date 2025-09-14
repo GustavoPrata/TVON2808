@@ -460,21 +460,21 @@ export function PixGeneratorSidebar({
   
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pendente': return <Clock className="w-3.5 h-3.5" />;
-      case 'pago': return <CheckCircle2 className="w-3.5 h-3.5" />;
-      case 'cancelado': return <XCircle className="w-3.5 h-3.5" />;
-      case 'expirado': return <Timer className="w-3.5 h-3.5" />;
-      default: return <AlertCircle className="w-3.5 h-3.5" />;
+      case 'pendente': return <Clock className="w-full h-full" />;
+      case 'pago': return <CheckCircle2 className="w-full h-full" />;
+      case 'cancelado': return <XCircle className="w-full h-full" />;
+      case 'expirado': return <Timer className="w-full h-full" />;
+      default: return <AlertCircle className="w-full h-full" />;
     }
   };
   
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pendente': return 'bg-amber-500/20 text-amber-400 border-amber-600/40';
-      case 'pago': return 'bg-green-500/20 text-green-400 border-green-600/40';
-      case 'cancelado': return 'bg-red-500/20 text-red-400 border-red-600/40';
-      case 'expirado': return 'bg-slate-500/20 text-slate-400 border-slate-600/40';
-      default: return 'bg-slate-500/20 text-slate-400 border-slate-600/40';
+      case 'pendente': return 'bg-amber-500/10 text-amber-300 border border-amber-400/30';
+      case 'pago': return 'bg-green-500/10 text-green-300 border border-green-400/30';
+      case 'cancelado': return 'bg-red-500/10 text-red-300 border border-red-400/30';
+      case 'expirado': return 'bg-slate-500/10 text-slate-300 border border-slate-400/30';
+      default: return 'bg-slate-500/10 text-slate-300 border border-slate-400/30';
     }
   };
   
@@ -530,23 +530,16 @@ export function PixGeneratorSidebar({
             {/* Pagamento Selecionado */}
             {selectedPayment ? (
               <div className="space-y-3">
-                <div className={cn(
-                  "p-3 rounded-lg border",
-                  selectedPayment.status === 'pendente' 
-                    ? "bg-amber-950/30 border-amber-600/40" 
-                    : selectedPayment.status === 'pago'
-                    ? "bg-green-950/30 border-green-600/40"
-                    : selectedPayment.status === 'cancelado'
-                    ? "bg-red-950/30 border-red-600/40"
-                    : "bg-slate-800/30 border-slate-600/40"
-                )}>
+                <div className="p-3 rounded-lg border bg-slate-900/40 border-slate-700/60">
                   {/* Status Badge */}
                   <div className="flex items-center justify-between mb-3">
                     <div className={cn(
-                      "px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5",
+                      "px-2 py-0.5 rounded-full text-[10px] font-semibold inline-flex items-center gap-1",
                       getStatusColor(selectedPayment.status)
                     )}>
-                      {getStatusIcon(selectedPayment.status)}
+                      <span className="w-3 h-3 flex items-center justify-center">
+                        {getStatusIcon(selectedPayment.status)}
+                      </span>
                       {selectedPayment.status === 'pendente' && timeRemaining && (
                         <span className="font-mono">{timeRemaining}</span>
                       )}
@@ -555,9 +548,9 @@ export function PixGeneratorSidebar({
 
                   {/* Valor */}
                   <div className="text-center py-2">
-                    <div className="text-2xl font-black text-white">R$ {formatPaymentValue(selectedPayment.valor)}</div>
+                    <div className="text-2xl font-black text-white tabular-nums">R$ {formatPaymentValue(selectedPayment.valor)}</div>
                     {selectedPayment.descricao && (
-                      <div className="text-[11px] text-slate-400 mt-1">{selectedPayment.descricao}</div>
+                      <div className="text-[11px] text-slate-400 mt-1 truncate max-w-[200px] mx-auto">{selectedPayment.descricao}</div>
                     )}
                   </div>
 
@@ -686,38 +679,37 @@ export function PixGeneratorSidebar({
               <div className="space-y-2">
                 <h4 className="text-[11px] font-bold text-slate-400 uppercase">Pagamentos Recentes</h4>
                 <div className="space-y-1.5 max-h-[150px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-                  {existingPayments.map((payment: any, index: number) => {
+                  {existingPayments.map((payment: any) => {
                     const timeRemaining = calculateTimeRemaining(payment);
                     return (
                       <button
                         key={payment.id || payment.charge_id}
                         onClick={() => setSelectedPayment(payment)}
-                        className={cn(
-                          "w-full p-2 rounded-md border transition-all text-left",
-                          "hover:bg-slate-800/50 hover:border-slate-600",
-                          "border-slate-700 bg-slate-900/30",
-                          index >= 2 && "opacity-75" // Slightly fade payments after the first 2
-                        )}
+                        className="w-full p-2.5 rounded-md border border-slate-700/60 bg-slate-900/30 hover:bg-slate-800/50 hover:border-slate-600 focus-visible:ring-2 focus-visible:ring-slate-500/50 transition min-h-[56px]"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs font-bold text-white">
-                              R$ {formatPaymentValue(payment.valor)}
-                            </div>
+                        <div className="grid grid-rows-2 grid-cols-[1fr_auto] gap-y-0.5">
+                          {/* Linha superior: Valor e Status */}
+                          <div className="text-sm font-bold text-white tabular-nums tracking-tight">
+                            R$ {formatPaymentValue(payment.valor)}
                           </div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-[10px] text-slate-500">
-                              {formatShortInBrazil(payment.created_at)}
-                            </div>
-                            <div className={cn(
-                              "p-1 rounded flex items-center gap-1",
-                              getStatusColor(payment.status)
-                            )}>
+                          <div className={cn(
+                            "px-2 py-0.5 rounded-full text-[10px] font-semibold inline-flex items-center gap-1 h-fit",
+                            getStatusColor(payment.status)
+                          )}>
+                            <span className="w-3 h-3 flex items-center justify-center">
                               {getStatusIcon(payment.status)}
-                              {payment.status === 'pendente' && timeRemaining && (
-                                <span className="text-[10px] font-mono">{timeRemaining}</span>
-                              )}
-                            </div>
+                            </span>
+                            {payment.status === 'pendente' && timeRemaining && (
+                              <span className="font-mono">{timeRemaining}</span>
+                            )}
+                          </div>
+                          
+                          {/* Linha inferior: Descrição e Horário */}
+                          <div className="text-[10px] text-slate-400 truncate max-w-[160px]">
+                            {payment.descricao || 'Pagamento'}
+                          </div>
+                          <div className="text-[10px] text-slate-500 text-right">
+                            {formatShortInBrazil(payment.created_at)}
                           </div>
                         </div>
                       </button>
