@@ -404,7 +404,11 @@ export class PixService {
       console.error('Status:', error.response?.status);
       console.error('Status Text:', error.response?.statusText);
       console.error('Headers enviados:', error.config?.headers);
-      console.error('Data:', error.response?.data ? error.response.data.substring(0, 500) : error.message);
+      console.error('Data:', error.response?.data ? 
+        (typeof error.response.data === 'string' ? 
+          error.response.data.substring(0, 500) : 
+          JSON.stringify(error.response.data).substring(0, 500)) : 
+        error.message);
       
       // Se for erro 403, significa problema de autorização
       if (error.response?.status === 403) {
