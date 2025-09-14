@@ -34,6 +34,8 @@ import { nanoid } from "nanoid";
 import multer from "multer";
 
 // Helper function to get current date in Brazil timezone
+// IMPORTANT: This should NOT be used for saving to database!
+// Database should always save UTC time, conversion happens on display only
 function getBrazilDate(): Date {
   // Get current UTC time
   const now = new Date();
@@ -436,7 +438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Atualizar última mensagem da conversa
       await storage.updateConversa(actualConversaId, {
         ultimaMensagem: conteudo,
-        dataUltimaMensagem: getBrazilDate(), // Update timestamp with Brazil timezone
+        dataUltimaMensagem: new Date(), // Update timestamp in UTC (conversion happens on display)
         mensagensNaoLidas: 0, // Reset unread count when system sends message
         ultimoRemetente: "sistema", // Track who sent the last message
       });
@@ -2872,7 +2874,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           mensagemLida: true,
           clienteId: cliente?.id || null,
           tipoUltimaMensagem: "text",
-          dataUltimaMensagem: getBrazilDate(), // Set timestamp when creating conversation
+          dataUltimaMensagem: new Date(), // Set timestamp in UTC (conversion happens on display)
         });
 
         // Send WebSocket event for new conversation
@@ -2900,7 +2902,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Update conversation timestamp and last message
         await storage.updateConversa(conversa!.id, {
           ultimaMensagem: message,
-          dataUltimaMensagem: getBrazilDate(),
+          dataUltimaMensagem: new Date(),
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: "text",
         });

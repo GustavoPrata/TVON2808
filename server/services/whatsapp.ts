@@ -22,6 +22,8 @@ import sharp from "sharp";
 import { addMonths } from 'date-fns';
 
 // Helper function to get current date in Brazil timezone
+// IMPORTANT: This should NOT be used for saving to database!
+// Database should always save UTC time, conversion happens on display only
 function getBrazilDate(): Date {
   // Get current UTC time
   const now = new Date();
@@ -1201,7 +1203,7 @@ export class WhatsAppService extends EventEmitter {
                 ultimaMensagem: displayMessage,
                 modoAtendimento: "bot",
                 mensagensNaoLidas: this.settings?.markMessagesRead ? 0 : 1,
-                lastSeen: getBrazilDate(),
+                lastSeen: new Date(),
                 isOnline: true,
                 ultimoRemetente: "cliente",
                 profilePicture: profilePictureUrl,
@@ -1407,7 +1409,7 @@ export class WhatsAppService extends EventEmitter {
           mensagensNaoLidas: this.settings?.markMessagesRead
             ? 0
             : (conversa.mensagensNaoLidas || 0) + 1,
-          lastSeen: getBrazilDate(),
+          lastSeen: new Date(),
           isOnline: true, // User is online when sending message
           ultimoRemetente: "cliente", // Add this field
           tipoUltimaMensagem: message.type, // Save message type
@@ -5322,7 +5324,7 @@ export class WhatsAppService extends EventEmitter {
           ultimaMensagem: message,
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: "text",
-          dataUltimaMensagem: getBrazilDate(),
+          dataUltimaMensagem: new Date(),
           // Reset unread messages when system sends a message
           mensagensNaoLidas: 0,
         });
@@ -5449,7 +5451,7 @@ export class WhatsAppService extends EventEmitter {
           ultimaMensagem: caption || "📷 Imagem",
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: "image",
-          dataUltimaMensagem: getBrazilDate(),
+          dataUltimaMensagem: new Date(),
           // Reset unread messages when system sends an image
           mensagensNaoLidas: 0,
         });
@@ -5548,7 +5550,7 @@ export class WhatsAppService extends EventEmitter {
         ultimaMensagem: text,
         ultimoRemetente: "sistema",
         tipoUltimaMensagem: "text",
-        dataUltimaMensagem: getBrazilDate(),
+        dataUltimaMensagem: new Date(),
       });
 
       // Notify WebSocket clients
@@ -5645,7 +5647,7 @@ export class WhatsAppService extends EventEmitter {
         ultimaMensagem: text,
         ultimoRemetente: "sistema",
         tipoUltimaMensagem: "text",
-        dataUltimaMensagem: getBrazilDate(),
+        dataUltimaMensagem: new Date(),
       });
 
       // Notify WebSocket clients
