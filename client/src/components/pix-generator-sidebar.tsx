@@ -563,7 +563,7 @@ export function PixGeneratorSidebar({
 
                   {/* Ações */}
                   {selectedPayment.status === 'pendente' && (
-                    <div className="grid grid-cols-4 gap-2 mt-3">
+                    <div className="grid grid-cols-3 gap-2 mt-3">
                       <Button
                         variant="outline"
                         size="sm"
@@ -595,20 +595,6 @@ export function PixGeneratorSidebar({
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                           <RefreshCw className="w-3.5 h-3.5" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={cancelCurrentPix}
-                        disabled={isCancelling}
-                        className="h-8 border-red-600/50 hover:bg-red-950/30 text-red-400"
-                        title="Cancelar"
-                      >
-                        {isCancelling ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" />
                         )}
                       </Button>
                     </div>
