@@ -547,13 +547,10 @@ export function PixGeneratorSidebar({
                       getStatusColor(selectedPayment.status)
                     )}>
                       {getStatusIcon(selectedPayment.status)}
-                      {selectedPayment.status.toUpperCase()}
+                      {selectedPayment.status === 'pendente' && timeRemaining && (
+                        <span className="font-mono">{timeRemaining}</span>
+                      )}
                     </div>
-                    {timeRemaining && selectedPayment.status === 'pendente' && (
-                      <span className="text-[11px] font-mono text-amber-400">
-                        {timeRemaining}
-                      </span>
-                    )}
                   </div>
 
                   {/* Valor */}
