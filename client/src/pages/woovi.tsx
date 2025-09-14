@@ -203,18 +203,43 @@ export default function Woovi() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; className: string }> = {
-      pendente: { label: 'Pendente', className: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' },
-      pago: { label: 'Pago', className: 'bg-green-500/10 text-green-500 border-green-500/20' },
-      expirado: { label: 'Expirado', className: 'bg-red-500/10 text-red-500 border-red-500/20' }
+  const getStatusBadge = (status: string, pagamento?: PixPayment) => {
+    const statusConfig: Record<string, { label: string; icon?: any; className: string }> = {
+      pendente: { label: 'Pendente', icon: Clock, className: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' },
+      pago: { label: 'Pago', icon: Check, className: 'bg-green-500/10 text-green-500 border-green-500/20' },
+      expirado: { label: 'Expirado', icon: AlertCircle, className: 'bg-red-500/10 text-red-500 border-red-500/20' }
     };
     
     const config = statusConfig[status] || statusConfig.pendente;
+    const Icon = config.icon;
+    
+    // Calcular tempo restante para pagamentos pendentes
+    let timeLeft = '';
+    if (status === 'pendente' && pagamento?.dataVencimento) {
+      const now = new Date();
+      const expiry = new Date(pagamento.dataVencimento);
+      const diff = expiry.getTime() - now.getTime();
+      
+      if (diff > 0) {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if (hours > 0) {
+          timeLeft = `${hours}h${minutes > 0 ? `:${minutes.toString().padStart(2, '0')}m` : ''}`;
+        } else {
+          timeLeft = `${minutes}m`;
+        }
+      }
+    }
     
     return (
       <Badge variant="outline" className={config.className}>
-        {config.label}
+        <div className="flex items-center gap-1">
+          {Icon && <Icon className="w-3 h-3" />}
+          <span className="text-xs">
+            {status === 'pendente' && timeLeft ? timeLeft : config.label}
+          </span>
+        </div>
       </Badge>
     );
   };
@@ -560,7 +585,7 @@ export default function Woovi() {
                               R$ {(typeof pagamento.valor === 'string' ? parseFloat(pagamento.valor) : pagamento.valor).toFixed(2).replace('.', ',')}
                             </TableCell>
                             <TableCell>
-                              {getStatusBadge(status)}
+                              {getStatusBadge(status, pagamento)}
                             </TableCell>
                             <TableCell className="text-slate-100">
                               {pagamento.dataVencimento ? (
