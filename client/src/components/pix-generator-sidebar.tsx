@@ -675,54 +675,90 @@ export function PixGeneratorSidebar({
             )}
 
             {/* Pagamentos Recentes - Agora no final */}
-            {existingPayments.length > 0 && !selectedPayment && (
-              <div className="space-y-2">
-                <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Histórico</h4>
-                <div className="space-y-1 max-h-[160px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+            {existingPayments.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-white/90 uppercase tracking-wider">Histórico</h4>
+                  <span className="text-[10px] text-slate-500">{existingPayments.length} pagamento{existingPayments.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent pr-1">
                   {existingPayments.map((payment: any) => {
                     const timeRemaining = calculateTimeRemaining(payment);
                     const statusMap = {
-                      pendente: { icon: <Clock className="w-3 h-3" />, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-                      pago: { icon: <CheckCircle2 className="w-3 h-3" />, color: 'text-green-400', bg: 'bg-green-500/10' },
-                      cancelado: { icon: <XCircle className="w-3 h-3" />, color: 'text-red-400', bg: 'bg-red-500/10' },
-                      expirado: { icon: <Timer className="w-3 h-3" />, color: 'text-slate-500', bg: 'bg-slate-500/10' }
+                      pendente: { 
+                        icon: <Clock className="w-3.5 h-3.5" />, 
+                        color: 'text-amber-400', 
+                        bg: 'bg-gradient-to-br from-amber-500/20 to-amber-500/10',
+                        border: 'border-amber-500/30'
+                      },
+                      pago: { 
+                        icon: <CheckCircle2 className="w-3.5 h-3.5" />, 
+                        color: 'text-emerald-400', 
+                        bg: 'bg-gradient-to-br from-emerald-500/20 to-emerald-500/10',
+                        border: 'border-emerald-500/30'
+                      },
+                      cancelado: { 
+                        icon: <XCircle className="w-3.5 h-3.5" />, 
+                        color: 'text-red-400', 
+                        bg: 'bg-gradient-to-br from-red-500/20 to-red-500/10',
+                        border: 'border-red-500/30'
+                      },
+                      expirado: { 
+                        icon: <Timer className="w-3.5 h-3.5" />, 
+                        color: 'text-slate-400', 
+                        bg: 'bg-gradient-to-br from-slate-500/20 to-slate-500/10',
+                        border: 'border-slate-500/30'
+                      }
                     };
-                    const statusInfo = statusMap[payment.status as keyof typeof statusMap] || { icon: <AlertCircle className="w-3 h-3" />, color: 'text-slate-500', bg: 'bg-slate-500/10' };
+                    const statusInfo = statusMap[payment.status as keyof typeof statusMap] || { 
+                      icon: <AlertCircle className="w-3.5 h-3.5" />, 
+                      color: 'text-slate-400', 
+                      bg: 'bg-gradient-to-br from-slate-500/20 to-slate-500/10',
+                      border: 'border-slate-500/30'
+                    };
                     
                     return (
                       <button
                         key={payment.id || payment.charge_id}
                         onClick={() => setSelectedPayment(payment)}
-                        className="w-full group relative flex items-center justify-between p-2 rounded-lg bg-slate-900/50 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 transition-all"
+                        className="w-full group relative flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-slate-900/80 to-slate-900/60 hover:from-slate-800/90 hover:to-slate-800/70 border border-slate-800/50 hover:border-slate-700/70 transition-all duration-200 hover:scale-[1.02] hover:shadow-lg"
                       >
-                        <div className="flex items-center gap-2.5">
-                          <div className={cn("p-1.5 rounded-md", statusInfo.bg)}>
-                            <span className={statusInfo.color}>
-                              {statusInfo.icon}
-                            </span>
-                          </div>
-                          <div className="text-left">
-                            <div className="text-sm font-semibold text-white">
-                              R$ {formatPaymentValue(payment.valor)}
-                            </div>
-                            {payment.descricao && (
-                              <div className="text-[9px] text-slate-500 truncate max-w-[100px]">
-                                {payment.descricao}
-                              </div>
-                            )}
-                          </div>
+                        {/* Ícone com gradiente */}
+                        <div className={cn(
+                          "flex items-center justify-center w-10 h-10 rounded-xl border",
+                          statusInfo.bg,
+                          statusInfo.border
+                        )}>
+                          <span className={statusInfo.color}>
+                            {statusInfo.icon}
+                          </span>
                         </div>
                         
-                        <div className="text-right">
-                          {payment.status === 'pendente' && timeRemaining ? (
-                            <div className="text-[10px] font-mono text-amber-400">
-                              {timeRemaining}
-                            </div>
-                          ) : null}
-                          <div className="text-[9px] text-slate-600">
-                            {formatShortInBrazil(payment.created_at)}
+                        {/* Informações principais */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-base font-bold text-white tracking-tight">
+                              R$ {formatPaymentValue(payment.valor)}
+                            </span>
+                            {payment.status === 'pendente' && timeRemaining && (
+                              <span className="text-[11px] font-mono text-amber-400 animate-pulse">
+                                {timeRemaining}
+                              </span>
+                            )}
                           </div>
+                          {payment.descricao ? (
+                            <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                              {payment.descricao}
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-slate-500 mt-0.5">
+                              {formatShortInBrazil(payment.created_at)}
+                            </div>
+                          )}
                         </div>
+                        
+                        {/* Seta indicadora */}
+                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-all group-hover:translate-x-1" />
                       </button>
                     );
                   })}
