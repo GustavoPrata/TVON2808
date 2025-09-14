@@ -1965,6 +1965,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Avisos recorrentes ativas endpoint
+  app.get("/api/avisos/recorrentes-ativas", async (req, res) => {
+    try {
+      const notificacoes = await storage.getNotificacoesRecorrentesAtivas();
+      
+      // Debug log to check the structure
+      if (notificacoes.length > 0) {
+        console.log("First notification structure:", Object.keys(notificacoes[0]));
+      }
+      
+      // Map to the format expected by frontend
+      const notificacoesFormatadas = await Promise.all(
+        notificacoes.map(async (notif: any) => {
+          const cliente = await storage.getClienteById(notif.clienteId);
+          // Handle both camelCase and snake_case field names
+          const dataUltimoEnvio = notif.dataUltimoEnvio || notif.data_ultimo_envio;
+          const proximoEnvio = notif.proximoEnvio || notif.proximo_envio;
+          const totalEnviado = notif.totalEnviado || notif.total_enviado;
+          
+          return {
+            id: notif.id,
+            clienteId: notif.clienteId || notif.cliente_id,
+            cliente: cliente,
+            contagemNotificacoes: totalEnviado || 0,
+            ultimaNotificacao: dataUltimoEnvio ? new Date(dataUltimoEnvio).toISOString() : null,
+            proximaNotificacao: proximoEnvio ? new Date(proximoEnvio).toISOString() : null,
+            ativo: notif.ativo !== undefined ? notif.ativo : true
+          };
+        })
+      );
+      
+      res.json(notificacoesFormatadas);
+    } catch (error) {
+      console.error("Error in /api/avisos/recorrentes-ativas - Full error:", error);
+      res.status(500).json({ error: "Erro ao buscar notificações recorrentes ativas" });
+    }
+  });
+
+  // Avisos historico endpoint
+  app.get("/api/avisos/historico", async (req, res) => {
+    try {
+      const clienteId = req.query.clienteId ? parseInt(req.query.clienteId as string) : undefined;
+      
+      let avisos;
+      if (clienteId) {
+        // Get history for specific client
+        avisos = await storage.getAvisosVencimentoByClienteId(clienteId);
+      } else {
+        // Get all history
+        avisos = await storage.getAvisosVencimento();
+      }
+      
+      // Enrich with client data
+      const avisosComClientes = await Promise.all(
+        avisos.map(async (aviso) => {
+          const cliente = await storage.getClienteById(aviso.clienteId);
+          return { ...aviso, cliente };
+        })
+      );
+      
+      res.json(avisosComClientes);
+    } catch (error) {
+      console.error("Error in /api/avisos/historico:", error);
+      res.status(500).json({ error: "Erro ao buscar histórico de avisos" });
+    }
+  });
+
   // Notificações recorrentes routes
   app.get("/api/notificacoes-recorrentes", async (req, res) => {
     try {

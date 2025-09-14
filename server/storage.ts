@@ -183,6 +183,7 @@ export interface IStorage {
   getAvisoByClienteId(clienteId: number, dataVencimento: Date): Promise<AvisoVencimento | undefined>;
   createAvisoVencimento(aviso: InsertAvisoVencimento): Promise<AvisoVencimento>;
   getAvisosHoje(): Promise<AvisoVencimento[]>;
+  getAvisosVencimentoByClienteId(clienteId: number): Promise<AvisoVencimento[]>;
   
   // Configuração de Avisos
   getConfigAvisos(): Promise<ConfigAvisos | undefined>;
@@ -1505,6 +1506,12 @@ export class DatabaseStorage implements IStorage {
         gte(avisosVencimento.dataAviso, today),
         lte(avisosVencimento.dataAviso, tomorrow)
       ))
+      .orderBy(desc(avisosVencimento.dataAviso));
+  }
+
+  async getAvisosVencimentoByClienteId(clienteId: number): Promise<AvisoVencimento[]> {
+    return await db.select().from(avisosVencimento)
+      .where(eq(avisosVencimento.clienteId, clienteId))
       .orderBy(desc(avisosVencimento.dataAviso));
   }
 
