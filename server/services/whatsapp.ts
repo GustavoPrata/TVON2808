@@ -21,6 +21,8 @@ import { EventEmitter } from "events";
 import sharp from "sharp";
 import { addMonths } from 'date-fns';
 
+console.log("📱 WhatsApp service module loading...");
+
 // Helper function to get current date in Brazil timezone
 // IMPORTANT: This should NOT be used for saving to database!
 // Database should always save UTC time, conversion happens on display only
@@ -115,7 +117,10 @@ export class WhatsAppService extends EventEmitter {
   constructor() {
     super();
     // Initialize WhatsApp service
-    this.initialize();
+    console.log("🚀 WhatsApp Service Constructor Called");
+    this.initialize().catch(error => {
+      console.error("❌ Failed to initialize WhatsApp service:", error);
+    });
   }
 
   setWebSocketClients(clients: Set<any>) {
@@ -128,6 +133,8 @@ export class WhatsAppService extends EventEmitter {
   }
 
   async initialize() {
+    console.log("📱 Starting WhatsApp initialization...");
+    
     // Prevent multiple simultaneous initializations
     if (this.sock?.ws && this.connectionState.connection === "open") {
       console.log("WhatsApp already connected, skipping initialization");
@@ -135,16 +142,28 @@ export class WhatsAppService extends EventEmitter {
     }
 
     try {
+      console.log("📂 Creating auth directory...");
+      // Ensure auth directory exists
+      const fs = await import("fs/promises");
+      const authDir = "./auth_info_baileys";
+      await fs.mkdir(authDir, { recursive: true });
+      console.log("✅ Auth directory ready");
+
+      console.log("🔧 Loading WhatsApp settings from database...");
       // Load saved settings from database
       const savedSettings = await storage.getWhatsAppSettings();
       if (savedSettings) {
         this.settings = savedSettings;
-        console.log("Loaded WhatsApp settings from database:", this.settings);
+        console.log("✅ Loaded WhatsApp settings from database:", this.settings);
+      } else {
+        console.log("ℹ️ No saved WhatsApp settings found, using defaults");
       }
 
+      console.log("🔐 Loading authentication state...");
       const { state, saveCreds } = await useMultiFileAuthState(
         "./auth_info_baileys",
       );
+      console.log("✅ Authentication state loaded");
 
       // Close existing connection if any
       if (this.sock) {
@@ -156,14 +175,30 @@ export class WhatsAppService extends EventEmitter {
         this.sock = null;
       }
 
+      console.log("🔌 Creating WhatsApp socket connection...");
+
+      // Create a simple logger that has the methods Baileys expects
+      const logger = {
+        child: () => logger,
+        info: (...args: any[]) => console.log('[INFO]', ...args),
+        error: (...args: any[]) => console.error('[ERROR]', ...args),
+        warn: (...args: any[]) => console.warn('[WARN]', ...args),
+        debug: (...args: any[]) => console.debug('[DEBUG]', ...args),
+        trace: (...args: any[]) => console.debug('[TRACE]', ...args),
+        level: 'info'
+      };
+
       this.sock = makeWASocket({
         auth: state,
-        printQRInTerminal: false,
         browser: ["TV ON System", "Chrome", "1.0.0"],
+        logger: logger,
         // Add connection timeout to prevent hanging
         connectTimeoutMs: 60000,
         // Add default presence to available
         markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? true,
+        // Add retry options
+        retryRequestDelayMs: 2000,
+        maxMsgRetryCount: 5,
       }) as any;
 
       this.sock.ev.on("connection.update", (update) => {
@@ -228,18 +263,27 @@ export class WhatsAppService extends EventEmitter {
         }
       });
 
+      console.log("✅ WhatsApp service initialization complete");
       await this.logActivity(
         "info",
         "WhatsApp",
         "Serviço WhatsApp inicializado",
       );
     } catch (error) {
-      console.error("Erro ao inicializar WhatsApp:", error);
+      console.error("❌ Erro ao inicializar WhatsApp:", error);
+      console.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
       await this.logActivity(
         "error",
         "WhatsApp",
         `Erro ao inicializar: ${error}`,
       );
+      // Retry initialization after 5 seconds
+      console.log("🔄 Retrying WhatsApp initialization in 5 seconds...");
+      setTimeout(() => {
+        this.initialize().catch(err => {
+          console.error("❌ Retry failed:", err);
+        });
+      }, 5000);
     }
   }
 
@@ -696,6 +740,15 @@ export class WhatsAppService extends EventEmitter {
       messageText = message.message.ephemeralMessage.message.conversation;
     } else if (message.message?.ephemeralMessage?.message?.extendedTextMessage?.text) {
       messageText = message.message.ephemeralMessage.message.extendedTextMessage.text;
+    } else if (message.message?.buttonsResponseMessage?.selectedButtonId) {
+      // Handle button response
+      messageText = message.message.buttonsResponseMessage.selectedButtonId;
+    } else if (message.message?.listResponseMessage?.singleSelectReply?.selectedRowId) {
+      // Handle list response
+      messageText = message.message.listResponseMessage.singleSelectReply.selectedRowId;
+    } else if (message.message?.templateButtonReplyMessage?.selectedId) {
+      // Handle template button reply
+      messageText = message.message.templateButtonReplyMessage.selectedId;
     }
     
     let mediaUrl: string | undefined;
@@ -837,9 +890,39 @@ export class WhatsAppService extends EventEmitter {
         return; // Don't process context updates as regular messages
       }
       
-      // Only set placeholder for truly unsupported messages
-      console.log("Setting placeholder for unsupported message type");
-      messageText = "[Mensagem não suportada]";
+      // Check if this is a status broadcast or other non-text message
+      if (message.message?.protocolMessage || message.message?.senderKeyDistributionMessage) {
+        console.log("Non-text protocol message detected - skipping");
+        return;
+      }
+      
+      // Try to extract any text from the message object
+      const tryExtractText = (obj: any): string => {
+        if (!obj || typeof obj !== 'object') return '';
+        if (obj.text) return obj.text;
+        if (obj.caption) return obj.caption;
+        if (obj.selectedDisplayText) return obj.selectedDisplayText;
+        if (obj.hydratedContentText) return obj.hydratedContentText;
+        if (obj.hydratedFooterText) return obj.hydratedFooterText;
+        if (obj.hydratedTitleText) return obj.hydratedTitleText;
+        if (obj.body) return obj.body;
+        if (obj.content) return obj.content;
+        for (const key in obj) {
+          const result = tryExtractText(obj[key]);
+          if (result) return result;
+        }
+        return '';
+      };
+      
+      const extractedText = tryExtractText(message.message);
+      if (extractedText) {
+        console.log("Found text in message object:", extractedText);
+        messageText = extractedText;
+      } else {
+        // Only set placeholder for truly unsupported messages
+        console.log("Setting placeholder for unsupported message type");
+        messageText = "[Mensagem não suportada]";
+      }
     }
 
     const whatsappMessage: WhatsAppMessage = {

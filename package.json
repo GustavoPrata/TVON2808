@@ -78,6 +78,8 @@
     "openid-client": "^6.7.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
+    "pino": "^9.9.5",
+    "pino-pretty": "^13.1.1",
     "postgres": "^3.4.7",
     "puppeteer": "^24.19.0",
     "puppeteer-extra": "^3.3.6",
