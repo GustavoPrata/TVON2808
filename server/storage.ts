@@ -1260,20 +1260,32 @@ export class DatabaseStorage implements IStorage {
   
   async getTestesAtivos(): Promise<Teste[]> {
     const now = new Date();
+    // Return tests that are either:
+    // 1. Status is 'ativo' (regardless of expiration)
+    // 2. Not expired yet (regardless of status, except 'deletado')
     return await db.select().from(testes)
       .where(and(
-        eq(testes.status, 'ativo'),
-        gte(testes.expiraEm, now)
+        ne(testes.status, 'deletado'),
+        or(
+          eq(testes.status, 'ativo'),
+          gte(testes.expiraEm, now)
+        )
       ))
       .orderBy(desc(testes.criadoEm));
   }
   
   async getTestesExpirados(): Promise<Teste[]> {
     const now = new Date();
+    // Return tests that are either:
+    // 1. Status is 'expirado' (regardless of actual expiration time)
+    // 2. Actually expired (expiraEm < now) regardless of status, except 'deletado'
     return await db.select().from(testes)
       .where(and(
-        eq(testes.status, 'expirado'),
-        lte(testes.expiraEm, now)
+        ne(testes.status, 'deletado'),
+        or(
+          eq(testes.status, 'expirado'),
+          lte(testes.expiraEm, now)
+        )
       ))
       .orderBy(desc(testes.criadoEm));
   }
