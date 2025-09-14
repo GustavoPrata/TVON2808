@@ -521,225 +521,229 @@ export function PixGeneratorSidebar({
 
       {/* Conteúdo */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {/* Pagamentos Existentes */}
         {isLoadingPayments ? (
           <div className="flex items-center justify-center py-4">
             <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
           </div>
-        ) : existingPayments.length > 0 && !selectedPayment ? (
-          <div className="space-y-2">
-            <h4 className="text-[11px] font-bold text-slate-400 uppercase">Pagamentos Recentes</h4>
-            <div className="space-y-1.5 max-h-[108px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-              {existingPayments.map((payment: any, index: number) => {
-                const timeRemaining = calculateTimeRemaining(payment);
-                return (
-                  <button
-                    key={payment.id || payment.charge_id}
-                    onClick={() => setSelectedPayment(payment)}
-                    className={cn(
-                      "w-full p-2 rounded-md border transition-all text-left",
-                      "hover:bg-slate-800/50 hover:border-slate-600",
-                      "border-slate-700 bg-slate-900/30",
-                      index >= 2 && "opacity-75" // Slightly fade payments after the first 2
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="text-xs font-bold text-white">
-                          R$ {formatPaymentValue(payment.valor)}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-[10px] text-slate-500">
-                          {format(new Date(payment.created_at), "dd/MM HH:mm", { locale: ptBR })}
-                        </div>
-                        <div className={cn(
-                          "p-1 rounded flex items-center gap-1",
-                          getStatusColor(payment.status)
-                        )}>
-                          {getStatusIcon(payment.status)}
-                          {payment.status === 'pendente' && timeRemaining && (
-                            <span className="text-[10px] font-mono">{timeRemaining}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-        
-        {/* Pagamento Selecionado */}
-        {selectedPayment ? (
-          <div className="space-y-3">
-            <div className={cn(
-              "p-3 rounded-lg border",
-              selectedPayment.status === 'pendente' 
-                ? "bg-amber-950/30 border-amber-600/40" 
-                : selectedPayment.status === 'pago'
-                ? "bg-green-950/30 border-green-600/40"
-                : selectedPayment.status === 'cancelado'
-                ? "bg-red-950/30 border-red-600/40"
-                : "bg-slate-800/30 border-slate-600/40"
-            )}>
-              {/* Status Badge */}
-              <div className="flex items-center justify-between mb-3">
+        ) : (
+          <>
+            {/* Pagamento Selecionado */}
+            {selectedPayment ? (
+              <div className="space-y-3">
                 <div className={cn(
-                  "px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5",
-                  getStatusColor(selectedPayment.status)
+                  "p-3 rounded-lg border",
+                  selectedPayment.status === 'pendente' 
+                    ? "bg-amber-950/30 border-amber-600/40" 
+                    : selectedPayment.status === 'pago'
+                    ? "bg-green-950/30 border-green-600/40"
+                    : selectedPayment.status === 'cancelado'
+                    ? "bg-red-950/30 border-red-600/40"
+                    : "bg-slate-800/30 border-slate-600/40"
                 )}>
-                  {getStatusIcon(selectedPayment.status)}
-                  {selectedPayment.status.toUpperCase()}
-                </div>
-                {timeRemaining && selectedPayment.status === 'pendente' && (
-                  <span className="text-[11px] font-mono text-amber-400">
-                    {timeRemaining}
-                  </span>
-                )}
-              </div>
-
-              {/* Valor */}
-              <div className="text-center py-2">
-                <div className="text-2xl font-black text-white">R$ {formatPaymentValue(selectedPayment.valor)}</div>
-                {selectedPayment.descricao && (
-                  <div className="text-[11px] text-slate-400 mt-1">{selectedPayment.descricao}</div>
-                )}
-              </div>
-
-              {/* Ações */}
-              {selectedPayment.status === 'pendente' && (
-                <div className="grid grid-cols-4 gap-2 mt-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={copyPixCode}
-                    className="h-8 border-slate-600 hover:bg-slate-700"
-                    disabled={!selectedPayment.pix_copia_e_cola}
-                    title="Copiar PIX"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={resendPixToWhatsApp}
-                    className="h-8 border-slate-600 hover:bg-slate-700"
-                    title="Reenviar"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => checkPaymentStatus(selectedPayment.charge_id)}
-                    disabled={isCheckingStatus}
-                    className="h-8 border-blue-600/50 hover:bg-blue-950/30 text-blue-400"
-                    title="Verificar"
-                  >
-                    {isCheckingStatus ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-3.5 h-3.5" />
+                  {/* Status Badge */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={cn(
+                      "px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1.5",
+                      getStatusColor(selectedPayment.status)
+                    )}>
+                      {getStatusIcon(selectedPayment.status)}
+                      {selectedPayment.status.toUpperCase()}
+                    </div>
+                    {timeRemaining && selectedPayment.status === 'pendente' && (
+                      <span className="text-[11px] font-mono text-amber-400">
+                        {timeRemaining}
+                      </span>
                     )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={cancelCurrentPix}
-                    disabled={isCancelling}
-                    className="h-8 border-red-600/50 hover:bg-red-950/30 text-red-400"
-                    title="Cancelar"
-                  >
-                    {isCancelling ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3.5 h-3.5" />
+                  </div>
+
+                  {/* Valor */}
+                  <div className="text-center py-2">
+                    <div className="text-2xl font-black text-white">R$ {formatPaymentValue(selectedPayment.valor)}</div>
+                    {selectedPayment.descricao && (
+                      <div className="text-[11px] text-slate-400 mt-1">{selectedPayment.descricao}</div>
                     )}
-                  </Button>
+                  </div>
+
+                  {/* Ações */}
+                  {selectedPayment.status === 'pendente' && (
+                    <div className="grid grid-cols-4 gap-2 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={copyPixCode}
+                        className="h-8 border-slate-600 hover:bg-slate-700"
+                        disabled={!selectedPayment.pix_copia_e_cola}
+                        title="Copiar PIX"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={resendPixToWhatsApp}
+                        className="h-8 border-slate-600 hover:bg-slate-700"
+                        title="Reenviar"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => checkPaymentStatus(selectedPayment.charge_id)}
+                        disabled={isCheckingStatus}
+                        className="h-8 border-blue-600/50 hover:bg-blue-950/30 text-blue-400"
+                        title="Verificar"
+                      >
+                        {isCheckingStatus ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={cancelCurrentPix}
+                        disabled={isCancelling}
+                        className="h-8 border-red-600/50 hover:bg-red-950/30 text-red-400"
+                        title="Cancelar"
+                      >
+                        {isCancelling ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* Botão para Novo PIX se pago ou cancelado */}
+                  {(selectedPayment.status === 'pago' || selectedPayment.status === 'cancelado' || selectedPayment.status === 'expirado') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={resetForm}
+                      className="w-full h-8 mt-3 text-[11px] font-bold border-slate-600 hover:bg-slate-700"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                      NOVO PIX
+                    </Button>
+                  )}
                 </div>
-              )}
-              
-              {/* Botão para Novo PIX se pago ou cancelado */}
-              {(selectedPayment.status === 'pago' || selectedPayment.status === 'cancelado' || selectedPayment.status === 'expirado') && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={resetForm}
-                  className="w-full h-8 mt-3 text-[11px] font-bold border-slate-600 hover:bg-slate-700"
-                >
-                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                  NOVO PIX
-                </Button>
-              )}
-            </div>
-          </div>
-        ) : !isLoadingPayments && (
-          <div className="space-y-3">
-            {/* Valores Rápidos */}
-            <div className="grid grid-cols-2 gap-2">
-              {quickValues.map(value => (
-                <Button
-                  key={value}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setQuickValue(value)}
-                  className="h-8 text-xs font-bold border-slate-600 hover:bg-green-600/20 hover:border-green-500"
-                >
-                  R$ {value.toFixed(2).replace('.', ',')}
-                </Button>
-              ))}
-            </div>
-
-            {/* Campo Valor */}
-            <div>
-              <Label className="text-[10px] text-slate-400 uppercase">Valor</Label>
-              <div className="relative mt-1">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-green-400">R$</span>
-                <Input
-                  type="text"
-                  placeholder="0,00"
-                  value={pixAmount ? formatCurrency(pixAmount) : ''}
-                  onChange={handleAmountChange}
-                  className="h-8 pl-8 text-sm font-bold bg-slate-950/50 border-slate-600 focus:border-green-500"
-                  disabled={isGeneratingPix}
-                />
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                {/* Valores Rápidos */}
+                <div className="grid grid-cols-2 gap-2">
+                  {quickValues.map(value => (
+                    <Button
+                      key={value}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setQuickValue(value)}
+                      className="h-8 text-xs font-bold border-slate-600 hover:bg-green-600/20 hover:border-green-500"
+                    >
+                      R$ {value.toFixed(2).replace('.', ',')}
+                    </Button>
+                  ))}
+                </div>
 
-            {/* Campo Descrição */}
-            <div>
-              <Label className="text-[10px] text-slate-400 uppercase">Descrição</Label>
-              <Input
-                type="text"
-                placeholder="Pagamento mensal"
-                value={pixDescription}
-                onChange={(e) => setPixDescription(e.target.value.slice(0, 40))}
-                className="h-8 mt-1 text-xs bg-slate-950/50 border-slate-600 focus:border-green-500"
-                disabled={isGeneratingPix}
-              />
-            </div>
+                {/* Campo Valor */}
+                <div>
+                  <Label className="text-[10px] text-slate-400 uppercase">Valor</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-green-400">R$</span>
+                    <Input
+                      type="text"
+                      placeholder="0,00"
+                      value={pixAmount ? formatCurrency(pixAmount) : ''}
+                      onChange={handleAmountChange}
+                      className="h-8 pl-8 text-sm font-bold bg-slate-950/50 border-slate-600 focus:border-green-500"
+                      disabled={isGeneratingPix}
+                    />
+                  </div>
+                </div>
 
-            {/* Botão Gerar */}
-            <Button
-              onClick={handleGeneratePix}
-              disabled={!pixAmount || isGeneratingPix}
-              className="w-full h-9 bg-green-600 hover:bg-green-500 text-white font-bold text-xs"
-            >
-              {isGeneratingPix ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  Gerando...
-                </>
-              ) : (
-                <>
-                  <Send className="w-3.5 h-3.5 mr-1.5" />
-                  Gerar PIX
-                </>
-              )}
-            </Button>
-          </div>
+                {/* Campo Descrição */}
+                <div>
+                  <Label className="text-[10px] text-slate-400 uppercase">Descrição</Label>
+                  <Input
+                    type="text"
+                    placeholder="Pagamento mensal"
+                    value={pixDescription}
+                    onChange={(e) => setPixDescription(e.target.value.slice(0, 40))}
+                    className="h-8 mt-1 text-xs bg-slate-950/50 border-slate-600 focus:border-green-500"
+                    disabled={isGeneratingPix}
+                  />
+                </div>
+
+                {/* Botão Gerar */}
+                <Button
+                  onClick={handleGeneratePix}
+                  disabled={!pixAmount || isGeneratingPix}
+                  className="w-full h-9 bg-green-600 hover:bg-green-500 text-white font-bold text-xs"
+                >
+                  {isGeneratingPix ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5 mr-1.5" />
+                      Gerar PIX
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Pagamentos Recentes - Agora no final */}
+            {existingPayments.length > 0 && !selectedPayment && (
+              <div className="space-y-2">
+                <h4 className="text-[11px] font-bold text-slate-400 uppercase">Pagamentos Recentes</h4>
+                <div className="space-y-1.5 max-h-[150px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                  {existingPayments.map((payment: any, index: number) => {
+                    const timeRemaining = calculateTimeRemaining(payment);
+                    return (
+                      <button
+                        key={payment.id || payment.charge_id}
+                        onClick={() => setSelectedPayment(payment)}
+                        className={cn(
+                          "w-full p-2 rounded-md border transition-all text-left",
+                          "hover:bg-slate-800/50 hover:border-slate-600",
+                          "border-slate-700 bg-slate-900/30",
+                          index >= 2 && "opacity-75" // Slightly fade payments after the first 2
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="text-xs font-bold text-white">
+                              R$ {formatPaymentValue(payment.valor)}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-[10px] text-slate-500">
+                              {format(new Date(payment.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                            </div>
+                            <div className={cn(
+                              "p-1 rounded flex items-center gap-1",
+                              getStatusColor(payment.status)
+                            )}>
+                              {getStatusIcon(payment.status)}
+                              {payment.status === 'pendente' && timeRemaining && (
+                                <span className="text-[10px] font-mono">{timeRemaining}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
