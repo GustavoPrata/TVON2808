@@ -678,12 +678,26 @@ export function TestDetailsDialog({
               <CardContent className="space-y-3">
                 {/* Botões de Edição */}
                 {test?.status === 'deletado' ? (
-                  <div className="flex items-center justify-center p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-                    <div className="text-center">
-                      <AlertCircle className="w-6 h-6 text-red-400 mx-auto mb-2" />
-                      <p className="text-red-400 font-medium">Teste Deletado</p>
-                      <p className="text-sm text-red-300/70">Este teste não pode ser editado</p>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-center p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
+                      <div className="text-center">
+                        <AlertCircle className="w-6 h-6 text-red-400 mx-auto mb-2" />
+                        <p className="text-red-400 font-medium">Teste Deletado</p>
+                        <p className="text-sm text-red-300/70">Este teste não pode ser editado</p>
+                      </div>
                     </div>
+                    <Button
+                      onClick={() => {
+                        if (confirm('Tem certeza que deseja excluir este teste permanentemente do banco de dados? Esta ação não pode ser desfeita.')) {
+                          deleteMutation.mutate();
+                        }
+                      }}
+                      disabled={deleteMutation.isPending}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      {deleteMutation.isPending ? 'Excluindo...' : 'Excluir Definitivamente'}
+                    </Button>
                   </div>
                 ) : isEditing ? (
                   <div className="flex gap-2">
