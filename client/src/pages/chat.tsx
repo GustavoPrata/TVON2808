@@ -21,7 +21,7 @@ import {
 
 import defaultProfileIcon from '../assets/default-profile.webp';
 import type { Conversa, Mensagem } from '@/types';
-import { isToday, isYesterday } from 'date-fns';
+import { isToday, isYesterday, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatTimeInBrazil, formatShortInBrazil, formatDateTimeInBrazil } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
