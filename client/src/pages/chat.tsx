@@ -2182,7 +2182,7 @@ export default function Chat() {
                       
                       {/* Actions Menu */}
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
