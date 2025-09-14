@@ -11,8 +11,8 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatShortInBrazil } from '@/lib/date-utils';
 
 interface PixGeneratorSidebarProps {
   clienteId?: number;  // Opcional - para suportar conversas sem cliente
@@ -721,7 +721,7 @@ export function PixGeneratorSidebar({
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="text-[10px] text-slate-500">
-                              {format(new Date(payment.created_at), "dd/MM HH:mm", { locale: ptBR })}
+                              {formatShortInBrazil(payment.created_at)}
                             </div>
                             <div className={cn(
                               "p-1 rounded flex items-center gap-1",

@@ -21,8 +21,9 @@ import {
 
 import defaultProfileIcon from '../assets/default-profile.webp';
 import type { Conversa, Mensagem } from '@/types';
-import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
+import { isToday, isYesterday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatTimeInBrazil, formatShortInBrazil, formatDateTimeInBrazil } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -1526,10 +1527,7 @@ export default function Chat() {
   // Removed debug logs for filtered conversations
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString('pt-BR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatTimeInBrazil(timestamp);
   };
 
   const formatDate = (timestamp: string) => {
@@ -1539,25 +1537,7 @@ export default function Chat() {
   // Helper function to format last message date correctly
   const formatLastMessageDate = (timestamp: string | Date) => {
     if (!timestamp) return '';
-    
-    // Parse the timestamp and ensure it's a valid date
-    const messageDate = new Date(timestamp);
-    const now = new Date();
-    
-    // Use date-fns functions that handle timezone correctly
-    if (isToday(messageDate)) {
-      return formatTime(typeof timestamp === 'string' ? timestamp : timestamp.toISOString());
-    } else if (isYesterday(messageDate)) {
-      return 'Ontem';
-    } else {
-      // Check if within last week
-      const daysAgo = Math.floor((now.getTime() - messageDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysAgo < 7) {
-        return messageDate.toLocaleDateString('pt-BR', { weekday: 'long' });
-      } else {
-        return messageDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-      }
-    }
+    return formatShortInBrazil(timestamp);
   };
 
   const formatPhoneNumber = (phone: string) => {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatTimeInBrazil } from '@/lib/date-utils';
 import { Check, CheckCheck, Clock, Reply, Forward, Copy, Trash2, Download, MoreVertical, FileText, Edit, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -114,7 +114,7 @@ export function MessageBubble({
   };
   
   const formatTime = (timestamp: string) => {
-    return format(new Date(timestamp), 'HH:mm', { locale: ptBR });
+    return formatTimeInBrazil(timestamp);
   };
 
   const renderStatus = () => {
