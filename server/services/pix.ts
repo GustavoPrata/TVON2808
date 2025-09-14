@@ -355,8 +355,19 @@ export class PixService {
         if (metadata.meses) {
           charge.comment = `${description} [MESES:${metadata.meses}]`;
         }
-        // Adicionar metadata adicional se a API suportar
-        charge.additionalInfo = metadata;
+        // Adicionar metadata adicional como array (formato exigido pela API Woovi)
+        const additionalInfoArray = [];
+        for (const key in metadata) {
+          if (key !== 'meses') { // meses já foi adicionado no comment
+            additionalInfoArray.push({
+              key: key,
+              value: String(metadata[key])
+            });
+          }
+        }
+        if (additionalInfoArray.length > 0) {
+          charge.additionalInfo = additionalInfoArray;
+        }
       }
 
       console.log('📤 Enviando charge para Woovi:', charge);
@@ -666,9 +677,9 @@ export class PixService {
             console.log('📨 Enviando mensagem WhatsApp...');
             await whatsappService.sendMessage(telefone, mensagem);
             console.log(`✅ Mensagem de confirmação enviada com sucesso para ${telefone}`);
-          } catch (whatsError) {
+          } catch (whatsError: any) {
             console.error('❌ Erro ao enviar mensagem WhatsApp:', whatsError);
-            console.error('Detalhes do erro:', whatsError.message);
+            console.error('Detalhes do erro:', whatsError?.message || whatsError);
           }
           
           await this.logActivity('info', `Pagamento confirmado para conversa ${telefone}`, {
