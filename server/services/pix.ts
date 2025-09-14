@@ -355,19 +355,12 @@ export class PixService {
         if (metadata.meses) {
           charge.comment = `${description} [MESES:${metadata.meses}]`;
         }
-        // Adicionar metadata adicional como array (formato exigido pela API Woovi)
-        const additionalInfoArray = [];
-        for (const key in metadata) {
-          if (key !== 'meses') { // meses já foi adicionado no comment
-            additionalInfoArray.push({
-              key: key,
-              value: String(metadata[key])
-            });
-          }
+        // Adicionar informações do telefone no comment se for pagamento manual
+        if (metadata.manual && metadata.telefone) {
+          charge.comment = `${charge.comment || description} [TEL:${metadata.telefone}]`;
         }
-        if (additionalInfoArray.length > 0) {
-          charge.additionalInfo = additionalInfoArray;
-        }
+        // NÃO adicionar additionalInfo pois a API Woovi não está aceitando corretamente
+        // Todas as informações necessárias estão no comment
       }
 
       console.log('📤 Enviando charge para Woovi:', charge);
