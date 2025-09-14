@@ -677,38 +677,49 @@ export function PixGeneratorSidebar({
             {/* Pagamentos Recentes - Agora no final */}
             {existingPayments.length > 0 && !selectedPayment && (
               <div className="space-y-2">
-                <h4 className="text-[11px] font-bold text-slate-400 uppercase">Pagamentos Recentes</h4>
-                <div className="space-y-1.5 max-h-[150px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Histórico</h4>
+                <div className="space-y-1 max-h-[160px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                   {existingPayments.map((payment: any) => {
                     const timeRemaining = calculateTimeRemaining(payment);
+                    const statusMap = {
+                      pendente: { icon: <Clock className="w-3 h-3" />, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+                      pago: { icon: <CheckCircle2 className="w-3 h-3" />, color: 'text-green-400', bg: 'bg-green-500/10' },
+                      cancelado: { icon: <XCircle className="w-3 h-3" />, color: 'text-red-400', bg: 'bg-red-500/10' },
+                      expirado: { icon: <Timer className="w-3 h-3" />, color: 'text-slate-500', bg: 'bg-slate-500/10' }
+                    };
+                    const statusInfo = statusMap[payment.status as keyof typeof statusMap] || { icon: <AlertCircle className="w-3 h-3" />, color: 'text-slate-500', bg: 'bg-slate-500/10' };
+                    
                     return (
                       <button
                         key={payment.id || payment.charge_id}
                         onClick={() => setSelectedPayment(payment)}
-                        className="w-full p-2.5 rounded-md border border-slate-700/60 bg-slate-900/30 hover:bg-slate-800/50 hover:border-slate-600 focus-visible:ring-2 focus-visible:ring-slate-500/50 transition min-h-[56px]"
+                        className="w-full group relative flex items-center justify-between p-2 rounded-lg bg-slate-900/50 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 transition-all"
                       >
-                        <div className="grid grid-rows-2 grid-cols-[1fr_auto] gap-y-0.5">
-                          {/* Linha superior: Valor e Status */}
-                          <div className="text-sm font-bold text-white tabular-nums tracking-tight">
-                            R$ {formatPaymentValue(payment.valor)}
-                          </div>
-                          <div className={cn(
-                            "px-2 py-0.5 rounded-full text-[10px] font-semibold inline-flex items-center gap-1 h-fit",
-                            getStatusColor(payment.status)
-                          )}>
-                            <span className="w-3 h-3 flex items-center justify-center">
-                              {getStatusIcon(payment.status)}
+                        <div className="flex items-center gap-2.5">
+                          <div className={cn("p-1.5 rounded-md", statusInfo.bg)}>
+                            <span className={statusInfo.color}>
+                              {statusInfo.icon}
                             </span>
-                            {payment.status === 'pendente' && timeRemaining && (
-                              <span className="font-mono">{timeRemaining}</span>
+                          </div>
+                          <div className="text-left">
+                            <div className="text-sm font-semibold text-white">
+                              R$ {formatPaymentValue(payment.valor)}
+                            </div>
+                            {payment.descricao && (
+                              <div className="text-[9px] text-slate-500 truncate max-w-[100px]">
+                                {payment.descricao}
+                              </div>
                             )}
                           </div>
-                          
-                          {/* Linha inferior: Descrição e Horário */}
-                          <div className="text-[10px] text-slate-400 truncate max-w-[160px]">
-                            {payment.descricao || ''}
-                          </div>
-                          <div className="text-[10px] text-slate-500 text-right">
+                        </div>
+                        
+                        <div className="text-right">
+                          {payment.status === 'pendente' && timeRemaining ? (
+                            <div className="text-[10px] font-mono text-amber-400">
+                              {timeRemaining}
+                            </div>
+                          ) : null}
+                          <div className="text-[9px] text-slate-600">
                             {formatShortInBrazil(payment.created_at)}
                           </div>
                         </div>
