@@ -1501,7 +1501,7 @@ export default function Chat() {
     
     if (contactFilter === 'clientes') return conv.isCliente;
     if (contactFilter === 'novos') return !conv.isCliente && !conv.isTeste;
-    if (contactFilter === 'testes') return conv.isTeste;
+    if (contactFilter === 'testes') return conv.isTeste && !conv.isCliente;
     return true;
   })?.map(conv => {
     // Add ticket information to each conversation
