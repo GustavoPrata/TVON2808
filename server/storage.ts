@@ -507,10 +507,14 @@ export class DatabaseStorage implements IStorage {
 
   async getConversas(limit: number = 50): Promise<Conversa[]> {
     try {
-      return await db.select()
+      const result = await db.select()
         .from(conversas)
         .orderBy(desc(conversas.dataUltimaMensagem))
         .limit(limit);
+      
+      // No need to convert timestamps - they're already correct in DB
+      // Just ensure we return them as-is
+      return result;
     } catch (error) {
       console.error('Error fetching conversas:', error);
       // Return empty array on error to avoid blocking the UI

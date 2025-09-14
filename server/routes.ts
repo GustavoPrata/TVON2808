@@ -436,6 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Atualizar última mensagem da conversa
       await storage.updateConversa(actualConversaId, {
         ultimaMensagem: conteudo,
+        dataUltimaMensagem: getBrazilDate(), // Update timestamp with Brazil timezone
         mensagensNaoLidas: 0, // Reset unread count when system sends message
         ultimoRemetente: "sistema", // Track who sent the last message
       });
