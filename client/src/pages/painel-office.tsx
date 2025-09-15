@@ -41,9 +41,6 @@ export default function PainelOffice() {
   const [customUrl, setCustomUrl] = useState('https://onlineoffice.zip/');
   const [showIframe, setShowIframe] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showManualForm, setShowManualForm] = useState(false);
-  const [manualUsuario, setManualUsuario] = useState('');
-  const [manualSenha, setManualSenha] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { toast } = useToast();
 
@@ -61,52 +58,42 @@ export default function PainelOffice() {
     addLog('Iniciando geração de teste IPTV...', 'info');
 
     try {
-      // Instruções para o usuário
-      addLog('INSTRUÇÕES: Siga os passos no iframe ao lado:', 'warning');
-      addLog('1. Clique no botão "Gerar IPTV"', 'info');
-      addLog('2. Confirme o primeiro modal (pode deixar vazio)', 'info');
-      addLog('3. Confirme o segundo modal (tempo de teste)', 'info');
-      addLog('4. Aguarde a geração do teste', 'info');
-      addLog('5. Copie o usuário e senha gerados', 'info');
+      addLog('Acessando sistema OnlineOffice...', 'info');
+      addLog('Aguardando página carregar...', 'info');
       
-      // Simula o processo enquanto o usuário faz manualmente
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Abre um prompt para o usuário colar as credenciais
-      const credentialsText = prompt(
-        'Cole aqui o texto com as credenciais geradas (USUÁRIO e SENHA):\n\n' +
-        'Exemplo:\n' +
-        'USUÁRIO: 123456789\n' +
-        'SENHA: ABC123XYZ'
-      );
-      
-      if (!credentialsText) {
-        throw new Error('Operação cancelada pelo usuário');
+      // Chama a nova API com Puppeteer
+      const response = await fetch('/api/office/generate-iptv-auto', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao gerar teste IPTV');
       }
-      
-      // Extrai as credenciais do texto colado
-      const usuarioMatch = credentialsText.match(/USUÁRIO[:\s]+(\S+)/i);
-      const senhaMatch = credentialsText.match(/SENHA[:\s]+(\S+)/i);
-      const vencimentoMatch = credentialsText.match(/VENCIMENTO[:\s]+([^\n]+)/i);
-      
-      if (!usuarioMatch || !senhaMatch) {
-        throw new Error('Não foi possível extrair usuário e senha. Verifique o formato do texto.');
-      }
-      
-      // Adiciona o usuário extraído
+
+      addLog('Clicando no botão Gerar IPTV...', 'info');
+      addLog('Confirmando primeiro modal...', 'info');
+      addLog('Confirmando segundo modal...', 'info');
+      addLog('Capturando credenciais geradas...', 'info');
+
+      // Adiciona o usuário retornado pela API
       const newUser: IPTVUser = {
         id: Date.now().toString(),
-        usuario: usuarioMatch[1],
-        senha: senhaMatch[1],
-        vencimento: vencimentoMatch ? vencimentoMatch[1].trim() : new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR'),
+        usuario: data.usuario,
+        senha: data.senha,
+        vencimento: data.vencimento || new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR'),
         createdAt: new Date().toISOString()
       };
 
       setUsers(prev => [...prev, newUser]);
-      addLog(`Teste capturado com sucesso! Usuário: ${newUser.usuario}`, 'success');
+      addLog(`Teste gerado com sucesso! Usuário: ${newUser.usuario}`, 'success');
       
       toast({
-        title: "✅ Teste IPTV Capturado!",
+        title: "✅ Teste IPTV Gerado!",
         description: `Usuário: ${newUser.usuario} | Senha: ${newUser.senha}`,
         variant: "default"
       });
@@ -178,37 +165,6 @@ export default function PainelOffice() {
       window.open(iframeUrl, '_blank');
       addLog('Abrindo em nova aba...', 'info');
     }
-  };
-
-  const addManualUser = () => {
-    if (!manualUsuario || !manualSenha) {
-      toast({
-        title: "Erro",
-        description: "Por favor, preencha usuário e senha",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const newUser: IPTVUser = {
-      id: Date.now().toString(),
-      usuario: manualUsuario,
-      senha: manualSenha,
-      vencimento: new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR'),
-      createdAt: new Date().toISOString()
-    };
-
-    setUsers(prev => [...prev, newUser]);
-    setManualUsuario('');
-    setManualSenha('');
-    setShowManualForm(false);
-    addLog(`Usuário adicionado manualmente: ${newUser.usuario}`, 'success');
-    
-    toast({
-      title: "✅ Usuário Adicionado!",
-      description: `Usuário: ${newUser.usuario} | Senha: ${newUser.senha}`,
-      variant: "default"
-    });
   };
 
   return (
