@@ -27,9 +27,9 @@ export default function PainelOffice() {
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [iframeUrl, setIframeUrl] = useState('');
-  const [customUrl, setCustomUrl] = useState('');
-  const [showIframe, setShowIframe] = useState(false);
+  const [iframeUrl, setIframeUrl] = useState('https://onlineoffice.zip/');
+  const [customUrl, setCustomUrl] = useState('https://onlineoffice.zip/');
+  const [showIframe, setShowIframe] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { toast } = useToast();
 
@@ -445,7 +445,7 @@ export default function PainelOffice() {
                 </Button>
               </div>
               <p className="text-xs text-slate-500">
-                Exemplos de URLs possíveis: onlineoffice.zip, ww3.onlineoffice.zip, onlineoffice.com
+                URL padrão configurada: https://onlineoffice.zip/
               </p>
             </div>
 
