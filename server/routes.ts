@@ -5474,6 +5474,43 @@ Como posso ajudar você hoje?
     }
   });
 
+  // OnlineOffice automation with advanced human behavior simulation
+  app.post("/api/office/generate-human", async (req, res) => {
+    try {
+      console.log("🎭 Iniciando automação OnlineOffice com comportamento humano...");
+      
+      const officeService = OnlineOfficeService.getInstance();
+      const result = await officeService.generateIPTVWithHumanBehavior();
+      
+      console.log("✅ Teste IPTV gerado com sucesso usando comportamento humano!");
+      res.json({
+        success: true,
+        usuario: result.usuario,
+        senha: result.senha,
+        vencimento: result.vencimento,
+        message: "Teste IPTV gerado com sucesso com comportamento humano!"
+      });
+    } catch (error) {
+      console.error("❌ Erro na automação humanizada:", error);
+      
+      // Check if it's a blocking error
+      if (error instanceof Error && error.message?.includes('SITE_BLOQUEADO')) {
+        return res.status(403).json({
+          success: false,
+          message: "Site detectou a automação",
+          error: error.message,
+          suggestion: "Use a opção de extração manual ou tente novamente mais tarde"
+        });
+      }
+      
+      res.status(500).json({
+        success: false,
+        message: "Erro ao gerar teste IPTV com comportamento humano",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
   app.get("/api/sync/details", async (req, res) => {
     try {
       // Get local systems
