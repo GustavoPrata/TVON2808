@@ -13,6 +13,7 @@ import quickMessagesRouter from "./routes/quick-messages";
 import { authenticate, checkAuth } from "./auth";
 import bcrypt from 'bcrypt';
 import { initAdmin } from "./init-admin";
+import { OnlineOfficeService } from "./services/onlineoffice";
 import {
   insertClienteSchema,
   insertPontoSchema,
@@ -5369,6 +5370,64 @@ Como posso ajudar você hoje?
         success: false,
         message: "Erro ao gerar teste IPTV",
         error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // OnlineOffice automation route with Puppeteer
+  app.post("/api/office/generate-iptv-auto", async (req, res) => {
+    try {
+      console.log("🚀 Iniciando automação OnlineOffice com Puppeteer...");
+      
+      const officeService = OnlineOfficeService.getInstance();
+      const result = await officeService.generateIPTVTest();
+      
+      console.log("✅ Teste IPTV gerado com sucesso via Puppeteer!");
+      res.json({
+        success: true,
+        usuario: result.usuario,
+        senha: result.senha,
+        vencimento: result.vencimento,
+        message: "Teste IPTV gerado com sucesso!"
+      });
+    } catch (error) {
+      console.error("❌ Erro na automação Puppeteer:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao executar automação",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
+  // OnlineOffice manual extraction route
+  app.post("/api/office/extract-credentials", async (req, res) => {
+    try {
+      const { text } = req.body;
+      
+      if (!text) {
+        return res.status(400).json({
+          success: false,
+          message: "Texto com as credenciais é obrigatório"
+        });
+      }
+      
+      const officeService = OnlineOfficeService.getInstance();
+      const result = await officeService.generateIPTVTestManual(text);
+      
+      res.json({
+        success: true,
+        usuario: result.usuario,
+        senha: result.senha,
+        vencimento: result.vencimento,
+        message: "Credenciais extraídas com sucesso!"
+      });
+    } catch (error) {
+      console.error("❌ Erro na extração de credenciais:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao extrair credenciais",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
       });
     }
   });

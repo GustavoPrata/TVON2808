@@ -54,118 +54,38 @@ export default function PainelOffice() {
   };
 
   const generateIPTVTest = async () => {
-    if (!iframeRef.current) {
-      toast({
-        title: "Erro",
-        description: "O iframe não está carregado",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsGenerating(true);
     addLog('Iniciando geração de teste IPTV...', 'info');
 
     try {
-      // Injeta script no iframe para automatizar o processo
-      const iframeWindow = iframeRef.current.contentWindow;
-      if (!iframeWindow) {
-        throw new Error('Não foi possível acessar o iframe');
+      addLog('Acessando sistema OnlineOffice...', 'info');
+      addLog('Aguardando página carregar...', 'info');
+      
+      // Chama a nova API com Puppeteer
+      const response = await fetch('/api/office/generate-iptv-auto', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao gerar teste IPTV');
       }
 
-      // Script para executar no contexto do iframe
-      const automationScript = `
-        (async function() {
-          try {
-            // Procura e clica no botão "Gerar IPTV"
-            const gerarBtn = document.querySelector('button:has-text("Gerar IPTV"), button:contains("Gerar IPTV")') || 
-                            Array.from(document.querySelectorAll('button')).find(btn => btn.textContent.includes('Gerar IPTV'));
-            
-            if (!gerarBtn) {
-              throw new Error('Botão Gerar IPTV não encontrado');
-            }
-            
-            gerarBtn.click();
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Confirma primeiro modal (nota do usuário)
-            const confirmarBtn1 = document.querySelector('button:has-text("Confirmar"), button:contains("Confirmar")') ||
-                                 Array.from(document.querySelectorAll('button')).find(btn => btn.textContent === 'Confirmar');
-            
-            if (confirmarBtn1) {
-              confirmarBtn1.click();
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            // Confirma segundo modal (tempo de teste)
-            const confirmarBtn2 = document.querySelector('button:has-text("Confirmar"), button:contains("Confirmar")') ||
-                                 Array.from(document.querySelectorAll('button')).find(btn => btn.textContent === 'Confirmar');
-            
-            if (confirmarBtn2) {
-              confirmarBtn2.click();
-              await new Promise(resolve => setTimeout(resolve, 3000));
-            }
-
-            // Aguarda e captura os dados gerados
-            const resultElement = document.querySelector('.teste-gerado, .resultado-teste') ||
-                                document.querySelector('[class*="resultado"]') ||
-                                document.querySelector('[class*="teste"]');
-
-            if (resultElement) {
-              const usuarioMatch = resultElement.textContent.match(/USUÁRIO:\\s*(\\S+)/i);
-              const senhaMatch = resultElement.textContent.match(/SENHA:\\s*(\\S+)/i);
-              const vencimentoMatch = resultElement.textContent.match(/VENCIMENTO:\\s*([^\\n]+)/i);
-
-              if (usuarioMatch && senhaMatch) {
-                return {
-                  usuario: usuarioMatch[1],
-                  senha: senhaMatch[1],
-                  vencimento: vencimentoMatch ? vencimentoMatch[1] : null
-                };
-              }
-            }
-
-            // Alternativa: busca diretamente no texto da página
-            const bodyText = document.body.innerText;
-            const usuarioMatch = bodyText.match(/USUÁRIO:\\s*(\\S+)/i);
-            const senhaMatch = bodyText.match(/SENHA:\\s*(\\S+)/i);
-            const vencimentoMatch = bodyText.match(/VENCIMENTO:\\s*([^\\n]+)/i);
-
-            if (usuarioMatch && senhaMatch) {
-              return {
-                usuario: usuarioMatch[1],
-                senha: senhaMatch[1],
-                vencimento: vencimentoMatch ? vencimentoMatch[1] : null
-              };
-            }
-
-            throw new Error('Não foi possível capturar os dados do teste');
-          } catch (error) {
-            throw error;
-          }
-        })();
-      `;
-
-      // Por limitações de segurança do iframe, vamos simular o processo
       addLog('Clicando no botão Gerar IPTV...', 'info');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
       addLog('Confirmando primeiro modal...', 'info');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
       addLog('Confirmando segundo modal...', 'info');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      addLog('Aguardando geração do teste...', 'info');
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      addLog('Capturando credenciais geradas...', 'info');
 
-      // Como não podemos acessar diretamente o iframe por políticas de CORS,
-      // vamos adicionar um usuário de exemplo para demonstração
+      // Adiciona o usuário retornado pela API
       const newUser: IPTVUser = {
         id: Date.now().toString(),
-        usuario: `user${Math.floor(Math.random() * 900000) + 100000}`,
-        senha: `pass${Math.floor(Math.random() * 9000) + 1000}`,
-        vencimento: new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR'),
+        usuario: data.usuario,
+        senha: data.senha,
+        vencimento: data.vencimento || new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR'),
         createdAt: new Date().toISOString()
       };
 
