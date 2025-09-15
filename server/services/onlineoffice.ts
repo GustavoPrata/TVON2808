@@ -13,6 +13,9 @@ interface IPTVTestResult {
   vencimento?: string;
 }
 
+// Helper function for delays
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export class OnlineOfficeService {
   private static instance: OnlineOfficeService;
   
@@ -85,7 +88,7 @@ export class OnlineOfficeService {
       const x = this.randomDelay(100, 800);
       const y = this.randomDelay(100, 600);
       await cursor.move({ x, y });
-      await delay(this.randomDelay(200, 500));
+      await page.waitForTimeout(this.randomDelay(200, 500));
       
       // Scroll with random distance
       const scrollDistance = this.randomDelay(100, 300);
@@ -98,7 +101,7 @@ export class OnlineOfficeService {
         });
       }, scrollDistance * direction);
       
-      await delay(this.randomDelay(500, 1500));
+      await page.waitForTimeout(this.randomDelay(500, 1500));
     }
     
     // Return to top smoothly
@@ -112,7 +115,7 @@ export class OnlineOfficeService {
   }
 
   // Simulate random mouse movements
-  private async randomMouseMovements(cursor: any, count: number = 3): Promise<void> {
+  private async randomMouseMovements(page: any, cursor: any, count: number = 3): Promise<void> {
     console.log('🖱️ Realizando movimentos aleatórios do mouse...');
     
     for (let i = 0; i < count; i++) {
@@ -123,15 +126,12 @@ export class OnlineOfficeService {
       await cursor.move({ x, y });
       
       // Random pause between movements
-      await cursor.page.waitForTimeout(this.randomDelay(300, 800));
+      await page.waitForTimeout(this.randomDelay(300, 800));
     }
   }
 
   async generateIPTVWithHumanBehavior(): Promise<IPTVTestResult> {
     let browser;
-    
-    // Helper function for delays
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
     
     try {
       console.log('🎭 Iniciando automação OnlineOffice com comportamento humano avançado...');
@@ -164,12 +164,8 @@ export class OnlineOfficeService {
           '--disable-features=TranslateUI',
           '--disable-ipc-flooding-protection',
           '--user-data-dir=/tmp/puppeteer_user_data_' + Date.now(),
-          '--disable-web-security',
           '--disable-gpu',
-          `--user-agent=${userAgent}`,
-          // Add fake Chrome extensions
-          '--load-extension=/tmp/fake_extension_' + Date.now(),
-          '--disable-extensions-except=/tmp/fake_extension_' + Date.now()
+          `--user-agent=${userAgent}`
         ],
         defaultViewport: null,
         ignoreDefaultArgs: ['--enable-automation', '--enable-blink-features=AutomationControlled'],
@@ -324,13 +320,13 @@ export class OnlineOfficeService {
       await delay(this.randomDelay(3000, 5000));
       
       // Perform random mouse movements
-      await this.randomMouseMovements(cursor, this.randomDelay(2, 4));
+      await this.randomMouseMovements(page, cursor, this.randomDelay(2, 4));
       
       // Perform human-like scrolling
       await this.humanScroll(page, cursor);
       
       // More random movements after scroll
-      await this.randomMouseMovements(cursor, 2);
+      await this.randomMouseMovements(page, cursor, 2);
       
       // Find the "Gerar IPTV" button
       console.log('🔍 Procurando botão "Gerar IPTV" de forma humanizada...');
@@ -433,7 +429,7 @@ export class OnlineOfficeService {
       console.log('⏳ Aguardando credenciais com movimentos aleatórios...');
       
       for (let i = 0; i < 3; i++) {
-        await this.randomMouseMovements(cursor, 1);
+        await this.randomMouseMovements(page, cursor, 1);
         await delay(this.randomDelay(1000, 1500));
       }
       
@@ -477,7 +473,7 @@ export class OnlineOfficeService {
       }
       
       // Final random movements before closing
-      await this.randomMouseMovements(cursor, 2);
+      await this.randomMouseMovements(page, cursor, 2);
       await delay(this.randomDelay(1000, 2000));
       
       return result;
@@ -550,7 +546,6 @@ export class OnlineOfficeService {
           '--disable-features=TranslateUI',
           '--disable-ipc-flooding-protection',
           '--user-data-dir=/tmp/puppeteer_user_data_' + Date.now(),
-          '--disable-web-security',
           '--disable-gpu',
           '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
         ],

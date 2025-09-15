@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Copy, CheckCircle, Trash2, Monitor, UserPlus, Globe, RefreshCw } from 'lucide-react';
+import { Copy, CheckCircle, Trash2, Monitor, UserPlus, Globe, RefreshCw, Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface IPTVUser {
@@ -29,7 +29,56 @@ export default function PainelOffice() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [manualInput, setManualInput] = useState({ usuario: '', senha: '', vencimento: '' });
   const [iframeKey, setIframeKey] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
+
+  const handleAutoGenerate = async () => {
+    setIsGenerating(true);
+    try {
+      const response = await fetch('/api/office/generate-human', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const newUser: IPTVUser = {
+          id: Date.now().toString(),
+          usuario: data.usuario,
+          senha: data.senha,
+          vencimento: data.vencimento || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
+          createdAt: new Date().toISOString()
+        };
+        
+        setUsers(prev => [...prev, newUser]);
+        
+        // Also save to backend
+        await saveCredentialsToBackend(newUser);
+        
+        toast({
+          title: "🎉 Gerado com Sucesso!",
+          description: `Usuário: ${data.usuario} | Senha: ${data.senha}`,
+          variant: "default",
+        });
+      } else {
+        const error = await response.json();
+        toast({
+          title: "❌ Erro ao Gerar",
+          description: error.error || 'Não foi possível gerar as credenciais automaticamente',
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao gerar credenciais:', error);
+      toast({
+        title: "❌ Erro de Conexão",
+        description: "Não foi possível conectar ao servidor. Verifique se o serviço está rodando.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const saveCredentialsToBackend = async (user: IPTVUser) => {
     try {
@@ -147,15 +196,54 @@ export default function PainelOffice() {
         {/* Left Side - Controls and Users List */}
         <div className="flex flex-col gap-4 min-h-0">
           
-          {/* Manual Input Card */}
+          {/* Automation Card - Primary Option */}
+          <Card className="bg-gradient-to-br from-purple-600/20 to-blue-600/20 border-purple-500/50 shadow-lg shadow-purple-500/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+                Geração Automática Humanizada
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-300">
+                Gera credenciais automaticamente com nomes e sobrenomes realistas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={handleAutoGenerate}
+                disabled={isGenerating}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                size="lg"
+                data-testid="button-auto-generate"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Gerando Credenciais...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    Gerar Automaticamente
+                  </>
+                )}
+              </Button>
+              {isGenerating && (
+                <p className="text-xs text-center mt-3 text-purple-300 animate-pulse">
+                  Criando credenciais humanizadas... Aguarde!
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Manual Input Card - Secondary Option */}
           <Card className="bg-dark-card border-slate-600">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <UserPlus className="w-5 h-5" />
-                Adicionar Credenciais
+                Adicionar Manualmente
               </CardTitle>
               <CardDescription className="text-xs">
-                Após gerar no painel ao lado, adicione as credenciais aqui
+                Ou adicione credenciais manualmente caso já tenha gerado
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
