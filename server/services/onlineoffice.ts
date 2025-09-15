@@ -1,4 +1,5 @@
 import puppeteer from 'puppeteer';
+import { execSync } from 'child_process';
 
 interface IPTVTestResult {
   usuario: string;
@@ -16,22 +17,46 @@ export class OnlineOfficeService {
     return this.instance;
   }
 
+  private getChromiumPath(): string | undefined {
+    // Try to find chromium executable in Replit environment
+    try {
+      const path = execSync('which chromium', { encoding: 'utf8' }).trim();
+      if (path) {
+        console.log('📍 Using Chromium at:', path);
+        return path;
+      }
+    } catch (error) {
+      console.log('⚠️ Could not find chromium via which command');
+    }
+    
+    // Return undefined to let Puppeteer handle it in non-Replit environments
+    return undefined;
+  }
+
   async generateIPTVTest(): Promise<IPTVTestResult> {
     let browser;
     
     try {
       console.log('🚀 Iniciando automação OnlineOffice...');
       
+      const executablePath = this.getChromiumPath();
+      
       // Inicia o navegador com configurações específicas
       browser = await puppeteer.launch({
         headless: 'new',
+        executablePath: executablePath, // Use the found chromium path
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
           '--disable-web-security',
-          '--disable-features=IsolateOrigins,site-per-process'
+          '--disable-features=IsolateOrigins,site-per-process',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process', // Important for Replit
+          '--disable-accelerated-2d-canvas',
+          '--disable-blink-features=AutomationControlled'
         ]
       });
 
