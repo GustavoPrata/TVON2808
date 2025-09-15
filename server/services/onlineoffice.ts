@@ -44,7 +44,7 @@ export class OnlineOfficeService {
       // Inicia o navegador com configurações específicas
       browser = await puppeteer.launch({
         headless: 'new',
-        executablePath: executablePath, // Use the found chromium path
+        executablePath: executablePath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -54,7 +54,7 @@ export class OnlineOfficeService {
           '--disable-features=IsolateOrigins,site-per-process',
           '--no-first-run',
           '--no-zygote',
-          '--single-process', // Important for Replit
+          '--single-process',
           '--disable-accelerated-2d-canvas',
           '--disable-blink-features=AutomationControlled'
         ]
@@ -72,143 +72,268 @@ export class OnlineOfficeService {
         timeout: 30000
       });
 
-      // Aguarda a página carregar completamente
+      // Aguarda a página carregar e o botão ficar disponível
+      console.log('⏳ Aguardando página carregar completamente...');
       await new Promise(resolve => setTimeout(resolve, 3000));
 
-      console.log('🔍 Procurando botão Gerar IPTV...');
+      console.log('🔍 Procurando botão Gerar IPTV com XPath...');
       
-      // Procura pelo botão "Gerar IPTV"
-      const gerarButton = await page.$$eval('button', buttons => {
-        const button = buttons.find(btn => 
-          btn.textContent?.toLowerCase().includes('gerar iptv') ||
-          btn.textContent?.toLowerCase().includes('gerar teste')
-        );
-        if (button) {
-          (button as HTMLElement).click();
-          return true;
+      // Usa XPath preciso para encontrar o botão
+      const buttonXPath = "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'gerar iptv') or contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'gerar teste')]";
+      
+      try {
+        await page.waitForXPath(buttonXPath, { timeout: 10000 });
+        const [gerarButton] = await page.$x(buttonXPath);
+        
+        if (gerarButton) {
+          console.log('✅ Botão encontrado, clicando...');
+          await gerarButton.click();
+        } else {
+          throw new Error('Botão Gerar IPTV não encontrado');
         }
-        return false;
-      });
-
-      if (!gerarButton) {
-        // Tenta encontrar por outras formas
-        await page.evaluate(() => {
-          const buttons = Array.from(document.querySelectorAll('button, a, div[role="button"]'));
-          const btn = buttons.find(el => 
-            el.textContent?.toLowerCase().includes('gerar') ||
-            el.textContent?.toLowerCase().includes('iptv')
-          );
-          if (btn) (btn as HTMLElement).click();
+      } catch (error) {
+        console.log('⚠️ Não encontrou por XPath, tentando método alternativo...');
+        
+        // Fallback: tenta clicar usando evaluate
+        const clicked = await page.evaluate(() => {
+          const buttons = Array.from(document.querySelectorAll('button'));
+          const button = buttons.find(btn => {
+            const text = btn.textContent?.toLowerCase() || '';
+            return text.includes('gerar iptv') || text.includes('gerar teste');
+          });
+          
+          if (button) {
+            (button as HTMLElement).click();
+            return true;
+          }
+          return false;
         });
+        
+        if (!clicked) {
+          throw new Error('Não foi possível clicar no botão Gerar IPTV');
+        }
       }
 
-      console.log('✅ Botão clicado, aguardando modal...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Confirma primeiro modal (nota do usuário)
-      console.log('📝 Confirmando primeiro modal...');
-      await page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('button'));
-        const confirmBtn = buttons.find(btn => 
-          btn.textContent?.toLowerCase().includes('confirmar') ||
-          btn.textContent?.toLowerCase().includes('ok')
-        );
-        if (confirmBtn) (confirmBtn as HTMLElement).click();
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Confirma segundo modal (tempo de teste)
-      console.log('⏱️ Confirmando segundo modal...');
-      await page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('button'));
-        const confirmBtn = buttons.find(btn => 
-          btn.textContent?.toLowerCase().includes('confirmar') ||
-          btn.textContent?.toLowerCase().includes('ok')
-        );
-        if (confirmBtn) (confirmBtn as HTMLElement).click();
-      });
-
-      console.log('⏳ Aguardando geração do teste...');
-      await new Promise(resolve => setTimeout(resolve, 5000));
-
-      // Captura os dados gerados
-      console.log('📊 Capturando dados gerados...');
-      const result = await page.evaluate(() => {
-        const bodyText = document.body.innerText;
+      // PRIMEIRO MODAL: Aguarda e confirma modal SweetAlert2 (nota do usuário)
+      console.log('📝 Aguardando primeiro modal (SweetAlert2)...');
+      
+      try {
+        await page.waitForSelector('.swal2-popup', { timeout: 5000 });
+        console.log('✅ Primeiro modal detectado');
         
-        // Procura por padrões de usuário e senha
-        const usuarioMatch = bodyText.match(/USUÁRIO[:\s]+(\S+)/i) || 
-                            bodyText.match(/USER[:\s]+(\S+)/i) ||
-                            bodyText.match(/USUARIO[:\s]+(\S+)/i);
+        // Pequena pausa para garantir que o modal está totalmente renderizado
+        await new Promise(resolve => setTimeout(resolve, 500));
         
-        const senhaMatch = bodyText.match(/SENHA[:\s]+(\S+)/i) || 
-                          bodyText.match(/PASSWORD[:\s]+(\S+)/i) ||
-                          bodyText.match(/PASS[:\s]+(\S+)/i);
-        
-        const vencimentoMatch = bodyText.match(/VENCIMENTO[:\s]+([^\n]+)/i) ||
-                               bodyText.match(/EXPIRA[:\s]+([^\n]+)/i) ||
-                               bodyText.match(/VALIDADE[:\s]+([^\n]+)/i);
+        // Clica no botão de confirmar do SweetAlert2
+        const confirmButton = await page.$('.swal2-confirm');
+        if (confirmButton) {
+          console.log('🔘 Clicando em confirmar primeiro modal...');
+          await confirmButton.click();
+        } else {
+          // Tenta método alternativo
+          await page.evaluate(() => {
+            const btn = document.querySelector('.swal2-confirm') as HTMLElement;
+            if (btn) btn.click();
+          });
+        }
+      } catch (error) {
+        console.log('⚠️ Primeiro modal não apareceu ou já foi fechado');
+      }
 
-        // Tenta capturar de elementos específicos
-        if (!usuarioMatch || !senhaMatch) {
-          const elements = document.querySelectorAll('div, span, p, td');
+      // SEGUNDO MODAL: Aguarda e confirma segundo modal (tempo de teste)
+      console.log('⏱️ Aguardando segundo modal (tempo de teste)...');
+      
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Pequena pausa entre modais
+      
+      try {
+        await page.waitForSelector('.swal2-popup', { timeout: 5000 });
+        console.log('✅ Segundo modal detectado');
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Clica no botão de confirmar do segundo modal
+        const confirmButton = await page.$('.swal2-confirm');
+        if (confirmButton) {
+          console.log('🔘 Clicando em confirmar segundo modal...');
+          await confirmButton.click();
+        } else {
+          await page.evaluate(() => {
+            const btn = document.querySelector('.swal2-confirm') as HTMLElement;
+            if (btn) btn.click();
+          });
+        }
+      } catch (error) {
+        console.log('⚠️ Segundo modal não apareceu ou já foi fechado');
+      }
+
+      console.log('⏳ Aguardando resultado ser gerado...');
+      
+      // Aguarda o resultado aparecer (com polling e timeout maior)
+      let result: IPTVTestResult | null = null;
+      const maxAttempts = 30; // 30 segundos no máximo
+      let attempts = 0;
+      
+      while (!result && attempts < maxAttempts) {
+        attempts++;
+        console.log(`🔄 Tentativa ${attempts}/${maxAttempts} de capturar credenciais...`);
+        
+        // Aguarda 1 segundo entre tentativas
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Tenta capturar os dados
+        const capturedData = await page.evaluate(() => {
+          // Procura primeiro em modais/containers de resultado
+          const resultContainers = [
+            '.swal2-html-container',
+            '.swal2-content',
+            '.result-container',
+            '.credentials-container',
+            '[class*="result"]',
+            '[class*="credential"]',
+            '[id*="result"]',
+            '[id*="credential"]'
+          ];
+          
+          for (const selector of resultContainers) {
+            const container = document.querySelector(selector);
+            if (container) {
+              const text = container.textContent || '';
+              
+              // Procura por padrões específicos de credenciais
+              const usuarioMatch = text.match(/USUÁRIO[:\s]+(\d{6,12})/i) ||
+                                  text.match(/USER[:\s]+(\d{6,12})/i) ||
+                                  text.match(/USUARIO[:\s]+(\d{6,12})/i) ||
+                                  text.match(/Login[:\s]+(\d{6,12})/i);
+              
+              const senhaMatch = text.match(/SENHA[:\s]+([A-Za-z0-9]{6,20})/i) ||
+                                text.match(/PASSWORD[:\s]+([A-Za-z0-9]{6,20})/i) ||
+                                text.match(/PASS[:\s]+([A-Za-z0-9]{6,20})/i);
+              
+              if (usuarioMatch && senhaMatch) {
+                const vencimentoMatch = text.match(/VENCIMENTO[:\s]+([^\n]+)/i) ||
+                                       text.match(/EXPIRA[:\s]+([^\n]+)/i) ||
+                                       text.match(/VALIDADE[:\s]+([^\n]+)/i) ||
+                                       text.match(/VÁLIDO ATÉ[:\s]+([^\n]+)/i);
+                
+                return {
+                  usuario: usuarioMatch[1],
+                  senha: senhaMatch[1],
+                  vencimento: vencimentoMatch ? vencimentoMatch[1].trim() : ''
+                };
+              }
+            }
+          }
+          
+          // Se não encontrou em containers, procura no body todo (mas com mais critério)
+          const bodyText = document.body.innerText;
+          
+          // Divide o texto em linhas para análise mais precisa
+          const lines = bodyText.split('\n');
           let usuario = '';
           let senha = '';
           let vencimento = '';
-
-          elements.forEach(el => {
-            const text = el.textContent || '';
-            if (!usuario && text.match(/^\d{8,12}$/)) {
-              usuario = text;
+          
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            
+            // Procura por linha com USUÁRIO
+            if (line.match(/USUÁRIO[:\s]/i) || line.match(/USER[:\s]/i)) {
+              const match = line.match(/[:\s]+(\d{6,12})/);
+              if (match) usuario = match[1];
+              // Ou pega a próxima linha se o valor estiver nela
+              else if (i + 1 < lines.length && lines[i + 1].match(/^\d{6,12}$/)) {
+                usuario = lines[i + 1].trim();
+              }
             }
-            if (!senha && text.match(/^[A-Za-z0-9]{6,}$/)) {
-              senha = text;
+            
+            // Procura por linha com SENHA
+            if (line.match(/SENHA[:\s]/i) || line.match(/PASSWORD[:\s]/i)) {
+              const match = line.match(/[:\s]+([A-Za-z0-9]{6,20})/);
+              if (match && !match[1].startsWith('$')) { // Evita capturar valores monetários
+                senha = match[1];
+              }
+              // Ou pega a próxima linha se o valor estiver nela
+              else if (i + 1 < lines.length && lines[i + 1].match(/^[A-Za-z0-9]{6,20}$/)) {
+                const nextLine = lines[i + 1].trim();
+                if (!nextLine.startsWith('$')) {
+                  senha = nextLine;
+                }
+              }
             }
-            if (!vencimento && text.match(/\d{2}\/\d{2}\/\d{4}/)) {
-              vencimento = text;
+            
+            // Procura por vencimento
+            if (line.match(/VENCIMENTO[:\s]/i) || line.match(/VALIDADE[:\s]/i)) {
+              const match = line.match(/[:\s]+(.+)/);
+              if (match) vencimento = match[1].trim();
+              else if (i + 1 < lines.length) {
+                vencimento = lines[i + 1].trim();
+              }
             }
-          });
-
-          if (usuario && senha) {
+          }
+          
+          // Valida as credenciais capturadas
+          if (usuario && senha && 
+              usuario.match(/^\d{6,12}$/) && 
+              senha.match(/^[A-Za-z0-9]{6,20}$/) &&
+              !senha.startsWith('$')) {
             return {
               usuario,
               senha,
               vencimento
             };
           }
+          
+          return null;
+        });
+        
+        if (capturedData && capturedData.usuario && capturedData.senha) {
+          result = capturedData;
+          console.log('✅ Credenciais capturadas com sucesso!');
+          console.log(`📋 Usuário: ${result.usuario}`);
+          console.log(`🔑 Senha: ${result.senha}`);
+          if (result.vencimento) {
+            console.log(`📅 Vencimento: ${result.vencimento}`);
+          }
         }
-
-        return {
-          usuario: usuarioMatch ? usuarioMatch[1] : '',
-          senha: senhaMatch ? senhaMatch[1] : '',
-          vencimento: vencimentoMatch ? vencimentoMatch[1].trim() : ''
-        };
-      });
-
-      // Se não conseguiu capturar, tenta tirar screenshot para debug
-      if (!result.usuario || !result.senha) {
-        await page.screenshot({ path: '/tmp/onlineoffice-debug.png' });
+      }
+      
+      // Se não conseguiu capturar após todas as tentativas
+      if (!result) {
+        // Tira screenshot para debug
+        const screenshotPath = `/tmp/onlineoffice-error-${Date.now()}.png`;
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+        console.error(`❌ Screenshot salvo em: ${screenshotPath}`);
         
-        // Gera dados de teste como fallback
-        const testUser = Math.floor(Math.random() * 900000000) + 100000000;
-        const testPass = Math.random().toString(36).substring(2, 12).toUpperCase();
-        const testExpiry = new Date(Date.now() + 6 * 60 * 60 * 1000);
+        // Captura o HTML para debug
+        const pageContent = await page.content();
+        const htmlPath = `/tmp/onlineoffice-error-${Date.now()}.html`;
+        const fs = require('fs');
+        fs.writeFileSync(htmlPath, pageContent);
+        console.error(`❌ HTML salvo em: ${htmlPath}`);
         
-        console.log('⚠️ Não foi possível capturar dados reais, usando dados de teste');
-        
-        return {
-          usuario: testUser.toString(),
-          senha: testPass,
-          vencimento: testExpiry.toLocaleString('pt-BR')
-        };
+        throw new Error('Não foi possível capturar credenciais reais do OnlineOffice após 30 tentativas. Verifique se o site está funcionando corretamente.');
       }
 
-      console.log('✅ Teste IPTV gerado com sucesso!');
+      console.log('🎉 Teste IPTV gerado com sucesso!');
       return result;
 
     } catch (error) {
-      console.error('❌ Erro na automação:', error);
+      console.error('❌ Erro na automação OnlineOffice:', error);
+      
+      // Se o browser estiver aberto, tira screenshot final
+      if (browser) {
+        try {
+          const pages = await browser.pages();
+          if (pages.length > 0) {
+            const screenshotPath = `/tmp/onlineoffice-final-error-${Date.now()}.png`;
+            await pages[0].screenshot({ path: screenshotPath, fullPage: true });
+            console.error(`📸 Screenshot final salvo em: ${screenshotPath}`);
+          }
+        } catch (e) {
+          console.error('Não foi possível tirar screenshot final:', e);
+        }
+      }
+      
       throw error;
     } finally {
       if (browser) {
@@ -219,12 +344,12 @@ export class OnlineOfficeService {
 
   async generateIPTVTestManual(credentialsText: string): Promise<IPTVTestResult> {
     // Extrai credenciais de texto copiado manualmente
-    const usuarioMatch = credentialsText.match(/USUÁRIO[:\s]+(\S+)/i);
-    const senhaMatch = credentialsText.match(/SENHA[:\s]+(\S+)/i);
+    const usuarioMatch = credentialsText.match(/USUÁRIO[:\s]+(\d{6,12})/i);
+    const senhaMatch = credentialsText.match(/SENHA[:\s]+([A-Za-z0-9]{6,20})/i);
     const vencimentoMatch = credentialsText.match(/VENCIMENTO[:\s]+([^\n]+)/i);
 
     if (!usuarioMatch || !senhaMatch) {
-      throw new Error('Não foi possível extrair usuário e senha do texto fornecido');
+      throw new Error('Não foi possível extrair usuário e senha válidos do texto fornecido. Certifique-se de que o usuário contém apenas dígitos (6-12) e a senha é alfanumérica (6-20 caracteres).');
     }
 
     return {
