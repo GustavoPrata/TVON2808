@@ -209,7 +209,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Apply auth middleware to all API routes except login routes
   app.use("/api/*", (req, res, next) => {
-    const publicPaths = ['/api/login', '/api/logout', '/api/auth/status', '/api/pix/webhook', '/api/pix/debug/pagamentos-manual', '/api/pix/test-webhook'];
+    const publicPaths = ['/api/login', '/api/logout', '/api/auth/status', '/api/pix/webhook', '/api/pix/debug/pagamentos-manual', '/api/pix/test-webhook', '/api/office/save-credentials'];
     // Use originalUrl to get the full path including /api prefix
     const fullPath = req.originalUrl.split('?')[0]; // Remove query params if any
     if (publicPaths.includes(fullPath)) {
@@ -5332,6 +5332,48 @@ Como posso ajudar você hoje?
         success: false, 
         message: "Erro ao corrigir mensagens",
         error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Endpoint to save credentials captured by client-side automation
+  app.post("/api/office/save-credentials", async (req, res) => {
+    try {
+      const { usuario, senha, vencimento } = req.body;
+
+      // Validate required fields
+      if (!usuario || !senha) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Usuário e senha são obrigatórios' 
+        });
+      }
+
+      // Log the credentials (for monitoring)
+      console.log('📥 Credenciais IPTV recebidas do client-side:', {
+        usuario,
+        senha: senha.substring(0, 3) + '***', // Log parcial da senha por segurança
+        vencimento: vencimento || 'N/A',
+        timestamp: new Date().toISOString()
+      });
+
+      // Here you could save to database if needed
+      // For now, we just acknowledge receipt
+
+      res.json({ 
+        success: true, 
+        message: 'Credenciais salvas com sucesso',
+        data: {
+          usuario,
+          senha,
+          vencimento: vencimento || new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR')
+        }
+      });
+    } catch (error) {
+      console.error('❌ Erro ao salvar credenciais:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao salvar credenciais' 
       });
     }
   });

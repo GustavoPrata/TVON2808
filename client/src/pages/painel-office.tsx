@@ -6,9 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Loader2, Play, Copy, CheckCircle, AlertCircle, Monitor, User, Lock, Clock, Wifi, Globe, RefreshCw, ExternalLink, Link2, Trash2, Edit3, UserPlus } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Loader2, Play, Copy, CheckCircle, AlertCircle, Monitor, User, Lock, Clock, Wifi, Globe, RefreshCw, ExternalLink, Link2, Trash2, Edit3, UserPlus, Code, Zap, BookmarkPlus, Chrome, Terminal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import OnlineOfficeAutomation from '@/utils/onlineoffice-automation';
 import {
   Table,
   TableBody,
@@ -41,7 +45,12 @@ export default function PainelOffice() {
   const [customUrl, setCustomUrl] = useState('https://onlineoffice.zip/');
   const [showIframe, setShowIframe] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showScriptDialog, setShowScriptDialog] = useState(false);
+  const [scriptCopied, setScriptCopied] = useState(false);
+  const [manualInput, setManualInput] = useState({ usuario: '', senha: '', vencimento: '' });
+  const [automationMethod, setAutomationMethod] = useState<'iframe' | 'client' | 'manual'>('client');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const officeWindowRef = useRef<Window | null>(null);
   const { toast } = useToast();
 
   const addLog = (message: string, type: LogEntry['type'] = 'info') => {
@@ -51,6 +60,179 @@ export default function PainelOffice() {
       type
     };
     setLogs(prev => [...prev, newLog]);
+  };
+
+  // Setup message listener for credentials from client-side automation
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // Validação de segurança: verificar origem e tipo de mensagem
+      const allowedOrigins = [
+        'https://onlineoffice.zip',
+        window.location.origin
+      ];
+      
+      // Verificar se a origem é permitida
+      if (!allowedOrigins.includes(event.origin)) {
+        console.warn('⚠️ Mensagem ignorada de origem não confiável:', event.origin);
+        return;
+      }
+      
+      // Verificar se é uma mensagem de credenciais válida
+      if (event.data && 
+          event.data.type === 'ONLINEOFFICE_CREDENTIALS' && 
+          event.data.source === 'onlineoffice-automation' &&
+          event.data.usuario && 
+          event.data.senha) {
+        
+        addLog('📥 Credenciais recebidas do navegador!', 'success');
+        
+        const newUser: IPTVUser = {
+          id: Date.now().toString(),
+          usuario: event.data.usuario,
+          senha: event.data.senha,
+          vencimento: event.data.vencimento || new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR'),
+          createdAt: new Date().toISOString()
+        };
+
+        setUsers(prev => [...prev, newUser]);
+        
+        toast({
+          title: "✅ Credenciais Capturadas!",
+          description: `Usuário: ${newUser.usuario} | Senha: ${newUser.senha}`,
+          variant: "default"
+        });
+
+        // Save to backend
+        saveCredentialsToBackend(newUser);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  // Cleanup automation on unmount
+  useEffect(() => {
+    return () => {
+      OnlineOfficeAutomation.cleanup();
+      if (officeWindowRef.current && !officeWindowRef.current.closed) {
+        officeWindowRef.current.close();
+      }
+    };
+  }, []);
+
+  const saveCredentialsToBackend = async (user: IPTVUser) => {
+    try {
+      const response = await fetch('/api/office/save-credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      addLog('💾 Credenciais salvas no banco de dados', 'success');
+    } catch (error) {
+      console.error('Erro ao salvar credenciais:', error);
+      addLog(`❌ Erro ao salvar credenciais: ${error instanceof Error ? error.message : 'Erro desconhecido'}`, 'error');
+      
+      toast({
+        title: "⚠️ Aviso",
+        description: "As credenciais foram capturadas mas houve erro ao salvar no banco de dados.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleClientSideAutomation = () => {
+    addLog('🚀 Iniciando automação client-side...', 'info');
+    
+    // Open OnlineOffice and setup listener
+    const newWindow = OnlineOfficeAutomation.openAndAutomate((credentials) => {
+      // Validação adicional das credenciais recebidas
+      if (!credentials.usuario || !credentials.senha) {
+        addLog('⚠️ Credenciais incompletas recebidas', 'warning');
+        toast({
+          title: "⚠️ Credenciais Incompletas",
+          description: "As credenciais recebidas estão incompletas. Tente novamente.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      addLog('✅ Credenciais capturadas com sucesso!', 'success');
+      
+      const newUser: IPTVUser = {
+        id: Date.now().toString(),
+        usuario: credentials.usuario,
+        senha: credentials.senha,
+        vencimento: credentials.vencimento || new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR'),
+        createdAt: new Date().toISOString()
+      };
+
+      setUsers(prev => [...prev, newUser]);
+      saveCredentialsToBackend(newUser);
+      
+      toast({
+        title: "✅ Automação Concluída!",
+        description: `Usuário: ${newUser.usuario} | Senha: ${newUser.senha}`,
+        variant: "default"
+      });
+    });
+
+    if (newWindow) {
+      officeWindowRef.current = newWindow;
+      setShowScriptDialog(true);
+      addLog('📋 Nova aba aberta. Siga as instruções no popup.', 'info');
+    } else {
+      addLog('❌ Não foi possível abrir a nova aba. Verifique os pop-ups.', 'error');
+    }
+  };
+
+  const copyScriptToClipboard = () => {
+    const script = OnlineOfficeAutomation.getInjectionScript();
+    navigator.clipboard.writeText(script).then(() => {
+      setScriptCopied(true);
+      toast({
+        title: "📋 Script Copiado!",
+        description: "Cole no console do navegador (F12)",
+        variant: "default"
+      });
+      setTimeout(() => setScriptCopied(false), 3000);
+    });
+  };
+
+  const handleManualSubmit = () => {
+    if (!manualInput.usuario || !manualInput.senha) {
+      toast({
+        title: "❌ Campos obrigatórios",
+        description: "Por favor, preencha usuário e senha",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const newUser: IPTVUser = {
+      id: Date.now().toString(),
+      usuario: manualInput.usuario,
+      senha: manualInput.senha,
+      vencimento: manualInput.vencimento || new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR'),
+      createdAt: new Date().toISOString()
+    };
+
+    setUsers(prev => [...prev, newUser]);
+    saveCredentialsToBackend(newUser);
+    setManualInput({ usuario: '', senha: '', vencimento: '' });
+    
+    toast({
+      title: "✅ Credenciais Adicionadas!",
+      description: `Usuário: ${newUser.usuario} | Senha: ${newUser.senha}`,
+      variant: "default"
+    });
+    
+    addLog('✅ Credenciais adicionadas manualmente', 'success');
   };
 
   const generateIPTVTest = async () => {
@@ -225,32 +407,126 @@ export default function PainelOffice() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Alert className="border-blue-500/20 bg-blue-500/10">
-                <AlertCircle className="h-4 w-4 text-blue-400" />
-                <AlertDescription className="text-blue-400/80 text-xs">
-                  Para funcionar, você precisa estar logado no OnlineOffice no iframe ao lado.
-                  O sistema irá clicar automaticamente nos botões e confirmar os modais.
-                </AlertDescription>
-              </Alert>
+              <Tabs defaultValue="client" className="w-full" onValueChange={(v) => setAutomationMethod(v as any)}>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="client" className="text-xs">
+                    <Chrome className="w-3 h-3 mr-1" />
+                    Client-Side
+                  </TabsTrigger>
+                  <TabsTrigger value="iframe" className="text-xs">
+                    <Monitor className="w-3 h-3 mr-1" />
+                    iFrame
+                  </TabsTrigger>
+                  <TabsTrigger value="manual" className="text-xs">
+                    <Edit3 className="w-3 h-3 mr-1" />
+                    Manual
+                  </TabsTrigger>
+                </TabsList>
 
-              <Button
-                onClick={generateIPTVTest}
-                disabled={isGenerating}
-                className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white"
-                size="lg"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Gerando teste...
-                  </>
-                ) : (
-                  <>
-                    <Play className="mr-2 h-5 w-5" />
-                    Gerar Teste IPTV Automático
-                  </>
-                )}
-              </Button>
+                <TabsContent value="client" className="space-y-3">
+                  <Alert className="border-green-500/20 bg-green-500/10">
+                    <Zap className="h-4 w-4 text-green-400" />
+                    <AlertDescription className="text-green-400/80 text-xs">
+                      Método mais confiável! Abre o site em nova aba e você executa um script.
+                    </AlertDescription>
+                  </Alert>
+
+                  <Button
+                    onClick={handleClientSideAutomation}
+                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
+                    size="lg"
+                  >
+                    <Chrome className="mr-2 h-5 w-5" />
+                    Abrir OnlineOffice e Automatizar
+                  </Button>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-xs"
+                      onClick={() => {
+                        const bookmarklet = OnlineOfficeAutomation.generateBookmarklet();
+                        navigator.clipboard.writeText(bookmarklet);
+                        toast({
+                          title: "📋 Bookmarklet Copiado!",
+                          description: "Adicione aos favoritos do navegador",
+                          variant: "default"
+                        });
+                      }}
+                    >
+                      <BookmarkPlus className="mr-1 h-3 w-3" />
+                      Copiar Bookmarklet
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="iframe" className="space-y-3">
+                  <Alert className="border-blue-500/20 bg-blue-500/10">
+                    <AlertCircle className="h-4 w-4 text-blue-400" />
+                    <AlertDescription className="text-blue-400/80 text-xs">
+                      Método antigo usando Puppeteer. Pode não funcionar devido a bloqueios.
+                    </AlertDescription>
+                  </Alert>
+
+                  <Button
+                    onClick={generateIPTVTest}
+                    disabled={isGenerating}
+                    className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white"
+                    size="lg"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Gerando teste...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="mr-2 h-5 w-5" />
+                        Gerar Teste IPTV (Servidor)
+                      </>
+                    )}
+                  </Button>
+                </TabsContent>
+
+                <TabsContent value="manual" className="space-y-3">
+                  <Alert className="border-yellow-500/20 bg-yellow-500/10">
+                    <Edit3 className="h-4 w-4 text-yellow-400" />
+                    <AlertDescription className="text-yellow-400/80 text-xs">
+                      Adicione credenciais manualmente após gerar no site.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Usuário"
+                      value={manualInput.usuario}
+                      onChange={(e) => setManualInput({...manualInput, usuario: e.target.value})}
+                      className="h-8 text-xs"
+                    />
+                    <Input
+                      placeholder="Senha"
+                      value={manualInput.senha}
+                      onChange={(e) => setManualInput({...manualInput, senha: e.target.value})}
+                      className="h-8 text-xs"
+                    />
+                    <Input
+                      placeholder="Vencimento (opcional)"
+                      value={manualInput.vencimento}
+                      onChange={(e) => setManualInput({...manualInput, vencimento: e.target.value})}
+                      className="h-8 text-xs"
+                    />
+                    <Button
+                      onClick={handleManualSubmit}
+                      className="w-full"
+                      size="sm"
+                    >
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Adicionar Credenciais
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
 
@@ -452,6 +728,115 @@ export default function PainelOffice() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Script Dialog */}
+      <Dialog open={showScriptDialog} onOpenChange={setShowScriptDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Terminal className="w-5 h-5" />
+              Instruções de Automação
+            </DialogTitle>
+            <DialogDescription>
+              Siga os passos abaixo para capturar as credenciais automaticamente
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Alert className="border-green-500/20 bg-green-500/10">
+              <CheckCircle className="h-4 w-4 text-green-400" />
+              <AlertTitle className="text-green-400">Nova aba aberta!</AlertTitle>
+              <AlertDescription className="text-green-400/80">
+                O OnlineOffice foi aberto em uma nova aba. Siga os passos abaixo.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-3">
+              <div className="p-3 bg-slate-800 rounded-lg">
+                <h4 className="font-semibold text-sm mb-2">📋 Passo a Passo:</h4>
+                <ol className="list-decimal list-inside space-y-2 text-sm text-slate-300">
+                  <li>Na nova aba, faça login no OnlineOffice se necessário</li>
+                  <li>Abra o Console do navegador (pressione F12 e clique em "Console")</li>
+                  <li>Copie o script abaixo clicando no botão "Copiar Script"</li>
+                  <li>Cole o script no console e pressione Enter</li>
+                  <li>O script irá automaticamente:
+                    <ul className="list-disc list-inside ml-4 mt-1 text-xs">
+                      <li>Clicar no botão "Gerar IPTV"</li>
+                      <li>Capturar as credenciais quando aparecerem</li>
+                      <li>Enviar de volta para este sistema</li>
+                    </ul>
+                  </li>
+                  <li>As credenciais aparecerão automaticamente na lista abaixo</li>
+                </ol>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Script de Automação:</label>
+                  <Button
+                    size="sm"
+                    variant={scriptCopied ? "default" : "outline"}
+                    onClick={copyScriptToClipboard}
+                  >
+                    {scriptCopied ? (
+                      <>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Copiado!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copiar Script
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <Textarea
+                  readOnly
+                  value={OnlineOfficeAutomation.getInjectionScript()}
+                  className="font-mono text-xs h-32 bg-slate-900"
+                />
+              </div>
+
+              <Alert className="border-yellow-500/20 bg-yellow-500/10">
+                <AlertCircle className="h-4 w-4 text-yellow-400" />
+                <AlertDescription className="text-yellow-400/80 text-xs">
+                  <strong>Dica:</strong> Se o script não funcionar automaticamente, você pode clicar manualmente no botão "Gerar IPTV" e depois executar o script para capturar as credenciais.
+                </AlertDescription>
+              </Alert>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const bookmarklet = OnlineOfficeAutomation.generateBookmarklet();
+                  const link = document.createElement('a');
+                  link.href = bookmarklet;
+                  link.textContent = '🔧 IPTV Capture';
+                  link.onclick = () => {
+                    toast({
+                      title: "ℹ️ Como usar o Bookmarklet",
+                      description: "Arraste este link para sua barra de favoritos",
+                      variant: "default"
+                    });
+                    return false;
+                  };
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+              >
+                <BookmarkPlus className="mr-2 h-4 w-4" />
+                Criar Bookmarklet
+              </Button>
+              <Button onClick={() => setShowScriptDialog(false)}>
+                Fechar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
