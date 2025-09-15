@@ -1,5 +1,6 @@
 import puppeteer from 'puppeteer';
 import { execSync } from 'child_process';
+import * as fs from 'fs';
 
 interface IPTVTestResult {
   usuario: string;
@@ -406,7 +407,6 @@ export class OnlineOfficeService {
         // Captura o HTML para debug
         const pageContent = await page.content();
         const htmlPath = `/tmp/onlineoffice-error-${Date.now()}.html`;
-        const fs = require('fs');
         fs.writeFileSync(htmlPath, pageContent);
         console.error(`❌ HTML salvo em: ${htmlPath}`);
         
