@@ -67,23 +67,75 @@ export class OnlineOfficeService {
       await page.setViewport({ width: 1280, height: 720 });
 
       console.log('📍 Navegando para OnlineOffice...');
-      await page.goto('https://onlineoffice.zip/', {
-        waitUntil: 'networkidle2',
-        timeout: 30000
-      });
+      
+      // Tenta navegar com diferentes estratégias
+      try {
+        await page.goto('https://onlineoffice.zip/', {
+          waitUntil: 'domcontentloaded', // Mudado de networkidle2 para domcontentloaded
+          timeout: 60000 // Aumentado para 60 segundos
+        });
+      } catch (navError) {
+        console.log('⚠️ Primeira tentativa falhou, tentando com waitUntil: load...');
+        await page.goto('https://onlineoffice.zip/', {
+          waitUntil: 'load',
+          timeout: 60000
+        });
+      }
 
       // Aguarda a página carregar e o botão ficar disponível
       console.log('⏳ Aguardando página carregar completamente...');
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Aumenta tempo de espera
+      await new Promise(resolve => setTimeout(resolve, 8000)); // Aumenta tempo de espera para 8 segundos
+      
+      // Tira screenshot para debug
+      console.log('📸 Tirando screenshot da página carregada...');
+      await page.screenshot({ path: '/tmp/onlineoffice-loaded.png', fullPage: true });
 
       console.log('🔍 Procurando botão Gerar IPTV...');
       
-      // Usa seletor CSS específico para o botão com as classes exatas
-      const buttonSelector = 'button.btn.btn-outline-success';
+      // Lista todos os botões na página para debug
+      const buttonsInfo = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        return buttons.map(btn => ({
+          text: btn.textContent?.trim(),
+          classes: btn.className,
+          visible: btn.offsetParent !== null
+        }));
+      });
+      console.log('📋 Botões encontrados na página:', buttonsInfo);
+      
+      // Usa múltiplos seletores possíveis
+      const buttonSelectors = [
+        'button.btn.btn-outline-success',
+        'button.btn-outline-success',
+        'button[class*="success"]',
+        'button'
+      ];
+      
+      let buttonFound = false;
+      let buttonSelector = '';
+      
+      // Tenta cada seletor
+      for (const selector of buttonSelectors) {
+        try {
+          const exists = await page.$(selector);
+          if (exists) {
+            buttonSelector = selector;
+            buttonFound = true;
+            console.log(`✅ Encontrou botão com seletor: ${selector}`);
+            break;
+          }
+        } catch (e) {
+          console.log(`❌ Seletor ${selector} não funcionou`);
+        }
+      }
       
       try {
+        if (!buttonFound) {
+          throw new Error('Nenhum botão encontrado com os seletores');
+        }
+        
         // Aguarda o botão aparecer
-        await page.waitForSelector(buttonSelector, { timeout: 15000 });
+        await page.waitForSelector(buttonSelector, { timeout: 5000 });
         
         // Procura especificamente o botão com texto "Gerar IPTV"
         const clicked = await page.evaluate((selector) => {
