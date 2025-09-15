@@ -270,12 +270,12 @@ export class OnlineOfficeService {
       
       // Aguarda o resultado aparecer (com polling e timeout maior)
       let result: IPTVTestResult | null = null;
-      const maxAttempts = 30; // 30 segundos no máximo
+      const maxAttempts = 1; // 1 tentativa apenas
       let attempts = 0;
       
       while (!result && attempts < maxAttempts) {
         attempts++;
-        console.log(`🔄 Tentativa ${attempts}/${maxAttempts} de capturar credenciais...`);
+        console.log(`🔄 Capturando credenciais...`);
         
         // Aguarda 1 segundo entre tentativas
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -410,7 +410,7 @@ export class OnlineOfficeService {
         fs.writeFileSync(htmlPath, pageContent);
         console.error(`❌ HTML salvo em: ${htmlPath}`);
         
-        throw new Error('Não foi possível capturar credenciais reais do OnlineOffice após 30 tentativas. Verifique se o site está funcionando corretamente.');
+        throw new Error('Não foi possível capturar credenciais reais do OnlineOffice. Verifique se o site está funcionando corretamente.');
       }
 
       console.log('🎉 Teste IPTV gerado com sucesso!');
