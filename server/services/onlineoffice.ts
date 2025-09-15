@@ -73,7 +73,7 @@ export class OnlineOfficeService {
       });
 
       // Aguarda a página carregar completamente
-      await page.waitForTimeout(3000);
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       console.log('🔍 Procurando botão Gerar IPTV...');
       
@@ -103,7 +103,7 @@ export class OnlineOfficeService {
       }
 
       console.log('✅ Botão clicado, aguardando modal...');
-      await page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Confirma primeiro modal (nota do usuário)
       console.log('📝 Confirmando primeiro modal...');
@@ -116,7 +116,7 @@ export class OnlineOfficeService {
         if (confirmBtn) (confirmBtn as HTMLElement).click();
       });
 
-      await page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Confirma segundo modal (tempo de teste)
       console.log('⏱️ Confirmando segundo modal...');
@@ -130,7 +130,7 @@ export class OnlineOfficeService {
       });
 
       console.log('⏳ Aguardando geração do teste...');
-      await page.waitForTimeout(5000);
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
       // Captura os dados gerados
       console.log('📊 Capturando dados gerados...');
