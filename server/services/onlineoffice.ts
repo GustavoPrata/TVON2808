@@ -74,44 +74,91 @@ export class OnlineOfficeService {
 
       // Aguarda a página carregar e o botão ficar disponível
       console.log('⏳ Aguardando página carregar completamente...');
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Aumenta tempo de espera
 
-      console.log('🔍 Procurando botão Gerar IPTV com XPath...');
+      console.log('🔍 Procurando botão Gerar IPTV...');
       
-      // Usa XPath preciso para encontrar o botão
-      const buttonXPath = "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'gerar iptv') or contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'gerar teste')]";
+      // Usa seletor CSS específico para o botão com as classes exatas
+      const buttonSelector = 'button.btn.btn-outline-success';
       
       try {
-        await page.waitForXPath(buttonXPath, { timeout: 10000 });
-        const [gerarButton] = await page.$x(buttonXPath);
+        // Aguarda o botão aparecer
+        await page.waitForSelector(buttonSelector, { timeout: 15000 });
         
-        if (gerarButton) {
-          console.log('✅ Botão encontrado, clicando...');
-          await gerarButton.click();
-        } else {
-          throw new Error('Botão Gerar IPTV não encontrado');
-        }
-      } catch (error) {
-        console.log('⚠️ Não encontrou por XPath, tentando método alternativo...');
-        
-        // Fallback: tenta clicar usando evaluate
-        const clicked = await page.evaluate(() => {
-          const buttons = Array.from(document.querySelectorAll('button'));
+        // Procura especificamente o botão com texto "Gerar IPTV"
+        const clicked = await page.evaluate((selector) => {
+          const buttons = Array.from(document.querySelectorAll(selector));
+          console.log(`Encontrados ${buttons.length} botões com classe btn-outline-success`);
+          
+          // Procura o botão que contém "Gerar IPTV"
           const button = buttons.find(btn => {
-            const text = btn.textContent?.toLowerCase() || '';
-            return text.includes('gerar iptv') || text.includes('gerar teste');
+            const text = btn.textContent?.trim() || '';
+            console.log(`Verificando botão com texto: "${text}"`);
+            return text.toLowerCase().includes('gerar iptv');
           });
           
           if (button) {
+            console.log('✅ Botão "Gerar IPTV" encontrado!');
             (button as HTMLElement).click();
             return true;
           }
+          
+          // Se não encontrou, lista todos os textos dos botões para debug
+          buttons.forEach((btn, index) => {
+            console.log(`Botão ${index}: "${btn.textContent?.trim()}"`);
+          });
+          
           return false;
-        });
+        }, buttonSelector);
         
         if (!clicked) {
-          throw new Error('Não foi possível clicar no botão Gerar IPTV');
+          // Tenta método alternativo - clica no primeiro botão btn-outline-success
+          console.log('⚠️ Tentando clicar no primeiro botão success...');
+          
+          const buttonClicked = await page.evaluate((selector) => {
+            const button = document.querySelector(selector) as HTMLElement;
+            if (button) {
+              console.log(`Clicando no botão: "${button.textContent?.trim()}"`);
+              button.click();
+              return true;
+            }
+            return false;
+          }, buttonSelector);
+          
+          if (!buttonClicked) {
+            // Último recurso - procura por qualquer botão com "Gerar"
+            const anyButtonClicked = await page.evaluate(() => {
+              const buttons = Array.from(document.querySelectorAll('button'));
+              const button = buttons.find(btn => {
+                const text = btn.textContent?.toLowerCase() || '';
+                return text.includes('gerar');
+              });
+              
+              if (button) {
+                console.log(`Clicando em botão genérico: "${button.textContent?.trim()}"`);
+                (button as HTMLElement).click();
+                return true;
+              }
+              return false;
+            });
+            
+            if (!anyButtonClicked) {
+              throw new Error('Não foi possível clicar no botão Gerar IPTV');
+            }
+          }
         }
+        
+        console.log('✅ Botão clicado com sucesso!');
+        
+      } catch (error) {
+        console.error('❌ Erro ao procurar/clicar no botão:', error);
+        
+        // Tira screenshot para debug
+        const screenshotPath = `/tmp/onlineoffice-button-error-${Date.now()}.png`;
+        await page.screenshot({ path: screenshotPath, fullPage: true });
+        console.error(`📸 Screenshot salvo em: ${screenshotPath}`);
+        
+        throw new Error('Não foi possível encontrar ou clicar no botão Gerar IPTV');
       }
 
       // PRIMEIRO MODAL: Aguarda e confirma modal SweetAlert2 (nota do usuário)
