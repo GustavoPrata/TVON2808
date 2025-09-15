@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Play, Copy, CheckCircle, AlertCircle, Monitor, User, Lock, Clock, Wifi, Globe, RefreshCw, ExternalLink } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, Play, Copy, CheckCircle, AlertCircle, Monitor, User, Lock, Clock, Wifi, Globe, RefreshCw, ExternalLink, Link2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -26,7 +27,9 @@ export default function PainelOffice() {
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [iframeUrl, setIframeUrl] = useState('https://ww3.onlineoffice.zip/');
+  const [iframeUrl, setIframeUrl] = useState('');
+  const [customUrl, setCustomUrl] = useState('');
+  const [showIframe, setShowIframe] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { toast } = useToast();
 
@@ -103,16 +106,44 @@ export default function PainelOffice() {
     });
   };
 
+  const loadIframe = () => {
+    if (!customUrl) {
+      toast({
+        title: "URL necessária",
+        description: "Por favor, insira a URL do OnlineOffice",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Adiciona https:// se não tiver protocolo
+    let urlToLoad = customUrl;
+    if (!customUrl.startsWith('http://') && !customUrl.startsWith('https://')) {
+      urlToLoad = 'https://' + customUrl;
+    }
+    
+    setIframeUrl(urlToLoad);
+    setShowIframe(true);
+    addLog(`Carregando página: ${urlToLoad}`, 'info');
+    toast({
+      title: "Carregando página",
+      description: "A página do OnlineOffice está sendo carregada...",
+      variant: "default"
+    });
+  };
+
   const refreshIframe = () => {
-    if (iframeRef.current) {
+    if (iframeRef.current && iframeUrl) {
       iframeRef.current.src = iframeUrl;
       addLog('Página recarregada', 'info');
     }
   };
 
   const openInNewTab = () => {
-    window.open(iframeUrl, '_blank');
-    addLog('Abrindo em nova aba...', 'info');
+    if (iframeUrl) {
+      window.open(iframeUrl, '_blank');
+      addLog('Abrindo em nova aba...', 'info');
+    }
   };
 
   return (
@@ -355,30 +386,104 @@ export default function PainelOffice() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg">OnlineOffice.zip</CardTitle>
+                <CardTitle className="text-lg">OnlineOffice Web</CardTitle>
                 <CardDescription className="text-xs">
-                  Interface web completa - Faça login e gerencie manualmente
+                  Interface web completa - Configure a URL e faça login
                 </CardDescription>
               </div>
-              <Badge className="bg-blue-500/20 text-blue-400">
-                <Globe className="w-3 h-3 mr-1" />
-                Interativo
-              </Badge>
+              {showIframe && (
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-blue-500/20 text-blue-400">
+                    <Globe className="w-3 h-3 mr-1" />
+                    Conectado
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={refreshIframe}
+                    className="h-8 w-8 p-0"
+                    title="Recarregar página"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={openInNewTab}
+                    className="h-8 w-8 p-0"
+                    title="Abrir em nova aba"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0 p-0">
-            <div className="relative h-full min-h-[600px] bg-slate-900 rounded-lg overflow-hidden">
-              <iframe
-                ref={iframeRef}
-                src={iframeUrl}
-                className="w-full h-full"
-                title="OnlineOffice"
-                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
-                allow="clipboard-read; clipboard-write"
-              />
-              <div className="absolute bottom-2 right-2 bg-slate-800/90 backdrop-blur-sm px-2 py-1 rounded text-xs text-slate-400">
-                {iframeUrl}
+          <CardContent className="flex-1 min-h-0 p-4 flex flex-col gap-4">
+            {/* URL Input Section */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Input
+                    value={customUrl}
+                    onChange={(e) => setCustomUrl(e.target.value)}
+                    placeholder="Digite a URL do OnlineOffice (ex: onlineoffice.zip)"
+                    className="bg-slate-800 border-slate-700"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        loadIframe();
+                      }
+                    }}
+                  />
+                </div>
+                <Button
+                  onClick={loadIframe}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                >
+                  <Link2 className="w-4 h-4 mr-2" />
+                  Carregar
+                </Button>
               </div>
+              <p className="text-xs text-slate-500">
+                Exemplos de URLs possíveis: onlineoffice.zip, ww3.onlineoffice.zip, onlineoffice.com
+              </p>
+            </div>
+
+            {/* Iframe or Instructions */}
+            <div className="flex-1 min-h-0">
+              {showIframe ? (
+                <div className="relative h-full min-h-[500px] bg-slate-900 rounded-lg overflow-hidden">
+                  <iframe
+                    ref={iframeRef}
+                    src={iframeUrl}
+                    className="w-full h-full"
+                    title="OnlineOffice"
+                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+                    allow="clipboard-read; clipboard-write"
+                  />
+                  <div className="absolute bottom-2 right-2 bg-slate-800/90 backdrop-blur-sm px-2 py-1 rounded text-xs text-slate-400">
+                    {iframeUrl}
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center bg-slate-900/50 rounded-lg border-2 border-dashed border-slate-700">
+                  <div className="text-center p-8">
+                    <Globe className="w-16 h-16 mx-auto mb-4 text-slate-600" />
+                    <h3 className="text-lg font-semibold mb-2">Configure a URL do OnlineOffice</h3>
+                    <p className="text-sm text-slate-400 mb-4">
+                      Digite a URL correta do OnlineOffice no campo acima e clique em "Carregar"
+                    </p>
+                    <Alert className="border-yellow-500/20 bg-yellow-500/10 text-left">
+                      <AlertCircle className="h-4 w-4 text-yellow-400" />
+                      <AlertTitle className="text-yellow-400">Importante</AlertTitle>
+                      <AlertDescription className="text-yellow-400/80 text-xs">
+                        Certifique-se de usar a URL correta do OnlineOffice. Se você não tem certeza,
+                        tente diferentes variações ou consulte a documentação do sistema.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
