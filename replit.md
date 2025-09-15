@@ -36,7 +36,7 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
     - **Quick Messages System**: Management and dynamic display of categorized quick messages (text/image) for customer support.
     - **Expired Client Management**: Automatic detection and special menu for expired clients offering trust unlock (one-time extension), payment, or support. Includes configurable recurring notifications with intervals from 1-7 days after expiration.
     - **Pricing Structure**: Configurable monthly, quarterly, semi-annual, and annual plans with progressive discounts.
-    - **OnlineOffice IPTV Automation**: Three-tier system for generating IPTV credentials - Client-Side automation (using user's browser to bypass blocks), Server-Side (Puppeteer with anti-bot measures), and Manual extraction. Features secure postMessage communication, credential validation, and automatic saving.
+    - **OnlineOffice IPTV Automation**: Advanced humanized automation system using ghost-cursor for natural mouse movements, random delays, and anti-detection measures. Features iframe integration, automatic credential generation with human-like behavior patterns, and manual fallback option.
 
 ### Key Technical Decisions
 - **API Integration**: Direct integration with WhatsApp API and Woovi API.
