@@ -544,70 +544,71 @@ export default function PainelOffice() {
               </div>
               <div className="flex gap-2">
                 <Button
-                  onClick={async () => {
-                    setIsGeneratingIPTV(true);
-                    toast({
-                      title: "🎭 Gerando IPTV...",
-                      description: "Aguarde, isso pode levar alguns segundos",
-                      variant: "default",
-                    });
-
-                    try {
-                      // Use the backend automation route
-                      const response = await fetch('/api/office/generate-human', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
+                  onClick={() => {
+                    // Now that iframe is same-origin, we can access its content
+                    const iframe = document.getElementById('office-iframe') as HTMLIFrameElement;
+                    if (!iframe) {
+                      toast({
+                        title: "❌ Erro",
+                        description: "Iframe não encontrado",
+                        variant: "destructive",
                       });
-
-                      const data = await response.json();
-
-                      if (data.success) {
-                        // Auto-fill the form if dialog is open
-                        if (showSystemDialog && !editingSystem) {
-                          systemForm.setValue('username', data.usuario);
-                          systemForm.setValue('password', data.senha);
-                        }
-
+                      return;
+                    }
+                    
+                    try {
+                      // Access iframe content (now possible because of proxy)
+                      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+                      if (!iframeDoc) {
                         toast({
-                          title: "✅ IPTV Gerado!",
-                          description: `Usuário: ${data.usuario} | Senha: ${data.senha}`,
+                          title: "⏳ Aguarde",
+                          description: "Aguarde o OnlineOffice carregar completamente",
                           variant: "default",
                         });
-
-                        // Also refresh the iframe to show the new test
-                        refreshIframe();
-                      } else {
+                        return;
+                      }
+                      
+                      // Find and click the "Gerar IPTV" button
+                      const buttons = iframeDoc.querySelectorAll('button');
+                      let clicked = false;
+                      
+                      for (const button of buttons) {
+                        if (button.textContent?.includes('Gerar IPTV') || 
+                            button.className.includes('btn-outline-success')) {
+                          (button as HTMLButtonElement).click();
+                          clicked = true;
+                          toast({
+                            title: "✅ Sucesso!",
+                            description: "Botão 'Gerar IPTV' foi clicado!",
+                            variant: "default",
+                          });
+                          break;
+                        }
+                      }
+                      
+                      if (!clicked) {
                         toast({
-                          title: "❌ Erro",
-                          description: data.message || "Erro ao gerar IPTV",
-                          variant: "destructive",
+                          title: "⚠️ Aviso",
+                          description: "Botão 'Gerar IPTV' não encontrado. Verifique se a página carregou.",
+                          variant: "default",
                         });
                       }
                     } catch (error) {
-                      console.error('Erro ao gerar IPTV:', error);
+                      console.error('Erro ao acessar iframe:', error);
                       toast({
                         title: "❌ Erro",
-                        description: "Erro ao comunicar com o servidor",
+                        description: "Erro ao acessar o conteúdo do iframe. Tente recarregar a página.",
                         variant: "destructive",
                       });
-                    } finally {
-                      setIsGeneratingIPTV(false);
                     }
                   }}
                   variant="ghost"
                   size="sm"
                   className="text-green-400 hover:text-green-300 hover:bg-green-500/20 font-bold"
-                  title="Gerar IPTV automaticamente"
+                  title="Clicar no botão 'Gerar IPTV'"
                   data-testid="button-auto-click"
-                  disabled={isGeneratingIPTV}
                 >
-                  {isGeneratingIPTV ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    'C1'
-                  )}
+                  C1
                 </Button>
                 <Button
                   onClick={refreshIframe}
@@ -626,11 +627,12 @@ export default function PainelOffice() {
             <div className="h-full bg-black rounded-b-lg">
               <iframe
                 key={iframeKey}
-                src="https://onlineoffice.zip"
+                src="/office-proxy/"
                 className="w-full h-full border-0 rounded-b-lg"
                 title="OnlineOffice IPTV"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                 data-testid="iframe-onlineoffice"
+                id="office-iframe"
               />
             </div>
           </CardContent>

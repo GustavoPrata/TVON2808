@@ -14,6 +14,7 @@ import { authenticate, checkAuth } from "./auth";
 import bcrypt from 'bcrypt';
 import { initAdmin } from "./init-admin";
 import { OnlineOfficeService } from "./services/onlineoffice";
+import { createProxyMiddleware } from "http-proxy-middleware";
 import {
   insertClienteSchema,
   insertPontoSchema,
@@ -136,6 +137,28 @@ const autoCloseTimers = new Map<number, { timer: NodeJS.Timeout, startTime: numb
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize admin user on startup
   await initAdmin();
+  
+  // Setup proxy for OnlineOffice to bypass CORS
+  app.use('/office-proxy', createProxyMiddleware({
+    target: 'https://onlineoffice.zip',
+    changeOrigin: true,
+    pathRewrite: {
+      '^/office-proxy': '', // Remove /office-proxy from the path
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      // Log the request for debugging
+      console.log('Proxying:', req.url, 'to', 'https://onlineoffice.zip' + req.url);
+    },
+    onProxyRes: (proxyRes, req, res) => {
+      // Remove headers that prevent iframe embedding
+      delete proxyRes.headers['x-frame-options'];
+      delete proxyRes.headers['content-security-policy'];
+      // Add CORS headers
+      proxyRes.headers['access-control-allow-origin'] = '*';
+    },
+    secure: false, // Allow self-signed certificates
+    ws: true, // Enable WebSocket proxy
+  }));
   
   // Configure session middleware
   const MemoryStoreSession = (MemoryStore as any)(session);
@@ -5470,6 +5493,53 @@ Como posso ajudar você hoje?
       res.status(500).json({
         success: false,
         message: "Erro ao extrair credenciais",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
+  // Click the "Gerar IPTV" button in OnlineOffice
+  app.post("/api/office/click-generate-button", async (req, res) => {
+    try {
+      const puppeteer = (await import('puppeteer')).default;
+      
+      const browser = await puppeteer.launch({
+        headless: false, // Show browser
+        executablePath: '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--window-size=1280,720'
+        ],
+      });
+
+      const page = await browser.newPage();
+      await page.goto('https://onlineoffice.zip/', { waitUntil: 'networkidle2' });
+      
+      // Wait for and click the "Gerar IPTV" button
+      await page.waitForSelector('button.btn-outline-success', { timeout: 5000 });
+      await page.click('button.btn-outline-success');
+      
+      // Wait a moment for the modal to appear
+      await page.waitForTimeout(1000);
+      
+      // Keep browser open for user interaction
+      res.json({
+        success: true,
+        message: "Botão clicado! A janela do navegador ficará aberta para você copiar as credenciais."
+      });
+      
+      // Close browser after 30 seconds
+      setTimeout(() => {
+        browser.close().catch(console.error);
+      }, 30000);
+      
+    } catch (error) {
+      console.error("Erro ao clicar no botão:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao clicar no botão",
         error: error instanceof Error ? error.message : "Erro desconhecido"
       });
     }
