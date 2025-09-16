@@ -642,33 +642,78 @@ export default function PainelOffice() {
               <p className="text-xs text-slate-500">Limite máximo de pontos que este sistema pode ter ativos</p>
             </div>
             
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-between items-center">
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => setShowSystemDialog(false)}
-                className="border-slate-700"
-                data-testid="button-cancel-system"
+                onClick={() => {
+                  // Try to click the "Gerar IPTV" button in the iframe
+                  try {
+                    const iframe = document.querySelector('iframe[title="OnlineOffice IPTV"]') as HTMLIFrameElement;
+                    if (iframe && iframe.contentWindow) {
+                      // Try to access iframe content and click the button
+                      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                      const generateButton = iframeDoc.querySelector('button.btn-outline-success');
+                      if (generateButton) {
+                        (generateButton as HTMLButtonElement).click();
+                        toast({
+                          title: "🎯 Clique Automatizado!",
+                          description: "Botão 'Gerar IPTV' foi clicado",
+                          variant: "default",
+                        });
+                      } else {
+                        // If direct access fails, try postMessage
+                        iframe.contentWindow.postMessage({ action: 'clickGenerateIPTV' }, '*');
+                        toast({
+                          title: "📡 Comando Enviado",
+                          description: "Tentando clicar no botão 'Gerar IPTV'",
+                          variant: "default",
+                        });
+                      }
+                    }
+                  } catch (error) {
+                    // If cross-origin blocks access, notify user
+                    toast({
+                      title: "⚠️ Aviso",
+                      description: "Por segurança do navegador, clique manualmente no botão 'Gerar IPTV' no OnlineOffice",
+                      variant: "default",
+                    });
+                    console.log('Cross-origin restriction:', error);
+                  }
+                }}
+                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold px-4"
+                title="Clique automatizado no botão Gerar IPTV"
               >
-                Cancelar
+                C1
               </Button>
-              <Button
-                type="submit"
-                disabled={saveSystemMutation.isPending}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-                data-testid="button-save-system"
-              >
-                {saveSystemMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  <>
-                    {editingSystem ? 'Salvar Alterações' : 'Criar Sistema'}
-                  </>
-                )}
-              </Button>
+              
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowSystemDialog(false)}
+                  className="border-slate-700"
+                  data-testid="button-cancel-system"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={saveSystemMutation.isPending}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                  data-testid="button-save-system"
+                >
+                  {saveSystemMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      {editingSystem ? 'Salvar Alterações' : 'Criar Sistema'}
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </form>
         </div>
