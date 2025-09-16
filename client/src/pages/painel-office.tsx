@@ -544,44 +544,66 @@ export default function PainelOffice() {
               <div className="flex gap-2">
                 <Button
                   onClick={() => {
-                    // Try to click the "Gerar IPTV" button in the iframe
+                    // Try multiple methods to click the button
                     try {
                       const iframe = document.querySelector('iframe[title="OnlineOffice IPTV"]') as HTMLIFrameElement;
                       if (iframe && iframe.contentWindow) {
-                        // Try to access iframe content and click the button
-                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                        const generateButton = iframeDoc.querySelector('button.btn-outline-success');
-                        if (generateButton) {
-                          (generateButton as HTMLButtonElement).click();
-                          toast({
-                            title: "🎯 Clique Automatizado!",
-                            description: "Botão 'Gerar IPTV' foi clicado",
-                            variant: "default",
-                          });
-                        } else {
-                          // If direct access fails, try postMessage
-                          iframe.contentWindow.postMessage({ action: 'clickGenerateIPTV' }, '*');
+                        try {
+                          // Method 1: Direct access (will fail with CORS but we try)
+                          const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                          // Try multiple selectors
+                          let button = iframeDoc.querySelector('button.btn-outline-success') ||
+                                      iframeDoc.querySelector('button:contains("Gerar IPTV")') ||
+                                      iframeDoc.querySelector('[class*="btn"][class*="success"]');
+                          
+                          if (button) {
+                            (button as HTMLButtonElement).click();
+                            toast({
+                              title: "✅ Sucesso!",
+                              description: "Botão 'Gerar IPTV' clicado automaticamente",
+                              variant: "default",
+                            });
+                            return;
+                          }
+                        } catch (e) {
+                          // Expected CORS error, try other methods
+                        }
+
+                        // Method 2: Execute script in iframe context
+                        try {
+                          iframe.contentWindow.eval(`
+                            var btn = document.querySelector('button.btn-outline-success') || 
+                                     document.querySelector('button.btn.btn-outline-success.btn-sm');
+                            if (btn) btn.click();
+                          `);
                           toast({
                             title: "📡 Comando Enviado",
-                            description: "Tentando clicar no botão 'Gerar IPTV'",
+                            description: "Tentando executar clique via script",
                             variant: "default",
                           });
+                        } catch (e) {
+                          // If eval fails, try postMessage
+                          iframe.contentWindow.postMessage({ 
+                            action: 'click',
+                            selector: 'button.btn-outline-success'
+                          }, '*');
                         }
                       }
                     } catch (error) {
-                      // If cross-origin blocks access, notify user
-                      toast({
-                        title: "⚠️ Aviso",
-                        description: "Por segurança do navegador, clique manualmente no botão 'Gerar IPTV' no OnlineOffice",
-                        variant: "default",
-                      });
-                      console.log('Cross-origin restriction:', error);
+                      console.error('Erro ao tentar clicar:', error);
                     }
+                    
+                    // Always show instruction since CORS will likely block
+                    toast({
+                      title: "💡 Dica",
+                      description: "Se o clique automático não funcionar, clique manualmente no botão verde 'Gerar IPTV'",
+                      variant: "default",
+                    });
                   }}
                   variant="ghost"
                   size="sm"
                   className="text-green-400 hover:text-green-300 hover:bg-green-500/20 font-bold"
-                  title="Clique automatizado no botão Gerar IPTV"
+                  title="Tentar clicar em 'Gerar IPTV'"
                   data-testid="button-auto-click"
                 >
                   C1
