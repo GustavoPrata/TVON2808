@@ -34,7 +34,7 @@ export class OnlineOfficeService {
         console.log('📍 Using Chromium at:', path);
         return path;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.log('⚠️ Could not find chromium via which command');
     }
     
@@ -88,20 +88,20 @@ export class OnlineOfficeService {
       const x = this.randomDelay(100, 800);
       const y = this.randomDelay(100, 600);
       await cursor.move({ x, y });
-      await page.waitForTimeout(this.randomDelay(200, 500));
+      await new Promise(resolve => setTimeout(resolve, this.randomDelay(200, 500)));
       
       // Scroll with random distance
       const scrollDistance = this.randomDelay(100, 300);
       const direction = Math.random() > 0.5 ? 1 : -1;
       
-      await page.evaluate((distance) => {
+      await page.evaluate((distance: number) => {
         window.scrollBy({
           top: distance,
           behavior: 'smooth'
         });
       }, scrollDistance * direction);
       
-      await page.waitForTimeout(this.randomDelay(500, 1500));
+      await new Promise(resolve => setTimeout(resolve, this.randomDelay(500, 1500)));
     }
     
     // Return to top smoothly
@@ -111,7 +111,7 @@ export class OnlineOfficeService {
         behavior: 'smooth'
       });
     });
-    await page.waitForTimeout(this.randomDelay(500, 1000));
+    await new Promise(resolve => setTimeout(resolve, this.randomDelay(500, 1000)));
   }
 
   // Simulate random mouse movements
@@ -126,7 +126,7 @@ export class OnlineOfficeService {
       await cursor.move({ x, y });
       
       // Random pause between movements
-      await page.waitForTimeout(this.randomDelay(300, 800));
+      await new Promise(resolve => setTimeout(resolve, this.randomDelay(300, 800)));
     }
   }
 
@@ -144,8 +144,11 @@ export class OnlineOfficeService {
       console.log(`🌐 User Agent: ${userAgent}`);
       
       // Launch browser with ultra-advanced anti-detection
+      // NOTA: OnlineOffice.zip detecta e bloqueia IPs de datacenters/servidores
+      // Mesmo com técnicas anti-detecção, o bloqueio por IP pode não ser contornado
+      // Recomenda-se usar o método manual através do iframe se continuar falhando
       browser = await puppeteer.launch({
-        headless: 'new', // Use new headless mode which is less detectable
+        headless: false, // IMPORTANTE: Navegador visível para evitar detecção
         executablePath: executablePath,
         args: [
           '--no-sandbox',
@@ -178,12 +181,14 @@ export class OnlineOfficeService {
       const cursor = createCursor(page);
       console.log('👻 Ghost cursor criado para movimentos humanizados');
       
-      // Advanced anti-detection measures
+      // Advanced anti-detection measures - CRÍTICO PARA BURLAR DETECÇÃO
       await page.evaluateOnNewDocument(() => {
-        // Remove webdriver
+        // Remove webdriver flag completamente
         Object.defineProperty(navigator, 'webdriver', {
-          get: () => undefined
+          get: () => undefined,
+          configurable: true
         });
+        try { delete (navigator as any).webdriver; } catch(e) {}
         
         // Add realistic plugins
         Object.defineProperty(navigator, 'plugins', {
@@ -201,10 +206,25 @@ export class OnlineOfficeService {
           get: () => ['pt-BR', 'pt', 'en-US', 'en']
         });
         
-        // Add chrome runtime
+        // Add chrome runtime mais realista
         (window as any).chrome = {
           runtime: {
-            id: 'fake-extension-id-' + Math.random().toString(36)
+            id: 'fake-extension-id-' + Math.random().toString(36),
+            connect: () => {},
+            sendMessage: () => {}
+          },
+          app: {
+            isInstalled: false,
+            InstallState: {
+              DISABLED: 'disabled',
+              INSTALLED: 'installed',
+              NOT_INSTALLED: 'not_installed'
+            },
+            RunningState: {
+              CANNOT_RUN: 'cannot_run',
+              READY_TO_RUN: 'ready_to_run',
+              RUNNING: 'running'
+            }
           },
           loadTimes: function() {
             return {
@@ -229,16 +249,16 @@ export class OnlineOfficeService {
         };
         
         // Override permissions
-        const originalQuery = window.navigator.permissions.query;
-        window.navigator.permissions.query = (parameters: any) => (
+        const originalQuery = (window.navigator.permissions as any).query;
+        (window.navigator.permissions as any).query = (parameters: any) => (
           parameters.name === 'notifications' ?
-            Promise.resolve({ state: Notification.permission }) :
+            Promise.resolve({ state: (Notification as any).permission }) :
             originalQuery(parameters)
         );
         
         // Add WebGL vendor and renderer
         const getParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function(parameter) {
+        WebGLRenderingContext.prototype.getParameter = function(parameter: any) {
           if (parameter === 37445) {
             return 'Intel Inc.';
           }
@@ -249,15 +269,31 @@ export class OnlineOfficeService {
         };
         
         // Override timezone
-        Date.prototype.getTimezoneOffset = function() { return -180; }; // Brazil timezone
+        (Date.prototype as any).getTimezoneOffset = function() { return -180; }; // Brazil timezone
         
         // Add battery API
-        navigator.getBattery = () => Promise.resolve({
+        (navigator as any).getBattery = () => Promise.resolve({
           charging: true,
           chargingTime: 0,
           dischargingTime: Infinity,
           level: 0.87
         });
+        
+        // Remove automation in navigator  
+        Object.defineProperty(navigator, 'platform', {
+          get: () => 'Win32'
+        });
+        
+        // Hide automation indicators
+        (window.navigator as any).chrome = true;
+        
+        // Remove Selenium/WebDriver variables
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Array;
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Object;
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_JSON;
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Proxy;
       });
       
       // Set advanced HTTP headers
@@ -280,9 +316,9 @@ export class OnlineOfficeService {
       await page.setUserAgent(userAgent);
       await page.setViewport(viewport);
 
-      // Simulate human delay before navigation
-      console.log('⏱️ Aguardando tempo humano antes de navegar...');
-      await delay(this.randomDelay(1000, 2000));
+      // Simulate human delay before navigation - AUMENTADO PARA EVITAR DETECÇÃO
+      console.log('⏱️ Aguardando tempo humano antes de navegar (delay aumentado)...');
+      await delay(this.randomDelay(3000, 5000));
       
       // Navigate to the site
       console.log('📍 Navegando para OnlineOffice de forma humanizada...');
@@ -293,7 +329,7 @@ export class OnlineOfficeService {
           waitUntil: 'networkidle2',
           timeout: 45000
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Erro ao navegar:', error.message);
         
         if (error.message.includes('ERR_NAME_NOT_RESOLVED') || error.message.includes('net::')) {
@@ -309,10 +345,32 @@ export class OnlineOfficeService {
       console.log(`📊 Status HTTP: ${status}`);
       
       if (status === 404 || status === 403) {
-        throw new Error(
-          'SITE_BLOQUEADO: O site retornou erro ' + status + '. ' +
-          'Detecção de bot identificada. Use o método manual.'
-        );
+        console.log('⚠️ Erro ' + status + ' detectado. Tentando contornar com reload...');
+        
+        // Tentar novamente com delay maior
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        console.log('🔄 Recarregando página após delay de 10 segundos...');
+        
+        try {
+          await page.reload({ waitUntil: 'networkidle2', timeout: 30000 });
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          
+          // Verificar se ainda está com erro
+          const finalUrl = page.url();
+          if (!finalUrl.includes('onlineoffice')) {
+            throw new Error(
+              'BLOQUEIO_TOTAL: Site OnlineOffice bloqueia IPs de servidores/datacenters. ' +
+              'Este tipo de bloqueio não pode ser contornado com automação. ' +
+              'Por favor, use o método manual: acesse o site diretamente no seu navegador '
+            );
+          }
+        } catch (reloadError) {
+          throw new Error(
+            'SITE_BLOQUEADO: O site retornou erro ' + status + '. ' +
+            'Detecção de bot identificada mesmo após tentativa de contorno. ' +
+            'Use o método manual através do seu navegador.'
+          );
+        }
       }
       
       // Wait for page to load with human-like delay
@@ -375,7 +433,7 @@ export class OnlineOfficeService {
       await delay(hesitationTime);
       
       // Small random movement near button (overshoot simulation)
-      const buttonBox = await page.evaluate((selector) => {
+      const buttonBox = await page.evaluate((selector: string) => {
         const element = document.querySelector(selector);
         if (!element) return null;
         const rect = element.getBoundingClientRect();
@@ -478,7 +536,7 @@ export class OnlineOfficeService {
       
       return result;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erro na automação humanizada:', error);
       
       if (error.message?.includes('SITE_BLOQUEADO')) {
@@ -490,11 +548,11 @@ export class OnlineOfficeService {
         try {
           const pages = await browser.pages();
           if (pages.length > 0) {
-            const screenshotPath = `/tmp/onlineoffice-human-error-${Date.now()}.png`;
+            const screenshotPath = `./onlineoffice-human-error-${Date.now()}.png`;
             await pages[0].screenshot({ path: screenshotPath, fullPage: true });
             console.error(`📸 Screenshot de erro: ${screenshotPath}`);
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error('Erro ao tirar screenshot:', e.message);
         }
       }
@@ -506,7 +564,7 @@ export class OnlineOfficeService {
           // Human-like delay before closing
           await new Promise(resolve => setTimeout(resolve, this.randomDelay(500, 1000)));
           await browser.close();
-        } catch (e) {
+        } catch (e: any) {
           console.error('Erro ao fechar browser:', e.message);
         }
       }
@@ -526,8 +584,9 @@ export class OnlineOfficeService {
       const viewportHeight = 1080 + Math.floor(Math.random() * 100);
       
       // Inicia o navegador com configurações anti-detecção ultra avançadas
+      // NOTA: Site OnlineOffice bloqueia IPs de servidores, pode não funcionar em Replit
       browser = await puppeteer.launch({
-        headless: 'new', // Usa o novo headless que é menos detectável
+        headless: false, // MUDANÇA CRÍTICA: Navegador visível para evitar detecção
         executablePath: executablePath,
         args: [
           '--no-sandbox',
@@ -556,12 +615,14 @@ export class OnlineOfficeService {
 
       const page = await browser.newPage();
       
-      // Remove sinais de que é um navegador automatizado
+      // Remove sinais de que é um navegador automatizado - MELHORIAS ANTI-DETECÇÃO
       await page.evaluateOnNewDocument(() => {
-        // Remove webdriver
+        // Remove webdriver flag completamente
         Object.defineProperty(navigator, 'webdriver', {
-          get: () => undefined
+          get: () => undefined,
+          configurable: true
         });
+        try { delete (navigator as any).webdriver; } catch(e) {}
         
         // Sobrescreve plugins para parecer um navegador real
         Object.defineProperty(navigator, 'plugins', {
@@ -573,16 +634,40 @@ export class OnlineOfficeService {
           get: () => ['pt-BR', 'pt', 'en']
         });
         
-        // Adiciona chrome runtime
+        // Adiciona chrome runtime completo
         (window as any).chrome = {
-          runtime: {}
+          runtime: {
+            connect: () => {},
+            sendMessage: () => {},
+            id: 'fake-extension-' + Math.random().toString(36)
+          },
+          app: {
+            isInstalled: false,
+            InstallState: {
+              DISABLED: 'disabled',
+              INSTALLED: 'installed',
+              NOT_INSTALLED: 'not_installed'
+            }
+          }
         };
         
+        // Remove automation flags
+        Object.defineProperty(navigator, 'platform', {
+          get: () => 'Win32'
+        });
+        
+        (window.navigator as any).chrome = true;
+        
+        // Remove Selenium variables
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Array;
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+        delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+        
         // Sobrescreve permissions
-        const originalQuery = window.navigator.permissions.query;
-        window.navigator.permissions.query = (parameters: any) => (
+        const originalQuery = (window.navigator.permissions as any).query;
+        (window.navigator.permissions as any).query = (parameters: any) => (
           parameters.name === 'notifications' ?
-            Promise.resolve({ state: Notification.permission }) :
+            Promise.resolve({ state: (Notification as any).permission }) :
             originalQuery(parameters)
         );
       });
@@ -609,6 +694,10 @@ export class OnlineOfficeService {
       // Define viewport para parecer um navegador desktop real
       await page.setViewport({ width: viewportWidth, height: viewportHeight });
 
+      // Adiciona delay inicial maior antes de navegar
+      console.log('⏱️ Aguardando delay inicial de 3-5 segundos...');
+      await delay(3000 + Math.floor(Math.random() * 2000));
+      
       console.log('📍 Navegando para OnlineOffice...');
       
       // Tenta acessar o site
@@ -618,7 +707,7 @@ export class OnlineOfficeService {
           waitUntil: 'domcontentloaded',
           timeout: 30000
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Erro ao navegar:', error.message);
         
         // Verifica se é erro de rede/DNS
@@ -638,12 +727,33 @@ export class OnlineOfficeService {
       console.log(`📊 Status HTTP: ${status}`);
       
       if (status === 404 || status === 403) {
-        throw new Error(
-          'SITE_BLOQUEADO: O site OnlineOffice retornou erro ' + status + '. ' +
-          'Este site detecta e bloqueia acessos automatizados de servidores. ' +
-          'Por favor, acesse https://onlineoffice.zip diretamente no seu navegador, ' +
-          'gere o teste IPTV manualmente e use a função "Extrair Credenciais" para processar o resultado copiado.'
-        );
+        console.log('⚠️ Erro ' + status + ' detectado. Tentando contornar...');
+        
+        // Aguardar e tentar reload
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        console.log('🔄 Recarregando página...');
+        
+        try {
+          await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          
+          const finalUrl = page.url();
+          if (!finalUrl.includes('onlineoffice')) {
+            throw new Error(
+              'BLOQUEIO_TOTAL: Site OnlineOffice bloqueia IPs de servidores/datacenters. ' +
+              'Este tipo de bloqueio não pode ser contornado. ' +
+              'Acesse https://onlineoffice.zip diretamente no seu navegador, ' +
+              'gere o teste IPTV e use a opção "Extrair Credenciais" para processar.'
+            );
+          }
+        } catch (e: any) {
+          throw new Error(
+            'SITE_BLOQUEADO: O site OnlineOffice retornou erro ' + status + '. ' +
+            'Este site detecta e bloqueia acessos automatizados de servidores. ' +
+            'Por favor, acesse https://onlineoffice.zip diretamente no seu navegador, ' +
+            'gere o teste IPTV manualmente e use a função "Extrair Credenciais" para processar o resultado copiado.'
+          );
+        }
       }
       
       // Aguarda a página carregar
@@ -667,7 +777,7 @@ export class OnlineOfficeService {
       
       // Tira screenshot para debug
       try {
-        const screenshotPath = `/tmp/onlineoffice-loaded-${Date.now()}.png`;
+        const screenshotPath = `./onlineoffice-loaded-${Date.now()}.png`;
         await page.screenshot({ path: screenshotPath, fullPage: true });
         console.log(`📸 Screenshot da página: ${screenshotPath}`);
       } catch (e) {
@@ -736,7 +846,7 @@ export class OnlineOfficeService {
           });
           console.log(`✅ Modal ${i + 1} confirmado`);
           await delay(1500);
-        } catch (e) {
+        } catch (e: any) {
           // Ignora se não houver modal
         }
       }
@@ -794,7 +904,7 @@ export class OnlineOfficeService {
       
       return result;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erro na automação OnlineOffice:', error);
       
       // Se for erro de bloqueio, relança com mensagem clara
@@ -811,7 +921,7 @@ export class OnlineOfficeService {
             await pages[0].screenshot({ path: finalScreenshot, fullPage: true });
             console.error(`📸 Screenshot de erro: ${finalScreenshot}`);
           }
-        } catch (e) {
+        } catch (e: any) {
           console.error('Não foi possível tirar screenshot:', e.message);
         }
       }
@@ -821,7 +931,7 @@ export class OnlineOfficeService {
       if (browser) {
         try {
           await browser.close();
-        } catch (e) {
+        } catch (e: any) {
           console.error('Erro ao fechar browser:', e.message);
         }
       }
