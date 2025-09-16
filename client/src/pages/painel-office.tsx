@@ -542,89 +542,15 @@ export default function PainelOffice() {
                   Interface visual para gerenciamento IPTV
                 </CardDescription>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => {
-                    const iframe = document.getElementById('office-iframe') as HTMLIFrameElement;
-                    if (!iframe) {
-                      toast({
-                        title: "❌ Erro",
-                        description: "Iframe não encontrado",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    
-                    try {
-                      // Try to access iframe content (works if proxy is successful)
-                      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-                      if (!iframeDoc) {
-                        toast({
-                          title: "⏳ Aguarde",
-                          description: "Aguarde o OnlineOffice carregar completamente",
-                          variant: "default",
-                        });
-                        return;
-                      }
-                      
-                      // Find button by class or text
-                      const buttons = iframeDoc.querySelectorAll('button');
-                      let gerarIptvBtn = null;
-                      
-                      for (const button of buttons) {
-                        const btnText = button.textContent?.trim() || '';
-                        const btnClass = button.className || '';
-                        
-                        // Look for the "Gerar IPTV" button
-                        if (btnText.includes('Gerar IPTV') || 
-                            btnClass.includes('btn-outline-success') ||
-                            btnClass.includes('btn-success')) {
-                          gerarIptvBtn = button as HTMLButtonElement;
-                          break;
-                        }
-                      }
-                      
-                      if (gerarIptvBtn) {
-                        gerarIptvBtn.click();
-                        toast({
-                          title: "✅ Sucesso!",
-                          description: "Botão 'Gerar IPTV' foi clicado! Aguarde o modal abrir.",
-                          variant: "default",
-                        });
-                      } else {
-                        toast({
-                          title: "⚠️ Aviso",
-                          description: "Botão 'Gerar IPTV' não encontrado. Certifique-se de que a página carregou.",
-                          variant: "default",
-                        });
-                      }
-                    } catch (error) {
-                      console.error('Erro ao acessar iframe:', error);
-                      toast({
-                        title: "⚠️ Proxy em carregamento",
-                        description: "Aguarde alguns segundos e tente novamente.",
-                        variant: "default",
-                      });
-                    }
-                  }}
-                  variant="ghost"
-                  size="sm"
-                  className="text-green-400 hover:text-green-300 hover:bg-green-500/20 font-bold"
-                  title="Clicar automaticamente no botão 'Gerar IPTV'"
-                  data-testid="button-auto-click"
-                >
-                  C1
-                </Button>
-                <Button
-                  onClick={refreshIframe}
-                  variant="ghost"
-                  size="sm"
-                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
-                  data-testid="button-refresh-iframe"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </Button>
-              </div>
+              <Button
+                onClick={refreshIframe}
+                variant="ghost"
+                size="sm"
+                className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                data-testid="button-refresh-iframe"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
             </div>
           </CardHeader>
           
