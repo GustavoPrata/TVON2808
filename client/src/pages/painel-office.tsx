@@ -316,6 +316,71 @@ export default function PainelOffice() {
     setShowSystemDialog(true);
   };
 
+  // Intelligent paste handler for system dialog
+  useEffect(() => {
+    if (!showSystemDialog) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      const pastedText = e.clipboardData?.getData('text') || '';
+      
+      // Smart regex patterns to detect username and password in various formats
+      // Supports variations like: USUÁRIO:, USUARIO:, USER:, USERNAME:, etc.
+      // Now also captures values that may come in next line
+      const userRegex = /(?:usu[aá]ri?o?|user(?:name)?|login)\s*[:=]?\s*([0-9A-Za-z]+)/i;
+      const passRegex = /(?:senha|password|pass|pwd)\s*[:=]?\s*([0-9A-Za-z]+)/i;
+      
+      // Alternative pattern: if no labels, try to detect two values separated by space/newline
+      const simplePattern = /^[\s]*([^\s]+)[\s]+([^\s]+)[\s]*$/;
+      
+      let username = '';
+      let password = '';
+      
+      // Try to extract with labels first
+      const userMatch = pastedText.match(userRegex);
+      const passMatch = pastedText.match(passRegex);
+      
+      if (userMatch && passMatch) {
+        username = userMatch[1].trim();
+        password = passMatch[1].trim();
+      } else {
+        // Try simple pattern (two values)
+        const simpleMatch = pastedText.match(simplePattern);
+        if (simpleMatch) {
+          username = simpleMatch[1];
+          password = simpleMatch[2];
+        } else {
+          // If nothing matches, just paste into the focused field
+          const activeElement = document.activeElement as HTMLInputElement;
+          if (activeElement && activeElement.tagName === 'INPUT') {
+            activeElement.value = pastedText.trim();
+            return;
+          }
+        }
+      }
+      
+      // If we extracted values, populate the form
+      if (username || password) {
+        if (username) {
+          systemForm.setValue('username', username);
+        }
+        if (password) {
+          systemForm.setValue('password', password);
+        }
+        
+        // Show success toast
+        toast({
+          title: "Dados Detectados!",
+          description: `Usuário: ${username || 'não detectado'} | Senha: ${password || 'não detectada'}`,
+          variant: "default",
+        });
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [showSystemDialog, systemForm, toast]);
+
   const handleSystemSubmit = (data: SystemForm) => {
     saveSystemMutation.mutate({
       ...data,
@@ -511,9 +576,15 @@ export default function PainelOffice() {
         </Card>
       </div>
 
-      {/* System Dialog */}
+      {/* System Dialog - Positioned to the left to not overlap iframe */}
       <Dialog open={showSystemDialog} onOpenChange={setShowSystemDialog}>
-        <DialogContent className="bg-dark-card border-slate-700">
+        <DialogContent 
+          className="bg-dark-card border-slate-700 !left-[25%] !translate-x-[-50%] max-w-md"
+          style={{ 
+            position: 'fixed',
+            left: '20%',
+            transform: 'translateX(-50%) translateY(-50%)',
+          }}>
           <DialogHeader>
             <DialogTitle className="text-lg">
               {editingSystem ? 'Editar Sistema' : 'Novo Sistema'}
