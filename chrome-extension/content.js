@@ -3,270 +3,274 @@ console.log('OnlineOffice IPTV Automator: Content script loaded');
 
 // Configuration
 const CONFIG = {
-  checkInterval: 1000, // Check every 1 second for elements
-  maxRetries: 30, // Max attempts to find elements
-  serverUrl: '', // Will be set from storage
-  autoGenerate: false // Will be set from storage
+  serverUrl: '',
+  currentQuantity: 0,
+  targetQuantity: 10,
+  isAutomationActive: false
 };
 
 // Load configuration from storage
-chrome.storage.sync.get(['serverUrl', 'autoGenerate'], (result) => {
-  CONFIG.serverUrl = result.serverUrl || 'http://localhost:5000';
-  CONFIG.autoGenerate = result.autoGenerate || false;
-  console.log('Configuration loaded:', CONFIG);
-  
-  // Start monitoring if auto-generate is enabled
-  if (CONFIG.autoGenerate) {
-    startMonitoring();
+chrome.storage.sync.get(['serverUrl', 'automationConfig'], (result) => {
+  CONFIG.serverUrl = result.serverUrl || getCurrentDomain();
+  if (result.automationConfig) {
+    CONFIG.isAutomationActive = result.automationConfig.enabled;
+    CONFIG.targetQuantity = result.automationConfig.quantity || 10;
   }
+  console.log('Configuration loaded:', CONFIG);
 });
+
+// Get current domain for API calls
+function getCurrentDomain() {
+  const hostname = window.location.hostname;
+  if (hostname.includes('localhost')) {
+    return 'http://localhost:5000';
+  } else if (hostname.includes('replit.app') || hostname.includes('replit.dev')) {
+    return window.location.origin;
+  } else if (hostname.includes('tv-on.site')) {
+    return 'https://tv-on.site';
+  }
+  return window.location.origin;
+}
 
 // Listen for messages from popup/background
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Message received:', request);
   
-  if (request.action === 'generateCredentials') {
-    generateCredentials().then(result => {
+  if (request.action === 'generateOne') {
+    generateSingleCredential().then(result => {
       sendResponse(result);
     }).catch(error => {
       sendResponse({ success: false, error: error.message });
     });
-    return true; // Keep the message channel open for async response
+    return true; // Keep message channel open
   }
   
-  if (request.action === 'startMonitoring') {
-    startMonitoring();
-    sendResponse({ success: true, message: 'Monitoring started' });
+  if (request.action === 'startAutomation') {
+    startAutomation(request.config);
+    sendResponse({ success: true });
   }
   
-  if (request.action === 'stopMonitoring') {
-    stopMonitoring();
-    sendResponse({ success: true, message: 'Monitoring stopped' });
+  if (request.action === 'stopAutomation') {
+    stopAutomation();
+    sendResponse({ success: true });
   }
   
   if (request.action === 'getStatus') {
     sendResponse({ 
       success: true, 
-      isMonitoring: isMonitoring,
-      lastCredentials: lastGeneratedCredentials 
+      isAutomationActive: CONFIG.isAutomationActive,
+      currentQuantity: CONFIG.currentQuantity,
+      targetQuantity: CONFIG.targetQuantity
     });
   }
 });
 
-// Variables to track state
-let isMonitoring = false;
-let monitoringInterval = null;
-let lastGeneratedCredentials = null;
-
-// Function to find and click the generate button
-async function clickGenerateButton() {
-  console.log('Looking for generate button...');
-  
-  // Try different selectors that might match the button
-  const selectors = [
-    'button:contains("Gerar IPTV")',
-    'button:contains("Gerar")',
-    'button:contains("Generate")',
-    'button.generate-iptv',
-    'button#generate-iptv',
-    '[data-action="generate-iptv"]',
-    'button.btn-primary:contains("Gerar")',
-    'button.btn:contains("IPTV")',
-    // More generic selectors
-    'button.btn-success',
-    'button.btn-primary'
-  ];
-  
-  // First try with text content
-  const buttons = document.querySelectorAll('button');
-  for (const button of buttons) {
-    const text = button.textContent.toLowerCase();
-    if (text.includes('gerar') && text.includes('iptv')) {
-      console.log('Found button by text content:', button);
-      button.click();
-      return true;
-    }
-    if (text.includes('generate') && text.includes('iptv')) {
-      console.log('Found button by text content:', button);
-      button.click();
-      return true;
-    }
-    if (text === 'gerar' || text === 'generate') {
-      console.log('Found generic generate button:', button);
-      button.click();
-      return true;
-    }
-  }
-  
-  // Try CSS selectors
-  for (const selector of selectors) {
-    try {
+// Wait for element to appear
+function waitForElement(selector, timeout = 10000) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    
+    const checkElement = () => {
       const element = document.querySelector(selector);
       if (element) {
-        console.log('Found button with selector:', selector);
-        element.click();
-        return true;
+        resolve(element);
+        return;
       }
-    } catch (e) {
-      // Some selectors might be invalid, ignore
-    }
-  }
-  
-  console.log('Generate button not found');
-  return false;
+      
+      if (Date.now() - startTime > timeout) {
+        reject(new Error(`Element ${selector} not found after ${timeout}ms`));
+        return;
+      }
+      
+      setTimeout(checkElement, 100);
+    };
+    
+    checkElement();
+  });
 }
 
-// Function to extract credentials from the page
-async function extractCredentials() {
-  console.log('Extracting credentials...');
-  
-  // Wait a bit for the credentials to appear
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  
-  // Try to find credential elements
-  const credentialSelectors = {
-    username: [
-      'input[name="username"]',
-      'input[name="usuario"]',
-      'input[name="user"]',
-      'input#username',
-      'input#usuario',
-      'input.username',
-      '[data-field="username"]',
-      'input[type="text"]:not([type="password"])'
-    ],
-    password: [
-      'input[name="password"]',
-      'input[name="senha"]',
-      'input[name="pass"]',
-      'input#password',
-      'input#senha',
-      'input.password',
-      '[data-field="password"]',
-      'input[type="password"]'
-    ]
-  };
-  
-  let username = null;
-  let password = null;
-  
-  // Try to find username
-  for (const selector of credentialSelectors.username) {
-    const element = document.querySelector(selector);
-    if (element && element.value) {
-      username = element.value;
-      console.log('Found username:', username);
-      break;
-    }
-  }
-  
-  // Try to find password
-  for (const selector of credentialSelectors.password) {
-    const element = document.querySelector(selector);
-    if (element && element.value) {
-      password = element.value;
-      console.log('Found password:', password);
-      break;
-    }
-  }
-  
-  // Alternative: Look for text in divs/spans that might contain credentials
-  if (!username || !password) {
-    const allTexts = document.querySelectorAll('div, span, p, td');
-    for (const element of allTexts) {
-      const text = element.textContent;
-      
-      // Look for patterns like "Usuário: xxxxx" or "Username: xxxxx"
-      const userMatch = text.match(/(?:usuário|usuario|username|user):\s*(\S+)/i);
-      if (userMatch && !username) {
-        username = userMatch[1];
+// Wait for element with text content
+function waitForElementWithText(text, tagName = '*', timeout = 10000) {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    
+    const checkElement = () => {
+      const elements = document.querySelectorAll(tagName);
+      for (const element of elements) {
+        if (element.textContent.includes(text)) {
+          resolve(element);
+          return;
+        }
       }
       
-      // Look for patterns like "Senha: xxxxx" or "Password: xxxxx"
-      const passMatch = text.match(/(?:senha|password|pass):\s*(\S+)/i);
-      if (passMatch && !password) {
-        password = passMatch[1];
-      }
-    }
-  }
-  
-  // Check for modal or popup with credentials
-  const modals = document.querySelectorAll('.modal, .popup, .dialog, [role="dialog"]');
-  for (const modal of modals) {
-    if (modal.style.display !== 'none') {
-      const modalText = modal.textContent;
-      
-      const userMatch = modalText.match(/(?:usuário|usuario|username|user):\s*(\S+)/i);
-      if (userMatch && !username) {
-        username = userMatch[1];
+      if (Date.now() - startTime > timeout) {
+        reject(new Error(`Element with text "${text}" not found after ${timeout}ms`));
+        return;
       }
       
-      const passMatch = modalText.match(/(?:senha|password|pass):\s*(\S+)/i);
-      if (passMatch && !password) {
-        password = passMatch[1];
-      }
-    }
-  }
-  
-  if (username && password) {
-    return { username, password };
-  }
-  
-  return null;
+      setTimeout(checkElement, 100);
+    };
+    
+    checkElement();
+  });
 }
 
-// Main function to generate credentials
-async function generateCredentials() {
+// Click sequence for generating credentials
+async function performGenerationSequence() {
   try {
-    console.log('Starting credential generation...');
+    console.log('Starting generation sequence...');
     
-    // Click the generate button
-    const buttonClicked = await clickGenerateButton();
-    if (!buttonClicked) {
-      throw new Error('Could not find generate button');
-    }
+    // Step 1: Click "Gerar IPTV" button
+    console.log('Step 1: Looking for "Gerar IPTV" button...');
+    const generateButton = await waitForElementWithText('Gerar IPTV', 'button');
+    generateButton.click();
+    console.log('Clicked "Gerar IPTV" button');
     
-    // Wait and extract credentials
-    const credentials = await extractCredentials();
+    // Step 2: Wait for modal and click first "Confirmar"
+    console.log('Step 2: Waiting for first "Confirmar" button...');
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for modal to appear
+    const firstConfirm = await waitForElementWithText('Confirmar', 'button');
+    firstConfirm.click();
+    console.log('Clicked first "Confirmar" button');
+    
+    // Step 3: Click second "Confirmar"
+    console.log('Step 3: Waiting for second "Confirmar" button...');
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for next modal
+    const secondConfirm = await waitForElementWithText('Confirmar', 'button');
+    secondConfirm.click();
+    console.log('Clicked second "Confirmar" button');
+    
+    // Step 4: Wait 5 seconds for credentials to be generated
+    console.log('Step 4: Waiting 5 seconds for credentials...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Step 5: Extract credentials from modal
+    console.log('Step 5: Extracting credentials from modal...');
+    const credentials = await extractCredentialsFromModal();
+    
     if (!credentials) {
-      throw new Error('Could not extract credentials');
+      throw new Error('Could not extract credentials from modal');
     }
     
-    console.log('Credentials extracted:', credentials);
-    lastGeneratedCredentials = credentials;
-    
-    // Send to server if configured
-    if (CONFIG.serverUrl) {
-      await sendCredentialsToServer(credentials);
-    }
-    
-    // Send to extension popup
-    chrome.runtime.sendMessage({
-      type: 'credentialsGenerated',
-      credentials: credentials
-    });
-    
-    return { success: true, credentials };
+    console.log('Credentials extracted successfully:', credentials);
+    return credentials;
     
   } catch (error) {
-    console.error('Error generating credentials:', error);
+    console.error('Error in generation sequence:', error);
     throw error;
+  }
+}
+
+// Extract credentials from modal
+async function extractCredentialsFromModal() {
+  try {
+    // Look for modal elements
+    const modals = document.querySelectorAll('.modal, .modal-body, .modal-content, [role="dialog"], .popup, .dialog');
+    
+    for (const modal of modals) {
+      // Skip if modal is hidden
+      if (modal.style.display === 'none' || modal.style.visibility === 'hidden') {
+        continue;
+      }
+      
+      const modalText = modal.innerText || modal.textContent;
+      console.log('Checking modal text:', modalText.substring(0, 200));
+      
+      // Look for USUÁRIO and SENHA patterns
+      const userMatch = modalText.match(/(?:USUÁRIO|USUARIO|USERNAME):\s*([^\s\n]+)/i);
+      const passMatch = modalText.match(/(?:SENHA|PASSWORD):\s*([^\s\n]+)/i);
+      
+      if (userMatch && passMatch) {
+        return {
+          username: userMatch[1].trim(),
+          password: passMatch[1].trim()
+        };
+      }
+      
+      // Alternative pattern with line breaks
+      const lines = modalText.split('\n');
+      let username = null;
+      let password = null;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        if (line.includes('USUÁRIO') || line.includes('USUARIO') || line.includes('USERNAME')) {
+          // Check same line first
+          const sameLineMatch = line.match(/(?:USUÁRIO|USUARIO|USERNAME):\s*(.+)/i);
+          if (sameLineMatch) {
+            username = sameLineMatch[1].trim();
+          } else if (i + 1 < lines.length) {
+            // Check next line
+            username = lines[i + 1].trim();
+          }
+        }
+        
+        if (line.includes('SENHA') || line.includes('PASSWORD')) {
+          // Check same line first
+          const sameLineMatch = line.match(/(?:SENHA|PASSWORD):\s*(.+)/i);
+          if (sameLineMatch) {
+            password = sameLineMatch[1].trim();
+          } else if (i + 1 < lines.length) {
+            // Check next line
+            password = lines[i + 1].trim();
+          }
+        }
+      }
+      
+      if (username && password) {
+        return { username, password };
+      }
+    }
+    
+    // Try to find in any visible element
+    const allElements = document.querySelectorAll('div, span, p, td, li');
+    let username = null;
+    let password = null;
+    
+    for (const element of allElements) {
+      const text = element.textContent;
+      
+      if (!username) {
+        const userMatch = text.match(/(?:USUÁRIO|USUARIO|USERNAME):\s*([^\s\n]+)/i);
+        if (userMatch) {
+          username = userMatch[1].trim();
+        }
+      }
+      
+      if (!password) {
+        const passMatch = text.match(/(?:SENHA|PASSWORD):\s*([^\s\n]+)/i);
+        if (passMatch) {
+          password = passMatch[1].trim();
+        }
+      }
+      
+      if (username && password) {
+        return { username, password };
+      }
+    }
+    
+    return null;
+    
+  } catch (error) {
+    console.error('Error extracting credentials:', error);
+    return null;
   }
 }
 
 // Send credentials to server
 async function sendCredentialsToServer(credentials) {
   try {
-    const response = await fetch(`${CONFIG.serverUrl}/api/office/save-credentials`, {
+    const serverUrl = CONFIG.serverUrl || getCurrentDomain();
+    const response = await fetch(`${serverUrl}/api/office/credentials`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        usuario: credentials.username,
-        senha: credentials.password,
-        vencimento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
-        source: 'chrome-extension'
+        username: credentials.username,
+        password: credentials.password,
+        source: 'extension'
       })
     });
     
@@ -274,75 +278,162 @@ async function sendCredentialsToServer(credentials) {
       throw new Error(`Server error: ${response.status}`);
     }
     
-    console.log('Credentials sent to server successfully');
-    return true;
+    const result = await response.json();
+    console.log('Credentials sent to server:', result);
+    return result;
     
   } catch (error) {
     console.error('Error sending to server:', error);
-    // Don't throw, just log - credentials were still generated
-    return false;
+    throw error;
   }
 }
 
-// Monitoring functions
-function startMonitoring() {
-  if (isMonitoring) return;
-  
-  isMonitoring = true;
-  console.log('Starting automatic monitoring...');
-  
-  monitoringInterval = setInterval(() => {
-    // Check if we're on the right page
-    if (document.readyState === 'complete') {
-      // Look for indicators that we can generate
-      const canGenerate = checkIfCanGenerate();
-      if (canGenerate) {
-        generateCredentials().catch(console.error);
-      }
-    }
-  }, CONFIG.checkInterval);
-}
-
-function stopMonitoring() {
-  if (!isMonitoring) return;
-  
-  isMonitoring = false;
-  if (monitoringInterval) {
-    clearInterval(monitoringInterval);
-    monitoringInterval = null;
-  }
-  console.log('Monitoring stopped');
-}
-
-function checkIfCanGenerate() {
-  // Check if generate button exists and is enabled
-  const buttons = document.querySelectorAll('button');
-  for (const button of buttons) {
-    const text = button.textContent.toLowerCase();
-    if ((text.includes('gerar') || text.includes('generate')) && 
-        !button.disabled && 
-        button.offsetParent !== null) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// Inject helper to detect page changes
-let lastUrl = location.href;
-new MutationObserver(() => {
-  const url = location.href;
-  if (url !== lastUrl) {
-    lastUrl = url;
-    console.log('Page changed:', url);
+// Generate single credential
+async function generateSingleCredential() {
+  try {
+    console.log('Generating single credential...');
     
-    // Notify extension of page change
+    // Perform the click sequence
+    const credentials = await performGenerationSequence();
+    
+    // Send to server
+    const serverResult = await sendCredentialsToServer(credentials);
+    
+    // Notify popup
     chrome.runtime.sendMessage({
-      type: 'pageChanged',
-      url: url
+      type: 'credentialGenerated',
+      credentials: credentials,
+      serverResult: serverResult
     });
+    
+    return { 
+      success: true, 
+      credentials: credentials,
+      serverResult: serverResult
+    };
+    
+  } catch (error) {
+    console.error('Error generating credential:', error);
+    return { 
+      success: false, 
+      error: error.message 
+    };
   }
-}).observe(document, { subtree: true, childList: true });
+}
 
-// Log that we're ready
-console.log('OnlineOffice IPTV Automator ready!');
+// Automation functions
+let automationInterval = null;
+
+async function startAutomation(config) {
+  console.log('Starting automation with config:', config);
+  
+  CONFIG.isAutomationActive = true;
+  CONFIG.currentQuantity = 0;
+  CONFIG.targetQuantity = config.quantity || 10;
+  
+  // Save config
+  chrome.storage.sync.set({ 
+    automationConfig: {
+      enabled: true,
+      quantity: CONFIG.targetQuantity,
+      intervalValue: config.intervalValue,
+      intervalUnit: config.intervalUnit
+    }
+  });
+  
+  // Generate immediately
+  await generateBatch();
+  
+  // Set up interval for future generations
+  const intervalMs = config.intervalUnit === 'hours' 
+    ? config.intervalValue * 60 * 60 * 1000 
+    : config.intervalValue * 60 * 1000;
+  
+  automationInterval = setInterval(async () => {
+    if (CONFIG.isAutomationActive) {
+      CONFIG.currentQuantity = 0; // Reset counter
+      await generateBatch();
+    }
+  }, intervalMs);
+}
+
+async function generateBatch() {
+  console.log(`Generating batch of ${CONFIG.targetQuantity} credentials...`);
+  
+  for (let i = 0; i < CONFIG.targetQuantity; i++) {
+    if (!CONFIG.isAutomationActive) {
+      console.log('Automation stopped, aborting batch');
+      break;
+    }
+    
+    console.log(`Generating credential ${i + 1} of ${CONFIG.targetQuantity}`);
+    
+    try {
+      const result = await generateSingleCredential();
+      if (result.success) {
+        CONFIG.currentQuantity++;
+        
+        // Notify popup of progress
+        chrome.runtime.sendMessage({
+          type: 'automationProgress',
+          current: CONFIG.currentQuantity,
+          total: CONFIG.targetQuantity
+        });
+      }
+    } catch (error) {
+      console.error(`Error generating credential ${i + 1}:`, error);
+    }
+    
+    // Wait between generations to avoid overwhelming the system
+    if (i < CONFIG.targetQuantity - 1) {
+      await new Promise(resolve => setTimeout(resolve, 10000)); // 10 seconds between each
+    }
+  }
+  
+  console.log(`Batch complete: Generated ${CONFIG.currentQuantity} of ${CONFIG.targetQuantity} credentials`);
+}
+
+function stopAutomation() {
+  console.log('Stopping automation');
+  
+  CONFIG.isAutomationActive = false;
+  
+  if (automationInterval) {
+    clearInterval(automationInterval);
+    automationInterval = null;
+  }
+  
+  // Save config
+  chrome.storage.sync.set({ 
+    automationConfig: {
+      enabled: false,
+      quantity: CONFIG.targetQuantity,
+      intervalValue: 30,
+      intervalUnit: 'minutes'
+    }
+  });
+  
+  // Notify popup
+  chrome.runtime.sendMessage({
+    type: 'automationStopped'
+  });
+}
+
+// Check if we're on the correct page
+function isOnCorrectPage() {
+  const url = window.location.href;
+  return url.includes('onlineoffice.zip') || url.includes('tv-on.site');
+}
+
+// Initialize
+if (isOnCorrectPage()) {
+  console.log('OnlineOffice IPTV Automator ready on:', window.location.href);
+  
+  // Notify popup that content script is ready
+  chrome.runtime.sendMessage({
+    type: 'contentScriptReady',
+    url: window.location.href
+  });
+} else {
+  console.log('Not on OnlineOffice page, extension inactive');
+}

@@ -556,6 +556,52 @@ export const insertAnotacaoSchema = createInsertSchema(anotacoes).omit({
 export type Anotacao = typeof anotacoes.$inferSelect;
 export type InsertAnotacao = z.infer<typeof insertAnotacaoSchema>;
 
+// Office Extension Configuration
+export const officeExtensionConfig = pgTable("office_extension_config", {
+  id: serial("id").primaryKey(),
+  automationEnabled: boolean("automation_enabled").notNull().default(false),
+  quantityToGenerate: integer("quantity_to_generate").notNull().default(10),
+  intervalValue: integer("interval_value").notNull().default(30),
+  intervalUnit: varchar("interval_unit", { length: 10 }).notNull().default("minutes"), // minutes or hours
+  lastRun: timestamp("last_run"),
+  nextRun: timestamp("next_run"),
+  totalGenerated: integer("total_generated").notNull().default(0),
+  currentSistemaIndex: integer("current_sistema_index").notNull().default(0), // Track which sistema to use next
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Office Generated Credentials History
+export const officeCredentials = pgTable("office_credentials", {
+  id: serial("id").primaryKey(),
+  username: varchar("username", { length: 100 }).notNull(),
+  password: varchar("password", { length: 100 }).notNull(),
+  sistemaId: integer("sistema_id").references(() => sistemas.id),
+  generatedAt: timestamp("generated_at").notNull().defaultNow(),
+  source: varchar("source", { length: 20 }).notNull().default("manual"), // manual or automation
+  status: varchar("status", { length: 20 }).notNull().default("active"), // active, used, expired
+  usedByPontoId: integer("usado_by_ponto_id").references(() => pontos.id),
+  usedAt: timestamp("used_at"),
+  expiresAt: timestamp("expires_at"),
+});
+
+export const insertOfficeExtensionConfigSchema = createInsertSchema(officeExtensionConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOfficeCredentialsSchema = createInsertSchema(officeCredentials).omit({
+  id: true,
+  generatedAt: true,
+});
+
+export type OfficeExtensionConfig = typeof officeExtensionConfig.$inferSelect;
+export type InsertOfficeExtensionConfig = z.infer<typeof insertOfficeExtensionConfigSchema>;
+
+export type OfficeCredentials = typeof officeCredentials.$inferSelect;
+export type InsertOfficeCredentials = z.infer<typeof insertOfficeCredentialsSchema>;
+
 // Avisos de Vencimento types
 export const insertAvisoVencimentoSchema = createInsertSchema(avisosVencimento).omit({
   id: true,

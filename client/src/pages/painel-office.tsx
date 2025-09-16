@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download, Chrome, Play, Pause, Clock, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import {
@@ -142,6 +142,19 @@ export default function PainelOffice() {
   const [systemToDelete, setSystemToDelete] = useState<string | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
   const [isGeneratingIPTV, setIsGeneratingIPTV] = useState(false);
+  const [extensionConfig, setExtensionConfig] = useState({
+    automationEnabled: false,
+    quantityToGenerate: 10,
+    intervalValue: 30,
+    intervalUnit: 'minutes' as 'minutes' | 'hours'
+  });
+  const [recentCredentials, setRecentCredentials] = useState<Array<{
+    id: number;
+    username: string;
+    password: string;
+    generatedAt: string;
+    source: string;
+  }>>([]);
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -154,6 +167,34 @@ export default function PainelOffice() {
   const { data: systems = [], isLoading: loadingSystems, refetch: refetchSystems } = useQuery<System[]>({
     queryKey: ['/api/external-api/systems'],
   });
+
+  // Fetch extension config
+  const { data: configData } = useQuery({
+    queryKey: ['/api/office/extension-config'],
+  });
+
+  // Fetch recent credentials
+  const { data: credentialsHistory = [], refetch: refetchCredentials } = useQuery<Array<{
+    id: number;
+    username: string;
+    password: string;
+    generatedAt: string;
+    source: string;
+  }>>({
+    queryKey: ['/api/office/credentials-history'],
+  });
+
+  useEffect(() => {
+    if (configData?.config) {
+      setExtensionConfig(configData.config);
+    }
+  }, [configData]);
+
+  useEffect(() => {
+    if (credentialsHistory) {
+      setRecentCredentials(credentialsHistory.slice(0, 5));
+    }
+  }, [credentialsHistory]);
 
   const systemForm = useForm<SystemForm>({
     resolver: zodResolver(systemSchema),
@@ -480,7 +521,7 @@ export default function PainelOffice() {
       </div>
 
       {/* Main Content - Split Layout */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
         {/* Left Side - Systems Management */}
         <Card className="bg-dark-card border-slate-700 flex flex-col min-h-0">
           <CardHeader className="pb-4">
@@ -563,6 +604,202 @@ export default function PainelOffice() {
                 </DndContext>
               </ScrollArea>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Middle - Extension Configuration */}
+        <Card className="bg-dark-card border-slate-700 flex flex-col min-h-0">
+          <CardHeader className="pb-4">
+            <div>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <Chrome className="w-5 h-5 text-green-400" />
+                Extensão Chrome
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Configure a automação de geração de credenciais
+              </CardDescription>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="flex-1 overflow-y-auto">
+            {/* Automation Controls */}
+            <div className="space-y-4">
+              <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  Configuração da Automação
+                </h3>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm">Status da Automação</Label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={extensionConfig.automationEnabled ? "destructive" : "default"}
+                        onClick={async () => {
+                          const newEnabled = !extensionConfig.automationEnabled;
+                          const newConfig = { ...extensionConfig, automationEnabled: newEnabled };
+                          setExtensionConfig(newConfig);
+                          
+                          await fetch('/api/office/extension-config', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(newConfig)
+                          });
+                          
+                          toast({
+                            title: newEnabled ? "Automação Ativada" : "Automação Desativada",
+                            description: newEnabled 
+                              ? `Gerando ${newConfig.quantityToGenerate} credenciais a cada ${newConfig.intervalValue} ${newConfig.intervalUnit}`
+                              : "A geração automática foi parada",
+                            variant: "default",
+                          });
+                        }}
+                        className={extensionConfig.automationEnabled 
+                          ? "bg-red-600 hover:bg-red-700" 
+                          : "bg-green-600 hover:bg-green-700"}
+                        data-testid="button-toggle-automation"
+                      >
+                        {extensionConfig.automationEnabled ? (
+                          <><Pause className="w-4 h-4 mr-1" /> Parar</>
+                        ) : (
+                          <><Play className="w-4 h-4 mr-1" /> Iniciar</>
+                        )}
+                      </Button>
+                      <Badge className={extensionConfig.automationEnabled 
+                        ? "bg-green-500/20 text-green-400" 
+                        : "bg-slate-500/20 text-slate-400"}>
+                        {extensionConfig.automationEnabled ? "ON" : "OFF"}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm flex items-center gap-1 mb-2">
+                      <Users className="w-4 h-4" />
+                      Quantidade por Lote
+                    </Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={extensionConfig.quantityToGenerate}
+                      onChange={(e) => setExtensionConfig({
+                        ...extensionConfig,
+                        quantityToGenerate: parseInt(e.target.value) || 10
+                      })}
+                      className="bg-slate-800 border-slate-700"
+                      data-testid="input-quantity"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label className="text-sm flex items-center gap-1 mb-2">
+                      <Clock className="w-4 h-4" />
+                      Intervalo de Geração
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        max="60"
+                        value={extensionConfig.intervalValue}
+                        onChange={(e) => setExtensionConfig({
+                          ...extensionConfig,
+                          intervalValue: parseInt(e.target.value) || 30
+                        })}
+                        className="bg-slate-800 border-slate-700 flex-1"
+                        data-testid="input-interval-value"
+                      />
+                      <select
+                        value={extensionConfig.intervalUnit}
+                        onChange={(e) => setExtensionConfig({
+                          ...extensionConfig,
+                          intervalUnit: e.target.value as 'minutes' | 'hours'
+                        })}
+                        className="bg-slate-800 border-slate-700 rounded px-3 text-sm"
+                        data-testid="select-interval-unit"
+                      >
+                        <option value="minutes">Minutos</option>
+                        <option value="hours">Horas</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <Button
+                    onClick={async () => {
+                      await fetch('/api/office/extension-config', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(extensionConfig)
+                      });
+                      
+                      toast({
+                        title: "Configuração Salva",
+                        description: "As configurações da extensão foram atualizadas",
+                        variant: "default",
+                      });
+                    }}
+                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    size="sm"
+                    data-testid="button-save-config"
+                  >
+                    Salvar Configuração
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Recent Credentials */}
+              <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                <h3 className="text-sm font-semibold text-white mb-3 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    Últimas Credenciais Geradas
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => refetchCredentials()}
+                    className="text-blue-400 hover:text-blue-300"
+                    data-testid="button-refresh-credentials"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </Button>
+                </h3>
+                
+                {recentCredentials.length === 0 ? (
+                  <p className="text-xs text-slate-500 text-center py-4">
+                    Nenhuma credencial gerada ainda
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {recentCredentials.map((cred, index) => (
+                      <div key={cred.id || index} className="p-2 bg-slate-900/50 rounded border border-slate-700/50">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-slate-400">
+                            {new Date(cred.generatedAt).toLocaleString('pt-BR')}
+                          </span>
+                          <Badge className="bg-green-500/20 text-green-400 text-xs">
+                            {cred.source || 'extension'}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-slate-500">Usuário:</span>
+                            <p className="font-mono text-white">{cred.username}</p>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Senha:</span>
+                            <p className="font-mono text-white">{cred.password}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
 

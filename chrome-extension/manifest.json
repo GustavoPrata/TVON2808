@@ -6,13 +6,16 @@
   "permissions": [
     "activeTab",
     "storage",
-    "tabs"
+    "tabs",
+    "alarms"
   ],
   "host_permissions": [
     "https://onlineoffice.zip/*",
+    "https://tv-on.site/*",
     "http://localhost:5000/*",
     "https://*.repl.co/*",
-    "https://*.replit.dev/*"
+    "https://*.replit.dev/*",
+    "https://*.replit.app/*"
   ],
   "background": {
     "service_worker": "background.js",

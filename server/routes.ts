@@ -26,6 +26,8 @@ import {
   testes,
   insertTesteSchema,
   login,
+  officeExtensionConfig,
+  officeCredentials,
 } from "@shared/schema";
 import { z } from "zod";
 import { asc, sql, eq, and } from "drizzle-orm";
@@ -5697,6 +5699,214 @@ Como posso ajudar você hoje?
         success: false,
         message: "Erro ao salvar credenciais",
         error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
+  // Chrome Extension API endpoint for receiving credentials
+  app.post("/api/office/credentials", async (req, res) => {
+    try {
+      const { username, password, source = "extension" } = req.body;
+      
+      // CORS headers for extension
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      
+      if (!username || !password) {
+        return res.status(400).json({
+          success: false,
+          message: "Username and password are required"
+        });
+      }
+      
+      console.log(`📥 [Extension] Credentials received:`, { username, source });
+      
+      // Get current configuration
+      const [config] = await db.select().from(officeExtensionConfig).limit(1);
+      
+      // Determine which sistema to use
+      let selectedSistema = null;
+      if (config) {
+        const sistemas = await db.select().from(sistemas).orderBy(asc(sistemas.id));
+        if (sistemas.length > 0) {
+          const index = config.currentSistemaIndex % sistemas.length;
+          selectedSistema = sistemas[index];
+          
+          // Update for next use (round-robin)
+          await db.update(officeExtensionConfig)
+            .set({ 
+              currentSistemaIndex: config.currentSistemaIndex + 1,
+              totalGenerated: config.totalGenerated + 1,
+              updatedAt: new Date()
+            })
+            .where(eq(officeExtensionConfig.id, config.id));
+        }
+      }
+      
+      // Save credentials to database
+      const [savedCredential] = await db.insert(officeCredentials)
+        .values({
+          username,
+          password,
+          sistemaId: selectedSistema?.id,
+          source,
+          status: "active",
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+        })
+        .returning();
+      
+      console.log(`✅ [Extension] Credentials saved with ID:`, savedCredential.id);
+      
+      // Broadcast via WebSocket
+      const wsMessage = JSON.stringify({
+        type: 'extension_credentials_new',
+        id: savedCredential.id,
+        username,
+        password,
+        sistema: selectedSistema?.systemId || null,
+        source,
+        timestamp: new Date().toISOString()
+      });
+      
+      wss.clients.forEach((client: WebSocket) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(wsMessage);
+        }
+      });
+      
+      res.json({
+        success: true,
+        message: "Credentials saved successfully",
+        data: {
+          id: savedCredential.id,
+          username,
+          sistema: selectedSistema?.systemId
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ [Extension] Error saving credentials:', error);
+      res.status(500).json({
+        success: false,
+        message: "Error saving credentials",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Get extension configuration
+  app.get("/api/office/extension-config", checkAuth, async (req, res) => {
+    try {
+      const [config] = await db.select().from(officeExtensionConfig).limit(1);
+      
+      if (!config) {
+        // Create default config if none exists
+        const [newConfig] = await db.insert(officeExtensionConfig)
+          .values({
+            automationEnabled: false,
+            quantityToGenerate: 10,
+            intervalValue: 30,
+            intervalUnit: "minutes"
+          })
+          .returning();
+        
+        return res.json({ success: true, config: newConfig });
+      }
+      
+      res.json({ success: true, config });
+    } catch (error) {
+      console.error('Error fetching extension config:', error);
+      res.status(500).json({
+        success: false,
+        message: "Error fetching configuration",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Update extension configuration
+  app.put("/api/office/extension-config", checkAuth, async (req, res) => {
+    try {
+      const { 
+        automationEnabled, 
+        quantityToGenerate, 
+        intervalValue, 
+        intervalUnit 
+      } = req.body;
+      
+      // Get existing config or create new
+      const [existingConfig] = await db.select().from(officeExtensionConfig).limit(1);
+      
+      let config;
+      if (existingConfig) {
+        [config] = await db.update(officeExtensionConfig)
+          .set({
+            automationEnabled,
+            quantityToGenerate,
+            intervalValue,
+            intervalUnit,
+            nextRun: automationEnabled 
+              ? new Date(Date.now() + (intervalUnit === 'hours' 
+                  ? intervalValue * 60 * 60 * 1000 
+                  : intervalValue * 60 * 1000))
+              : null,
+            updatedAt: new Date()
+          })
+          .where(eq(officeExtensionConfig.id, existingConfig.id))
+          .returning();
+      } else {
+        [config] = await db.insert(officeExtensionConfig)
+          .values({
+            automationEnabled,
+            quantityToGenerate,
+            intervalValue,
+            intervalUnit,
+            nextRun: automationEnabled 
+              ? new Date(Date.now() + (intervalUnit === 'hours' 
+                  ? intervalValue * 60 * 60 * 1000 
+                  : intervalValue * 60 * 1000))
+              : null
+          })
+          .returning();
+      }
+      
+      res.json({ success: true, config });
+    } catch (error) {
+      console.error('Error updating extension config:', error);
+      res.status(500).json({
+        success: false,
+        message: "Error updating configuration",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Get generated credentials history
+  app.get("/api/office/credentials-history", checkAuth, async (req, res) => {
+    try {
+      const credentials = await db.select({
+        id: officeCredentials.id,
+        username: officeCredentials.username,
+        password: officeCredentials.password,
+        sistemaId: officeCredentials.sistemaId,
+        sistema: sistemas.systemId,
+        generatedAt: officeCredentials.generatedAt,
+        source: officeCredentials.source,
+        status: officeCredentials.status
+      })
+      .from(officeCredentials)
+      .leftJoin(sistemas, eq(officeCredentials.sistemaId, sistemas.id))
+      .orderBy(officeCredentials.generatedAt.desc())
+      .limit(50);
+      
+      res.json({ success: true, credentials });
+    } catch (error) {
+      console.error('Error fetching credentials history:', error);
+      res.status(500).json({
+        success: false,
+        message: "Error fetching history",
+        error: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
