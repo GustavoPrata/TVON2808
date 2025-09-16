@@ -545,68 +545,17 @@ export default function PainelOffice() {
               <div className="flex gap-2">
                 <Button
                   onClick={() => {
-                    // Now that iframe is same-origin, we can access its content
-                    const iframe = document.getElementById('office-iframe') as HTMLIFrameElement;
-                    if (!iframe) {
-                      toast({
-                        title: "❌ Erro",
-                        description: "Iframe não encontrado",
-                        variant: "destructive",
-                      });
-                      return;
-                    }
-                    
-                    try {
-                      // Access iframe content (now possible because of proxy)
-                      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-                      if (!iframeDoc) {
-                        toast({
-                          title: "⏳ Aguarde",
-                          description: "Aguarde o OnlineOffice carregar completamente",
-                          variant: "default",
-                        });
-                        return;
-                      }
-                      
-                      // Find and click the "Gerar IPTV" button
-                      const buttons = iframeDoc.querySelectorAll('button');
-                      let clicked = false;
-                      
-                      for (const button of buttons) {
-                        if (button.textContent?.includes('Gerar IPTV') || 
-                            button.className.includes('btn-outline-success')) {
-                          (button as HTMLButtonElement).click();
-                          clicked = true;
-                          toast({
-                            title: "✅ Sucesso!",
-                            description: "Botão 'Gerar IPTV' foi clicado!",
-                            variant: "default",
-                          });
-                          break;
-                        }
-                      }
-                      
-                      if (!clicked) {
-                        toast({
-                          title: "⚠️ Aviso",
-                          description: "Botão 'Gerar IPTV' não encontrado. Verifique se a página carregou.",
-                          variant: "default",
-                        });
-                      }
-                    } catch (error) {
-                      console.error('Erro ao acessar iframe:', error);
-                      toast({
-                        title: "❌ Erro",
-                        description: "Erro ao acessar o conteúdo do iframe. Tente recarregar a página.",
-                        variant: "destructive",
-                      });
-                    }
+                    toast({
+                      title: "💡 Instruções",
+                      description: "Por favor, clique manualmente no botão verde 'Gerar IPTV' no iframe abaixo. Depois copie as credenciais e use Ctrl+V no modal.",
+                      variant: "default",
+                    });
                   }}
                   variant="ghost"
                   size="sm"
                   className="text-green-400 hover:text-green-300 hover:bg-green-500/20 font-bold"
-                  title="Clicar no botão 'Gerar IPTV'"
-                  data-testid="button-auto-click"
+                  title="Instruções para gerar IPTV"
+                  data-testid="button-instructions"
                 >
                   C1
                 </Button>
@@ -627,7 +576,7 @@ export default function PainelOffice() {
             <div className="h-full bg-black rounded-b-lg">
               <iframe
                 key={iframeKey}
-                src="/office-proxy/"
+                src="https://onlineoffice.zip"
                 className="w-full h-full border-0 rounded-b-lg"
                 title="OnlineOffice IPTV"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
