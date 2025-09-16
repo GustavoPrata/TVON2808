@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import {
@@ -401,6 +401,43 @@ export default function PainelOffice() {
     });
   };
 
+  const downloadExtension = async () => {
+    try {
+      const response = await fetch('/api/office/download-extension');
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'onlineoffice-chrome-extension.tar.gz';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast({
+          title: "Download Iniciado",
+          description: "A extensão Chrome está sendo baixada. Extraia o arquivo e siga as instruções de instalação.",
+          variant: "default",
+        });
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Erro no Download",
+          description: error.message || "Não foi possível baixar a extensão",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro no Download",
+        description: "Erro ao tentar baixar a extensão",
+        variant: "destructive",
+      });
+    }
+  };
+
   const totalSystems = systems.length;
   const activeSystems = systems.filter((s: System) => (s.pontosAtivos || 0) > 0).length;
   const fullSystems = systems.filter((s: System) => (s.pontosAtivos || 0) >= (s.maxPontosAtivos || 100)).length;
@@ -542,15 +579,27 @@ export default function PainelOffice() {
                   Interface visual para gerenciamento IPTV
                 </CardDescription>
               </div>
-              <Button
-                onClick={refreshIframe}
-                variant="ghost"
-                size="sm"
-                className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
-                data-testid="button-refresh-iframe"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={downloadExtension}
+                  variant="ghost"
+                  size="sm"
+                  className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/20"
+                  data-testid="button-download-extension"
+                  title="Baixar extensão Chrome"
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={refreshIframe}
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                  data-testid="button-refresh-iframe"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </CardHeader>
           
