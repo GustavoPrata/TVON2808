@@ -148,7 +148,7 @@ export class OnlineOfficeService {
       // Mesmo com técnicas anti-detecção, o bloqueio por IP pode não ser contornado
       // Recomenda-se usar o método manual através do iframe se continuar falhando
       browser = await puppeteer.launch({
-        headless: false, // IMPORTANTE: Navegador visível para evitar detecção
+        headless: 'new', // IMPORTANTE: Usar 'new' para compatibilidade com ambientes headless
         executablePath: executablePath,
         args: [
           '--no-sandbox',
@@ -586,7 +586,7 @@ export class OnlineOfficeService {
       // Inicia o navegador com configurações anti-detecção ultra avançadas
       // NOTA: Site OnlineOffice bloqueia IPs de servidores, pode não funcionar em Replit
       browser = await puppeteer.launch({
-        headless: false, // MUDANÇA CRÍTICA: Navegador visível para evitar detecção
+        headless: 'new', // MUDANÇA CRÍTICA: Usar 'new' para compatibilidade com Replit
         executablePath: executablePath,
         args: [
           '--no-sandbox',
