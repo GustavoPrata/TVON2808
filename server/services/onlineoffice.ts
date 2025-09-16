@@ -474,26 +474,55 @@ export class OnlineOfficeService {
       // Try to find button using multiple strategies
       let buttonSelector = null;
       
-      // Strategy 1: Find by text content
+      // Strategy 1: Find by text content and mark with data attribute
       const buttonByText = await page.evaluate(() => {
         const buttons = Array.from(document.querySelectorAll('button'));
         const button = buttons.find(btn => {
           const text = btn.textContent?.trim().toLowerCase() || '';
           return text.includes('gerar iptv');
         });
-        return button ? buttons.indexOf(button) : -1;
+        if (button) {
+          // Add a temporary data attribute to identify this button reliably
+          button.setAttribute('data-iptv-button', 'true');
+          return true;
+        }
+        return false;
       });
       
-      if (buttonByText >= 0) {
-        buttonSelector = `button:nth-of-type(${buttonByText + 1})`;
+      if (buttonByText) {
+        buttonSelector = 'button[data-iptv-button="true"]';
       } else {
         // Strategy 2: Find by class
         const hasButtonByClass = await page.evaluate(() => {
-          return !!document.querySelector('button.btn-outline-success');
+          const button = document.querySelector('button.btn-outline-success');
+          if (button) {
+            button.setAttribute('data-iptv-button-class', 'true');
+            return true;
+          }
+          return false;
         });
         
         if (hasButtonByClass) {
-          buttonSelector = 'button.btn-outline-success';
+          buttonSelector = 'button[data-iptv-button-class="true"]';
+        } else {
+          // Strategy 3: Find by partial text variations (fallback)
+          const buttonVariations = await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+            const button = buttons.find(btn => {
+              const text = btn.textContent?.trim() || '';
+              // Look for any button containing IPTV in any case
+              return text.toUpperCase().includes('IPTV') || text.includes('Gerar') || text.includes('GERAR');
+            });
+            if (button) {
+              button.setAttribute('data-iptv-button-fallback', 'true');
+              return true;
+            }
+            return false;
+          });
+          
+          if (buttonVariations) {
+            buttonSelector = 'button[data-iptv-button-fallback="true"]';
+          }
         }
       }
       
@@ -856,29 +885,53 @@ export class OnlineOfficeService {
       // Procura e clica no botão "Gerar IPTV"
       console.log('🔍 Procurando botão "Gerar IPTV"...');
       
-      // Procura o botão com múltiplas estratégias
-      const buttonClicked = await page.evaluate(() => {
-        // Procura por texto
+      // Procura o botão com múltiplas estratégias e marca com atributo data
+      const buttonMarked = await page.evaluate(() => {
+        // Strategy 1: Procura por texto
         const buttons = Array.from(document.querySelectorAll('button'));
-        const button = buttons.find(btn => {
+        let button = buttons.find(btn => {
           const text = btn.textContent?.trim().toLowerCase() || '';
           return text.includes('gerar iptv');
         });
         
-        if (button && button instanceof HTMLElement) {
-          button.click();
+        if (button) {
+          button.setAttribute('data-iptv-gen-button', 'true');
           return true;
         }
         
-        // Tenta por classe
-        const btnByClass = document.querySelector('button.btn-outline-success');
-        if (btnByClass && btnByClass instanceof HTMLElement) {
-          btnByClass.click();
+        // Strategy 2: Tenta por classe
+        button = document.querySelector('button.btn-outline-success') as HTMLButtonElement;
+        if (button) {
+          button.setAttribute('data-iptv-gen-button', 'true');
+          return true;
+        }
+        
+        // Strategy 3: Fallback - procura qualquer botão com IPTV
+        button = buttons.find(btn => {
+          const text = btn.textContent?.trim() || '';
+          return text.toUpperCase().includes('IPTV');
+        });
+        
+        if (button) {
+          button.setAttribute('data-iptv-gen-button', 'true');
           return true;
         }
         
         return false;
       });
+      
+      let buttonClicked = false;
+      if (buttonMarked) {
+        // Agora clica no botão marcado
+        buttonClicked = await page.evaluate(() => {
+          const button = document.querySelector('button[data-iptv-gen-button="true"]');
+          if (button && button instanceof HTMLElement) {
+            button.click();
+            return true;
+          }
+          return false;
+        });
+      }
       
       if (!buttonClicked) {
         // Lista botões para debug
