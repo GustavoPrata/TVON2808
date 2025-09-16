@@ -571,25 +571,27 @@ export default function PainelOffice() {
       {/* Custom System Modal - No overlay, allows interaction with iframe */}
       {showSystemDialog && (
         <div 
-          className="fixed bg-dark-card border border-slate-700 rounded-lg shadow-2xl p-6 max-w-md"
+          className="fixed rounded-xl shadow-2xl p-6 max-w-md bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-600/50"
           style={{
-            left: '50px',
+            left: '25%',
             top: '50%',
-            transform: 'translateY(-50%)',
+            transform: 'translate(-50%, -50%)',
             zIndex: 999,
+            minWidth: '400px',
+            backdropFilter: 'blur(10px)',
           }}
         >
           {/* Close button */}
           <button
             onClick={() => setShowSystemDialog(false)}
-            className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 transition-opacity"
+            className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 hover:bg-slate-700 p-1 transition-all"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4 text-slate-300" />
           </button>
           
           <div className="mb-4">
-            <h2 className="text-lg font-semibold">
-              {editingSystem ? 'Editar Sistema' : 'Novo Sistema'}
+            <h2 className="text-lg font-semibold text-white">
+              {editingSystem ? '✏️ Editar Sistema' : '➕ Novo Sistema'}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
               {editingSystem 
