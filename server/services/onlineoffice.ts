@@ -2,7 +2,6 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
-import { createCursor } from 'ghost-cursor';
 
 // Adiciona o plugin stealth para evitar detecção de bots
 puppeteer.use(StealthPlugin());
@@ -77,7 +76,7 @@ export class OnlineOfficeService {
   }
 
   // Simulate human-like scrolling
-  private async humanScroll(page: any, cursor: any): Promise<void> {
+  private async humanScroll(page: any): Promise<void> {
     console.log('📜 Realizando scroll humanizado...');
     
     // Random number of scrolls
@@ -87,7 +86,7 @@ export class OnlineOfficeService {
       // Move mouse to random position first
       const x = this.randomDelay(100, 800);
       const y = this.randomDelay(100, 600);
-      await cursor.move({ x, y });
+      await this.humanMouseMove(page, x, y);
       await new Promise(resolve => setTimeout(resolve, this.randomDelay(200, 500)));
       
       // Scroll with random distance
@@ -115,19 +114,101 @@ export class OnlineOfficeService {
   }
 
   // Simulate random mouse movements
-  private async randomMouseMovements(page: any, cursor: any, count: number = 3): Promise<void> {
+  private async randomMouseMovements(page: any, count: number = 3): Promise<void> {
     console.log('🖱️ Realizando movimentos aleatórios do mouse...');
     
     for (let i = 0; i < count; i++) {
       const x = this.randomDelay(100, 1200);
       const y = this.randomDelay(100, 700);
       
-      // Use ghost-cursor for natural movement
-      await cursor.move({ x, y });
+      // Use humanized mouse movement
+      await this.humanMouseMove(page, x, y);
       
       // Random pause between movements
       await new Promise(resolve => setTimeout(resolve, this.randomDelay(300, 800)));
     }
+  }
+
+  // Helper function for humanized mouse movement
+  private async humanMouseMove(page: any, targetX: number, targetY: number): Promise<void> {
+    // Get current mouse position (default to 0,0 if not set)
+    const currentX = (page as any)._lastMouseX || 0;
+    const currentY = (page as any)._lastMouseY || 0;
+    
+    // Calculate distance
+    const distance = Math.sqrt(Math.pow(targetX - currentX, 2) + Math.pow(targetY - currentY, 2));
+    
+    // Calculate number of steps based on distance
+    const steps = Math.max(Math.floor(distance / 50), this.randomDelay(5, 15));
+    
+    // Move in steps with slight randomness
+    for (let i = 0; i <= steps; i++) {
+      const progress = i / steps;
+      
+      // Add slight curve to the path (Bezier-like)
+      const curve = Math.sin(progress * Math.PI) * this.randomDelay(-30, 30);
+      
+      const x = currentX + (targetX - currentX) * progress + curve;
+      const y = currentY + (targetY - currentY) * progress + curve;
+      
+      await page.mouse.move(x, y);
+      
+      // Store last position
+      (page as any)._lastMouseX = x;
+      (page as any)._lastMouseY = y;
+      
+      // Small random delay between steps
+      await new Promise(resolve => setTimeout(resolve, this.randomDelay(5, 15)));
+    }
+    
+    // Final move to exact position
+    await page.mouse.move(targetX, targetY);
+    (page as any)._lastMouseX = targetX;
+    (page as any)._lastMouseY = targetY;
+  }
+
+  // Helper function for humanized click
+  private async humanClick(page: any, selector: string): Promise<void> {
+    const element = await page.$(selector);
+    if (!element) {
+      console.log(`⚠️ Elemento não encontrado: ${selector}`);
+      return;
+    }
+    
+    const box = await element.boundingBox();
+    if (!box) {
+      console.log(`⚠️ Não foi possível obter posição do elemento: ${selector}`);
+      return;
+    }
+    
+    // Calculate click position with slight randomness within element
+    const clickX = box.x + box.width / 2 + this.randomDelay(-5, 5);
+    const clickY = box.y + box.height / 2 + this.randomDelay(-5, 5);
+    
+    // Move to element
+    await this.humanMouseMove(page, clickX, clickY);
+    
+    // Small hesitation before click
+    await new Promise(resolve => setTimeout(resolve, this.randomDelay(100, 300)));
+    
+    // Click with random button down/up delay
+    await page.mouse.down();
+    await new Promise(resolve => setTimeout(resolve, this.randomDelay(50, 150)));
+    await page.mouse.up();
+  }
+
+  // Helper function to click at coordinates
+  private async humanClickAt(page: any, x: number, y: number): Promise<void> {
+    // Move to position
+    await this.humanMouseMove(page, x, y);
+    
+    // Small hesitation before click
+    await new Promise(resolve => setTimeout(resolve, this.randomDelay(100, 300)));
+    
+    // Click with random button down/up delay
+    await page.mouse.down();
+    await new Promise(resolve => setTimeout(resolve, this.randomDelay(50, 150)));
+    await page.mouse.up();
   }
 
   async generateIPTVWithHumanBehavior(): Promise<IPTVTestResult> {
@@ -177,9 +258,7 @@ export class OnlineOfficeService {
 
       const page = await browser.newPage();
       
-      // Create ghost cursor for humanized mouse movements
-      const cursor = createCursor(page);
-      console.log('👻 Ghost cursor criado para movimentos humanizados');
+      console.log('🖱️ Sistema de movimentos humanizados ativado');
       
       // Advanced anti-detection measures - CRÍTICO PARA BURLAR DETECÇÃO
       await page.evaluateOnNewDocument(() => {
@@ -378,13 +457,13 @@ export class OnlineOfficeService {
       await delay(this.randomDelay(3000, 5000));
       
       // Perform random mouse movements
-      await this.randomMouseMovements(page, cursor, this.randomDelay(2, 4));
+      await this.randomMouseMovements(page, this.randomDelay(2, 4));
       
       // Perform human-like scrolling
-      await this.humanScroll(page, cursor);
+      await this.humanScroll(page);
       
       // More random movements after scroll
-      await this.randomMouseMovements(page, cursor, 2);
+      await this.randomMouseMovements(page, 2);
       
       // Find the "Gerar IPTV" button
       console.log('🔍 Procurando botão "Gerar IPTV" de forma humanizada...');
@@ -424,14 +503,6 @@ export class OnlineOfficeService {
       
       console.log('🎯 Botão encontrado! Movendo mouse de forma humanizada...');
       
-      // Move mouse to button with natural curve
-      await cursor.move(buttonSelector);
-      
-      // Hesitate before clicking (human behavior)
-      const hesitationTime = this.randomDelay(300, 800);
-      console.log(`⏸️ Hesitando por ${hesitationTime}ms antes de clicar...`);
-      await delay(hesitationTime);
-      
       // Small random movement near button (overshoot simulation)
       const buttonBox = await page.evaluate((selector: string) => {
         const element = document.querySelector(selector);
@@ -449,14 +520,13 @@ export class OnlineOfficeService {
         // Move slightly away and back (overshoot)
         const overshootX = buttonBox.x + this.randomDelay(-20, 20);
         const overshootY = buttonBox.y + this.randomDelay(-20, 20);
-        await cursor.move({ x: overshootX, y: overshootY });
+        await this.humanMouseMove(page, overshootX, overshootY);
         await delay(this.randomDelay(100, 300));
-        await cursor.move(buttonSelector);
       }
       
-      // Click with ghost cursor
+      // Click with humanized movement
       console.log('🖱️ Clicando no botão com movimento humanizado...');
-      await cursor.click(buttonSelector);
+      await this.humanClick(page, buttonSelector);
       
       console.log('✅ Botão clicado!');
 
@@ -474,10 +544,9 @@ export class OnlineOfficeService {
         if (modalButton) {
           console.log(`📋 Modal ${i + 1} detectado, movendo mouse...`);
           
-          // Move to modal button naturally
-          await cursor.move('.swal2-confirm');
+          // Click modal button with humanized movement
           await delay(this.randomDelay(200, 500));
-          await cursor.click('.swal2-confirm');
+          await this.humanClick(page, '.swal2-confirm');
           
           console.log(`✅ Modal ${i + 1} confirmado`);
         }
@@ -487,7 +556,7 @@ export class OnlineOfficeService {
       console.log('⏳ Aguardando credenciais com movimentos aleatórios...');
       
       for (let i = 0; i < 3; i++) {
-        await this.randomMouseMovements(page, cursor, 1);
+        await this.randomMouseMovements(page, 1);
         await delay(this.randomDelay(1000, 1500));
       }
       
@@ -531,7 +600,7 @@ export class OnlineOfficeService {
       }
       
       // Final random movements before closing
-      await this.randomMouseMovements(page, cursor, 2);
+      await this.randomMouseMovements(page, 2);
       await delay(this.randomDelay(1000, 2000));
       
       return result;
