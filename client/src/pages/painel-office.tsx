@@ -141,6 +141,7 @@ export default function PainelOffice() {
   const [showSystemDialog, setShowSystemDialog] = useState(false);
   const [systemToDelete, setSystemToDelete] = useState<string | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
+  const [isGeneratingIPTV, setIsGeneratingIPTV] = useState(false);
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -543,70 +544,70 @@ export default function PainelOffice() {
               </div>
               <div className="flex gap-2">
                 <Button
-                  onClick={() => {
-                    // Try multiple methods to click the button
-                    try {
-                      const iframe = document.querySelector('iframe[title="OnlineOffice IPTV"]') as HTMLIFrameElement;
-                      if (iframe && iframe.contentWindow) {
-                        try {
-                          // Method 1: Direct access (will fail with CORS but we try)
-                          const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                          // Try multiple selectors
-                          let button = iframeDoc.querySelector('button.btn-outline-success') ||
-                                      iframeDoc.querySelector('button:contains("Gerar IPTV")') ||
-                                      iframeDoc.querySelector('[class*="btn"][class*="success"]');
-                          
-                          if (button) {
-                            (button as HTMLButtonElement).click();
-                            toast({
-                              title: "✅ Sucesso!",
-                              description: "Botão 'Gerar IPTV' clicado automaticamente",
-                              variant: "default",
-                            });
-                            return;
-                          }
-                        } catch (e) {
-                          // Expected CORS error, try other methods
-                        }
-
-                        // Method 2: Execute script in iframe context
-                        try {
-                          iframe.contentWindow.eval(`
-                            var btn = document.querySelector('button.btn-outline-success') || 
-                                     document.querySelector('button.btn.btn-outline-success.btn-sm');
-                            if (btn) btn.click();
-                          `);
-                          toast({
-                            title: "📡 Comando Enviado",
-                            description: "Tentando executar clique via script",
-                            variant: "default",
-                          });
-                        } catch (e) {
-                          // If eval fails, try postMessage
-                          iframe.contentWindow.postMessage({ 
-                            action: 'click',
-                            selector: 'button.btn-outline-success'
-                          }, '*');
-                        }
-                      }
-                    } catch (error) {
-                      console.error('Erro ao tentar clicar:', error);
-                    }
-                    
-                    // Always show instruction since CORS will likely block
+                  onClick={async () => {
+                    setIsGeneratingIPTV(true);
                     toast({
-                      title: "💡 Dica",
-                      description: "Se o clique automático não funcionar, clique manualmente no botão verde 'Gerar IPTV'",
+                      title: "🎭 Gerando IPTV...",
+                      description: "Aguarde, isso pode levar alguns segundos",
                       variant: "default",
                     });
+
+                    try {
+                      // Use the backend automation route
+                      const response = await fetch('/api/office/generate-human', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                      });
+
+                      const data = await response.json();
+
+                      if (data.success) {
+                        // Auto-fill the form if dialog is open
+                        if (showSystemDialog && !editingSystem) {
+                          systemForm.setValue('username', data.usuario);
+                          systemForm.setValue('password', data.senha);
+                        }
+
+                        toast({
+                          title: "✅ IPTV Gerado!",
+                          description: `Usuário: ${data.usuario} | Senha: ${data.senha}`,
+                          variant: "default",
+                        });
+
+                        // Also refresh the iframe to show the new test
+                        refreshIframe();
+                      } else {
+                        toast({
+                          title: "❌ Erro",
+                          description: data.message || "Erro ao gerar IPTV",
+                          variant: "destructive",
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Erro ao gerar IPTV:', error);
+                      toast({
+                        title: "❌ Erro",
+                        description: "Erro ao comunicar com o servidor",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsGeneratingIPTV(false);
+                    }
                   }}
                   variant="ghost"
                   size="sm"
                   className="text-green-400 hover:text-green-300 hover:bg-green-500/20 font-bold"
-                  title="Tentar clicar em 'Gerar IPTV'"
+                  title="Gerar IPTV automaticamente"
                   data-testid="button-auto-click"
+                  disabled={isGeneratingIPTV}
                 >
-                  C1
+                  {isGeneratingIPTV ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    'C1'
+                  )}
                 </Button>
                 <Button
                   onClick={refreshIframe}
