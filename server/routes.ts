@@ -33,6 +33,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
 import multer from "multer";
+import { execSync } from "child_process";
 
 // Helper function to get current date in Brazil timezone
 // IMPORTANT: This should NOT be used for saving to database!
@@ -5528,7 +5529,6 @@ Como posso ajudar você hoje?
       }
 
       // Use tar to create an archive since zip might not be available
-      const { execSync } = require('child_process');
       const tarPath = path.join(process.cwd(), 'chrome-extension.tar.gz');
       
       try {
