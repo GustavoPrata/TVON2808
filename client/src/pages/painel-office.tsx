@@ -44,54 +44,53 @@ export default function PainelOffice() {
   const [todayCount, setTodayCount] = useState(0);
   const [activeTab, setActiveTab] = useState('manual');
   const { toast } = useToast();
-  const ws = useWebSocket();
+  const wsContext = useWebSocket();
 
   // Check for extension messages via WebSocket
   useEffect(() => {
-    if (!ws) return;
+    if (!wsContext) return;
 
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'extension_connected') {
-          setExtensionConnected(true);
-          setLastExtensionSync(new Date());
-          toast({
-            title: "🔌 Extensão Conectada!",
-            description: "A extensão Chrome está pronta para uso",
-            variant: "default",
-          });
-        }
-        
-        if (data.type === 'extension_credentials') {
-          const newUser: IPTVUser = {
-            id: Date.now().toString(),
-            usuario: data.usuario,
-            senha: data.senha,
-            vencimento: data.vencimento || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
-            createdAt: new Date().toISOString(),
-            source: 'extension'
-          };
-          
-          setUsers(prev => [...prev, newUser]);
-          setLastExtensionSync(new Date());
-          setTodayCount(prev => prev + 1);
-          
-          toast({
-            title: "🎉 Credenciais da Extensão!",
-            description: `Usuário: ${data.usuario} | Senha: ${data.senha}`,
-            variant: "default",
-          });
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
+    const handleExtensionConnected = (data: any) => {
+      setExtensionConnected(true);
+      setLastExtensionSync(new Date());
+      toast({
+        title: "🔌 Extensão Conectada!",
+        description: "A extensão Chrome está pronta para uso",
+        variant: "default",
+      });
+    };
+    
+    const handleExtensionCredentials = (data: any) => {
+      const newUser: IPTVUser = {
+        id: Date.now().toString(),
+        usuario: data.usuario,
+        senha: data.senha,
+        vencimento: data.vencimento || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
+        createdAt: new Date().toISOString(),
+        source: 'extension'
+      };
+      
+      setUsers(prev => [...prev, newUser]);
+      setLastExtensionSync(new Date());
+      setTodayCount(prev => prev + 1);
+      
+      toast({
+        title: "🎉 Credenciais da Extensão!",
+        description: `Usuário: ${data.usuario} | Senha: ${data.senha}`,
+        variant: "default",
+      });
     };
 
-    ws.addEventListener('message', handleMessage);
-    return () => ws.removeEventListener('message', handleMessage);
-  }, [ws, toast]);
+    // Register message handlers
+    wsContext.onMessage('extension_connected', handleExtensionConnected);
+    wsContext.onMessage('extension_credentials', handleExtensionCredentials);
+
+    return () => {
+      // Clean up handlers on unmount
+      wsContext.offMessage('extension_connected');
+      wsContext.offMessage('extension_credentials');
+    };
+  }, [wsContext]);
 
   // Count today's credentials
   useEffect(() => {
