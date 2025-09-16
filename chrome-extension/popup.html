@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OnlineOffice IPTV Automator</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="icons/icon-48.png" alt="Icon" class="logo">
+      <h1>IPTV Automator</h1>
+    </div>
+    
+    <div class="status" id="status">
+      <div class="status-indicator" id="statusIndicator"></div>
+      <span id="statusText">Verificando conexão...</span>
+    </div>
+    
+    <div class="config-section">
+      <label for="serverUrl">URL do Servidor:</label>
+      <input type="text" id="serverUrl" placeholder="http://localhost:5000">
+      <button id="saveConfig" class="btn-secondary">Salvar Configuração</button>
+    </div>
+    
+    <div class="actions">
+      <button id="generateBtn" class="btn-primary" disabled>
+        <span class="icon">⚡</span>
+        Gerar Credenciais
+      </button>
+      
+      <label class="checkbox">
+        <input type="checkbox" id="autoGenerate">
+        <span>Geração Automática</span>
+      </label>
+    </div>
+    
+    <div class="credentials" id="credentialsSection" style="display: none;">
+      <h3>Últimas Credenciais Geradas:</h3>
+      <div class="credential-item">
+        <label>Usuário:</label>
+        <div class="credential-value">
+          <input type="text" id="username" readonly>
+          <button class="copy-btn" data-copy="username">📋</button>
+        </div>
+      </div>
+      <div class="credential-item">
+        <label>Senha:</label>
+        <div class="credential-value">
+          <input type="text" id="password" readonly>
+          <button class="copy-btn" data-copy="password">📋</button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="log" id="log">
+      <h3>Log de Atividades:</h3>
+      <div id="logContent" class="log-content"></div>
+    </div>
+    
+    <div class="footer">
+      <p>Para usar esta extensão:</p>
+      <ol>
+        <li>Acesse <a href="https://onlineoffice.zip" target="_blank">onlineoffice.zip</a></li>
+        <li>Faça login em sua conta</li>
+        <li>Navegue até a página de geração IPTV</li>
+        <li>Clique em "Gerar Credenciais"</li>
+      </ol>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
