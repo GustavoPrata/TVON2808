@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import {
@@ -30,14 +30,6 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -576,25 +568,35 @@ export default function PainelOffice() {
         </Card>
       </div>
 
-      {/* System Dialog - Positioned to the left to not overlap iframe */}
-      <Dialog open={showSystemDialog} onOpenChange={setShowSystemDialog}>
-        <DialogContent 
-          className="bg-dark-card border-slate-700 !left-[25%] !translate-x-[-50%] max-w-md"
-          style={{ 
-            position: 'fixed',
-            left: '20%',
-            transform: 'translateX(-50%) translateY(-50%)',
-          }}>
-          <DialogHeader>
-            <DialogTitle className="text-lg">
+      {/* Custom System Modal - No overlay, allows interaction with iframe */}
+      {showSystemDialog && (
+        <div 
+          className="fixed bg-dark-card border border-slate-700 rounded-lg shadow-2xl p-6 max-w-md"
+          style={{
+            left: '50px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 999,
+          }}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setShowSystemDialog(false)}
+            className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 transition-opacity"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold">
               {editingSystem ? 'Editar Sistema' : 'Novo Sistema'}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
               {editingSystem 
                 ? `Editando sistema ID: ${editingSystem.system_id}`
                 : 'Adicione um novo sistema IPTV'}
-            </DialogDescription>
-          </DialogHeader>
+            </p>
+          </div>
           
           <form onSubmit={systemForm.handleSubmit(handleSystemSubmit)} className="space-y-4">
             <div className="space-y-2">
@@ -638,7 +640,7 @@ export default function PainelOffice() {
               <p className="text-xs text-slate-500">Limite máximo de pontos que este sistema pode ter ativos</p>
             </div>
             
-            <DialogFooter>
+            <div className="flex justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -665,10 +667,10 @@ export default function PainelOffice() {
                   </>
                 )}
               </Button>
-            </DialogFooter>
+            </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!systemToDelete} onOpenChange={() => setSystemToDelete(null)}>
