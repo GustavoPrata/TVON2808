@@ -545,17 +545,73 @@ export default function PainelOffice() {
               <div className="flex gap-2">
                 <Button
                   onClick={() => {
-                    toast({
-                      title: "💡 Instruções",
-                      description: "Por favor, clique manualmente no botão verde 'Gerar IPTV' no iframe abaixo. Depois copie as credenciais e use Ctrl+V no modal.",
-                      variant: "default",
-                    });
+                    const iframe = document.getElementById('office-iframe') as HTMLIFrameElement;
+                    if (!iframe) {
+                      toast({
+                        title: "❌ Erro",
+                        description: "Iframe não encontrado",
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+                    
+                    try {
+                      // Try to access iframe content (works if proxy is successful)
+                      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+                      if (!iframeDoc) {
+                        toast({
+                          title: "⏳ Aguarde",
+                          description: "Aguarde o OnlineOffice carregar completamente",
+                          variant: "default",
+                        });
+                        return;
+                      }
+                      
+                      // Find button by class or text
+                      const buttons = iframeDoc.querySelectorAll('button');
+                      let gerarIptvBtn = null;
+                      
+                      for (const button of buttons) {
+                        const btnText = button.textContent?.trim() || '';
+                        const btnClass = button.className || '';
+                        
+                        // Look for the "Gerar IPTV" button
+                        if (btnText.includes('Gerar IPTV') || 
+                            btnClass.includes('btn-outline-success') ||
+                            btnClass.includes('btn-success')) {
+                          gerarIptvBtn = button as HTMLButtonElement;
+                          break;
+                        }
+                      }
+                      
+                      if (gerarIptvBtn) {
+                        gerarIptvBtn.click();
+                        toast({
+                          title: "✅ Sucesso!",
+                          description: "Botão 'Gerar IPTV' foi clicado! Aguarde o modal abrir.",
+                          variant: "default",
+                        });
+                      } else {
+                        toast({
+                          title: "⚠️ Aviso",
+                          description: "Botão 'Gerar IPTV' não encontrado. Certifique-se de que a página carregou.",
+                          variant: "default",
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Erro ao acessar iframe:', error);
+                      toast({
+                        title: "⚠️ Proxy em carregamento",
+                        description: "Aguarde alguns segundos e tente novamente.",
+                        variant: "default",
+                      });
+                    }
                   }}
                   variant="ghost"
                   size="sm"
                   className="text-green-400 hover:text-green-300 hover:bg-green-500/20 font-bold"
-                  title="Instruções para gerar IPTV"
-                  data-testid="button-instructions"
+                  title="Clicar automaticamente no botão 'Gerar IPTV'"
+                  data-testid="button-auto-click"
                 >
                   C1
                 </Button>
@@ -576,12 +632,14 @@ export default function PainelOffice() {
             <div className="h-full bg-black rounded-b-lg">
               <iframe
                 key={iframeKey}
-                src="https://onlineoffice.zip"
+                src="/office-proxy/"
                 className="w-full h-full border-0 rounded-b-lg"
                 title="OnlineOffice IPTV"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                 data-testid="iframe-onlineoffice"
                 id="office-iframe"
+                onLoad={() => {
+                  console.log('Iframe loaded');
+                }}
               />
             </div>
           </CardContent>

@@ -139,26 +139,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await initAdmin();
   
   // Setup proxy for OnlineOffice to bypass CORS
-  app.use('/office-proxy', createProxyMiddleware({
+  const officeProxy = createProxyMiddleware({
     target: 'https://onlineoffice.zip',
     changeOrigin: true,
-    pathRewrite: {
-      '^/office-proxy': '', // Remove /office-proxy from the path
-    },
-    onProxyReq: (proxyReq, req, res) => {
-      // Log the request for debugging
-      console.log('Proxying:', req.url, 'to', 'https://onlineoffice.zip' + req.url);
-    },
+    secure: false,
     onProxyRes: (proxyRes, req, res) => {
       // Remove headers that prevent iframe embedding
       delete proxyRes.headers['x-frame-options'];
       delete proxyRes.headers['content-security-policy'];
-      // Add CORS headers
+      delete proxyRes.headers['x-content-type-options'];
+      
+      // Add permissive CORS headers
       proxyRes.headers['access-control-allow-origin'] = '*';
+      proxyRes.headers['access-control-allow-methods'] = '*';
+      proxyRes.headers['access-control-allow-headers'] = '*';
+      proxyRes.headers['access-control-allow-credentials'] = 'true';
     },
-    secure: false, // Allow self-signed certificates
-    ws: true, // Enable WebSocket proxy
-  }));
+    followRedirects: true,
+    logLevel: 'warn',
+  });
+  
+  app.use('/office-proxy', officeProxy);
   
   // Configure session middleware
   const MemoryStoreSession = (MemoryStore as any)(session);
