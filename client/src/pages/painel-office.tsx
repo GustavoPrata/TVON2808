@@ -632,13 +632,13 @@ export default function PainelOffice() {
             <div className="h-full bg-black rounded-b-lg">
               <iframe
                 key={iframeKey}
-                src="/office-proxy/"
+                src="https://onlineoffice.zip/#/dashboard"
                 className="w-full h-full border-0 rounded-b-lg"
                 title="OnlineOffice IPTV"
                 data-testid="iframe-onlineoffice"
                 id="office-iframe"
                 onLoad={() => {
-                  console.log('Iframe loaded');
+                  console.log('Iframe loaded - OnlineOffice Dashboard');
                 }}
               />
             </div>
