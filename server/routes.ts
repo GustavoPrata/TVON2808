@@ -5511,6 +5511,125 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Download Chrome Extension for OnlineOffice IPTV
+  app.get("/api/office/download-extension", async (req, res) => {
+    try {
+      const extensionPath = path.join(process.cwd(), 'chrome-extension');
+      
+      // Check if extension directory exists
+      try {
+        await fs.access(extensionPath);
+      } catch {
+        return res.status(404).json({
+          success: false,
+          message: "Extensão não encontrada",
+          error: "A pasta chrome-extension não existe"
+        });
+      }
+
+      // Use tar to create an archive since zip might not be available
+      const { execSync } = require('child_process');
+      const tarPath = path.join(process.cwd(), 'chrome-extension.tar.gz');
+      
+      try {
+        // Create tar.gz file
+        execSync(`tar -czf ${tarPath} -C ${process.cwd()} chrome-extension`);
+        
+        // Read the tar file
+        const tarData = await fs.readFile(tarPath);
+        
+        // Clean up the temporary file
+        await fs.unlink(tarPath);
+        
+        // Send the file
+        res.setHeader('Content-Type', 'application/gzip');
+        res.setHeader('Content-Disposition', 'attachment; filename="onlineoffice-chrome-extension.tar.gz"');
+        return res.send(tarData);
+        
+      } catch (tarError) {
+        console.error("Erro ao criar arquivo tar:", tarError);
+        
+        // If tar doesn't work, provide manual download instructions
+        return res.json({
+          success: false,
+          message: "Download automático não disponível",
+          instructions: [
+            "Por favor, faça o download manual dos arquivos:",
+            "1. Acesse a pasta 'chrome-extension' no projeto",
+            "2. Baixe todos os arquivos manualmente",
+            "3. Crie uma pasta local e coloque os arquivos",
+            "4. Siga as instruções de instalação no painel"
+          ],
+          files: [
+            "manifest.json",
+            "content.js",
+            "popup.html",
+            "popup.js",
+            "popup.css",
+            "background.js",
+            "icons/*"
+          ]
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao preparar download da extensão:', error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao preparar download da extensão",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
+  // Save credentials from Chrome Extension
+  app.post("/api/office/save-credentials", async (req, res) => {
+    try {
+      const { usuario, senha, vencimento, source } = req.body;
+      
+      if (!usuario || !senha) {
+        return res.status(400).json({
+          success: false,
+          message: "Usuário e senha são obrigatórios"
+        });
+      }
+      
+      console.log(`📥 Credenciais recebidas da ${source || 'aplicação'}:`, { usuario, vencimento });
+      
+      // Here you would save to database if needed
+      // For now, just broadcast via WebSocket to update UI
+      const wsMessage = JSON.stringify({
+        type: 'extension_credentials',
+        usuario,
+        senha,
+        vencimento: vencimento || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
+        source: source || 'manual',
+        timestamp: new Date().toISOString()
+      });
+      
+      // Broadcast to all connected WebSocket clients
+      wss.clients.forEach((client: WebSocket) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(wsMessage);
+        }
+      });
+      
+      res.json({
+        success: true,
+        message: "Credenciais salvas com sucesso",
+        data: { usuario, vencimento }
+      });
+      
+    } catch (error) {
+      console.error('❌ Erro ao salvar credenciais:', error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao salvar credenciais",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
   app.get("/api/sync/details", async (req, res) => {
     try {
       // Get local systems
