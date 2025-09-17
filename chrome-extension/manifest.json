@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "OnlineOffice IPTV Automator",
-  "version": "1.0.0",
-  "description": "Automatiza a geração de credenciais IPTV no OnlineOffice",
+  "name": "OnlineOffice IPTV Automator - Simplified",
+  "version": "2.0.0",
+  "description": "Automatiza geração de credenciais IPTV de forma simples e direta",
   "permissions": [
     "activeTab",
     "storage",
@@ -11,30 +11,27 @@
   ],
   "host_permissions": [
     "https://onlineoffice.zip/*",
+    "https://*.onlineoffice.zip/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
     "https://tv-on.site/*",
-    "http://localhost:5000/*",
-    "https://*.repl.co/*",
     "https://*.replit.dev/*",
     "https://*.replit.app/*"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
       "matches": [
         "https://onlineoffice.zip/*",
+        "https://*.onlineoffice.zip/*",
         "http://localhost/*",
         "http://127.0.0.1/*",
-        "https://tv-on.site/*",
-        "https://*.repl.co/*",
-        "https://*.replit.dev/*",
-        "https://*.replit.app/*",
-        "https://*.worf.replit.dev/*"
+        "https://*.replit.dev/*"
       ],
       "js": ["content.js"],
-      "run_at": "document_end"
+      "run_at": "document_idle"
     }
   ],
   "action": {
@@ -49,11 +46,5 @@
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["icons/*"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  }
 }
