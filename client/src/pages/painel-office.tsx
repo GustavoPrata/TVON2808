@@ -169,7 +169,7 @@ export default function PainelOffice() {
   });
 
   // Fetch extension config
-  const { data: configData } = useQuery({
+  const { data: configData } = useQuery<{ config: typeof extensionConfig }>({
     queryKey: ['/api/office/extension-config'],
   });
 
@@ -185,7 +185,7 @@ export default function PainelOffice() {
   });
 
   useEffect(() => {
-    if (configData?.config) {
+    if (configData && configData.config) {
       setExtensionConfig(configData.config);
     }
   }, [configData]);
@@ -521,9 +521,11 @@ export default function PainelOffice() {
       </div>
 
       {/* Main Content - Split Layout */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
-        {/* Left Side - Systems Management */}
-        <Card className="bg-dark-card border-slate-700 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-y-auto">
+        {/* Top Section - Systems and OnlineOffice */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Left Side - Systems Management */}
+          <Card className="bg-dark-card border-slate-700 flex flex-col" style={{ height: '500px' }}>
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -607,24 +609,80 @@ export default function PainelOffice() {
           </CardContent>
         </Card>
 
-        {/* Middle - Extension Configuration */}
-        <Card className="bg-dark-card border-slate-700 flex flex-col min-h-0">
+          {/* Right Side - OnlineOffice Iframe */}
+          <Card className="bg-dark-card border-slate-700 flex flex-col" style={{ height: '500px' }}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Monitor className="w-5 h-5 text-blue-400" />
+                  OnlineOffice.zip
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Interface visual para gerenciamento IPTV
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={downloadExtension}
+                  variant="ghost"
+                  size="sm"
+                  className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/20"
+                  data-testid="button-download-extension"
+                  title="Baixar extensão Chrome"
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={refreshIframe}
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                  data-testid="button-refresh-iframe"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
+            <div className="h-full bg-black rounded-b-lg">
+              <iframe
+                key={iframeKey}
+                src="https://onlineoffice.zip/#/dashboard"
+                className="w-full h-full border-0 rounded-b-lg"
+                title="OnlineOffice IPTV"
+                data-testid="iframe-onlineoffice"
+                id="office-iframe"
+                onLoad={() => {
+                  console.log('Iframe loaded - OnlineOffice Dashboard');
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        </div>
+
+        {/* Bottom Section - Extension Configuration */}
+        <Card className="bg-dark-card border-slate-700">
           <CardHeader className="pb-4">
             <div>
               <CardTitle className="text-xl flex items-center gap-2">
                 <Chrome className="w-5 h-5 text-green-400" />
-                Extensão Chrome
+                Configuração da Extensão Chrome
               </CardTitle>
               <CardDescription className="text-xs">
-                Configure a automação de geração de credenciais
+                Configure a automação de geração de credenciais IPTV
               </CardDescription>
             </div>
           </CardHeader>
           
-          <CardContent className="flex-1 overflow-y-auto">
-            {/* Automation Controls */}
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Automation Controls - Left Column */}
+              <div className="space-y-4">
+                <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
                 <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
                   <Settings className="w-4 h-4" />
                   Configuração da Automação
@@ -749,8 +807,10 @@ export default function PainelOffice() {
                   </Button>
                 </div>
               </div>
+            </div>
               
-              {/* Recent Credentials */}
+            {/* Recent Credentials - Right Column */}
+            <div className="space-y-4">
               <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
                 <h3 className="text-sm font-semibold text-white mb-3 flex items-center justify-between">
                   <span className="flex items-center gap-2">
@@ -800,60 +860,7 @@ export default function PainelOffice() {
                 )}
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Right Side - OnlineOffice Iframe */}
-        <Card className="bg-dark-card border-slate-700 flex flex-col min-h-0">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <Monitor className="w-5 h-5 text-blue-400" />
-                  OnlineOffice.zip
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Interface visual para gerenciamento IPTV
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={downloadExtension}
-                  variant="ghost"
-                  size="sm"
-                  className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/20"
-                  data-testid="button-download-extension"
-                  title="Baixar extensão Chrome"
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={refreshIframe}
-                  variant="ghost"
-                  size="sm"
-                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
-                  data-testid="button-refresh-iframe"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          
-          <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
-            <div className="h-full bg-black rounded-b-lg">
-              <iframe
-                key={iframeKey}
-                src="https://onlineoffice.zip/#/dashboard"
-                className="w-full h-full border-0 rounded-b-lg"
-                title="OnlineOffice IPTV"
-                data-testid="iframe-onlineoffice"
-                id="office-iframe"
-                onLoad={() => {
-                  console.log('Iframe loaded - OnlineOffice Dashboard');
-                }}
-              />
-            </div>
+          </div>
           </CardContent>
         </Card>
       </div>
