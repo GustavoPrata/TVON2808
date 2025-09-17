@@ -234,6 +234,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // CORS middleware for Chrome Extension endpoints - MUST be before auth middleware
+  app.use((req, res, next) => {
+    // Handle CORS for extension endpoints
+    if (req.path === '/api/office/credentials' || req.path === '/api/office/save-credentials') {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      
+      // Handle preflight OPTIONS requests
+      if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+      }
+    }
+    next();
+  });
+
   // Apply auth middleware to all API routes except login routes
   app.use("/api/*", (req, res, next) => {
     const publicPaths = ['/api/login', '/api/logout', '/api/auth/status', '/api/pix/webhook', '/api/pix/debug/pagamentos-manual', '/api/pix/test-webhook', '/api/office/save-credentials', '/api/office/credentials'];
