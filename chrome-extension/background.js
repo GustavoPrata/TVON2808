@@ -155,10 +155,10 @@ async function generateBatch() {
       }
     }
     
-    // Aguarda entre gerações (TEMPO MAIOR PARA NÃO SOBREPOR)
+    // Aguarda entre gerações (TEMPO OTIMIZADO)
     if (i < automationState.batchSize - 1) {
-      console.log('⏳ Aguardando 10 segundos antes da próxima...');
-      await new Promise(resolve => setTimeout(resolve, 10000)); // 10 segundos entre cada geração
+      console.log('⏳ Aguardando 5 segundos antes da próxima...');
+      await new Promise(resolve => setTimeout(resolve, 5000)); // 5 segundos entre cada geração
     }
   }
   
