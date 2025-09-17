@@ -1,0 +1,114 @@
+chunk-vendors.8173f88a.js:182 WebSocket connection to 'wss://wpp.gesapioffice.com/app-ws/app/aBxktpsxD6AfRd2jQXC8?protocol=7&client=js&version=8.4.0&flash=false' failed: 
+createWebSocket @ chunk-vendors.8173f88a.js:182
+content.js:2 OnlineOffice IPTV Automator: Content script loaded
+content.js:455 OnlineOffice IPTV Automator ready on: https://onlineoffice.zip/#/users-iptv
+content.js:19 Configuration loaded: Object
+chunk-vendors.8173f88a.js:182 WebSocket connection to 'wss://wpp.gesapioffice.com/app-ws/app/aBxktpsxD6AfRd2jQXC8?protocol=7&client=js&version=8.4.0&flash=false' failed: 
+createWebSocket @ chunk-vendors.8173f88a.js:182
+chunk-vendors.8173f88a.js:182 WebSocket connection to 'wss://wpp.gesapioffice.com/app-ws/app/aBxktpsxD6AfRd2jQXC8?protocol=7&client=js&version=8.4.0&flash=false' failed: 
+createWebSocket @ chunk-vendors.8173f88a.js:182
+content.js:60 Message received: Object
+content.js:60 Message received: Object
+content.js:319 Generating single credential...
+content.js:144 Starting generation sequence...
+content.js:147 Step 1: Looking for "Gerar IPTV" button...
+content.js:150 Clicked "Gerar IPTV" button
+content.js:153 Step 2: Waiting for first "Confirmar" button...
+content.js:157 Clicked first "Confirmar" button
+content.js:160 Step 3: Waiting for second "Confirmar" button...
+content.js:164 Clicked second "Confirmar" button
+content.js:167 Step 4: Waiting 5 seconds for credentials...
+content.js:60 Message received: Object
+content.js:171 Step 5: Extracting credentials from modal...
+content.js:200 Checking modal text: Estender Usuário×15 dias - 0.6 Créditos1 mês - 1 Crédito2 meses - 2 Créditos3 meses - 3 Créditos4 meses - 4 Créditos6 meses - 5 Créditos (Promoção)12 meses - 10 Créditos (Promoção) Estender 
+content.js:200 Checking modal text: 15 dias - 0.6 Créditos1 mês - 1 Crédito2 meses - 2 Créditos3 meses - 3 Créditos4 meses - 4 Créditos6 meses - 5 Créditos (Promoção)12 meses - 10 Créditos (Promoção) Estender 
+content.js:200 Checking modal text: Editar Usuário×Brasil +55+55Preencha somente numeros, whatsapp 5511911111111Pacote Pronto.::MANTÉM PLANO ATUAL::.Completo com adultosCompleto sem adultosPacote SSIPTV + AdultosRadioCompleto sem 4k Edi
+content.js:200 Checking modal text: Brasil +55+55Preencha somente numeros, whatsapp 5511911111111Pacote Pronto.::MANTÉM PLANO ATUAL::.Completo com adultosCompleto sem adultosPacote SSIPTV + AdultosRadioCompleto sem 4k Editar 
+content.js:200 Checking modal text: Editar Vencimento do Usuário× Data de vencimento Atual: Nova data de vencimento a retroceder, não é possível desfazer a remoção Editar 
+content.js:200 Checking modal text:  Data de vencimento Atual: Nova data de vencimento a retroceder, não é possível desfazer a remoção Editar 
+content.js:200 Checking modal text: ×Seja bem vindo!USUÁRIO:  SENHA:  VENCIMENTO:  LINK (M3U8): LINK (M3U8) HLS SENCURTADO: LINK (M3U8) MPEGTS: LINK (M3U8) MPEGTS ENCURTADO: LINK SSIPTV (M3U8): LINK SSIPTV (M3U8) ENCURTADO:  APROVEITE! 
+content.js:178 Credentials extracted successfully: Object
+content.js:289 [Extension] Sending credentials to server: https://tv-on.site
+/#/users-iptv:1 Access to fetch at 'https://tv-on.site/api/office/credentials' from origin 'https://onlineoffice.zip' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+tv-on.site/api/office/credentials:1  Failed to load resource: net::ERR_FAILED
+content.js:311 Error sending to server: TypeError: Failed to fetch
+    at sendCredentialsToServer (content.js:290:28)
+    at generateSingleCredential (content.js:325:32)
+sendCredentialsToServer @ content.js:311
+content.js:341 Error generating credential: TypeError: Failed to fetch
+    at sendCredentialsToServer (content.js:290:28)
+    at generateSingleCredential (content.js:325:32)
+generateSingleCredential @ content.js:341
+chunk-vendors.8173f88a.js:182 WebSocket connection to 'wss://wpp.gesapioffice.com/app-ws/app/aBxktpsxD6AfRd2jQXC8?protocol=7&client=js&version=8.4.0&flash=false' failed: 
+createWebSocket @ chunk-vendors.8173f88a.js:182
+getSocket @ chunk-vendors.8173f88a.js:182
+connect @ chunk-vendors.8173f88a.js:182
+i @ chunk-vendors.8173f88a.js:182
+emit @ chunk-vendors.8173f88a.js:182
+changeState @ chunk-vendors.8173f88a.js:182
+Lt @ chunk-vendors.8173f88a.js:182
+connect @ chunk-vendors.8173f88a.js:182
+tryStrategy @ chunk-vendors.8173f88a.js:182
+o @ chunk-vendors.8173f88a.js:182
+(anonymous) @ chunk-vendors.8173f88a.js:182
+(anonymous) @ chunk-vendors.8173f88a.js:182
+(anonymous) @ chunk-vendors.8173f88a.js:182
+chunk-vendors.8173f88a.js:182 WebSocket connection to 'wss://wpp.gesapioffice.com/app-ws/app/aBxktpsxD6AfRd2jQXC8?protocol=7&client=js&version=8.4.0&flash=false' failed: 
+createWebSocket @ chunk-vendors.8173f88a.js:182
+getSocket @ chunk-vendors.8173f88a.js:182
+connect @ chunk-vendors.8173f88a.js:182
+i @ chunk-vendors.8173f88a.js:182
+emit @ chunk-vendors.8173f88a.js:182
+changeState @ chunk-vendors.8173f88a.js:182
+Lt @ chunk-vendors.8173f88a.js:182
+connect @ chunk-vendors.8173f88a.js:182
+tryStrategy @ chunk-vendors.8173f88a.js:182
+o @ chunk-vendors.8173f88a.js:182
+(anonymous) @ chunk-vendors.8173f88a.js:182
+(anonymous) @ chunk-vendors.8173f88a.js:182
+(anonymous) @ chunk-vendors.8173f88a.js:182
+content.js:60 Message received: Object
+content.js:60 Message received: Object
+content.js:319 Generating single credential...
+content.js:144 Starting generation sequence...
+content.js:147 Step 1: Looking for "Gerar IPTV" button...
+content.js:150 Clicked "Gerar IPTV" button
+content.js:153 Step 2: Waiting for first "Confirmar" button...
+content.js:157 Clicked first "Confirmar" button
+content.js:160 Step 3: Waiting for second "Confirmar" button...
+content.js:164 Clicked second "Confirmar" button
+content.js:167 Step 4: Waiting 5 seconds for credentials...
+content.js:171 Step 5: Extracting credentials from modal...
+content.js:200 Checking modal text: Estender Usuário×15 dias - 0.6 Créditos1 mês - 1 Crédito2 meses - 2 Créditos3 meses - 3 Créditos4 meses - 4 Créditos6 meses - 5 Créditos (Promoção)12 meses - 10 Créditos (Promoção) Estender 
+content.js:200 Checking modal text: 15 dias - 0.6 Créditos1 mês - 1 Crédito2 meses - 2 Créditos3 meses - 3 Créditos4 meses - 4 Créditos6 meses - 5 Créditos (Promoção)12 meses - 10 Créditos (Promoção) Estender 
+content.js:200 Checking modal text: Editar Usuário×Brasil +55+55Preencha somente numeros, whatsapp 5511911111111Pacote Pronto.::MANTÉM PLANO ATUAL::.Completo com adultosCompleto sem adultosPacote SSIPTV + AdultosRadioCompleto sem 4k Edi
+content.js:200 Checking modal text: Brasil +55+55Preencha somente numeros, whatsapp 5511911111111Pacote Pronto.::MANTÉM PLANO ATUAL::.Completo com adultosCompleto sem adultosPacote SSIPTV + AdultosRadioCompleto sem 4k Editar 
+content.js:200 Checking modal text: Editar Vencimento do Usuário× Data de vencimento Atual: Nova data de vencimento a retroceder, não é possível desfazer a remoção Editar 
+content.js:200 Checking modal text:  Data de vencimento Atual: Nova data de vencimento a retroceder, não é possível desfazer a remoção Editar 
+content.js:200 Checking modal text: ×Seja bem vindo!USUÁRIO:  SENHA:  VENCIMENTO:  LINK (M3U8): LINK (M3U8) HLS SENCURTADO: LINK (M3U8) MPEGTS: LINK (M3U8) MPEGTS ENCURTADO: LINK SSIPTV (M3U8): LINK SSIPTV (M3U8) ENCURTADO:  APROVEITE! 
+content.js:178 Credentials extracted successfully: Object
+content.js:289 [Extension] Sending credentials to server: https://tv-on.site
+/#/users-iptv:1 Access to fetch at 'https://tv-on.site/api/office/credentials' from origin 'https://onlineoffice.zip' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+tv-on.site/api/office/credentials:1  Failed to load resource: net::ERR_FAILED
+content.js:311 Error sending to server: TypeError: Failed to fetch
+    at sendCredentialsToServer (content.js:290:28)
+    at generateSingleCredential (content.js:325:32)
+sendCredentialsToServer @ content.js:311
+content.js:341 Error generating credential: TypeError: Failed to fetch
+    at sendCredentialsToServer (content.js:290:28)
+    at generateSingleCredential (content.js:325:32)
+generateSingleCredential @ content.js:341
+chunk-vendors.8173f88a.js:182 WebSocket connection to 'wss://wpp.gesapioffice.com/app-ws/app/aBxktpsxD6AfRd2jQXC8?protocol=7&client=js&version=8.4.0&flash=false' failed: 
+createWebSocket @ chunk-vendors.8173f88a.js:182
+getSocket @ chunk-vendors.8173f88a.js:182
+connect @ chunk-vendors.8173f88a.js:182
+i @ chunk-vendors.8173f88a.js:182
+emit @ chunk-vendors.8173f88a.js:182
+changeState @ chunk-vendors.8173f88a.js:182
+Lt @ chunk-vendors.8173f88a.js:182
+connect @ chunk-vendors.8173f88a.js:182
+tryStrategy @ chunk-vendors.8173f88a.js:182
+o @ chunk-vendors.8173f88a.js:182
+(anonymous) @ chunk-vendors.8173f88a.js:182
+(anonymous) @ chunk-vendors.8173f88a.js:182
+(anonymous) @ chunk-vendors.8173f88a.js:182
