@@ -22,14 +22,37 @@ chrome.storage.sync.get(['serverUrl', 'automationConfig'], (result) => {
 // Get current domain for API calls
 function getCurrentDomain() {
   const hostname = window.location.hostname;
-  if (hostname.includes('localhost')) {
-    return 'http://localhost:5000';
-  } else if (hostname.includes('replit.app') || hostname.includes('replit.dev')) {
-    return window.location.origin;
-  } else if (hostname.includes('tv-on.site')) {
+  
+  // When on OnlineOffice site, use the stored server URL or default
+  if (hostname.includes('onlineoffice')) {
+    // Try to get from storage first
+    if (CONFIG.serverUrl) {
+      return CONFIG.serverUrl;
+    }
+    // Default to tv-on.site if not configured
     return 'https://tv-on.site';
   }
-  return window.location.origin;
+  
+  // When testing locally
+  if (hostname.includes('localhost')) {
+    return 'http://localhost:5000';
+  }
+  
+  // When on Replit domains
+  if (hostname.includes('replit.app') || hostname.includes('replit.dev')) {
+    // Get the actual Replit server origin, not the current page origin
+    const origin = window.location.origin;
+    // If we're on a Replit domain, it's likely the server URL
+    return origin;
+  }
+  
+  // When on tv-on.site
+  if (hostname.includes('tv-on.site')) {
+    return 'https://tv-on.site';
+  }
+  
+  // Default: Use stored server URL or current origin
+  return CONFIG.serverUrl || window.location.origin;
 }
 
 // Listen for messages from popup/background
@@ -261,7 +284,9 @@ async function extractCredentialsFromModal() {
 // Send credentials to server
 async function sendCredentialsToServer(credentials) {
   try {
-    const serverUrl = CONFIG.serverUrl || getCurrentDomain();
+    // Always prefer CONFIG.serverUrl if it's set
+    const serverUrl = CONFIG.serverUrl ? CONFIG.serverUrl : getCurrentDomain();
+    console.log('[Extension] Sending credentials to server:', serverUrl);
     const response = await fetch(`${serverUrl}/api/office/credentials`, {
       method: 'POST',
       headers: {

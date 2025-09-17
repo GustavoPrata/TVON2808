@@ -247,6 +247,39 @@ export async function initDatabase() {
       CREATE INDEX IF NOT EXISTS idx_indicacoes_codigo ON indicacoes(codigo_indicacao);
     `);
     
+    // Create office_extension_config table for Chrome extension configuration
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS office_extension_config (
+        id SERIAL PRIMARY KEY,
+        automation_enabled BOOLEAN DEFAULT false,
+        quantity_to_generate INTEGER DEFAULT 10,
+        total_generated INTEGER DEFAULT 0,
+        interval_value INTEGER DEFAULT 10,
+        interval_unit VARCHAR(10) DEFAULT 'minutes',
+        current_sistema_index INTEGER DEFAULT 0,
+        last_run TIMESTAMP,
+        next_run TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Create office_credentials table for storing generated credentials
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS office_credentials (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        sistema_id INTEGER REFERENCES sistemas(id),
+        generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        source VARCHAR(50) DEFAULT 'extension',
+        status VARCHAR(50) DEFAULT 'active',
+        usado_by_ponto_id INTEGER REFERENCES pontos(id),
+        used_at TIMESTAMP,
+        expires_at TIMESTAMP
+      )
+    `);
+    
     console.log("Database tables initialized successfully");
   } catch (error) {
     console.error("Error initializing database:", error);

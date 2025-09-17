@@ -30,7 +30,7 @@ import {
   officeCredentials,
 } from "@shared/schema";
 import { z } from "zod";
-import { asc, sql, eq, and } from "drizzle-orm";
+import { asc, desc, sql, eq, and } from "drizzle-orm";
 import ffmpeg from "fluent-ffmpeg";
 import { promises as fs } from "fs";
 import path from "path";
@@ -236,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Apply auth middleware to all API routes except login routes
   app.use("/api/*", (req, res, next) => {
-    const publicPaths = ['/api/login', '/api/logout', '/api/auth/status', '/api/pix/webhook', '/api/pix/debug/pagamentos-manual', '/api/pix/test-webhook', '/api/office/save-credentials'];
+    const publicPaths = ['/api/login', '/api/logout', '/api/auth/status', '/api/pix/webhook', '/api/pix/debug/pagamentos-manual', '/api/pix/test-webhook', '/api/office/save-credentials', '/api/office/credentials'];
     // Use originalUrl to get the full path including /api prefix
     const fullPath = req.originalUrl.split('?')[0]; // Remove query params if any
     if (publicPaths.includes(fullPath)) {
@@ -5703,6 +5703,14 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Handle CORS preflight for Chrome Extension
+  app.options("/api/office/credentials", (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.sendStatus(200);
+  });
+
   // Chrome Extension API endpoint for receiving credentials
   app.post("/api/office/credentials", async (req, res) => {
     try {
@@ -5897,7 +5905,7 @@ Como posso ajudar você hoje?
       })
       .from(officeCredentials)
       .leftJoin(sistemas, eq(officeCredentials.sistemaId, sistemas.id))
-      .orderBy(officeCredentials.generatedAt.desc())
+      .orderBy(desc(officeCredentials.generatedAt))
       .limit(50);
       
       res.json({ success: true, credentials });
