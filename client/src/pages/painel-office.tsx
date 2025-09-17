@@ -174,13 +174,16 @@ export default function PainelOffice() {
   });
 
   // Fetch recent credentials
-  const { data: credentialsHistory = [], refetch: refetchCredentials } = useQuery<Array<{
-    id: number;
-    username: string;
-    password: string;
-    generatedAt: string;
-    source: string;
-  }>>({
+  const { data: credentialsData, refetch: refetchCredentials } = useQuery<{
+    success: boolean;
+    credentials: Array<{
+      id: number;
+      username: string;
+      password: string;
+      generatedAt: string;
+      source: string;
+    }>;
+  }>({
     queryKey: ['/api/office/credentials-history'],
   });
 
@@ -191,10 +194,10 @@ export default function PainelOffice() {
   }, [configData]);
 
   useEffect(() => {
-    if (credentialsHistory) {
-      setRecentCredentials(credentialsHistory.slice(0, 5));
+    if (credentialsData && credentialsData.credentials) {
+      setRecentCredentials(credentialsData.credentials.slice(0, 5));
     }
-  }, [credentialsHistory]);
+  }, [credentialsData]);
 
   const systemForm = useForm<SystemForm>({
     resolver: zodResolver(systemSchema),
