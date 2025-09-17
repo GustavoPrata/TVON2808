@@ -46,14 +46,49 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep message channel open for async response
   }
   
+  if (request.action === 'generateOne') {
+    console.log('[Extension] Generating one credential...');
+    startAutomation()
+      .then(result => {
+        console.log('[Extension] Single generation completed:', result);
+        sendResponse({ success: true, credentials: result });
+      })
+      .catch(error => {
+        console.error('[Extension] Single generation failed:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Keep message channel open for async response
+  }
+  
   if (request.action === 'extractCredentials') {
     console.log('[Extension] Extracting credentials only...');
-    const credentials = extractCredentialsFromModal();
-    if (credentials) {
-      sendResponse({ success: true, data: credentials });
-    } else {
-      sendResponse({ success: false, error: 'No credentials found' });
-    }
+    extractCredentialsFromModal()
+      .then(credentials => {
+        if (credentials) {
+          sendResponse({ success: true, data: credentials });
+        } else {
+          sendResponse({ success: false, error: 'No credentials found' });
+        }
+      })
+      .catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Keep message channel open for async response
+  }
+  
+  if (request.action === 'getStatus') {
+    sendResponse({ 
+      success: true,
+      isAutomationActive: false,
+      currentQuantity: 0,
+      targetQuantity: 0
+    });
+    return false;
+  }
+  
+  if (request.action === 'stopAutomation') {
+    sendResponse({ success: true });
+    return false;
   }
 });
 
