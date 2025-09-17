@@ -1,5 +1,5 @@
 // OnlineOffice IPTV Automator - Content Script
-// Versão simplificada - foco em funcionalidade
+// Versão corrigida - extração funcionando
 
 console.log('👋 OnlineOffice Automator carregado!');
 
@@ -48,32 +48,155 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               setTimeout(() => {
                 console.log('Extraindo credenciais...');
                 
-                // Procura inputs readonly com as credenciais
-                const inputs = document.querySelectorAll('input[readonly]');
                 let username = null;
                 let password = null;
                 
-                if (inputs.length >= 2) {
-                  username = inputs[0].value;
-                  password = inputs[1].value;
-                  console.log('📋 Credenciais encontradas:', {username, password});
+                // Método 1: Procura inputs readonly com as credenciais
+                const inputs = document.querySelectorAll('input[readonly], input[type="text"]');
+                console.log(`Encontrou ${inputs.length} inputs na página`);
+                
+                // Tenta extrair dos inputs
+                inputs.forEach((input, index) => {
+                  const value = input.value;
+                  console.log(`Input ${index}: ${value}`);
+                  
+                  // Se tem valor e parece ser uma credencial
+                  if (value && value.trim()) {
+                    // O primeiro input com valor geralmente é o usuário
+                    if (!username) {
+                      username = value;
+                    } else if (!password) {
+                      // O segundo é a senha
+                      password = value;
+                    }
+                  }
+                });
+                
+                // Método 2: Se não achou nos inputs, tenta no texto do modal
+                if (!username || !password) {
+                  console.log('Tentando extrair do texto do modal...');
+                  
+                  // Procura por diferentes tipos de modal
+                  const modalSelectors = [
+                    '.swal2-content',
+                    '.modal-body',
+                    '[role="dialog"]',
+                    '.modal-content',
+                    '.swal2-html-container'
+                  ];
+                  
+                  let modalContent = null;
+                  for (const selector of modalSelectors) {
+                    modalContent = document.querySelector(selector);
+                    if (modalContent) {
+                      console.log(`Modal encontrado com selector: ${selector}`);
+                      break;
+                    }
+                  }
+                  
+                  if (modalContent) {
+                    const text = modalContent.innerText || modalContent.textContent;
+                    console.log('Texto do modal:', text);
+                    
+                    // Tenta extrair com diferentes padrões
+                    const patterns = [
+                      /usu[áa]rio:?\s*([^\s\n]+)/i,
+                      /user:?\s*([^\s\n]+)/i,
+                      /login:?\s*([^\s\n]+)/i,
+                      /USUÁRIO:?\s*([^\s\n]+)/i
+                    ];
+                    
+                    for (const pattern of patterns) {
+                      const match = text.match(pattern);
+                      if (match && match[1]) {
+                        username = match[1];
+                        console.log(`Usuário encontrado: ${username}`);
+                        break;
+                      }
+                    }
+                    
+                    const passwordPatterns = [
+                      /senha:?\s*([^\s\n]+)/i,
+                      /password:?\s*([^\s\n]+)/i,
+                      /pass:?\s*([^\s\n]+)/i,
+                      /SENHA:?\s*([^\s\n]+)/i
+                    ];
+                    
+                    for (const pattern of passwordPatterns) {
+                      const match = text.match(pattern);
+                      if (match && match[1]) {
+                        password = match[1];
+                        console.log(`Senha encontrada: ${password}`);
+                        break;
+                      }
+                    }
+                    
+                    // Método 3: Procura por linhas com USUÁRIO e SENHA
+                    if (!username || !password) {
+                      const lines = text.split('\n');
+                      for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        
+                        if (line.includes('USUÁRIO') || line.includes('Usuário') || line.includes('usuário')) {
+                          // Verifica se tem : na mesma linha
+                          if (line.includes(':')) {
+                            const parts = line.split(':');
+                            if (parts[1]) {
+                              username = parts[1].trim();
+                            }
+                          } else if (i + 1 < lines.length) {
+                            // Pega próxima linha
+                            username = lines[i + 1].trim();
+                          }
+                        }
+                        
+                        if (line.includes('SENHA') || line.includes('Senha') || line.includes('senha')) {
+                          if (line.includes(':')) {
+                            const parts = line.split(':');
+                            if (parts[1]) {
+                              password = parts[1].trim();
+                            }
+                          } else if (i + 1 < lines.length) {
+                            password = lines[i + 1].trim();
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
                 
-                // Se não achou nos inputs, tenta no texto
+                // Método 4: Tenta pegar de elementos específicos
                 if (!username || !password) {
-                  const modalContent = document.querySelector('.swal2-content, .modal-body, [role="dialog"]');
-                  if (modalContent) {
-                    const text = modalContent.innerText;
-                    const userMatch = text.match(/usu[áa]rio:?\s*([^\s\n]+)/i);
-                    const passMatch = text.match(/senha:?\s*([^\s\n]+)/i);
-                    
-                    if (userMatch) username = userMatch[1];
-                    if (passMatch) password = passMatch[1];
-                  }
+                  console.log('Tentando método específico de elementos...');
+                  
+                  // Procura por elementos que podem conter as credenciais
+                  const allElements = document.querySelectorAll('p, div, span, td');
+                  allElements.forEach(el => {
+                    const text = el.innerText || el.textContent;
+                    if (text && text.includes('USUÁRIO')) {
+                      const match = text.match(/USUÁRIO:?\s*([^\s\n]+)/i);
+                      if (match) username = match[1];
+                    }
+                    if (text && text.includes('SENHA')) {
+                      const match = text.match(/SENHA:?\s*([^\s\n]+)/i);
+                      if (match) password = match[1];
+                    }
+                  });
                 }
                 
                 if (username && password) {
                   console.log('✅ Credenciais extraídas com sucesso!');
+                  console.log(`📋 Usuário: ${username}, Senha: ${password}`);
+                  
+                  // Salva as credenciais
+                  chrome.runtime.sendMessage({
+                    type: 'credentialsSaved',
+                    credentials: {
+                      username: username,
+                      password: password,
+                      timestamp: new Date().toISOString()
+                    }
+                  });
                   
                   // 5. FECHAR MODAL - clicar fora ou no backdrop
                   setTimeout(() => {
@@ -93,6 +216,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   
                 } else {
                   console.error('❌ Não conseguiu extrair credenciais');
+                  console.log('Username:', username, 'Password:', password);
                 }
                 
               }, 3000);

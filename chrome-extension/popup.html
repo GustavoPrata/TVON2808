@@ -94,15 +94,8 @@
   </div>
   
   <div class="config">
-    <label>Intervalo entre Lotes:</label>
-    <select id="interval">
-      <option value="1">1 minuto</option>
-      <option value="2">2 minutos</option>
-      <option value="5" selected>5 minutos</option>
-      <option value="10">10 minutos</option>
-      <option value="30">30 minutos</option>
-      <option value="60">1 hora</option>
-    </select>
+    <label>Intervalo entre Lotes (minutos):</label>
+    <input type="number" id="interval" value="5" min="1" max="1440" placeholder="Digite o tempo em minutos">
   </div>
   
   <button id="manualBtn" class="manual">🎯 Gerar Uma Manual</button>
