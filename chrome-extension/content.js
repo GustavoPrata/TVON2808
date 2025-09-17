@@ -266,48 +266,38 @@ async function performSingleGeneration() {
 // Close modal
 async function closeModal() {
   try {
-    console.log('[Extension] Looking for close button...');
+    console.log('[Extension] Closing modal by clicking backdrop...');
     
-    // Look for close button in various forms
-    const closeSelectors = [
-      'button[aria-label="Close"]',
-      'button[aria-label="close"]',
-      'button.swal2-close',
-      'button.close',
-      '.swal2-close',
-      'button:has(> span[aria-hidden="false"])',
-      'button:has(> .swal2-x-mark)',
-      'button[class*="close"]',
-      'button[title="Close"]',
-      'button[title="Fechar"]'
+    // Click on backdrop/overlay to close modal (most modals close this way)
+    const backdrops = [
+      '.swal2-container',
+      '.swal2-backdrop',
+      '.modal-backdrop',
+      '.overlay',
+      '[class*="backdrop"]',
+      '[class*="overlay"]'
     ];
     
-    for (const selector of closeSelectors) {
-      const closeBtn = document.querySelector(selector);
-      if (closeBtn) {
-        console.log('[Extension] Found close button with selector:', selector);
-        closeBtn.click();
+    for (const selector of backdrops) {
+      const backdrop = document.querySelector(selector);
+      if (backdrop) {
+        console.log('[Extension] Found backdrop:', selector);
+        backdrop.click();
         await new Promise(resolve => setTimeout(resolve, 500));
         return;
       }
     }
     
-    // Alternative: look for button containing × symbol
-    const allButtons = document.querySelectorAll('button');
-    for (const button of allButtons) {
-      const text = button.innerText || button.textContent || '';
-      if (text.includes('×') || text.includes('X') || text.includes('x')) {
-        console.log('[Extension] Found close button with × symbol');
-        button.click();
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return;
-      }
-    }
-    
-    // Last resort: press ESC key
-    console.log('[Extension] No close button found, trying ESC key...');
-    const escEvent = new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27 });
-    document.dispatchEvent(escEvent);
+    // Alternative: click anywhere outside the modal content
+    console.log('[Extension] Clicking at coordinates to close modal...');
+    const clickEvent = new MouseEvent('click', {
+      view: window,
+      bubbles: true,
+      cancelable: true,
+      clientX: 10,  // Click near the edge of the screen
+      clientY: 10
+    });
+    document.body.dispatchEvent(clickEvent);
     
     await new Promise(resolve => setTimeout(resolve, 500));
     
