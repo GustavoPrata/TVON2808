@@ -188,7 +188,7 @@ async function performGenerationSequence() {
 async function extractCredentialsFromModal() {
   try {
     // Look for modal elements
-    const modals = document.querySelectorAll('.modal, .modal-body, .modal-content, [role="dialog"], .popup, .dialog');
+    const modals = document.querySelectorAll('.modal, .modal-body, .modal-content, [role="dialog"], .popup, .dialog, .swal2-container, .swal2-modal');
     
     for (const modal of modals) {
       // Skip if modal is hidden
@@ -197,82 +197,175 @@ async function extractCredentialsFromModal() {
       }
       
       const modalText = modal.innerText || modal.textContent;
-      console.log('Checking modal text:', modalText.substring(0, 200));
+      console.log('Checking modal text:', modalText);
       
-      // Look for USUÁRIO and SENHA patterns
-      const userMatch = modalText.match(/(?:USUÁRIO|USUARIO|USERNAME):\s*([^\s\n]+)/i);
-      const passMatch = modalText.match(/(?:SENHA|PASSWORD):\s*([^\s\n]+)/i);
+      // Method 1: Look for specific elements containing labels and values
+      const allElements = modal.querySelectorAll('div, span, p, td, li, strong, b, label');
+      let username = null;
+      let password = null;
+      let foundUserLabel = false;
+      let foundPassLabel = false;
+      
+      for (const element of allElements) {
+        const text = (element.textContent || '').trim();
+        const nextSibling = element.nextSibling;
+        const nextElement = element.nextElementSibling;
+        
+        // Check if this element contains the label
+        if (text.includes('USUÁRIO:') || text === 'USUÁRIO') {
+          foundUserLabel = true;
+          // Try to extract from same element after colon
+          const colonMatch = text.match(/USUÁRIO:\s*(.+)/);
+          if (colonMatch && colonMatch[1].trim()) {
+            username = colonMatch[1].trim();
+          } else if (nextSibling && nextSibling.nodeType === Node.TEXT_NODE) {
+            // Check text node after element
+            username = nextSibling.textContent.trim();
+          } else if (nextElement) {
+            // Check next element
+            username = nextElement.textContent.trim();
+          }
+        }
+        
+        if (text.includes('SENHA:') || text === 'SENHA') {
+          foundPassLabel = true;
+          // Try to extract from same element after colon
+          const colonMatch = text.match(/SENHA:\s*(.+)/);
+          if (colonMatch && colonMatch[1].trim()) {
+            password = colonMatch[1].trim();
+          } else if (nextSibling && nextSibling.nodeType === Node.TEXT_NODE) {
+            // Check text node after element
+            password = nextSibling.textContent.trim();
+          } else if (nextElement) {
+            // Check next element
+            password = nextElement.textContent.trim();
+          }
+        }
+        
+        // If we found labels but no values, check if current element might be a value
+        if (foundUserLabel && !username && !text.includes('USUÁRIO') && !text.includes('SENHA') && text.length > 0) {
+          username = text;
+          foundUserLabel = false;
+        }
+        if (foundPassLabel && !password && !text.includes('SENHA') && !text.includes('VENCIMENTO') && text.length > 0) {
+          password = text;
+          foundPassLabel = false;
+        }
+      }
+      
+      if (username && password) {
+        console.log('Found credentials using element parsing:', { username, password });
+        return { username, password };
+      }
+      
+      // Method 2: Try regex on full text
+      const userMatch = modalText.match(/USUÁRIO:\s*([^\s\n]+)/);
+      const passMatch = modalText.match(/SENHA:\s*([^\s\n]+)/);
       
       if (userMatch && passMatch) {
+        console.log('Found credentials using regex:', { username: userMatch[1], password: passMatch[1] });
         return {
           username: userMatch[1].trim(),
           password: passMatch[1].trim()
         };
       }
       
-      // Alternative pattern with line breaks
-      const lines = modalText.split('\n');
-      let username = null;
-      let password = null;
+      // Method 3: Try line-by-line parsing
+      const lines = modalText.split(/[\n\r]+/);
+      username = null;
+      password = null;
       
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         
-        if (line.includes('USUÁRIO') || line.includes('USUARIO') || line.includes('USERNAME')) {
-          // Check same line first
-          const sameLineMatch = line.match(/(?:USUÁRIO|USUARIO|USERNAME):\s*(.+)/i);
-          if (sameLineMatch) {
-            username = sameLineMatch[1].trim();
-          } else if (i + 1 < lines.length) {
-            // Check next line
-            username = lines[i + 1].trim();
+        // Check for username
+        if (line.includes('USUÁRIO')) {
+          // Try to extract from same line
+          const colonMatch = line.match(/USUÁRIO:\s*(.+)/);
+          if (colonMatch && colonMatch[1].trim()) {
+            username = colonMatch[1].trim();
+          } else {
+            // Look for next non-empty, non-label line
+            for (let j = i + 1; j < lines.length && j < i + 5; j++) {
+              const nextLine = lines[j].trim();
+              if (nextLine && !nextLine.includes(':') && !nextLine.includes('SENHA') && !nextLine.includes('VENCIMENTO')) {
+                username = nextLine;
+                break;
+              }
+            }
           }
         }
         
-        if (line.includes('SENHA') || line.includes('PASSWORD')) {
-          // Check same line first
-          const sameLineMatch = line.match(/(?:SENHA|PASSWORD):\s*(.+)/i);
-          if (sameLineMatch) {
-            password = sameLineMatch[1].trim();
-          } else if (i + 1 < lines.length) {
-            // Check next line
-            password = lines[i + 1].trim();
+        // Check for password
+        if (line.includes('SENHA')) {
+          // Try to extract from same line
+          const colonMatch = line.match(/SENHA:\s*(.+)/);
+          if (colonMatch && colonMatch[1].trim()) {
+            password = colonMatch[1].trim();
+          } else {
+            // Look for next non-empty, non-label line
+            for (let j = i + 1; j < lines.length && j < i + 5; j++) {
+              const nextLine = lines[j].trim();
+              if (nextLine && !nextLine.includes(':') && !nextLine.includes('VENCIMENTO')) {
+                password = nextLine;
+                break;
+              }
+            }
           }
         }
       }
       
       if (username && password) {
+        console.log('Found credentials using line parsing:', { username, password });
         return { username, password };
       }
     }
     
-    // Try to find in any visible element
-    const allElements = document.querySelectorAll('div, span, p, td, li');
+    // Method 4: Last resort - try to find in any visible element on page
+    const allElements = document.querySelectorAll('div, span, p, td, li, strong, b');
     let username = null;
     let password = null;
+    let userLabelFound = false;
+    let passLabelFound = false;
     
     for (const element of allElements) {
-      const text = element.textContent;
+      const text = (element.textContent || '').trim();
       
-      if (!username) {
-        const userMatch = text.match(/(?:USUÁRIO|USUARIO|USERNAME):\s*([^\s\n]+)/i);
-        if (userMatch) {
-          username = userMatch[1].trim();
+      // Check if element is visible
+      const rect = element.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      
+      if (text === 'USUÁRIO:' || text === 'USUÁRIO') {
+        userLabelFound = true;
+      } else if (userLabelFound && !username && text && !text.includes(':')) {
+        username = text;
+        userLabelFound = false;
+      } else if (text.includes('USUÁRIO:')) {
+        const match = text.match(/USUÁRIO:\s*(.+)/);
+        if (match && match[1].trim()) {
+          username = match[1].trim();
         }
       }
       
-      if (!password) {
-        const passMatch = text.match(/(?:SENHA|PASSWORD):\s*([^\s\n]+)/i);
-        if (passMatch) {
-          password = passMatch[1].trim();
+      if (text === 'SENHA:' || text === 'SENHA') {
+        passLabelFound = true;
+      } else if (passLabelFound && !password && text && !text.includes(':') && !text.includes('VENCIMENTO')) {
+        password = text;
+        passLabelFound = false;
+      } else if (text.includes('SENHA:')) {
+        const match = text.match(/SENHA:\s*(.+)/);
+        if (match && match[1].trim()) {
+          password = match[1].trim();
         }
       }
       
       if (username && password) {
+        console.log('Found credentials in page elements:', { username, password });
         return { username, password };
       }
     }
     
+    console.log('Could not extract credentials - no matching patterns found');
     return null;
     
   } catch (error) {
