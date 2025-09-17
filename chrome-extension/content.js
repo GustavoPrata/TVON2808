@@ -1,136 +1,118 @@
-// OnlineOffice IPTV Automator - Content Script
-console.log('OnlineOffice IPTV Automator: Content script loaded');
+// TV ON Office Chrome Extension - Content Script
+// This script runs in the context of OnlineOffice pages
 
 // Configuration
 const CONFIG = {
-  serverUrl: '',
-  currentQuantity: 0,
-  targetQuantity: 10,
-  isAutomationActive: false
+  serverUrl: '', // Will be set dynamically based on current domain
+  extractionDelay: 1000, // Wait 1 second after modal appears
+  maxRetries: 5,
+  retryDelay: 2000
 };
 
-// Load configuration from storage
-chrome.storage.sync.get(['serverUrl', 'automationConfig'], (result) => {
-  CONFIG.serverUrl = result.serverUrl || getCurrentDomain();
-  if (result.automationConfig) {
-    CONFIG.isAutomationActive = result.automationConfig.enabled;
-    CONFIG.targetQuantity = result.automationConfig.quantity || 10;
-  }
-  console.log('Configuration loaded:', CONFIG);
-});
-
-// Get current domain for API calls
+// Get current domain dynamically
 function getCurrentDomain() {
   const hostname = window.location.hostname;
-  
-  // When on OnlineOffice site, use the stored server URL or default
-  if (hostname.includes('onlineoffice')) {
-    // Try to get from storage first
-    if (CONFIG.serverUrl) {
-      return CONFIG.serverUrl;
-    }
-    // Default to tv-on.site if not configured
-    return 'https://tv-on.site';
-  }
-  
-  // When testing locally
-  if (hostname.includes('localhost')) {
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return 'http://localhost:5000';
-  }
-  
-  // When on Replit domains
-  if (hostname.includes('replit.app') || hostname.includes('replit.dev')) {
-    // Get the actual Replit server origin, not the current page origin
-    const origin = window.location.origin;
-    // If we're on a Replit domain, it's likely the server URL
-    return origin;
-  }
-  
-  // When on tv-on.site
-  if (hostname.includes('tv-on.site')) {
+  } else if (hostname.includes('replit.dev')) {
+    // Replace Replit dev URL with localhost for API calls from extension
+    return 'http://localhost:5000';
+  } else {
+    // Production
     return 'https://tv-on.site';
   }
-  
-  // Default: Use stored server URL or current origin
-  return CONFIG.serverUrl || window.location.origin;
 }
 
-// Listen for messages from popup/background
+// Initialize
+console.log('[TV ON Extension] Content script loaded');
+console.log('[TV ON Extension] Current domain:', window.location.hostname);
+console.log('[TV ON Extension] API endpoint:', getCurrentDomain());
+
+// Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('Message received:', request);
-  
-  if (request.action === 'generateOne') {
-    generateSingleCredential().then(result => {
-      sendResponse(result);
-    }).catch(error => {
-      sendResponse({ success: false, error: error.message });
-    });
-    return true; // Keep message channel open
-  }
+  console.log('[Extension] Message received:', request);
   
   if (request.action === 'startAutomation') {
-    startAutomation(request.config);
-    sendResponse({ success: true });
+    console.log('[Extension] Starting automation...');
+    startAutomation()
+      .then(result => {
+        console.log('[Extension] Automation completed:', result);
+        sendResponse({ success: true, data: result });
+      })
+      .catch(error => {
+        console.error('[Extension] Automation failed:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Keep message channel open for async response
   }
   
-  if (request.action === 'stopAutomation') {
-    stopAutomation();
-    sendResponse({ success: true });
-  }
-  
-  if (request.action === 'getStatus') {
-    sendResponse({ 
-      success: true, 
-      isAutomationActive: CONFIG.isAutomationActive,
-      currentQuantity: CONFIG.currentQuantity,
-      targetQuantity: CONFIG.targetQuantity
-    });
+  if (request.action === 'extractCredentials') {
+    console.log('[Extension] Extracting credentials only...');
+    const credentials = extractCredentialsFromModal();
+    if (credentials) {
+      sendResponse({ success: true, data: credentials });
+    } else {
+      sendResponse({ success: false, error: 'No credentials found' });
+    }
   }
 });
 
-// Wait for element to appear
-function waitForElement(selector, timeout = 10000) {
-  return new Promise((resolve, reject) => {
-    const startTime = Date.now();
+// Main automation function
+async function startAutomation() {
+  try {
+    // Check if we're on the right page
+    if (!window.location.href.includes('onlineoffice')) {
+      throw new Error('Not on OnlineOffice page. Please navigate to the correct page.');
+    }
     
-    const checkElement = () => {
-      const element = document.querySelector(selector);
-      if (element) {
-        resolve(element);
-        return;
-      }
-      
-      if (Date.now() - startTime > timeout) {
-        reject(new Error(`Element ${selector} not found after ${timeout}ms`));
-        return;
-      }
-      
-      setTimeout(checkElement, 100);
-    };
+    console.log('[Extension] Starting credential generation sequence...');
     
-    checkElement();
-  });
+    // Perform the generation sequence
+    const credentials = await performGenerationSequence();
+    
+    if (!credentials) {
+      throw new Error('Failed to extract credentials');
+    }
+    
+    // Send to server
+    await sendCredentialsToServer(credentials);
+    
+    return credentials;
+    
+  } catch (error) {
+    console.error('[Extension] Automation error:', error);
+    throw error;
+  }
 }
 
-// Wait for element with text content
+// Helper function to wait for element with specific text
 function waitForElementWithText(text, tagName = '*', timeout = 10000) {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
     
     const checkElement = () => {
+      // Find all elements of the specified tag
       const elements = document.querySelectorAll(tagName);
+      
       for (const element of elements) {
-        if (element.textContent.includes(text)) {
-          resolve(element);
-          return;
+        const elementText = element.textContent || element.innerText || '';
+        if (elementText.trim() === text || elementText.includes(text)) {
+          // Check if element is visible
+          const rect = element.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            resolve(element);
+            return;
+          }
         }
       }
       
+      // Check timeout
       if (Date.now() - startTime > timeout) {
-        reject(new Error(`Element with text "${text}" not found after ${timeout}ms`));
+        reject(new Error(`Timeout waiting for element with text: ${text}`));
         return;
       }
       
+      // Try again
       setTimeout(checkElement, 100);
     };
     
@@ -184,192 +166,135 @@ async function performGenerationSequence() {
   }
 }
 
-// Extract credentials from modal
+// SIMPLIFIED Extract credentials from modal
 async function extractCredentialsFromModal() {
   try {
-    // Look for modal elements
-    const modals = document.querySelectorAll('.modal, .modal-body, .modal-content, [role="dialog"], .popup, .dialog, .swal2-container, .swal2-modal');
+    console.log('[Extension] Starting credential extraction...');
     
-    for (const modal of modals) {
-      // Skip if modal is hidden
-      if (modal.style.display === 'none' || modal.style.visibility === 'hidden') {
-        continue;
-      }
-      
-      const modalText = modal.innerText || modal.textContent;
-      console.log('Checking modal text:', modalText);
-      
-      // Method 1: Look for specific elements containing labels and values
-      const allElements = modal.querySelectorAll('div, span, p, td, li, strong, b, label');
-      let username = null;
-      let password = null;
-      let foundUserLabel = false;
-      let foundPassLabel = false;
-      
-      for (const element of allElements) {
-        const text = (element.textContent || '').trim();
-        const nextSibling = element.nextSibling;
-        const nextElement = element.nextElementSibling;
-        
-        // Check if this element contains the label
-        if (text.includes('USUÁRIO:') || text === 'USUÁRIO') {
-          foundUserLabel = true;
-          // Try to extract from same element after colon
-          const colonMatch = text.match(/USUÁRIO:\s*(.+)/);
-          if (colonMatch && colonMatch[1].trim()) {
-            username = colonMatch[1].trim();
-          } else if (nextSibling && nextSibling.nodeType === Node.TEXT_NODE) {
-            // Check text node after element
-            username = nextSibling.textContent.trim();
-          } else if (nextElement) {
-            // Check next element
-            username = nextElement.textContent.trim();
-          }
-        }
-        
-        if (text.includes('SENHA:') || text === 'SENHA') {
-          foundPassLabel = true;
-          // Try to extract from same element after colon
-          const colonMatch = text.match(/SENHA:\s*(.+)/);
-          if (colonMatch && colonMatch[1].trim()) {
-            password = colonMatch[1].trim();
-          } else if (nextSibling && nextSibling.nodeType === Node.TEXT_NODE) {
-            // Check text node after element
-            password = nextSibling.textContent.trim();
-          } else if (nextElement) {
-            // Check next element
-            password = nextElement.textContent.trim();
-          }
-        }
-        
-        // If we found labels but no values, check if current element might be a value
-        if (foundUserLabel && !username && !text.includes('USUÁRIO') && !text.includes('SENHA') && text.length > 0) {
-          username = text;
-          foundUserLabel = false;
-        }
-        if (foundPassLabel && !password && !text.includes('SENHA') && !text.includes('VENCIMENTO') && text.length > 0) {
-          password = text;
-          foundPassLabel = false;
-        }
-      }
-      
-      if (username && password) {
-        console.log('Found credentials using element parsing:', { username, password });
-        return { username, password };
-      }
-      
-      // Method 2: Try regex on full text
-      const userMatch = modalText.match(/USUÁRIO:\s*([^\s\n]+)/);
-      const passMatch = modalText.match(/SENHA:\s*([^\s\n]+)/);
-      
-      if (userMatch && passMatch) {
-        console.log('Found credentials using regex:', { username: userMatch[1], password: passMatch[1] });
-        return {
-          username: userMatch[1].trim(),
-          password: passMatch[1].trim()
-        };
-      }
-      
-      // Method 3: Try line-by-line parsing
-      const lines = modalText.split(/[\n\r]+/);
-      username = null;
-      password = null;
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        
-        // Check for username
-        if (line.includes('USUÁRIO')) {
-          // Try to extract from same line
-          const colonMatch = line.match(/USUÁRIO:\s*(.+)/);
-          if (colonMatch && colonMatch[1].trim()) {
-            username = colonMatch[1].trim();
-          } else {
-            // Look for next non-empty, non-label line
-            for (let j = i + 1; j < lines.length && j < i + 5; j++) {
-              const nextLine = lines[j].trim();
-              if (nextLine && !nextLine.includes(':') && !nextLine.includes('SENHA') && !nextLine.includes('VENCIMENTO')) {
-                username = nextLine;
-                break;
-              }
-            }
-          }
-        }
-        
-        // Check for password
-        if (line.includes('SENHA')) {
-          // Try to extract from same line
-          const colonMatch = line.match(/SENHA:\s*(.+)/);
-          if (colonMatch && colonMatch[1].trim()) {
-            password = colonMatch[1].trim();
-          } else {
-            // Look for next non-empty, non-label line
-            for (let j = i + 1; j < lines.length && j < i + 5; j++) {
-              const nextLine = lines[j].trim();
-              if (nextLine && !nextLine.includes(':') && !nextLine.includes('VENCIMENTO')) {
-                password = nextLine;
-                break;
-              }
-            }
+    // Wait a bit for modal to fully render
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Look for any modal or popup element
+    const modalSelectors = [
+      '.swal2-container', '.swal2-modal', '.swal2-popup',
+      '.modal', '.modal-body', '.modal-content',
+      '[role="dialog"]', '.dialog', '.popup',
+      'div[class*="modal"]', 'div[class*="dialog"]'
+    ];
+    
+    let modalText = '';
+    for (const selector of modalSelectors) {
+      const elements = document.querySelectorAll(selector);
+      for (const element of elements) {
+        // Check if visible
+        if (element.offsetParent !== null) {
+          const text = element.innerText || element.textContent || '';
+          if (text.includes('USUÁRIO') || text.includes('SENHA')) {
+            modalText = text;
+            console.log('[Extension] Found modal with credentials');
+            break;
           }
         }
       }
-      
-      if (username && password) {
-        console.log('Found credentials using line parsing:', { username, password });
-        return { username, password };
-      }
+      if (modalText) break;
     }
     
-    // Method 4: Last resort - try to find in any visible element on page
-    const allElements = document.querySelectorAll('div, span, p, td, li, strong, b');
+    // If no modal found, try to get all page text
+    if (!modalText) {
+      console.log('[Extension] No modal found, scanning entire page...');
+      modalText = document.body.innerText || document.body.textContent || '';
+    }
+    
+    console.log('[Extension] Text to parse:', modalText);
+    
+    // Extract username and password using simple patterns
     let username = null;
     let password = null;
-    let userLabelFound = false;
-    let passLabelFound = false;
     
-    for (const element of allElements) {
-      const text = (element.textContent || '').trim();
+    // Split text into lines and process
+    const lines = modalText.split(/[\n\r]+/).map(line => line.trim()).filter(line => line.length > 0);
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       
-      // Check if element is visible
-      const rect = element.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) continue;
-      
-      if (text === 'USUÁRIO:' || text === 'USUÁRIO') {
-        userLabelFound = true;
-      } else if (userLabelFound && !username && text && !text.includes(':')) {
-        username = text;
-        userLabelFound = false;
-      } else if (text.includes('USUÁRIO:')) {
-        const match = text.match(/USUÁRIO:\s*(.+)/);
-        if (match && match[1].trim()) {
-          username = match[1].trim();
+      // Look for USUÁRIO
+      if (line.includes('USUÁRIO')) {
+        // Check if value is on the same line after colon
+        if (line.includes(':')) {
+          const parts = line.split(':');
+          if (parts.length > 1 && parts[1].trim()) {
+            username = parts[1].trim();
+            console.log('[Extension] Found username on same line:', username);
+          }
+        }
+        // If not, check next line
+        if (!username && i + 1 < lines.length) {
+          const nextLine = lines[i + 1];
+          // Make sure next line is not another label
+          if (!nextLine.includes(':') && !nextLine.includes('SENHA') && !nextLine.includes('VENCIMENTO')) {
+            username = nextLine;
+            console.log('[Extension] Found username on next line:', username);
+          }
         }
       }
       
-      if (text === 'SENHA:' || text === 'SENHA') {
-        passLabelFound = true;
-      } else if (passLabelFound && !password && text && !text.includes(':') && !text.includes('VENCIMENTO')) {
-        password = text;
-        passLabelFound = false;
-      } else if (text.includes('SENHA:')) {
-        const match = text.match(/SENHA:\s*(.+)/);
-        if (match && match[1].trim()) {
-          password = match[1].trim();
+      // Look for SENHA
+      if (line.includes('SENHA')) {
+        // Check if value is on the same line after colon
+        if (line.includes(':')) {
+          const parts = line.split(':');
+          if (parts.length > 1 && parts[1].trim()) {
+            password = parts[1].trim();
+            console.log('[Extension] Found password on same line:', password);
+          }
         }
-      }
-      
-      if (username && password) {
-        console.log('Found credentials in page elements:', { username, password });
-        return { username, password };
+        // If not, check next line
+        if (!password && i + 1 < lines.length) {
+          const nextLine = lines[i + 1];
+          // Make sure next line is not another label
+          if (!nextLine.includes(':') && !nextLine.includes('VENCIMENTO')) {
+            password = nextLine;
+            console.log('[Extension] Found password on next line:', password);
+          }
+        }
       }
     }
     
-    console.log('Could not extract credentials - no matching patterns found');
-    return null;
+    // Try fallback regex if still no credentials
+    if (!username || !password) {
+      console.log('[Extension] Trying regex fallback...');
+      
+      // Try to match patterns in the full text
+      const userRegex = /USUÁRIO:?\s*([^\s\n]+)/i;
+      const passRegex = /SENHA:?\s*([^\s\n]+)/i;
+      
+      const userMatch = modalText.match(userRegex);
+      const passMatch = modalText.match(passRegex);
+      
+      if (userMatch && userMatch[1]) {
+        username = userMatch[1].trim();
+        console.log('[Extension] Found username with regex:', username);
+      }
+      
+      if (passMatch && passMatch[1]) {
+        password = passMatch[1].trim();
+        console.log('[Extension] Found password with regex:', password);
+      }
+    }
+    
+    // Final validation
+    if (username && password) {
+      console.log('[Extension] Successfully extracted credentials');
+      return { username, password };
+    } else {
+      console.log('[Extension] Failed to extract credentials');
+      console.log('[Extension] Username found:', !!username);
+      console.log('[Extension] Password found:', !!password);
+      return null;
+    }
     
   } catch (error) {
-    console.error('Error extracting credentials:', error);
+    console.error('[Extension] Error extracting credentials:', error);
     return null;
   }
 }
@@ -397,161 +322,37 @@ async function sendCredentialsToServer(credentials) {
     }
     
     const result = await response.json();
-    console.log('Credentials sent to server:', result);
+    console.log('[Extension] Server response:', result);
     return result;
     
   } catch (error) {
-    console.error('Error sending to server:', error);
+    console.error('[Extension] Failed to send credentials:', error);
     throw error;
   }
 }
 
-// Generate single credential
-async function generateSingleCredential() {
-  try {
-    console.log('Generating single credential...');
-    
-    // Perform the click sequence
-    const credentials = await performGenerationSequence();
-    
-    // Send to server
-    const serverResult = await sendCredentialsToServer(credentials);
-    
-    // Notify popup
-    chrome.runtime.sendMessage({
-      type: 'credentialGenerated',
-      credentials: credentials,
-      serverResult: serverResult
-    });
-    
-    return { 
-      success: true, 
-      credentials: credentials,
-      serverResult: serverResult
-    };
-    
-  } catch (error) {
-    console.error('Error generating credential:', error);
-    return { 
-      success: false, 
-      error: error.message 
-    };
-  }
-}
-
-// Automation functions
-let automationInterval = null;
-
-async function startAutomation(config) {
-  console.log('Starting automation with config:', config);
+// Auto-detect and notify popup when on OnlineOffice page
+if (window.location.href.includes('onlineoffice')) {
+  console.log('[Extension] OnlineOffice page detected');
   
-  CONFIG.isAutomationActive = true;
-  CONFIG.currentQuantity = 0;
-  CONFIG.targetQuantity = config.quantity || 10;
-  
-  // Save config
-  chrome.storage.sync.set({ 
-    automationConfig: {
-      enabled: true,
-      quantity: CONFIG.targetQuantity,
-      intervalValue: config.intervalValue,
-      intervalUnit: config.intervalUnit
-    }
-  });
-  
-  // Generate immediately
-  await generateBatch();
-  
-  // Set up interval for future generations
-  const intervalMs = config.intervalUnit === 'hours' 
-    ? config.intervalValue * 60 * 60 * 1000 
-    : config.intervalValue * 60 * 1000;
-  
-  automationInterval = setInterval(async () => {
-    if (CONFIG.isAutomationActive) {
-      CONFIG.currentQuantity = 0; // Reset counter
-      await generateBatch();
-    }
-  }, intervalMs);
-}
-
-async function generateBatch() {
-  console.log(`Generating batch of ${CONFIG.targetQuantity} credentials...`);
-  
-  for (let i = 0; i < CONFIG.targetQuantity; i++) {
-    if (!CONFIG.isAutomationActive) {
-      console.log('Automation stopped, aborting batch');
-      break;
-    }
-    
-    console.log(`Generating credential ${i + 1} of ${CONFIG.targetQuantity}`);
-    
-    try {
-      const result = await generateSingleCredential();
-      if (result.success) {
-        CONFIG.currentQuantity++;
-        
-        // Notify popup of progress
-        chrome.runtime.sendMessage({
-          type: 'automationProgress',
-          current: CONFIG.currentQuantity,
-          total: CONFIG.targetQuantity
-        });
+  // Monitor for credential modals
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.type === 'childList') {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const text = node.innerText || node.textContent || '';
+            if (text.includes('USUÁRIO') && text.includes('SENHA')) {
+              console.log('[Extension] Credential modal detected!');
+            }
+          }
+        }
       }
-    } catch (error) {
-      console.error(`Error generating credential ${i + 1}:`, error);
-    }
-    
-    // Wait between generations to avoid overwhelming the system
-    if (i < CONFIG.targetQuantity - 1) {
-      await new Promise(resolve => setTimeout(resolve, 10000)); // 10 seconds between each
-    }
-  }
-  
-  console.log(`Batch complete: Generated ${CONFIG.currentQuantity} of ${CONFIG.targetQuantity} credentials`);
-}
-
-function stopAutomation() {
-  console.log('Stopping automation');
-  
-  CONFIG.isAutomationActive = false;
-  
-  if (automationInterval) {
-    clearInterval(automationInterval);
-    automationInterval = null;
-  }
-  
-  // Save config
-  chrome.storage.sync.set({ 
-    automationConfig: {
-      enabled: false,
-      quantity: CONFIG.targetQuantity,
-      intervalValue: 30,
-      intervalUnit: 'minutes'
     }
   });
   
-  // Notify popup
-  chrome.runtime.sendMessage({
-    type: 'automationStopped'
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
   });
-}
-
-// Check if we're on the correct page
-function isOnCorrectPage() {
-  const url = window.location.href;
-  return url.includes('onlineoffice.zip') || url.includes('tv-on.site');
-}
-
-// Initialize
-if (isOnCorrectPage()) {
-  console.log('OnlineOffice IPTV Automator ready on:', window.location.href);
-  
-  // Notify popup that content script is ready
-  chrome.runtime.sendMessage({
-    type: 'contentScriptReady',
-    url: window.location.href
-  });
-} else {
-  console.log('Not on OnlineOffice page, extension inactive');
 }
