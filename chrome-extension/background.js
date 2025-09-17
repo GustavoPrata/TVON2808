@@ -1,71 +1,194 @@
 // Background script for OnlineOffice IPTV Automator
-// Centraliza todo o controle de automação
+// Sistema de automação com persistência completa e recorrência infinita
 
-// Estado da automação mantido no background
+// ===========================================================================
+// ESTADO PERSISTENTE - Sincronizado com chrome.storage.local
+// ===========================================================================
 let automationState = {
-  enabled: false,
-  config: null,
-  tabId: null,
-  currentBatchNumber: 0,       // Número do lote atual
-  currentBatchProgress: 0,     // Progresso dentro do lote atual
-  totalGeneratedCount: 0,      // Total de credenciais geradas
-  currentTimer: null           // Para intervalos < 60s
+  isRunning: false,              // Se a automação está ativa
+  config: null,                  // Configuração (quantidade, intervalo, etc)
+  tabId: null,                   // ID da aba do OnlineOffice
+  batchNumber: 0,                // Número do lote atual
+  currentBatchProgress: 0,       // Progresso dentro do lote atual  
+  totalGenerated: 0,             // Total de credenciais geradas
+  lastRunTime: null,             // Última vez que executou (timestamp)
+  nextRunTime: null,             // Próxima execução (timestamp)
+  credentialsHistory: []         // Histórico de credenciais (últimas 100)
 };
 
-// Listener de instalação
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('[Background] OnlineOffice IPTV Automator instalado');
-  
-  // Configuração padrão
-  chrome.storage.sync.set({
-    serverUrl: '',
-    automationConfig: {
-      enabled: false,
-      quantity: 10,
-      intervalValue: 30,
-      intervalUnit: 'minutes'
-    },
-    lastCredentials: null,
-    automationState: {
-      enabled: false,
-      currentBatchNumber: 0,
-      currentBatchProgress: 0,
-      totalGeneratedCount: 0
-    }
-  });
+// ===========================================================================
+// INICIALIZAÇÃO E RECUPERAÇÃO DE ESTADO
+// ===========================================================================
+
+// Ao iniciar o Chrome (quando navegador abre)
+chrome.runtime.onStartup.addListener(async () => {
+  console.log('[Background] ======= CHROME INICIADO =======');
+  await recoverAutomationState();
 });
 
-// Listener de alarmes (para intervalos >= 60s)
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  console.log('[Background] Alarme disparado:', alarm.name);
+// Ao instalar ou atualizar a extensão
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log('[Background] ======= EXTENSÃO INSTALADA/ATUALIZADA =======');
   
-  if (alarm.name === 'automation' && automationState.enabled) {
+  // Verificar se já existe estado salvo
+  const stored = await chrome.storage.local.get(['automationState']);
+  
+  if (stored.automationState) {
+    console.log('[Background] Estado existente encontrado, recuperando...');
+    await recoverAutomationState();
+  } else {
+    console.log('[Background] Primeira instalação, configurando estado inicial...');
+    await saveAutomationState();
+  }
+});
+
+// Recuperar estado salvo e continuar automação se estava ativa
+async function recoverAutomationState() {
+  try {
+    const stored = await chrome.storage.local.get(['automationState']);
+    
+    if (!stored.automationState) {
+      console.log('[Background] Nenhum estado salvo encontrado');
+      return;
+    }
+    
+    automationState = stored.automationState;
+    console.log('[Background] Estado recuperado:', {
+      isRunning: automationState.isRunning,
+      batchNumber: automationState.batchNumber,
+      totalGenerated: automationState.totalGenerated,
+      nextRunTime: automationState.nextRunTime ? new Date(automationState.nextRunTime) : null
+    });
+    
+    // Se automação estava ativa, continuar
+    if (automationState.isRunning && automationState.config) {
+      console.log('[Background] 🚀 AUTOMAÇÃO ESTAVA ATIVA! Retomando...');
+      
+      // Verificar se tem alarme configurado
+      const alarm = await chrome.alarms.get('automationBatch');
+      
+      if (!alarm) {
+        console.log('[Background] Alarme não encontrado, recriando...');
+        
+        // Calcular próxima execução
+        const now = Date.now();
+        const nextRun = automationState.nextRunTime;
+        
+        if (nextRun && nextRun > now) {
+          // Agendar para o tempo que estava programado
+          const delayMinutes = Math.max(1, (nextRun - now) / 60000);
+          console.log(`[Background] Próxima execução em ${delayMinutes.toFixed(1)} minutos`);
+          await scheduleNextBatch(delayMinutes);
+        } else {
+          // Executar imediatamente se já passou do tempo
+          console.log('[Background] Tempo já passou, executando imediatamente...');
+          await scheduleNextBatch(0.1); // 6 segundos
+        }
+      } else {
+        console.log('[Background] Alarme encontrado, será executado em:', 
+                   new Date(alarm.scheduledTime));
+      }
+      
+      // Atualizar badge
+      chrome.action.setBadgeText({ text: 'AUTO' });
+      chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
+    } else {
+      console.log('[Background] Automação estava desativada');
+    }
+  } catch (error) {
+    console.error('[Background] Erro ao recuperar estado:', error);
+  }
+}
+
+// Salvar estado no storage
+async function saveAutomationState() {
+  try {
+    await chrome.storage.local.set({ automationState });
+    console.log('[Background] Estado salvo:', {
+      isRunning: automationState.isRunning,
+      batchNumber: automationState.batchNumber,
+      totalGenerated: automationState.totalGenerated
+    });
+  } catch (error) {
+    console.error('[Background] Erro ao salvar estado:', error);
+  }
+}
+
+// ===========================================================================
+// LISTENERS DE ALARMES E MENSAGENS
+// ===========================================================================
+
+// Listener de alarmes para recorrência
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  console.log('[Background] ⏰ ALARME DISPARADO:', alarm.name, new Date());
+  
+  if (alarm.name === 'automationBatch' && automationState.isRunning) {
+    // Atualizar última execução
+    automationState.lastRunTime = Date.now();
+    await saveAutomationState();
+    
+    // Executar próximo lote
     await executeNextBatch();
   }
 });
 
-// Função principal para executar um lote de gerações
+// ===========================================================================
+// EXECUÇÃO DE LOTES
+// ===========================================================================
+
+// Executar próximo lote de gerações
 async function executeNextBatch() {
-  if (!automationState.enabled) {
-    console.log('[Background] Automação parada');
+  if (!automationState.isRunning) {
+    console.log('[Background] Automação não está ativa');
     return;
   }
   
-  automationState.currentBatchNumber++;
+  // Verificar se tem uma aba válida
+  if (!automationState.tabId) {
+    console.log('[Background] Sem aba configurada, procurando aba do OnlineOffice...');
+    
+    // Procurar aba do OnlineOffice
+    const tabs = await chrome.tabs.query({ url: "*://*.onlineoffice.zip/*" });
+    
+    if (tabs.length === 0) {
+      console.log('[Background] ❌ Nenhuma aba do OnlineOffice encontrada!');
+      console.log('[Background] Aguardando próximo ciclo...');
+      await scheduleNextBatch();
+      return;
+    }
+    
+    automationState.tabId = tabs[0].id;
+    console.log('[Background] Aba encontrada:', automationState.tabId);
+  }
+  
+  // Verificar se aba ainda existe
+  try {
+    await chrome.tabs.get(automationState.tabId);
+  } catch (error) {
+    console.log('[Background] Aba foi fechada, procurando nova aba...');
+    automationState.tabId = null;
+    await saveAutomationState();
+    await executeNextBatch(); // Tentar novamente
+    return;
+  }
+  
+  // Incrementar contador de lotes
+  automationState.batchNumber++;
   automationState.currentBatchProgress = 0;
   const batchSize = automationState.config.quantity;
   
   console.log(`[Background] ========================================`);
-  console.log(`[Background] Iniciando LOTE #${automationState.currentBatchNumber} de ${batchSize} credenciais`);
-  console.log(`[Background] Total gerado até agora: ${automationState.totalGeneratedCount}`);
+  console.log(`[Background] 📦 LOTE #${automationState.batchNumber}`);
+  console.log(`[Background] 🎯 Gerando ${batchSize} credenciais`);
+  console.log(`[Background] 📊 Total até agora: ${automationState.totalGenerated}`);
   console.log(`[Background] ========================================`);
   
   // Notificar popup sobre início do lote
   chrome.runtime.sendMessage({
     type: 'batchStarted',
-    batchNumber: automationState.currentBatchNumber,
+    batchNumber: automationState.batchNumber,
     batchSize: batchSize,
-    totalGenerated: automationState.totalGeneratedCount
+    totalGenerated: automationState.totalGenerated
   }).catch(() => {});
   
   // Gerar cada credencial do lote em sequência
@@ -76,7 +199,7 @@ async function executeNextBatch() {
     }
     
     automationState.currentBatchProgress = i + 1;
-    console.log(`[Background] Gerando credencial ${i + 1}/${batchSize} do lote #${automationState.currentBatchNumber}`);
+    console.log(`[Background] Gerando credencial ${i + 1}/${batchSize}...`);
     
     try {
       const response = await new Promise((resolve, reject) => {
@@ -94,18 +217,23 @@ async function executeNextBatch() {
       });
       
       if (response && response.success) {
-        automationState.totalGeneratedCount++;
-        console.log(`[Background] ✅ Credencial ${i + 1}/${batchSize} gerada com sucesso`);
+        automationState.totalGenerated++;
         
-        // Salvar estado
-        await chrome.storage.sync.set({
-          automationState: {
-            enabled: automationState.enabled,
-            currentBatchNumber: automationState.currentBatchNumber,
-            currentBatchProgress: automationState.currentBatchProgress,
-            totalGeneratedCount: automationState.totalGeneratedCount
-          }
+        // Adicionar ao histórico (manter últimas 100)
+        automationState.credentialsHistory.unshift({
+          ...response.credentials,
+          timestamp: Date.now(),
+          batchNumber: automationState.batchNumber
         });
+        
+        if (automationState.credentialsHistory.length > 100) {
+          automationState.credentialsHistory = automationState.credentialsHistory.slice(0, 100);
+        }
+        
+        console.log(`[Background] ✅ Credencial ${i + 1}/${batchSize} gerada`);
+        
+        // Salvar estado após cada credencial
+        await saveAutomationState();
         
         // Notificar popup
         chrome.runtime.sendMessage({
@@ -114,8 +242,8 @@ async function executeNextBatch() {
           progress: {
             currentInBatch: i + 1,
             batchSize: batchSize,
-            batchNumber: automationState.currentBatchNumber,
-            totalGenerated: automationState.totalGeneratedCount
+            batchNumber: automationState.batchNumber,
+            totalGenerated: automationState.totalGenerated
           }
         }).catch(() => {});
         
@@ -124,71 +252,84 @@ async function executeNextBatch() {
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       } else {
-        console.error(`[Background] ❌ Erro na geração ${i + 1}/${batchSize}:`, response?.error);
-        // Continuar com a próxima tentativa após um delay
+        console.error(`[Background] ❌ Erro na geração ${i + 1}:`, response?.error);
         await new Promise(resolve => setTimeout(resolve, 5000));
       }
     } catch (error) {
-      console.error(`[Background] ❌ Erro ao gerar credencial ${i + 1}/${batchSize}:`, error);
-      // Se a aba foi fechada, parar
+      console.error(`[Background] ❌ Erro ao gerar credencial ${i + 1}:`, error);
+      
+      // Se aba foi fechada, limpar tabId
       if (error.message?.includes('Could not establish connection')) {
-        console.log('[Background] Aba foi fechada, parando automação');
-        stopAutomation();
-        return;
+        console.log('[Background] Aba foi fechada');
+        automationState.tabId = null;
+        await saveAutomationState();
       }
-      // Caso contrário, aguardar e tentar próxima
+      
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
   
-  if (automationState.enabled) {
-    console.log(`[Background] ✅ LOTE #${automationState.currentBatchNumber} CONCLUÍDO!`);
-    console.log(`[Background] Total de credenciais geradas: ${automationState.totalGeneratedCount}`);
-    console.log(`[Background] Aguardando próximo intervalo...`);
+  if (automationState.isRunning) {
+    console.log(`[Background] ✅ LOTE #${automationState.batchNumber} CONCLUÍDO!`);
+    console.log(`[Background] 📊 Total gerado: ${automationState.totalGenerated} credenciais`);
     
-    // Notificar popup sobre conclusão do lote
+    // Notificar popup
     chrome.runtime.sendMessage({
       type: 'batchCompleted',
-      batchNumber: automationState.currentBatchNumber,
-      totalGenerated: automationState.totalGeneratedCount
+      batchNumber: automationState.batchNumber,
+      totalGenerated: automationState.totalGenerated
     }).catch(() => {});
     
     // Agendar próximo lote
-    scheduleNextBatch();
+    await scheduleNextBatch();
   }
 }
 
-// Agendar próximo lote baseado no intervalo
-function scheduleNextBatch() {
-  if (!automationState.enabled || !automationState.config) return;
+// Agendar próximo lote
+async function scheduleNextBatch(customDelayMinutes = null) {
+  if (!automationState.isRunning || !automationState.config) return;
   
   const { intervalValue, intervalUnit } = automationState.config;
   
   // Calcular intervalo em minutos
-  let intervalMinutes = intervalValue;
-  if (intervalUnit === 'hours') {
-    intervalMinutes = intervalValue * 60;
-  } else if (intervalUnit === 'seconds') {
-    intervalMinutes = intervalValue / 60;
+  let intervalMinutes = customDelayMinutes;
+  
+  if (intervalMinutes === null) {
+    intervalMinutes = intervalValue;
+    
+    if (intervalUnit === 'hours') {
+      intervalMinutes = intervalValue * 60;
+    } else if (intervalUnit === 'seconds') {
+      intervalMinutes = intervalValue / 60;
+    }
   }
   
-  console.log(`[Background] Próximo lote em ${intervalValue} ${intervalUnit}`);
+  // Calcular próxima execução
+  automationState.nextRunTime = Date.now() + (intervalMinutes * 60000);
+  await saveAutomationState();
   
-  // Para intervalos >= 1 minuto, usar chrome.alarms
+  console.log(`[Background] ⏰ Próximo lote em ${intervalMinutes.toFixed(1)} minutos`);
+  console.log(`[Background] 📅 Execução agendada para:`, new Date(automationState.nextRunTime));
+  
+  // Usar chrome.alarms para intervalos >= 1 minuto
   if (intervalMinutes >= 1) {
-    chrome.alarms.create('automation', {
+    await chrome.alarms.create('automationBatch', {
       delayInMinutes: intervalMinutes
     });
-  } else {
-    // Para intervalos < 1 minuto, usar setTimeout
-    let intervalMs = intervalValue * 1000;
-    if (intervalUnit === 'minutes') {
-      intervalMs = intervalValue * 60 * 1000;
-    }
     
-    automationState.currentTimer = setTimeout(() => {
-      executeNextBatch();
-    }, intervalMs);
+    console.log('[Background] Alarme criado com sucesso');
+  } else {
+    // Para intervalos < 1 minuto, executar após o delay
+    console.warn('[Background] ⚠️ Intervalo < 1 minuto! Usando setTimeout');
+    console.warn('[Background] NOTA: Funciona apenas com aba ativa!');
+    
+    setTimeout(async () => {
+      if (automationState.isRunning) {
+        automationState.lastRunTime = Date.now();
+        await saveAutomationState();
+        await executeNextBatch();
+      }
+    }, intervalMinutes * 60000);
   }
 }
 
@@ -196,237 +337,130 @@ function scheduleNextBatch() {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Background] Mensagem recebida:', request.type || request.action);
   
-  // Mensagens do popup
+  // Iniciar automação
   if (request.type === 'startAutomation') {
     startAutomation(request.config, request.tabId)
       .then(() => sendResponse({ success: true }))
       .catch(err => sendResponse({ success: false, error: err.message }));
-    return true; // Indica resposta assíncrona
+    return true; // Resposta assíncrona
   }
   
+  // Parar automação
   if (request.type === 'stopAutomation') {
-    stopAutomation();
-    sendResponse({ success: true });
-    return false;
+    stopAutomation()
+      .then(() => sendResponse({ success: true }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
   }
   
+  // Obter estado atual
   if (request.type === 'getAutomationState') {
-    sendResponse({
-      success: true,
-      state: {
-        enabled: automationState.enabled,
-        currentBatchNumber: automationState.currentBatchNumber,
-        currentBatchProgress: automationState.currentBatchProgress,
-        totalGeneratedCount: automationState.totalGeneratedCount,
-        config: automationState.config
-      }
+    // Retornar estado completo incluindo próxima execução
+    chrome.alarms.get('automationBatch', (alarm) => {
+      sendResponse({
+        success: true,
+        state: {
+          ...automationState,
+          nextRunTime: alarm ? alarm.scheduledTime : null
+        }
+      });
     });
-    return false;
+    return true; // Resposta assíncrona
   }
   
-  // Mensagens do content script
+  // Content script pronto
   if (request.type === 'contentScriptReady') {
     console.log('[Background] Content script pronto em:', request.url);
     
-    // Verificar se deve retomar automação
-    chrome.storage.sync.get(['automationState'], (result) => {
-      if (result.automationState?.enabled && sender.tab?.id) {
-        // Retomar automação se estava ativa
-        console.log('[Background] Retomando automação...');
-        automationState = {
-          ...automationState,
-          ...result.automationState,
-          tabId: sender.tab.id
-        };
-      }
-    });
+    // Se automação está ativa e não tem tabId, usar esta aba
+    if (automationState.isRunning && !automationState.tabId) {
+      automationState.tabId = sender.tab?.id;
+      saveAutomationState();
+      console.log('[Background] TabId atualizado:', automationState.tabId);
+    }
     
     sendResponse({ success: true });
     return false;
   }
   
-  // Repassar mensagens de progresso para o popup
-  if (request.type === 'credentialGenerated' || request.type === 'automationProgress') {
-    chrome.runtime.sendMessage(request).catch(() => {
-      // Popup pode não estar aberto
-    });
-    
-    if (sendResponse) {
-      sendResponse({ success: true });
-    }
+  // Repassar progresso para popup
+  if (request.type === 'credentialGenerated' || 
+      request.type === 'batchStarted' || 
+      request.type === 'batchCompleted') {
+    chrome.runtime.sendMessage(request).catch(() => {});
+    if (sendResponse) sendResponse({ success: true });
     return false;
   }
 });
 
+// ===========================================================================
+// CONTROLE DE AUTOMAÇÃO
+// ===========================================================================
+
 // Iniciar automação
 async function startAutomation(config, tabId) {
-  console.log('[Background] Iniciando automação:', config);
+  console.log('[Background] ========================================');
+  console.log('[Background] INICIANDO AUTOMAÇÃO');
+  console.log('[Background] Config:', config);
+  console.log('[Background] ========================================');
   
-  // Validar configuração
   if (!config || !config.quantity || !config.intervalValue) {
     throw new Error('Configuração inválida');
   }
   
   // Parar qualquer automação anterior
-  stopAutomation();
+  await stopAutomation();
   
   // Configurar novo estado
   automationState = {
-    enabled: true,
+    isRunning: true,
     config: config,
     tabId: tabId,
-    currentBatchNumber: 0,
+    batchNumber: 0,
     currentBatchProgress: 0,
-    totalGeneratedCount: 0,
-    currentTimer: null
+    totalGenerated: 0,
+    lastRunTime: null,
+    nextRunTime: null,
+    credentialsHistory: []
   };
   
-  // Salvar estado
-  await chrome.storage.sync.set({
-    automationConfig: {
-      ...config,
-      enabled: true
-    },
-    automationState: {
-      enabled: true,
-      currentBatchNumber: 0,
-      currentBatchProgress: 0,
-      totalGeneratedCount: 0
-    }
-  });
+  // Salvar estado inicial
+  await saveAutomationState();
   
-  // Atualizar badge
-  if (tabId) {
-    chrome.action.setBadgeText({ text: 'AUTO', tabId: tabId });
-    chrome.action.setBadgeBackgroundColor({ color: '#10b981', tabId: tabId });
-  }
+  // Configurar badge
+  chrome.action.setBadgeText({ text: 'AUTO' });
+  chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
   
-  // Avisar usuário sobre limitações para intervalos curtos
-  const { intervalValue, intervalUnit } = config;
-  let intervalMinutes = intervalValue;
-  if (intervalUnit === 'hours') {
-    intervalMinutes = intervalValue * 60;
-  } else if (intervalUnit === 'seconds') {
-    intervalMinutes = intervalValue / 60;
-  }
+  // Executar primeiro lote imediatamente
+  console.log('[Background] Executando primeiro lote...');
+  await executeNextBatch();
   
-  if (intervalMinutes < 1) {
-    console.warn('[Background] AVISO: Intervalos menores que 1 minuto podem não funcionar com aba em background!');
-    // Notificar popup
-    chrome.runtime.sendMessage({
-      type: 'warning',
-      message: 'Intervalos menores que 1 minuto requerem que a aba permaneça ativa'
-    }).catch(() => {});
-  }
-  
-  console.log(`[Background] Gerando lotes de ${config.quantity} credenciais a cada ${intervalValue} ${intervalUnit}`);
-  console.log(`[Background] Processo continuará indefinidamente até ser parado manualmente`);
-  
-  // Iniciar primeiro lote imediatamente
-  setTimeout(() => executeNextBatch(), 1000);
+  return true;
 }
 
 // Parar automação
-function stopAutomation() {
-  console.log('[Background] Parando automação');
+async function stopAutomation() {
+  console.log('[Background] PARANDO AUTOMAÇÃO');
   
-  const wasEnabled = automationState.enabled;
-  const totalGenerated = automationState.totalGeneratedCount;
-  const batchNumber = automationState.currentBatchNumber;
+  // Limpar alarmes
+  await chrome.alarms.clear('automationBatch');
   
-  // Limpar estado
-  automationState = {
-    enabled: false,
-    config: null,
-    tabId: null,
-    currentBatchNumber: 0,
-    currentBatchProgress: 0,
-    totalGeneratedCount: 0,
-    currentTimer: null
-  };
+  // Atualizar estado
+  automationState.isRunning = false;
+  automationState.tabId = null;
   
-  // Limpar timers
-  if (automationState.currentTimer) {
-    clearTimeout(automationState.currentTimer);
-  }
-  chrome.alarms.clear('automation');
-  
-  // Atualizar storage
-  chrome.storage.sync.set({
-    automationConfig: {
-      enabled: false,
-      quantity: 10,
-      intervalValue: 30,
-      intervalUnit: 'minutes'
-    },
-    automationState: {
-      enabled: false,
-      currentBatchNumber: 0,
-      currentBatchProgress: 0,
-      totalGeneratedCount: 0
-    }
-  });
+  // Salvar estado
+  await saveAutomationState();
   
   // Limpar badge
-  chrome.tabs.query({}, (tabs) => {
-    tabs.forEach(tab => {
-      if (tab.id) {
-        chrome.action.setBadgeText({ text: '', tabId: tab.id });
-      }
-    });
-  });
+  chrome.action.setBadgeText({ text: '' });
   
-  // Notificar popup se a automação estava rodando
-  if (wasEnabled) {
-    chrome.runtime.sendMessage({
-      type: 'automationStopped',
-      totalGenerated: totalGenerated,
-      batchNumber: batchNumber,
-      reason: 'stopped'
-    }).catch(() => {});
-  }
+  console.log('[Background] Automação parada');
+  return true;
 }
 
-// Listener de atualização de aba
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url) {
-    const isOnlineOffice = tab.url.includes('onlineoffice.zip') || tab.url.includes('tv-on.site');
-    
-    if (isOnlineOffice) {
-      // Atualizar badge
-      if (automationState.enabled && automationState.tabId === tabId) {
-        chrome.action.setBadgeText({ text: 'AUTO', tabId: tabId });
-        chrome.action.setBadgeBackgroundColor({ color: '#10b981', tabId: tabId });
-      } else {
-        chrome.action.setBadgeText({ text: 'ON', tabId: tabId });
-        chrome.action.setBadgeBackgroundColor({ color: '#3b82f6', tabId: tabId });
-      }
-    } else {
-      chrome.action.setBadgeText({ text: '', tabId: tabId });
-    }
-  }
-});
-
-// Listener de remoção de aba
-chrome.tabs.onRemoved.addListener((tabId) => {
-  // Parar automação se a aba foi fechada
-  if (automationState.tabId === tabId) {
-    console.log('[Background] Aba de automação fechada, parando...');
-    stopAutomation();
-  }
-});
-
-// Listener de inicialização - restaurar estado se extensão foi recarregada
-chrome.runtime.onStartup.addListener(() => {
-  console.log('[Background] Extensão iniciada');
-  
-  // Verificar se havia automação ativa
-  chrome.storage.sync.get(['automationState', 'automationConfig'], (result) => {
-    if (result.automationState?.enabled) {
-      console.log('[Background] Automação estava ativa, aguardando content script...');
-      // O content script irá notificar quando estiver pronto
-    }
-  });
-});
-
-console.log('[Background] Script carregado e pronto');
+// Log de inicialização
+console.log('[Background] ======================================');
+console.log('[Background] OnlineOffice IPTV Automator');
+console.log('[Background] Versão: 2.0 - Persistência Completa');
+console.log('[Background] ======================================');

@@ -76,12 +76,21 @@
       <div id="batchInfo" class="batch-info">
         <p id="batchStatus">Aguardando início...</p>
         <p id="batchNumber">Lote: 0</p>
+        <p id="nextRunInfo" class="next-run">
+          <strong>Próxima Execução:</strong> <span id="nextRunTime">Não agendado</span>
+        </p>
       </div>
       <div class="progress-bar">
         <div id="progressFill" class="progress-fill"></div>
       </div>
       <p id="progressText">0 de 0 no lote atual</p>
       <p id="totalGenerated" class="total-count">Total gerado: 0 credenciais</p>
+      <div class="persistence-info" style="margin-top: 10px; padding: 8px; background: rgba(34, 197, 94, 0.1); border-radius: 4px; border-left: 3px solid #22c55e;">
+        <p style="margin: 0; font-size: 0.85rem; color: #22c55e;">
+          <strong>🔄 Persistência Total Ativa!</strong><br>
+          <span style="opacity: 0.9;">Continua rodando mesmo após fechar o Chrome</span>
+        </p>
+      </div>
     </div>
     
     <div class="log" id="log">

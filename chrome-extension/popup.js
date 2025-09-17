@@ -35,26 +35,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   await checkCurrentTab();
 });
 
-// Load saved configuration
+// Load saved configuration from local storage
 async function loadConfiguration() {
-  chrome.storage.sync.get(['automationConfig', 'lastCredentials'], (result) => {
-    if (result.automationConfig) {
-      quantityInput.value = result.automationConfig.quantity || 10;
-      intervalValueInput.value = result.automationConfig.intervalValue || 30;
-      intervalUnitSelect.value = result.automationConfig.intervalUnit || 'minutes';
-      automationActive = result.automationConfig.enabled || false;
+  // Usar chrome.storage.local para persistência completa
+  chrome.storage.local.get(['automationState'], async (result) => {
+    if (result.automationState) {
+      const state = result.automationState;
+      
+      // Carregar configuração se existir
+      if (state.config) {
+        quantityInput.value = state.config.quantity || 10;
+        intervalValueInput.value = state.config.intervalValue || 30;
+        intervalUnitSelect.value = state.config.intervalUnit || 'minutes';
+      }
+      
+      // Verificar se está rodando
+      automationActive = state.isRunning || false;
       updateAutomationUI(automationActive);
-    }
-    
-    if (result.lastCredentials) {
-      showCredentials(result.lastCredentials);
+      
+      // Se está rodando, mostrar progresso
+      if (state.isRunning) {
+        updateBatchInfo(
+          state.batchNumber || 0,
+          state.currentBatchProgress || 0,
+          state.config?.quantity || 0,
+          state.totalGenerated || 0
+        );
+        
+        // Buscar próxima execução
+        const alarm = await chrome.alarms.get('automationBatch');
+        if (alarm) {
+          updateNextRunTime(alarm.scheduledTime);
+        }
+        
+        // Mostrar histórico de credenciais se existir
+        if (state.credentialsHistory && state.credentialsHistory.length > 0) {
+          showCredentials(state.credentialsHistory[0]);
+        }
+        
+        addLog(`📦 Automação ATIVA - Lote #${state.batchNumber}, Total: ${state.totalGenerated}`);
+      }
     }
   });
 }
 
 // Check current tab
 async function checkCurrentTab() {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+  chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
     const currentTab = tabs[0];
     const url = currentTab.url || '';
     
@@ -66,16 +93,29 @@ async function checkCurrentTab() {
       pageUrl.textContent = new URL(url).hostname;
       
       // Get automation state from background
-      chrome.runtime.sendMessage({ type: 'getAutomationState' }, (response) => {
+      chrome.runtime.sendMessage({ type: 'getAutomationState' }, async (response) => {
         if (response && response.success && response.state) {
-          if (response.state.enabled) {
+          const state = response.state;
+          
+          // Atualizar interface se automação está ativa
+          if (state.isRunning) {
             updateAutomationUI(true);
             updateBatchInfo(
-              response.state.currentBatchNumber,
-              response.state.currentBatchProgress,
-              response.state.config?.quantity || 0,
-              response.state.totalGeneratedCount
+              state.batchNumber || 0,
+              state.currentBatchProgress || 0,
+              state.config?.quantity || 0,
+              state.totalGenerated || 0
             );
+            
+            // Mostrar próxima execução
+            if (state.nextRunTime) {
+              updateNextRunTime(state.nextRunTime);
+            }
+            
+            // Mostrar última credencial se existir
+            if (state.credentialsHistory && state.credentialsHistory.length > 0) {
+              showCredentials(state.credentialsHistory[0]);
+            }
           }
         }
       });
@@ -154,15 +194,7 @@ automationToggle.addEventListener('change', async () => {
       }
     });
     
-    // Save disabled state
-    chrome.storage.sync.set({ 
-      automationConfig: {
-        enabled: false,
-        quantity: quantityInput.value,
-        intervalValue: intervalValueInput.value,
-        intervalUnit: intervalUnitSelect.value
-      }
-    });
+    // Nada a salvar - o background já cuida disso
   }
 });
 
@@ -192,25 +224,28 @@ saveAutomationBtn.addEventListener('click', () => {
     addLog('⚠️ Intervalos < 1 min requerem aba ativa');
   }
   
-  // Save to storage
-  chrome.storage.sync.set({ automationConfig: config }, () => {
-    addLog('✅ Configuração salva');
-    addLog(`📊 Gerando lotes de ${config.quantity} credenciais a cada ${config.intervalValue} ${config.intervalUnit}`);
-    addLog('♾️ Processo continuará indefinidamente até ser parado');
-    
-    // Obter tabId atual e enviar para background
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      // Enviar mensagem para background.js
-      chrome.runtime.sendMessage({ 
-        type: 'startAutomation',
-        config: config,
-        tabId: tabs[0].id
-      }, (response) => {
-        if (response && response.success) {
-          addLog('🚀 Automação iniciada - primeiro lote iniciando...');
-          updateBatchInfo(0, 0, config.quantity, 0);
-        }
-      });
+  // Não salvar localmente - enviar direto para background
+  addLog('✅ Configuração definida');
+  addLog(`📊 Gerando lotes de ${config.quantity} credenciais a cada ${config.intervalValue} ${config.intervalUnit}`);
+  addLog('♾️ Processo continuará INDEFINIDAMENTE mesmo após fechar o Chrome!');
+  
+  // Obter tabId atual e enviar para background
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    // Enviar mensagem para background.js
+    chrome.runtime.sendMessage({ 
+      type: 'startAutomation',
+      config: config,
+      tabId: tabs[0].id
+    }, (response) => {
+      if (response && response.success) {
+        addLog('🚀 Automação iniciada com persistência total!');
+        addLog('🔄 Continuará rodando mesmo se fechar o Chrome');
+        updateBatchInfo(0, 0, config.quantity, 0);
+      } else {
+        addLog(`❌ Erro: ${response?.error || 'Não foi possível iniciar'}`);
+        automationToggle.checked = false;
+        updateAutomationUI(false);
+      }
     });
   });
 });
@@ -298,6 +333,60 @@ function addLog(message) {
   }
 }
 
+// Função para atualizar próxima execução
+function updateNextRunTime(scheduledTime) {
+  const nextRunElement = document.getElementById('nextRunTime');
+  if (!nextRunElement) return;
+  
+  if (!scheduledTime) {
+    nextRunElement.textContent = 'Não agendado';
+    return;
+  }
+  
+  const now = Date.now();
+  const timeUntil = scheduledTime - now;
+  
+  if (timeUntil <= 0) {
+    nextRunElement.textContent = 'Executando...';
+  } else {
+    const minutes = Math.floor(timeUntil / 60000);
+    const seconds = Math.floor((timeUntil % 60000) / 1000);
+    
+    if (minutes > 0) {
+      nextRunElement.textContent = `${minutes} min ${seconds}s`;
+    } else {
+      nextRunElement.textContent = `${seconds} segundos`;
+    }
+  }
+}
+
+// Atualizar próxima execução a cada segundo se automação está ativa
+let nextRunInterval = null;
+
+function startNextRunTimer() {
+  if (nextRunInterval) clearInterval(nextRunInterval);
+  
+  nextRunInterval = setInterval(async () => {
+    if (!automationActive) {
+      clearInterval(nextRunInterval);
+      return;
+    }
+    
+    // Buscar alarme atual
+    const alarm = await chrome.alarms.get('automationBatch');
+    if (alarm) {
+      updateNextRunTime(alarm.scheduledTime);
+    } else {
+      // Se não tem alarme mas deveria ter, buscar do estado
+      chrome.runtime.sendMessage({ type: 'getAutomationState' }, (response) => {
+        if (response && response.success && response.state && response.state.nextRunTime) {
+          updateNextRunTime(response.state.nextRunTime);
+        }
+      });
+    }
+  }, 1000);
+}
+
 // Listen for messages from content/background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Popup received message:', request.type);
@@ -306,12 +395,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'batchStarted') {
     addLog(`📦 LOTE #${request.batchNumber} iniciado (${request.batchSize} credenciais)`);
     updateBatchInfo(request.batchNumber, 0, request.batchSize, request.totalGenerated);
+    
+    // Iniciar timer de próxima execução
+    if (automationActive) {
+      startNextRunTimer();
+    }
   }
   
   // Batch completed
   if (request.type === 'batchCompleted') {
     addLog(`✅ LOTE #${request.batchNumber} concluído! Total gerado: ${request.totalGenerated}`);
     addLog('⏳ Aguardando próximo intervalo...');
+    addLog('🔄 Automação continuará mesmo se fechar o Chrome');
   }
   
   // Individual credential generated
@@ -374,5 +469,16 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-// Initialize log
+// Initialize
 addLog('🚀 Extensão iniciada');
+addLog('💾 Verificando estado salvo...');
+
+// Verificar se há automação recuperada
+chrome.storage.local.get(['automationState'], (result) => {
+  if (result.automationState && result.automationState.isRunning) {
+    addLog('📡 AUTOMAÇÃO RECUPERADA DO STORAGE!');
+    addLog(`📦 Continuando do Lote #${result.automationState.batchNumber}`);
+    addLog(`📊 Total já gerado: ${result.automationState.totalGenerated} credenciais`);
+    startNextRunTimer();
+  }
+});
