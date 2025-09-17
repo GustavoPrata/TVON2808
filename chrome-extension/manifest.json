@@ -23,7 +23,16 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://onlineoffice.zip/*"],
+      "matches": [
+        "https://onlineoffice.zip/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "https://tv-on.site/*",
+        "https://*.repl.co/*",
+        "https://*.replit.dev/*",
+        "https://*.replit.app/*",
+        "https://*.worf.replit.dev/*"
+      ],
       "js": ["content.js"],
       "run_at": "document_end"
     }
