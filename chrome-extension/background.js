@@ -6,9 +6,10 @@ let automationState = {
   enabled: false,
   config: null,
   tabId: null,
-  currentCount: 0,
-  targetCount: 0,
-  currentTimer: null // Para intervalos < 60s
+  currentBatchNumber: 0,       // Número do lote atual
+  currentBatchProgress: 0,     // Progresso dentro do lote atual
+  totalGeneratedCount: 0,      // Total de credenciais geradas
+  currentTimer: null           // Para intervalos < 60s
 };
 
 // Listener de instalação
@@ -27,8 +28,9 @@ chrome.runtime.onInstalled.addListener(() => {
     lastCredentials: null,
     automationState: {
       enabled: false,
-      currentCount: 0,
-      targetCount: 0
+      currentBatchNumber: 0,
+      currentBatchProgress: 0,
+      totalGeneratedCount: 0
     }
   });
 });
@@ -38,84 +40,126 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   console.log('[Background] Alarme disparado:', alarm.name);
   
   if (alarm.name === 'automation' && automationState.enabled) {
-    await executeNextGeneration();
+    await executeNextBatch();
   }
 });
 
-// Função principal para executar a próxima geração
-async function executeNextGeneration() {
-  console.log(`[Background] Executando geração ${automationState.currentCount + 1} de ${automationState.targetCount}`);
-  
-  // Verificar se ainda deve continuar
-  if (!automationState.enabled || automationState.currentCount >= automationState.targetCount) {
-    console.log('[Background] Automação completa ou parada');
-    stopAutomation();
+// Função principal para executar um lote de gerações
+async function executeNextBatch() {
+  if (!automationState.enabled) {
+    console.log('[Background] Automação parada');
     return;
   }
   
-  // Enviar comando para content script
-  try {
-    const response = await new Promise((resolve, reject) => {
-      chrome.tabs.sendMessage(
-        automationState.tabId, 
-        { action: 'generateOne' },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve(response);
-          }
-        }
-      );
-    });
-    
-    if (response && response.success) {
-      // Incrementar contador
-      automationState.currentCount++;
-      console.log(`[Background] Sucesso! ${automationState.currentCount}/${automationState.targetCount} gerados`);
-      
-      // Salvar estado
-      await chrome.storage.sync.set({
-        automationState: {
-          enabled: automationState.enabled,
-          currentCount: automationState.currentCount,
-          targetCount: automationState.targetCount
-        }
-      });
-      
-      // Notificar popup
-      chrome.runtime.sendMessage({
-        type: 'credentialGenerated',
-        credentials: response.credentials,
-        progress: {
-          current: automationState.currentCount,
-          total: automationState.targetCount
-        }
-      }).catch(() => {
-        // Popup pode não estar aberto
-      });
-      
-      // Verificar se deve continuar
-      if (automationState.currentCount < automationState.targetCount) {
-        scheduleNextGeneration();
-      } else {
-        console.log('[Background] Todas as credenciais foram geradas!');
-        stopAutomation();
-      }
-    } else {
-      console.error('[Background] Erro na geração:', response?.error);
-      // Tentar novamente após delay
-      setTimeout(() => scheduleNextGeneration(), 5000);
+  automationState.currentBatchNumber++;
+  automationState.currentBatchProgress = 0;
+  const batchSize = automationState.config.quantity;
+  
+  console.log(`[Background] ========================================`);
+  console.log(`[Background] Iniciando LOTE #${automationState.currentBatchNumber} de ${batchSize} credenciais`);
+  console.log(`[Background] Total gerado até agora: ${automationState.totalGeneratedCount}`);
+  console.log(`[Background] ========================================`);
+  
+  // Notificar popup sobre início do lote
+  chrome.runtime.sendMessage({
+    type: 'batchStarted',
+    batchNumber: automationState.currentBatchNumber,
+    batchSize: batchSize,
+    totalGenerated: automationState.totalGeneratedCount
+  }).catch(() => {});
+  
+  // Gerar cada credencial do lote em sequência
+  for (let i = 0; i < batchSize; i++) {
+    if (!automationState.enabled) {
+      console.log('[Background] Automação parada durante lote');
+      break;
     }
-  } catch (error) {
-    console.error('[Background] Erro ao enviar mensagem:', error);
-    // Parar se a aba foi fechada
-    stopAutomation();
+    
+    automationState.currentBatchProgress = i + 1;
+    console.log(`[Background] Gerando credencial ${i + 1}/${batchSize} do lote #${automationState.currentBatchNumber}`);
+    
+    try {
+      const response = await new Promise((resolve, reject) => {
+        chrome.tabs.sendMessage(
+          automationState.tabId, 
+          { action: 'generateOne' },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              reject(chrome.runtime.lastError);
+            } else {
+              resolve(response);
+            }
+          }
+        );
+      });
+      
+      if (response && response.success) {
+        automationState.totalGeneratedCount++;
+        console.log(`[Background] ✅ Credencial ${i + 1}/${batchSize} gerada com sucesso`);
+        
+        // Salvar estado
+        await chrome.storage.sync.set({
+          automationState: {
+            enabled: automationState.enabled,
+            currentBatchNumber: automationState.currentBatchNumber,
+            currentBatchProgress: automationState.currentBatchProgress,
+            totalGeneratedCount: automationState.totalGeneratedCount
+          }
+        });
+        
+        // Notificar popup
+        chrome.runtime.sendMessage({
+          type: 'credentialGenerated',
+          credentials: response.credentials,
+          progress: {
+            currentInBatch: i + 1,
+            batchSize: batchSize,
+            batchNumber: automationState.currentBatchNumber,
+            totalGenerated: automationState.totalGeneratedCount
+          }
+        }).catch(() => {});
+        
+        // Aguardar 2 segundos entre gerações (exceto na última)
+        if (i < batchSize - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } else {
+        console.error(`[Background] ❌ Erro na geração ${i + 1}/${batchSize}:`, response?.error);
+        // Continuar com a próxima tentativa após um delay
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    } catch (error) {
+      console.error(`[Background] ❌ Erro ao gerar credencial ${i + 1}/${batchSize}:`, error);
+      // Se a aba foi fechada, parar
+      if (error.message?.includes('Could not establish connection')) {
+        console.log('[Background] Aba foi fechada, parando automação');
+        stopAutomation();
+        return;
+      }
+      // Caso contrário, aguardar e tentar próxima
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+  
+  if (automationState.enabled) {
+    console.log(`[Background] ✅ LOTE #${automationState.currentBatchNumber} CONCLUÍDO!`);
+    console.log(`[Background] Total de credenciais geradas: ${automationState.totalGeneratedCount}`);
+    console.log(`[Background] Aguardando próximo intervalo...`);
+    
+    // Notificar popup sobre conclusão do lote
+    chrome.runtime.sendMessage({
+      type: 'batchCompleted',
+      batchNumber: automationState.currentBatchNumber,
+      totalGenerated: automationState.totalGeneratedCount
+    }).catch(() => {});
+    
+    // Agendar próximo lote
+    scheduleNextBatch();
   }
 }
 
-// Agendar próxima geração baseado no intervalo
-function scheduleNextGeneration() {
+// Agendar próximo lote baseado no intervalo
+function scheduleNextBatch() {
   if (!automationState.enabled || !automationState.config) return;
   
   const { intervalValue, intervalUnit } = automationState.config;
@@ -128,7 +172,7 @@ function scheduleNextGeneration() {
     intervalMinutes = intervalValue / 60;
   }
   
-  console.log(`[Background] Próxima geração em ${intervalValue} ${intervalUnit}`);
+  console.log(`[Background] Próximo lote em ${intervalValue} ${intervalUnit}`);
   
   // Para intervalos >= 1 minuto, usar chrome.alarms
   if (intervalMinutes >= 1) {
@@ -137,14 +181,13 @@ function scheduleNextGeneration() {
     });
   } else {
     // Para intervalos < 1 minuto, usar setTimeout
-    // AVISO: Pode não funcionar com aba em background
     let intervalMs = intervalValue * 1000;
     if (intervalUnit === 'minutes') {
       intervalMs = intervalValue * 60 * 1000;
     }
     
     automationState.currentTimer = setTimeout(() => {
-      executeNextGeneration();
+      executeNextBatch();
     }, intervalMs);
   }
 }
@@ -172,8 +215,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       success: true,
       state: {
         enabled: automationState.enabled,
-        currentCount: automationState.currentCount,
-        targetCount: automationState.targetCount,
+        currentBatchNumber: automationState.currentBatchNumber,
+        currentBatchProgress: automationState.currentBatchProgress,
+        totalGeneratedCount: automationState.totalGeneratedCount,
         config: automationState.config
       }
     });
@@ -231,8 +275,10 @@ async function startAutomation(config, tabId) {
     enabled: true,
     config: config,
     tabId: tabId,
-    currentCount: 0,
-    targetCount: config.quantity
+    currentBatchNumber: 0,
+    currentBatchProgress: 0,
+    totalGeneratedCount: 0,
+    currentTimer: null
   };
   
   // Salvar estado
@@ -243,8 +289,9 @@ async function startAutomation(config, tabId) {
     },
     automationState: {
       enabled: true,
-      currentCount: 0,
-      targetCount: config.quantity
+      currentBatchNumber: 0,
+      currentBatchProgress: 0,
+      totalGeneratedCount: 0
     }
   });
   
@@ -272,10 +319,11 @@ async function startAutomation(config, tabId) {
     }).catch(() => {});
   }
   
-  console.log(`[Background] Gerando ${config.quantity} credenciais com intervalo de ${intervalValue} ${intervalUnit}`);
+  console.log(`[Background] Gerando lotes de ${config.quantity} credenciais a cada ${intervalValue} ${intervalUnit}`);
+  console.log(`[Background] Processo continuará indefinidamente até ser parado manualmente`);
   
-  // Iniciar primeira geração imediatamente
-  setTimeout(() => executeNextGeneration(), 1000);
+  // Iniciar primeiro lote imediatamente
+  setTimeout(() => executeNextBatch(), 1000);
 }
 
 // Parar automação
@@ -283,16 +331,17 @@ function stopAutomation() {
   console.log('[Background] Parando automação');
   
   const wasEnabled = automationState.enabled;
-  const finalCount = automationState.currentCount;
-  const targetCount = automationState.targetCount;
+  const totalGenerated = automationState.totalGeneratedCount;
+  const batchNumber = automationState.currentBatchNumber;
   
   // Limpar estado
   automationState = {
     enabled: false,
     config: null,
     tabId: null,
-    currentCount: 0,
-    targetCount: 0,
+    currentBatchNumber: 0,
+    currentBatchProgress: 0,
+    totalGeneratedCount: 0,
     currentTimer: null
   };
   
@@ -312,8 +361,9 @@ function stopAutomation() {
     },
     automationState: {
       enabled: false,
-      currentCount: 0,
-      targetCount: 0
+      currentBatchNumber: 0,
+      currentBatchProgress: 0,
+      totalGeneratedCount: 0
     }
   });
   
@@ -330,9 +380,9 @@ function stopAutomation() {
   if (wasEnabled) {
     chrome.runtime.sendMessage({
       type: 'automationStopped',
-      finalCount: finalCount,
-      targetCount: targetCount,
-      reason: finalCount >= targetCount ? 'completed' : 'stopped'
+      totalGenerated: totalGenerated,
+      batchNumber: batchNumber,
+      reason: 'stopped'
     }).catch(() => {});
   }
 }

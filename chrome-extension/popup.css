@@ -70,6 +70,56 @@ h1 {
 
 .config-section {
   margin-bottom: 20px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.config-section h3 {
+  margin-bottom: 15px;
+  font-size: 16px;
+  color: #fde047;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.config-item {
+  margin-bottom: 15px;
+}
+
+.interval-group {
+  display: flex;
+  gap: 8px;
+}
+
+.interval-group input[type="number"],
+.interval-group select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+input[type="number"] {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+select {
+  cursor: pointer;
+}
+
+select option {
+  background: #764ba2;
+  color: white;
 }
 
 label {
@@ -143,6 +193,78 @@ input[type="text"]:focus {
 
 .actions {
   margin-bottom: 20px;
+}
+
+/* Automation Toggle Styles */
+.automation-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 30px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.3);
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #10b981;
+}
+
+input:checked + .slider:before {
+  transform: translateX(30px);
+}
+
+#automationStatus {
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.automation-on {
+  color: #10b981;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.automation-off {
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .checkbox {
@@ -276,6 +398,71 @@ input[type="text"]:focus {
 
 .icon {
   font-size: 18px;
+}
+
+/* Batch info styles */
+.batch-info {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.batch-info p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+#batchStatus {
+  font-weight: 500;
+  color: #fde047;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+#batchNumber {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.total-count {
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fde047;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Progress section styles */
+.progress-section {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.progress-section h3 {
+  margin-bottom: 12px;
+  font-size: 16px;
+  color: #fde047;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  transition: width 0.3s ease;
+  border-radius: 10px;
 }
 
 /* Scrollbar styling */

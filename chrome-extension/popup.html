@@ -36,7 +36,7 @@
     <div id="automationConfig" class="config-section" style="display: none;">
       <h3>Configuração da Automação</h3>
       <div class="config-item">
-        <label for="quantity">Quantidade:</label>
+        <label for="quantity">Quantidade por Lote:</label>
         <input type="number" id="quantity" min="1" max="100" value="10">
       </div>
       <div class="config-item">
@@ -73,10 +73,15 @@
     
     <div id="progressSection" class="progress-section" style="display: none;">
       <h3>Progresso da Automação</h3>
+      <div id="batchInfo" class="batch-info">
+        <p id="batchStatus">Aguardando início...</p>
+        <p id="batchNumber">Lote: 0</p>
+      </div>
       <div class="progress-bar">
         <div id="progressFill" class="progress-fill"></div>
       </div>
-      <p id="progressText">0 de 0 gerados</p>
+      <p id="progressText">0 de 0 no lote atual</p>
+      <p id="totalGenerated" class="total-count">Total gerado: 0 credenciais</p>
     </div>
     
     <div class="log" id="log">

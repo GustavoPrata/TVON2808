@@ -20,6 +20,11 @@ const progressText = document.getElementById('progressText');
 const logContent = document.getElementById('logContent');
 const pageUrl = document.getElementById('pageUrl');
 
+// Additional elements for batch info
+const batchStatus = document.getElementById('batchStatus');
+const batchNumber = document.getElementById('batchNumber');
+const totalGenerated = document.getElementById('totalGenerated');
+
 // State
 let isOnOnlineOffice = false;
 let automationActive = false;
@@ -65,7 +70,12 @@ async function checkCurrentTab() {
         if (response && response.success && response.state) {
           if (response.state.enabled) {
             updateAutomationUI(true);
-            updateProgress(response.state.currentCount, response.state.targetCount);
+            updateBatchInfo(
+              response.state.currentBatchNumber,
+              response.state.currentBatchProgress,
+              response.state.config?.quantity || 0,
+              response.state.totalGeneratedCount
+            );
           }
         }
       });
@@ -185,6 +195,8 @@ saveAutomationBtn.addEventListener('click', () => {
   // Save to storage
   chrome.storage.sync.set({ automationConfig: config }, () => {
     addLog('✅ Configuração salva');
+    addLog(`📊 Gerando lotes de ${config.quantity} credenciais a cada ${config.intervalValue} ${config.intervalUnit}`);
+    addLog('♾️ Processo continuará indefinidamente até ser parado');
     
     // Obter tabId atual e enviar para background
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -195,8 +207,8 @@ saveAutomationBtn.addEventListener('click', () => {
         tabId: tabs[0].id
       }, (response) => {
         if (response && response.success) {
-          addLog('🚀 Automação iniciada');
-          updateProgress(0, config.quantity);
+          addLog('🚀 Automação iniciada - primeiro lote iniciando...');
+          updateBatchInfo(0, 0, config.quantity, 0);
         }
       });
     });
@@ -242,11 +254,34 @@ function showCredentials(credentials) {
   passwordInput.value = credentials.password || '';
 }
 
-function updateProgress(current, total) {
+function updateBatchInfo(batchNum, currentInBatch, batchSize, totalCount) {
   progressSection.style.display = 'block';
-  const percentage = total > 0 ? (current / total) * 100 : 0;
+  
+  // Update batch status
+  if (batchStatus) {
+    if (batchNum === 0) {
+      batchStatus.textContent = 'Aguardando início...';
+    } else {
+      batchStatus.textContent = currentInBatch > 0 
+        ? `Gerando credencial ${currentInBatch}/${batchSize}...`
+        : 'Aguardando próximo lote...';
+    }
+  }
+  
+  // Update batch number
+  if (batchNumber) {
+    batchNumber.textContent = `Lote: ${batchNum}`;
+  }
+  
+  // Update progress bar
+  const percentage = batchSize > 0 ? (currentInBatch / batchSize) * 100 : 0;
   progressFill.style.width = percentage + '%';
-  progressText.textContent = `${current} de ${total} gerados`;
+  progressText.textContent = `${currentInBatch} de ${batchSize} no lote atual`;
+  
+  // Update total generated
+  if (totalGenerated) {
+    totalGenerated.textContent = `Total gerado: ${totalCount} credenciais`;
+  }
 }
 
 function addLog(message) {
@@ -267,39 +302,58 @@ function addLog(message) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Popup received message:', request.type);
   
+  // Batch started
+  if (request.type === 'batchStarted') {
+    addLog(`📦 LOTE #${request.batchNumber} iniciado (${request.batchSize} credenciais)`);
+    updateBatchInfo(request.batchNumber, 0, request.batchSize, request.totalGenerated);
+  }
+  
+  // Batch completed
+  if (request.type === 'batchCompleted') {
+    addLog(`✅ LOTE #${request.batchNumber} concluído! Total gerado: ${request.totalGenerated}`);
+    addLog('⏳ Aguardando próximo intervalo...');
+  }
+  
+  // Individual credential generated
   if (request.type === 'credentialGenerated') {
     showCredentials(request.credentials);
-    addLog('✅ Credencial gerada');
     chrome.storage.sync.set({ lastCredentials: request.credentials });
     
-    // Atualizar progresso se enviado
+    // Update progress if batch info is provided
     if (request.progress) {
-      updateProgress(request.progress.current, request.progress.total);
+      updateBatchInfo(
+        request.progress.batchNumber,
+        request.progress.currentInBatch,
+        request.progress.batchSize,
+        request.progress.totalGenerated
+      );
+      
+      // Only log every 5th credential to avoid spam
+      if (request.progress.currentInBatch % 5 === 0 || 
+          request.progress.currentInBatch === request.progress.batchSize) {
+        addLog(`✅ ${request.progress.currentInBatch}/${request.progress.batchSize} geradas`);
+      }
     }
   }
   
-  if (request.type === 'automationProgress') {
-    updateProgress(request.current, request.total);
-  }
-  
+  // Automation stopped
   if (request.type === 'automationStopped') {
     updateAutomationUI(false);
-    const reason = request.reason === 'completed' ? 'completa' : 'parada';
-    const msg = request.finalCount && request.targetCount 
-      ? `🛑 Automação ${reason} (${request.finalCount}/${request.targetCount} gerados)`
-      : '🛑 Automação parada';
-    addLog(msg);
+    addLog(`🛑 Automação parada após gerar ${request.totalGenerated} credenciais em ${request.batchNumber} lotes`);
   }
   
+  // Warning messages
   if (request.type === 'warning') {
     addLog(`⚠️ ${request.message}`);
   }
   
+  // Content script ready
   if (request.type === 'contentScriptReady') {
     addLog('✅ Extensão pronta no site');
     generateOneBtn.disabled = false;
   }
   
+  // Page navigation
   if (request.type === 'pageChanged') {
     addLog(`📍 Navegou para: ${new URL(request.url).pathname}`);
   }
