@@ -5753,10 +5753,10 @@ Como posso ajudar você hoje?
       // Determine which sistema to use
       let selectedSistema = null;
       if (config) {
-        const sistemas = await db.select().from(sistemas).orderBy(asc(sistemas.id));
-        if (sistemas.length > 0) {
-          const index = config.currentSistemaIndex % sistemas.length;
-          selectedSistema = sistemas[index];
+        const sistemasList = await db.select().from(sistemas).orderBy(asc(sistemas.id));
+        if (sistemasList.length > 0) {
+          const index = config.currentSistemaIndex % sistemasList.length;
+          selectedSistema = sistemasList[index];
           
           // Update for next use (round-robin)
           await db.update(officeExtensionConfig)
