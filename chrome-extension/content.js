@@ -188,16 +188,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   console.log('✅ Credenciais extraídas com sucesso!');
                   console.log(`📋 Usuário: ${username}, Senha: ${password}`);
                   
-                  // Salva as credenciais
-                  chrome.runtime.sendMessage({
-                    type: 'credentialsSaved',
-                    credentials: {
-                      username: username,
-                      password: password,
-                      timestamp: new Date().toISOString()
-                    }
-                  });
-                  
                   // 5. FECHAR MODAL - clicar fora ou no backdrop
                   setTimeout(() => {
                     console.log('Fechando modal...');
@@ -212,11 +202,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27 }));
                       console.log('✅ Modal fechado via ESC');
                     }
+                    
+                    // Envia resposta com as credenciais
+                    sendResponse({
+                      success: true,
+                      credentials: {
+                        username: username,
+                        password: password,
+                        timestamp: new Date().toISOString()
+                      }
+                    });
                   }, 1000);
                   
                 } else {
                   console.error('❌ Não conseguiu extrair credenciais');
                   console.log('Username:', username, 'Password:', password);
+                  sendResponse({
+                    success: false,
+                    error: 'Não conseguiu extrair credenciais'
+                  });
                 }
                 
               }, 3000);
@@ -234,7 +238,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       
     }, 500);
     
-    sendResponse({success: true});
+    // Retorna true para indicar que a resposta será enviada assincronamente
     return true;
   }
 });

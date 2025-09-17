@@ -92,17 +92,40 @@ async function generateBatch() {
     console.log(`\n🎯 Gerando credencial ${i + 1}/${automationState.batchSize}...`);
     
     try {
-      // Envia comando para content script
+      // Envia comando para content script e AGUARDA RESPOSTA COMPLETA
       const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
       
-      if (response && response.success) {
+      if (response && response.success && response.credentials) {
         successCount++;
         automationState.totalGenerated++;
         automationState.lastGenerated = response.credentials;
         
         console.log(`✅ Sucesso! Credencial ${i + 1} gerada`);
-        if (response.credentials) {
-          console.log(`   Usuario: ${response.credentials.username}`);
+        console.log(`   Usuario: ${response.credentials.username}`);
+        console.log(`   Senha: ${response.credentials.password}`);
+        
+        // SALVA NA API
+        try {
+          const apiResponse = await fetch('https://aef8336d-fdf6-4f45-8827-b87d99023c0e-00-3bbspqbjbb2rl.worf.replit.dev/api/office/save-credentials', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              usuario: response.credentials.username,
+              senha: response.credentials.password,
+              vencimento: new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR')
+            })
+          });
+          
+          const apiData = await apiResponse.json();
+          if (apiData.success) {
+            console.log('💾 Salvo na API com sucesso!');
+          } else {
+            console.error('⚠️ Erro ao salvar na API:', apiData.error);
+          }
+        } catch (apiError) {
+          console.error('⚠️ Erro ao chamar API:', apiError);
         }
         
         // Notifica popup
@@ -132,10 +155,10 @@ async function generateBatch() {
       }
     }
     
-    // Aguarda entre gerações (exceto na última)
+    // Aguarda entre gerações (TEMPO MAIOR PARA NÃO SOBREPOR)
     if (i < automationState.batchSize - 1) {
-      console.log('⏳ Aguardando 3 segundos...');
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      console.log('⏳ Aguardando 10 segundos antes da próxima...');
+      await new Promise(resolve => setTimeout(resolve, 10000)); // 10 segundos entre cada geração
     }
   }
   
@@ -230,9 +253,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       try {
         const response = await chrome.tabs.sendMessage(tabs[0].id, {action: 'generateOne'});
         
-        if (response && response.success) {
+        if (response && response.success && response.credentials) {
           automationState.totalGenerated++;
           automationState.lastGenerated = response.credentials;
+          
+          // SALVA NA API
+          try {
+            const apiResponse = await fetch('https://aef8336d-fdf6-4f45-8827-b87d99023c0e-00-3bbspqbjbb2rl.worf.replit.dev/api/office/save-credentials', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                usuario: response.credentials.username,
+                senha: response.credentials.password,
+                vencimento: new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR')
+              })
+            });
+            
+            const apiData = await apiResponse.json();
+            if (!apiData.success) {
+              console.error('⚠️ Erro ao salvar na API:', apiData.error);
+            }
+          } catch (apiError) {
+            console.error('⚠️ Erro ao chamar API:', apiError);
+          }
+          
           await chrome.storage.local.set({automationState});
           sendResponse({success: true, credentials: response.credentials});
         } else {
