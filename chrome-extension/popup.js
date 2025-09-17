@@ -60,15 +60,22 @@ async function checkCurrentTab() {
       generateOneBtn.disabled = false;
       pageUrl.textContent = new URL(url).hostname;
       
-      // Get status from content script
-      chrome.tabs.sendMessage(currentTab.id, { action: 'getStatus' }, (response) => {
-        if (response && response.success) {
-          if (response.isAutomationActive) {
+      // Get automation state from background
+      chrome.runtime.sendMessage({ type: 'getAutomationState' }, (response) => {
+        if (response && response.success && response.state) {
+          if (response.state.enabled) {
             updateAutomationUI(true);
-            if (response.currentQuantity !== undefined) {
-              updateProgress(response.currentQuantity, response.targetQuantity);
-            }
+            updateProgress(response.state.currentCount, response.state.targetCount);
           }
+        }
+      });
+      
+      // Check if content script is ready
+      chrome.tabs.sendMessage(currentTab.id, { action: 'getStatus' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.log('Content script not ready yet');
+        } else if (response && response.success) {
+          console.log('Content script ready');
         }
       });
     } else {
@@ -126,16 +133,15 @@ automationToggle.addEventListener('change', async () => {
     progressSection.style.display = 'block';
     addLog('⚙️ Configure a automação abaixo');
   } else {
-    // Stop automation
+    // Stop automation via background
     automationConfig.style.display = 'none';
     progressSection.style.display = 'none';
     
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'stopAutomation' }, (response) => {
-        if (response && response.success) {
-          addLog('🛑 Automação desativada');
-        }
-      });
+    // Comunicar com background.js
+    chrome.runtime.sendMessage({ type: 'stopAutomation' }, (response) => {
+      if (response && response.success) {
+        addLog('🛑 Automação desativada');
+      }
     });
     
     // Save disabled state
@@ -170,15 +176,23 @@ saveAutomationBtn.addEventListener('click', () => {
     return;
   }
   
+  // Avisar sobre limitações se intervalo menor que 1 minuto
+  if (config.intervalUnit === 'seconds' || 
+      (config.intervalUnit === 'minutes' && config.intervalValue < 1)) {
+    addLog('⚠️ Intervalos < 1 min requerem aba ativa');
+  }
+  
   // Save to storage
   chrome.storage.sync.set({ automationConfig: config }, () => {
     addLog('✅ Configuração salva');
     
-    // Send to content script
+    // Obter tabId atual e enviar para background
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, { 
-        action: 'startAutomation',
-        config: config
+      // Enviar mensagem para background.js
+      chrome.runtime.sendMessage({ 
+        type: 'startAutomation',
+        config: config,
+        tabId: tabs[0].id
       }, (response) => {
         if (response && response.success) {
           addLog('🚀 Automação iniciada');
@@ -251,12 +265,17 @@ function addLog(message) {
 
 // Listen for messages from content/background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('Message received:', request.type);
+  console.log('Popup received message:', request.type);
   
   if (request.type === 'credentialGenerated') {
     showCredentials(request.credentials);
     addLog('✅ Credencial gerada');
     chrome.storage.sync.set({ lastCredentials: request.credentials });
+    
+    // Atualizar progresso se enviado
+    if (request.progress) {
+      updateProgress(request.progress.current, request.progress.total);
+    }
   }
   
   if (request.type === 'automationProgress') {
@@ -265,7 +284,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.type === 'automationStopped') {
     updateAutomationUI(false);
-    addLog('🛑 Automação parada');
+    const reason = request.reason === 'completed' ? 'completa' : 'parada';
+    const msg = request.finalCount && request.targetCount 
+      ? `🛑 Automação ${reason} (${request.finalCount}/${request.targetCount} gerados)`
+      : '🛑 Automação parada';
+    addLog(msg);
+  }
+  
+  if (request.type === 'warning') {
+    addLog(`⚠️ ${request.message}`);
   }
   
   if (request.type === 'contentScriptReady') {

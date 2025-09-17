@@ -9,14 +9,7 @@ const CONFIG = {
   retryDelay: 2000
 };
 
-// Automation state
-let automationState = {
-  isRunning: false,
-  config: null,
-  currentCount: 0,
-  targetCount: 0,
-  intervalId: null
-};
+// Não há mais estado de automação aqui - controlado pelo background.js
 
 // Get current domain dynamically
 function getCurrentDomain() {
@@ -37,44 +30,34 @@ console.log('[TV ON Extension] Content script loaded');
 console.log('[TV ON Extension] Current domain:', window.location.hostname);
 console.log('[TV ON Extension] API endpoint:', getCurrentDomain());
 
-// Listen for messages from popup
+// Listen for messages from popup or background
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('[Extension] Message received:', request);
+  console.log('[Content] Message received:', request.action);
   
-  if (request.action === 'startAutomation') {
-    console.log('[Extension] Starting automation with config:', request.config);
-    startAutomationMode(request.config)
-      .then(result => {
-        sendResponse({ success: true, data: result });
-      })
-      .catch(error => {
-        sendResponse({ success: false, error: error.message });
-      });
-    return true;
-  }
-  
+  // Handler principal para geração de credencial
   if (request.action === 'generateOne') {
-    console.log('[Extension] Generating one credential...');
+    console.log('[Content] Executando geração única...');
     performSingleGeneration()
       .then(result => {
-        console.log('[Extension] Single generation completed:', result);
+        console.log('[Content] Geração concluída:', result);
         sendResponse({ success: true, credentials: result });
       })
       .catch(error => {
-        console.error('[Extension] Single generation failed:', error);
+        console.error('[Content] Erro na geração:', error);
         sendResponse({ success: false, error: error.message });
       });
-    return true;
+    return true; // Resposta assíncrona
   }
   
+  // Handler para extrair credenciais (se necessário)
   if (request.action === 'extractCredentials') {
-    console.log('[Extension] Extracting credentials only...');
+    console.log('[Content] Extraindo credenciais...');
     extractCredentialsFromModal()
       .then(credentials => {
         if (credentials) {
           sendResponse({ success: true, data: credentials });
         } else {
-          sendResponse({ success: false, error: 'No credentials found' });
+          sendResponse({ success: false, error: 'Credenciais não encontradas' });
         }
       })
       .catch(error => {
@@ -83,181 +66,79 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
   
+  // Status simples - não há mais estado de automação aqui
   if (request.action === 'getStatus') {
     sendResponse({ 
       success: true,
-      isAutomationActive: automationState.isRunning,
-      currentQuantity: automationState.currentCount,
-      targetQuantity: automationState.targetCount
+      ready: true,
+      url: window.location.href
     });
-    return false;
-  }
-  
-  if (request.action === 'stopAutomation') {
-    stopAutomation();
-    sendResponse({ success: true });
     return false;
   }
 });
 
-// Start automation mode
-async function startAutomationMode(config) {
-  try {
-    console.log('[Extension] Starting automation mode:', config);
-    
-    // Stop any existing automation
-    stopAutomation();
-    
-    // Set up new automation
-    automationState.isRunning = true;
-    automationState.config = config;
-    automationState.currentCount = 0;
-    automationState.targetCount = config.quantity || 10;
-    
-    // Calculate interval in milliseconds
-    let intervalMs = config.intervalValue * 1000; // Default seconds
-    if (config.intervalUnit === 'minutes') {
-      intervalMs = config.intervalValue * 60 * 1000;
-    } else if (config.intervalUnit === 'hours') {
-      intervalMs = config.intervalValue * 60 * 60 * 1000;
-    }
-    
-    console.log(`[Extension] Will generate ${automationState.targetCount} credentials with ${intervalMs}ms interval`);
-    
-    // Notify popup of progress
-    chrome.runtime.sendMessage({
-      type: 'automationProgress',
-      current: automationState.currentCount,
-      total: automationState.targetCount
-    });
-    
-    // Start generating credentials
-    const generateNext = async () => {
-      if (!automationState.isRunning || automationState.currentCount >= automationState.targetCount) {
-        console.log('[Extension] Automation complete or stopped');
-        stopAutomation();
-        chrome.runtime.sendMessage({ type: 'automationStopped' });
-        return;
-      }
-      
-      try {
-        console.log(`[Extension] Generating credential ${automationState.currentCount + 1} of ${automationState.targetCount}`);
-        const credentials = await performSingleGeneration();
-        
-        if (credentials) {
-          automationState.currentCount++;
-          
-          // Notify popup
-          chrome.runtime.sendMessage({
-            type: 'credentialGenerated',
-            credentials: credentials
-          });
-          
-          chrome.runtime.sendMessage({
-            type: 'automationProgress',
-            current: automationState.currentCount,
-            total: automationState.targetCount
-          });
-          
-          // Schedule next generation
-          if (automationState.currentCount < automationState.targetCount) {
-            console.log(`[Extension] Waiting ${intervalMs}ms before next generation...`);
-            automationState.intervalId = setTimeout(generateNext, intervalMs);
-          } else {
-            console.log('[Extension] All credentials generated');
-            stopAutomation();
-            chrome.runtime.sendMessage({ type: 'automationStopped' });
-          }
-        }
-      } catch (error) {
-        console.error('[Extension] Error in automation:', error);
-        // Retry after delay
-        automationState.intervalId = setTimeout(generateNext, 5000);
-      }
-    };
-    
-    // Start first generation immediately
-    generateNext();
-    
-    return { started: true, config: config };
-    
-  } catch (error) {
-    console.error('[Extension] Failed to start automation:', error);
-    stopAutomation();
-    throw error;
-  }
-}
-
-// Stop automation
-function stopAutomation() {
-  console.log('[Extension] Stopping automation');
-  automationState.isRunning = false;
-  if (automationState.intervalId) {
-    clearTimeout(automationState.intervalId);
-    automationState.intervalId = null;
-  }
-}
+// Função de automação removida - agora controlada pelo background.js
 
 // Perform a single credential generation
 async function performSingleGeneration() {
   try {
-    console.log('[Extension] Starting single generation...');
+    console.log('[Content] Iniciando geração de credencial...');
     
-    // Check if we're on the right page
+    // Verificar se está na página correta
     if (!window.location.href.includes('onlineoffice')) {
-      throw new Error('Not on OnlineOffice page');
+      throw new Error('Não está na página OnlineOffice');
     }
     
     // Step 1: Click "Gerar IPTV" button
-    console.log('[Extension] Step 1: Looking for "Gerar IPTV" button...');
+    console.log('[Content] Passo 1: Procurando botão "Gerar IPTV"...');
     const generateButton = await waitForElementWithText('Gerar IPTV', 'button');
     generateButton.click();
-    console.log('[Extension] Clicked "Gerar IPTV" button');
+    console.log('[Content] Clicou em "Gerar IPTV"');
     
-    // Step 2: Wait for modal and click first "Confirmar"
-    console.log('[Extension] Step 2: Waiting for first "Confirmar" button...');
+    // Passo 2: Aguardar modal e clicar no primeiro "Confirmar"
+    console.log('[Content] Passo 2: Aguardando primeiro "Confirmar"...');
     await new Promise(resolve => setTimeout(resolve, 1000));
     const firstConfirm = await waitForElementWithText('Confirmar', 'button');
     firstConfirm.click();
-    console.log('[Extension] Clicked first "Confirmar" button');
+    console.log('[Content] Clicou no primeiro "Confirmar"');
     
-    // Step 3: Click second "Confirmar"
-    console.log('[Extension] Step 3: Waiting for second "Confirmar" button...');
+    // Passo 3: Clicar no segundo "Confirmar"
+    console.log('[Content] Passo 3: Aguardando segundo "Confirmar"...');
     await new Promise(resolve => setTimeout(resolve, 1000));
     const secondConfirm = await waitForElementWithText('Confirmar', 'button');
     secondConfirm.click();
-    console.log('[Extension] Clicked second "Confirmar" button');
+    console.log('[Content] Clicou no segundo "Confirmar"');
     
-    // Step 4: Wait for credentials modal
-    console.log('[Extension] Step 4: Waiting for credentials modal...');
+    // Passo 4: Aguardar modal de credenciais
+    console.log('[Content] Passo 4: Aguardando modal de credenciais...');
     await new Promise(resolve => setTimeout(resolve, 5000));
     
-    // Step 5: Extract credentials
-    console.log('[Extension] Step 5: Extracting credentials...');
+    // Passo 5: Extrair credenciais
+    console.log('[Content] Passo 5: Extraindo credenciais...');
     const credentials = await extractCredentialsFromModal();
     
     if (!credentials) {
-      throw new Error('Could not extract credentials');
+      throw new Error('Não foi possível extrair credenciais');
     }
     
-    console.log('[Extension] Credentials extracted:', credentials);
+    console.log('[Content] Credenciais extraídas:', credentials);
     
-    // Step 6: Send to server
+    // Passo 6: Enviar para o servidor
     await sendCredentialsToServer(credentials);
     
-    // Step 7: Close the modal
-    console.log('[Extension] Step 7: Closing modal...');
+    // Passo 7: Fechar o modal
+    console.log('[Content] Passo 7: Fechando modal...');
     await closeModal();
     
     return credentials;
     
   } catch (error) {
-    console.error('[Extension] Generation error:', error);
-    // Try to close modal in case of error
+    console.error('[Content] Erro na geração:', error);
+    // Tentar fechar modal em caso de erro
     try {
       await closeModal();
     } catch (e) {
-      console.log('[Extension] Could not close modal:', e);
+      console.log('[Content] Não foi possível fechar modal:', e);
     }
     throw error;
   }
@@ -502,14 +383,17 @@ async function sendCredentialsToServer(credentials) {
   }
 }
 
-// Auto-detect and notify popup when on OnlineOffice page
+// Auto-detect and notify background when on OnlineOffice page
 if (window.location.href.includes('onlineoffice')) {
-  console.log('[Extension] OnlineOffice page detected');
+  console.log('[Content] OnlineOffice detectado');
   
-  // Notify popup that content script is ready
-  chrome.runtime.sendMessage({ type: 'contentScriptReady' });
+  // Notificar background que content script está pronto
+  chrome.runtime.sendMessage({ 
+    type: 'contentScriptReady',
+    url: window.location.href
+  });
   
-  // Monitor for page changes
+  // Monitorar mudanças de página
   let lastUrl = window.location.href;
   const observer = new MutationObserver(() => {
     if (window.location.href !== lastUrl) {
