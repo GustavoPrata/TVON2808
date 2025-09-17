@@ -5731,6 +5731,8 @@ Como posso ajudar você hoje?
   // Chrome Extension API endpoint for receiving credentials
   app.post("/api/office/credentials", async (req, res) => {
     try {
+      console.log(`📥 [Extension] Request received:`, req.body);
+      
       const { username, password, source = "extension" } = req.body;
       
       // CORS headers for extension
@@ -5739,24 +5741,30 @@ Como posso ajudar você hoje?
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
       
       if (!username || !password) {
+        console.error(`❌ [Extension] Missing credentials:`, { username: !!username, password: !!password });
         return res.status(400).json({
           success: false,
           message: "Username and password are required"
         });
       }
       
-      console.log(`📥 [Extension] Credentials received:`, { username, source });
+      console.log(`✅ [Extension] Credentials validated:`, { username, source });
       
       // Get current configuration
+      console.log(`🔍 [Extension] Fetching config...`);
       const [config] = await db.select().from(officeExtensionConfig).limit(1);
+      console.log(`📋 [Extension] Config found:`, !!config);
       
       // Determine which sistema to use
       let selectedSistema = null;
       if (config) {
         const sistemasList = await db.select().from(sistemas).orderBy(asc(sistemas.id));
+        console.log(`📊 [Extension] Found ${sistemasList.length} sistemas`);
+        
         if (sistemasList.length > 0) {
           const index = config.currentSistemaIndex % sistemasList.length;
           selectedSistema = sistemasList[index];
+          console.log(`🎯 [Extension] Selected sistema:`, selectedSistema?.systemId);
           
           // Update for next use (round-robin)
           await db.update(officeExtensionConfig)
@@ -5767,6 +5775,8 @@ Como posso ajudar você hoje?
             })
             .where(eq(officeExtensionConfig.id, config.id));
         }
+      } else {
+        console.log(`⚠️ [Extension] No config found, proceeding without sistema`);
       }
       
       // Save credentials to database
