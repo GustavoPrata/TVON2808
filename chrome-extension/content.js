@@ -1,7 +1,75 @@
 // OnlineOffice IPTV Automator - Content Script
-// Versão corrigida - extração funcionando
+// Versão corrigida - extração funcionando + login automático
 
 console.log('👋 OnlineOffice Automator carregado!');
+
+// ===========================================================================
+// FUNÇÃO DE LOGIN AUTOMÁTICO
+// ===========================================================================
+function checkAndAutoLogin() {
+  // Verifica se está na página de login
+  const userInput = document.querySelector('input[placeholder="Usuário"]');
+  const passInput = document.querySelector('input[placeholder="Senha"][type="password"]');
+  const loginButton = Array.from(document.querySelectorAll('button')).find(btn => 
+    btn.textContent === 'Logar' || btn.textContent.includes('Logar')
+  );
+  
+  if (userInput && passInput && loginButton) {
+    console.log('🔐 Página de login detectada! Iniciando login automático...');
+    
+    // Preenche usuário e senha
+    userInput.value = 'gustavoprata17';
+    userInput.dispatchEvent(new Event('input', { bubbles: true }));
+    userInput.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log('✅ Usuário preenchido');
+    
+    passInput.value = 'iptv102030';
+    passInput.dispatchEvent(new Event('input', { bubbles: true }));
+    passInput.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log('✅ Senha preenchida');
+    
+    // Aguarda um pouco e clica no recaptcha
+    setTimeout(() => {
+      // Procura o checkbox do recaptcha
+      const recaptchaCheckbox = document.querySelector('.recaptcha-checkbox-border');
+      const recaptchaFrame = document.querySelector('iframe[src*="recaptcha"]');
+      
+      if (recaptchaCheckbox) {
+        console.log('🤖 Clicando no recaptcha...');
+        recaptchaCheckbox.click();
+      } else if (recaptchaFrame) {
+        // Se o recaptcha está em um iframe, tenta clicar no iframe
+        console.log('🤖 Tentando clicar no iframe do recaptcha...');
+        try {
+          // Tenta acessar o iframe (pode não funcionar devido a CORS)
+          const iframeDoc = recaptchaFrame.contentDocument || recaptchaFrame.contentWindow.document;
+          const checkbox = iframeDoc.querySelector('.recaptcha-checkbox-border');
+          if (checkbox) {
+            checkbox.click();
+          }
+        } catch (e) {
+          console.log('⚠️ Não foi possível acessar o iframe do recaptcha (CORS)');
+          // Tenta clicar no iframe diretamente
+          recaptchaFrame.click();
+        }
+      }
+      
+      // Aguarda verificação do recaptcha e faz login
+      setTimeout(() => {
+        console.log('🚀 Clicando no botão de login...');
+        loginButton.click();
+        console.log('✅ Login automático executado!');
+      }, 2000); // Aguarda 2 segundos para o recaptcha processar
+      
+    }, 1000); // Aguarda 1 segundo após preencher os campos
+  }
+}
+
+// Verifica ao carregar a página
+setTimeout(checkAndAutoLogin, 1000);
+
+// Verifica periodicamente se voltou para a página de login
+setInterval(checkAndAutoLogin, 5000);
 
 // Listener para comandos do background
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -245,3 +313,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Notifica que o script está pronto
 console.log('✅ Content script pronto e aguardando comandos!');
+console.log('🔐 Login automático ativado para gustavoprata17');
