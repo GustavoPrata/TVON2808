@@ -236,8 +236,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // CORS middleware for Chrome Extension endpoints - MUST be before auth middleware
   app.use((req, res, next) => {
-    // Handle CORS for extension endpoints
-    if (req.path === '/api/office/credentials' || req.path === '/api/office/save-credentials') {
+    // Handle CORS for extension endpoints including all office automation routes
+    if (req.path === '/api/office/credentials' || 
+        req.path === '/api/office/save-credentials' ||
+        req.path.startsWith('/api/office/automation/')) {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');

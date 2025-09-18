@@ -1727,7 +1727,7 @@ export class DatabaseStorage implements IStorage {
 
   async getOfficeAutomationLogsByAction(action: string, limit: number = 100): Promise<OfficeAutomationLogs[]> {
     return await db.select().from(officeAutomationLogs)
-      .where(eq(officeAutomationLogs.action, action))
+      .where(eq(officeAutomationLogs.taskType, action))
       .orderBy(desc(officeAutomationLogs.createdAt))
       .limit(limit);
   }
@@ -1754,9 +1754,8 @@ export class DatabaseStorage implements IStorage {
   async createPendingTask(taskType: string, data?: any): Promise<OfficeAutomationLogs> {
     const result = await db.insert(officeAutomationLogs)
       .values({
-        action: taskType,
-        status: 'pending',
-        metadata: data || {}
+        taskType: taskType,
+        status: 'pending'
       })
       .returning();
     return result[0];
@@ -1773,27 +1772,19 @@ export class DatabaseStorage implements IStorage {
 
   async updateTaskStatus(taskId: number, status: string, result?: { username?: string; password?: string; errorMessage?: string }): Promise<OfficeAutomationLogs> {
     const updateData: any = {
-      status,
-      updatedAt: new Date()
+      status
     };
     
-    // Merge result data into metadata if provided
+    // Update fields if provided in result
     if (result) {
-      const currentLog = await db.select()
-        .from(officeAutomationLogs)
-        .where(eq(officeAutomationLogs.id, taskId))
-        .limit(1);
-        
-      if (currentLog[0]) {
-        updateData.metadata = {
-          ...(currentLog[0].metadata as any || {}),
-          ...result
-        };
+      if (result.username) {
+        updateData.username = result.username;
       }
-      
-      // Also update error message if provided
+      if (result.password) {
+        updateData.password = result.password;
+      }
       if (result.errorMessage) {
-        updateData.error = result.errorMessage;
+        updateData.errorMessage = result.errorMessage;
       }
     }
     
