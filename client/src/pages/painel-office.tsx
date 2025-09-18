@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import {
@@ -148,8 +148,12 @@ export default function PainelOffice() {
     intervalMinutes: 5,
     singleGeneration: false,
     lastRunAt: null as Date | null,
-    totalGenerated: 0
+    totalGenerated: 0,
+    sessionGenerated: 0
   });
+  const [isToggling, setIsToggling] = useState(false);
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const [isGeneratingSingle, setIsGeneratingSingle] = useState(false);
   const [recentCredentials, setRecentCredentials] = useState<Array<{
     id: number;
     username: string;
@@ -193,14 +197,15 @@ export default function PainelOffice() {
 
   useEffect(() => {
     if (configData) {
-      setAutomationConfig({
+      setAutomationConfig(prev => ({
         isEnabled: configData.isEnabled || false,
         batchSize: configData.batchSize || 10,
         intervalMinutes: configData.intervalMinutes || 5,
         singleGeneration: configData.singleGeneration || false,
         lastRunAt: configData.lastRunAt ? new Date(configData.lastRunAt) : null,
-        totalGenerated: configData.totalGenerated || 0
-      });
+        totalGenerated: configData.totalGenerated || 0,
+        sessionGenerated: configData.sessionGenerated || prev.sessionGenerated || 0
+      }));
     }
   }, [configData]);
 
@@ -697,39 +702,66 @@ export default function PainelOffice() {
               {/* Automation Controls - Left Column */}
               <div className="space-y-4">
                 <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                  <Activity className="w-4 h-4" />
-                  Controle de Automação Profissional
+                <h3 className="text-sm font-semibold text-white mb-3 flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Activity className="w-4 h-4" />
+                    Controle de Automação Profissional
+                  </span>
+                  {automationConfig.isEnabled && (
+                    <span className="flex items-center gap-1 text-green-400">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <span className="text-xs">Rodando</span>
+                    </span>
+                  )}
                 </h3>
                 
                 <div className="space-y-4">
                   {/* Status Row with Toggle */}
                   <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
                     <div className="flex flex-col">
-                      <Label className="text-sm font-medium">Status da Automação</Label>
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        {automationConfig.isEnabled ? (
+                          <Wifi className="w-4 h-4 text-green-400" />
+                        ) : (
+                          <WifiOff className="w-4 h-4 text-slate-400" />
+                        )}
+                        Status da Automação
+                      </Label>
                       <p className="text-xs text-slate-500 mt-1">
-                        {automationConfig.isEnabled ? 'Sistema rodando' : 'Sistema parado'}
+                        {automationConfig.isEnabled ? 'Automação Ativa' : 'Automação Parada'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
                         variant={automationConfig.isEnabled ? "destructive" : "default"}
+                        disabled={isToggling}
                         onClick={async () => {
+                          if (automationConfig.isEnabled && !showStopConfirm) {
+                            setShowStopConfirm(true);
+                            return;
+                          }
+                          
+                          setIsToggling(true);
                           const endpoint = automationConfig.isEnabled 
                             ? '/api/office/automation/stop'
                             : '/api/office/automation/start';
                           
-                          const res = await fetch(endpoint, { method: 'POST' });
-                          if (res.ok) {
-                            refetchConfig();
-                            toast({
-                              title: automationConfig.isEnabled ? "Automação Parada" : "Automação Iniciada",
-                              description: automationConfig.isEnabled 
-                                ? "Sistema de geração automática desativado"
-                                : `Gerando ${automationConfig.batchSize} credenciais a cada ${automationConfig.intervalMinutes} minutos`,
-                              variant: "default",
-                            });
+                          try {
+                            const res = await fetch(endpoint, { method: 'POST' });
+                            if (res.ok) {
+                              refetchConfig();
+                              toast({
+                                title: automationConfig.isEnabled ? "Automação Parada" : "Automação Iniciada",
+                                description: automationConfig.isEnabled 
+                                  ? "Sistema de geração automática desativado"
+                                  : `Gerando ${automationConfig.batchSize} credenciais a cada ${automationConfig.intervalMinutes} minutos`,
+                                variant: "default",
+                              });
+                              setShowStopConfirm(false);
+                            }
+                          } finally {
+                            setIsToggling(false);
                           }
                         }}
                         className={automationConfig.isEnabled 
@@ -737,12 +769,28 @@ export default function PainelOffice() {
                           : "bg-green-600 hover:bg-green-700"}
                         data-testid="button-toggle-automation"
                       >
-                        {automationConfig.isEnabled ? (
-                          <><Pause className="w-4 h-4 mr-1" /> Parar</>
+                        {isToggling ? (
+                          <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Processando...</>
+                        ) : automationConfig.isEnabled ? (
+                          showStopConfirm ? (
+                            <><AlertTriangle className="w-4 h-4 mr-1" /> Confirmar</>
+                          ) : (
+                            <><Pause className="w-4 h-4 mr-1" /> Parar</>
+                          )
                         ) : (
                           <><Play className="w-4 h-4 mr-1" /> Iniciar</>
                         )}
                       </Button>
+                      {showStopConfirm && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setShowStopConfirm(false)}
+                          className="text-slate-400"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Badge className={automationConfig.isEnabled 
                         ? "bg-green-500/20 text-green-400 animate-pulse" 
                         : "bg-slate-500/20 text-slate-400"}>
@@ -752,19 +800,60 @@ export default function PainelOffice() {
                   </div>
                   
                   {/* Statistics */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="p-2 bg-slate-900/50 rounded">
-                      <p className="text-xs text-slate-500">Total Gerado</p>
-                      <p className="text-lg font-bold text-white">{automationConfig.totalGenerated || 0}</p>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-2 bg-slate-900/50 rounded">
+                        <p className="text-xs text-slate-500 flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3" />
+                          Total Gerado
+                        </p>
+                        <p className="text-lg font-bold text-white">{automationConfig.totalGenerated || 0}</p>
+                      </div>
+                      <div className="p-2 bg-slate-900/50 rounded">
+                        <p className="text-xs text-slate-500 flex items-center gap-1">
+                          <Zap className="w-3 h-3" />
+                          Sessão Atual
+                        </p>
+                        <p className="text-lg font-bold text-white">{automationConfig.sessionGenerated || 0}</p>
+                      </div>
                     </div>
+                    
                     <div className="p-2 bg-slate-900/50 rounded">
-                      <p className="text-xs text-slate-500">Última Execução</p>
+                      <p className="text-xs text-slate-500 flex items-center gap-1 mb-1">
+                        <Clock className="w-3 h-3" />
+                        Última Execução
+                      </p>
                       <p className="text-xs font-mono text-white">
                         {automationConfig.lastRunAt 
-                          ? new Date(automationConfig.lastRunAt).toLocaleTimeString('pt-BR')
-                          : 'Nunca'}
+                          ? new Date(automationConfig.lastRunAt).toLocaleString('pt-BR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit'
+                            })
+                          : 'Nenhuma execução ainda'}
                       </p>
                     </div>
+                    
+                    {automationConfig.isEnabled && automationConfig.lastRunAt && (
+                      <div className="p-2 bg-slate-900/50 rounded">
+                        <p className="text-xs text-slate-500 flex items-center gap-1 mb-1">
+                          <Calendar className="w-3 h-3" />
+                          Próxima Execução
+                        </p>
+                        <p className="text-xs font-mono text-white">
+                          {(() => {
+                            const nextRun = new Date(automationConfig.lastRunAt);
+                            nextRun.setMinutes(nextRun.getMinutes() + automationConfig.intervalMinutes);
+                            const now = new Date();
+                            const diff = Math.max(0, Math.floor((nextRun.getTime() - now.getTime()) / 60000));
+                            return `Em ${diff} minuto${diff !== 1 ? 's' : ''}`;
+                          })()}
+                        </p>
+                      </div>
+                    )}
                   </div>
                   
                   {/* Configuration Fields */}
@@ -840,26 +929,39 @@ export default function PainelOffice() {
                     
                     <Button
                       onClick={async () => {
-                        const res = await fetch('/api/office/automation/generate-single', {
-                          method: 'POST'
-                        });
-                        
-                        if (res.ok) {
-                          toast({
-                            title: "Geração Solicitada",
-                            description: "Uma credencial será gerada em instantes",
-                            variant: "default",
+                        setIsGeneratingSingle(true);
+                        try {
+                          const res = await fetch('/api/office/automation/generate-single', {
+                            method: 'POST'
                           });
-                          setTimeout(() => refetchCredentials(), 2000);
+                          
+                          if (res.ok) {
+                            setAutomationConfig(prev => ({
+                              ...prev,
+                              sessionGenerated: (prev.sessionGenerated || 0) + 1
+                            }));
+                            toast({
+                              title: "✅ Credencial Gerada!",
+                              description: "Uma nova credencial foi gerada com sucesso",
+                              variant: "default",
+                            });
+                            setTimeout(() => refetchCredentials(), 2000);
+                          }
+                        } finally {
+                          setIsGeneratingSingle(false);
                         }
                       }}
                       variant="outline"
                       size="sm"
-                      className="border-purple-600 text-purple-400 hover:bg-purple-600/20"
+                      disabled={isGeneratingSingle}
+                      className="border-blue-600 text-blue-400 hover:bg-blue-600/20"
                       data-testid="button-generate-single"
                     >
-                      <Zap className="w-4 h-4 mr-1" />
-                      Gerar Uma
+                      {isGeneratingSingle ? (
+                        <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Gerando...</>
+                      ) : (
+                        <><Plus className="w-4 h-4 mr-1" /> Gerar Uma</>
+                      )}
                     </Button>
                   </div>
                 </div>
