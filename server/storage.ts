@@ -215,14 +215,19 @@ export interface IStorage {
   resetNotificacaoRecorrente(clienteId: number): Promise<void>;
 
   // Office Automation Config
-  getOfficeAutomationConfig(): Promise<OfficeAutomationConfig | undefined>;
+  getOfficeAutomationConfig(): Promise<OfficeAutomationConfig | null>;
   createOfficeAutomationConfig(config: InsertOfficeAutomationConfig): Promise<OfficeAutomationConfig>;
-  updateOfficeAutomationConfig(id: number, config: Partial<InsertOfficeAutomationConfig>): Promise<OfficeAutomationConfig>;
+  updateOfficeAutomationConfig(config: Partial<InsertOfficeAutomationConfig>): Promise<OfficeAutomationConfig>;
   
   // Office Automation Logs
   getOfficeAutomationLogs(limit?: number): Promise<OfficeAutomationLogs[]>;
   createOfficeAutomationLog(log: InsertOfficeAutomationLogs): Promise<OfficeAutomationLogs>;
   getOfficeAutomationLogsByAction(action: string, limit?: number): Promise<OfficeAutomationLogs[]>;
+  
+  // Task Management
+  createPendingTask(taskType: string, data?: any): Promise<OfficeAutomationLogs>;
+  getNextPendingTask(): Promise<OfficeAutomationLogs | null>;
+  updateTaskStatus(taskId: number, status: string, result?: { username?: string; password?: string; errorMessage?: string }): Promise<OfficeAutomationLogs>;
   
   // Office Credentials
   getOfficeCredentials(limit?: number): Promise<OfficeCredentials[]>;
@@ -1660,8 +1665,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Office Automation Config implementation
-  async getOfficeAutomationConfig(): Promise<OfficeAutomationConfig | undefined> {
+  async getOfficeAutomationConfig(): Promise<OfficeAutomationConfig | null> {
     const result = await db.select().from(officeAutomationConfig).limit(1);
+    if (result.length === 0) {
+      // Create default config if not exists
+      const defaultConfig = await db.insert(officeAutomationConfig)
+        .values({
+          isEnabled: false,
+          baseUrl: 'https://wpp.gesapioffice.com/',
+          appId: 'aBxktpsLcxGykyZNYGGGYRRiY',
+          runInterval: 60,
+          maxConcurrentTasks: 5,
+          taskTypes: ['create_user', 'update_password', 'reset_device']
+        })
+        .returning();
+      return defaultConfig[0];
+    }
     return result[0];
   }
 
@@ -1670,10 +1689,26 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
-  async updateOfficeAutomationConfig(id: number, config: Partial<InsertOfficeAutomationConfig>): Promise<OfficeAutomationConfig> {
-    const result = await db.update(officeAutomationConfig)
-      .set({ ...config, updatedAt: new Date() })
-      .where(eq(officeAutomationConfig.id, id))
+  async updateOfficeAutomationConfig(config: Partial<InsertOfficeAutomationConfig>): Promise<OfficeAutomationConfig> {
+    const existing = await this.getOfficeAutomationConfig();
+    if (existing) {
+      const result = await db.update(officeAutomationConfig)
+        .set({ ...config, updatedAt: new Date() })
+        .where(eq(officeAutomationConfig.id, existing.id))
+        .returning();
+      return result[0];
+    }
+    // Create if not exists
+    const result = await db.insert(officeAutomationConfig)
+      .values({
+        isEnabled: false,
+        baseUrl: 'https://wpp.gesapioffice.com/',
+        appId: 'aBxktpsLcxGykyZNYGGGYRRiY',
+        runInterval: 60,
+        maxConcurrentTasks: 5,
+        taskTypes: ['create_user', 'update_password', 'reset_device'],
+        ...config
+      } as InsertOfficeAutomationConfig)
       .returning();
     return result[0];
   }
@@ -1713,6 +1748,60 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(officeCredentials)
       .where(eq(officeCredentials.status, status))
       .orderBy(desc(officeCredentials.generatedAt));
+  }
+
+  // Task Management implementation
+  async createPendingTask(taskType: string, data?: any): Promise<OfficeAutomationLogs> {
+    const result = await db.insert(officeAutomationLogs)
+      .values({
+        action: taskType,
+        status: 'pending',
+        metadata: data || {}
+      })
+      .returning();
+    return result[0];
+  }
+
+  async getNextPendingTask(): Promise<OfficeAutomationLogs | null> {
+    const result = await db.select()
+      .from(officeAutomationLogs)
+      .where(eq(officeAutomationLogs.status, 'pending'))
+      .orderBy(asc(officeAutomationLogs.createdAt))
+      .limit(1);
+    return result[0] || null;
+  }
+
+  async updateTaskStatus(taskId: number, status: string, result?: { username?: string; password?: string; errorMessage?: string }): Promise<OfficeAutomationLogs> {
+    const updateData: any = {
+      status,
+      updatedAt: new Date()
+    };
+    
+    // Merge result data into metadata if provided
+    if (result) {
+      const currentLog = await db.select()
+        .from(officeAutomationLogs)
+        .where(eq(officeAutomationLogs.id, taskId))
+        .limit(1);
+        
+      if (currentLog[0]) {
+        updateData.metadata = {
+          ...(currentLog[0].metadata as any || {}),
+          ...result
+        };
+      }
+      
+      // Also update error message if provided
+      if (result.errorMessage) {
+        updateData.error = result.errorMessage;
+      }
+    }
+    
+    const updated = await db.update(officeAutomationLogs)
+      .set(updateData)
+      .where(eq(officeAutomationLogs.id, taskId))
+      .returning();
+    return updated[0];
   }
 }
 
