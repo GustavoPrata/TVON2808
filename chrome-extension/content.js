@@ -6,10 +6,9 @@ console.log('👋 OnlineOffice Automator carregado!');
 // ===========================================================================
 // CONFIGURAÇÃO
 // ===========================================================================
-// Use window.location.origin para pegar a URL correta do servidor
-const API_BASE = window.location.origin.includes('replit.dev') 
-  ? window.location.origin 
-  : 'http://localhost:5000';
+// URL do servidor onde o sistema TV ON está rodando
+// IMPORTANTE: A extensão roda no OnlineOffice, mas envia dados para nosso servidor
+const API_BASE = 'https://b079fe42-3fba-4e20-bcbd-3e8a988ae2fe.e1-us-east-azure.choreoapps.dev';
 
 // ===========================================================================
 // LISTENER GLOBAL PARA FECHAR MODAIS COM ESC
