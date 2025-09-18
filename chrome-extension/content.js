@@ -34,7 +34,6 @@ function checkAndAutoLogin() {
       
       // Função para mostrar onde vamos clicar
       function showClickIndicator(x, y) {
-        // Cria um indicador visual temporário
         const indicator = document.createElement('div');
         indicator.style.position = 'fixed';
         indicator.style.left = (x - 15) + 'px';
@@ -49,81 +48,138 @@ function checkAndAutoLogin() {
         document.body.appendChild(indicator);
         console.log(`🎯 Indicador vermelho criado na posição: ${x}, ${y}`);
         
-        // Remove o indicador após 2 segundos
         setTimeout(() => {
           indicator.remove();
         }, 2000);
       }
       
-      // Procura o iframe do recaptcha
-      const recaptchaFrame = document.querySelector('iframe[src*="recaptcha"]');
-      
-      if (recaptchaFrame) {
-        console.log('🤖 Iframe do recaptcha encontrado!');
+      // Método 1: Usar Tab + Space (simula navegação por teclado)
+      function clickRecaptchaWithKeyboard() {
+        console.log('⌨️ Tentando método do teclado...');
         
-        // Pega a posição do iframe
-        const rect = recaptchaFrame.getBoundingClientRect();
-        const x = rect.left + 30; // Um pouco dentro do iframe
-        const y = rect.top + rect.height / 2; // Centro vertical
+        // Foca no campo de senha
+        passInput.focus();
         
-        console.log(`📍 Iframe em: left=${rect.left}, top=${rect.top}`);
-        console.log(`🎯 Clicando em: ${x}, ${y}`);
-        
-        // Mostra onde vamos clicar
-        showClickIndicator(x, y);
-        
-        // Aguarda um pouco e faz vários tipos de clique
+        // Simula TAB para ir ao recaptcha
         setTimeout(() => {
-          console.log('📌 Executando cliques...');
-          
-          // Método 1: Clique direto no iframe
-          recaptchaFrame.click();
-          console.log('1️⃣ Clique direto no iframe');
-          
-          // Método 2: Simula clique com mouse
-          const mousedownEvent = new MouseEvent('mousedown', {
-            view: window,
-            bubbles: true,
-            cancelable: true,
-            clientX: x,
-            clientY: y
+          const tabEvent = new KeyboardEvent('keydown', {
+            key: 'Tab',
+            code: 'Tab',
+            keyCode: 9,
+            which: 9,
+            bubbles: true
           });
+          document.activeElement.dispatchEvent(tabEvent);
           
-          const mouseupEvent = new MouseEvent('mouseup', {
-            view: window,
-            bubbles: true,
-            cancelable: true,
-            clientX: x,
-            clientY: y
-          });
+          // Espera e simula SPACE para marcar o checkbox
+          setTimeout(() => {
+            const spaceEvent = new KeyboardEvent('keydown', {
+              key: ' ',
+              code: 'Space',
+              keyCode: 32,
+              which: 32,
+              bubbles: true
+            });
+            document.activeElement.dispatchEvent(spaceEvent);
+            
+            const spaceUpEvent = new KeyboardEvent('keyup', {
+              key: ' ',
+              code: 'Space',
+              keyCode: 32,
+              which: 32,
+              bubbles: true
+            });
+            document.activeElement.dispatchEvent(spaceUpEvent);
+            
+            console.log('✅ Tab + Space executados!');
+          }, 500);
+        }, 300);
+      }
+      
+      // Método 2: Clique simulado com coordenadas
+      function clickRecaptchaWithCoords() {
+        const recaptchaFrame = document.querySelector('iframe[src*="recaptcha"][src*="anchor"]') || 
+                              document.querySelector('iframe[src*="recaptcha"]');
+        
+        if (recaptchaFrame) {
+          console.log('🤖 Iframe encontrado, tentando clique...');
           
-          const clickEvent = new MouseEvent('click', {
-            view: window,
-            bubbles: true,
-            cancelable: true,
-            clientX: x,
-            clientY: y
-          });
+          const rect = recaptchaFrame.getBoundingClientRect();
+          // Clica no canto esquerdo onde está o checkbox
+          const x = rect.left + 25;
+          const y = rect.top + rect.height / 2;
           
-          recaptchaFrame.dispatchEvent(mousedownEvent);
-          recaptchaFrame.dispatchEvent(mouseupEvent);
-          recaptchaFrame.dispatchEvent(clickEvent);
-          console.log('2️⃣ Eventos de mouse disparados no iframe');
+          showClickIndicator(x, y);
           
-          // Método 3: Foco e clique
-          recaptchaFrame.focus();
-          recaptchaFrame.click();
-          console.log('3️⃣ Focus + clique no iframe');
+          // Simula um clique humano com pequeno delay
+          setTimeout(() => {
+            // Cria evento de clique completo
+            const clickEvent = document.createEvent('MouseEvents');
+            clickEvent.initMouseEvent(
+              'click', 
+              true, // bubbles
+              true, // cancelable
+              window,
+              0,
+              x, // screenX
+              y, // screenY
+              x, // clientX
+              y, // clientY
+              false, // ctrlKey
+              false, // altKey
+              false, // shiftKey
+              false, // metaKey
+              0, // button
+              null // relatedTarget
+            );
+            
+            // Tenta clicar no elemento na posição
+            const element = document.elementFromPoint(x, y);
+            if (element) {
+              element.dispatchEvent(clickEvent);
+              element.click();
+              console.log('🎯 Clique enviado para:', element.tagName);
+            }
+            
+            // Também clica diretamente no iframe
+            recaptchaFrame.click();
+            recaptchaFrame.focus();
+            
+            console.log('✅ Cliques executados!');
+          }, 300);
+        }
+      }
+      
+      // Método 3: Procurar div do recaptcha fora do iframe
+      function clickRecaptchaDiv() {
+        const recaptchaDiv = document.querySelector('.g-recaptcha') || 
+                            document.querySelector('[data-sitekey]');
+        
+        if (recaptchaDiv) {
+          console.log('📍 Div do recaptcha encontrada!');
+          recaptchaDiv.click();
           
-          // Método 4: Clique no elemento na posição
-          const element = document.elementFromPoint(x, y);
-          if (element) {
-            element.click();
-            console.log('4️⃣ Clique no elemento em:', element.tagName);
-          }
-          
-          console.log('✅ Todos os métodos de clique executados!');
-        }, 500);
+          // Procura qualquer elemento clicável dentro
+          const clickableElements = recaptchaDiv.querySelectorAll('*');
+          clickableElements.forEach(el => el.click());
+        }
+      }
+      
+      // Executa todos os métodos em sequência
+      console.log('🚀 Iniciando tentativas de clique no recaptcha...');
+      
+      // Tenta método de coordenadas primeiro
+      clickRecaptchaWithCoords();
+      
+      // Depois tenta navegação por teclado
+      setTimeout(() => {
+        clickRecaptchaWithKeyboard();
+      }, 1000);
+      
+      // Por fim, tenta clicar na div
+      setTimeout(() => {
+        clickRecaptchaDiv();
+      }, 2000);
         
       } else {
         // Método 2: Procura o container do recaptcha
