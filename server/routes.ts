@@ -6385,23 +6385,27 @@ Como posso ajudar você hoje?
   // OFFICE AUTOMATION APIs - Sistema profissional gerenciado pelo backend
   // ============================================================================
 
+  // Armazenamento em memória para automação (substituindo o banco de dados)
+  let automationConfig = {
+    id: 1,
+    isEnabled: false,
+    batchSize: 10,
+    intervalMinutes: 60,
+    singleGeneration: false,
+    lastRunAt: null as Date | null,
+    totalGenerated: 0,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+
+  let automationLogs: any[] = [];
+  let pendingTasks: any[] = [];
+
   // GET /api/office/automation/config - retorna configuração atual
   app.get('/api/office/automation/config', async (req, res) => {
     try {
-      let config = await storage.getOfficeAutomationConfig();
-      
-      // Se não existe configuração, criar uma padrão
-      if (!config) {
-        config = await storage.createOfficeAutomationConfig({
-          isEnabled: false,
-          batchSize: 10,
-          intervalMinutes: 5,
-          singleGeneration: false,
-          totalGenerated: 0
-        });
-      }
-      
-      res.json(config);
+      // Retornar configuração da memória
+      res.json(automationConfig);
     } catch (error) {
       console.error('Erro ao buscar configuração de automação:', error);
       res.status(500).json({ error: 'Erro ao buscar configuração' });
@@ -6413,38 +6417,31 @@ Como posso ajudar você hoje?
     try {
       const { isEnabled, batchSize, intervalMinutes } = req.body;
       
-      let config = await storage.getOfficeAutomationConfig();
+      // Atualizar configuração em memória
+      if (isEnabled !== undefined) automationConfig.isEnabled = isEnabled;
+      if (batchSize !== undefined) automationConfig.batchSize = batchSize;
+      if (intervalMinutes !== undefined) automationConfig.intervalMinutes = intervalMinutes;
+      automationConfig.updatedAt = new Date();
       
-      if (!config) {
-        // Criar nova configuração
-        config = await storage.createOfficeAutomationConfig({
-          isEnabled: isEnabled ?? false,
-          batchSize: batchSize ?? 10,
-          intervalMinutes: intervalMinutes ?? 5,
-          singleGeneration: false,
-          totalGenerated: 0
-        });
-      } else {
-        // Atualizar configuração existente
-        config = await storage.updateOfficeAutomationConfig(config.id, {
-          isEnabled: isEnabled ?? config.isEnabled,
-          batchSize: batchSize ?? config.batchSize,
-          intervalMinutes: intervalMinutes ?? config.intervalMinutes
-        });
-      }
-      
-      // Registrar log
-      await storage.createOfficeAutomationLog({
+      // Registrar log em memória
+      automationLogs.push({
+        id: automationLogs.length + 1,
         action: 'config_updated',
         status: 'success',
         details: { isEnabled, batchSize, intervalMinutes },
-        credentialsGenerated: 0
+        credentialsGenerated: 0,
+        createdAt: new Date()
       });
       
-      // Enviar atualização via WebSocket
-      broadcastMessage('office_automation_config', config);
+      // Manter apenas os últimos 100 logs
+      if (automationLogs.length > 100) {
+        automationLogs = automationLogs.slice(-100);
+      }
       
-      res.json(config);
+      // Enviar atualização via WebSocket
+      broadcastMessage('office_automation_config', automationConfig);
+      
+      res.json(automationConfig);
     } catch (error) {
       console.error('Erro ao atualizar configuração de automação:', error);
       res.status(500).json({ error: 'Erro ao atualizar configuração' });
@@ -6454,35 +6451,25 @@ Como posso ajudar você hoje?
   // POST /api/office/automation/start - inicia automação
   app.post('/api/office/automation/start', async (req, res) => {
     try {
-      let config = await storage.getOfficeAutomationConfig();
+      // Atualizar configuração em memória
+      automationConfig.isEnabled = true;
+      automationConfig.lastRunAt = new Date();
+      automationConfig.updatedAt = new Date();
       
-      if (!config) {
-        config = await storage.createOfficeAutomationConfig({
-          isEnabled: true,
-          batchSize: 10,
-          intervalMinutes: 5,
-          singleGeneration: false,
-          totalGenerated: 0
-        });
-      } else {
-        config = await storage.updateOfficeAutomationConfig(config.id, {
-          isEnabled: true,
-          lastRunAt: new Date()
-        });
-      }
-      
-      // Registrar log
-      await storage.createOfficeAutomationLog({
+      // Registrar log em memória
+      automationLogs.push({
+        id: automationLogs.length + 1,
         action: 'start',
         status: 'success',
         details: { startedAt: new Date() },
-        credentialsGenerated: 0
+        credentialsGenerated: 0,
+        createdAt: new Date()
       });
       
       // Enviar atualização via WebSocket
-      broadcastMessage('office_automation_started', config);
+      broadcastMessage('office_automation_started', automationConfig);
       
-      res.json({ success: true, config });
+      res.json({ success: true, config: automationConfig });
     } catch (error) {
       console.error('Erro ao iniciar automação:', error);
       res.status(500).json({ error: 'Erro ao iniciar automação' });
@@ -6492,28 +6479,24 @@ Como posso ajudar você hoje?
   // POST /api/office/automation/stop - para automação
   app.post('/api/office/automation/stop', async (req, res) => {
     try {
-      const config = await storage.getOfficeAutomationConfig();
+      // Atualizar configuração em memória
+      automationConfig.isEnabled = false;
+      automationConfig.updatedAt = new Date();
       
-      if (!config) {
-        return res.status(404).json({ error: 'Configuração não encontrada' });
-      }
-      
-      const updatedConfig = await storage.updateOfficeAutomationConfig(config.id, {
-        isEnabled: false
-      });
-      
-      // Registrar log
-      await storage.createOfficeAutomationLog({
+      // Registrar log em memória
+      automationLogs.push({
+        id: automationLogs.length + 1,
         action: 'stop',
         status: 'success',
         details: { stoppedAt: new Date() },
-        credentialsGenerated: 0
+        credentialsGenerated: 0,
+        createdAt: new Date()
       });
       
       // Enviar atualização via WebSocket
-      broadcastMessage('office_automation_stopped', updatedConfig);
+      broadcastMessage('office_automation_stopped', automationConfig);
       
-      res.json({ success: true, config: updatedConfig });
+      res.json({ success: true, config: automationConfig });
     } catch (error) {
       console.error('Erro ao parar automação:', error);
       res.status(500).json({ error: 'Erro ao parar automação' });
@@ -6523,20 +6506,22 @@ Como posso ajudar você hoje?
   // GET /api/office/automation/status - retorna status atual
   app.get('/api/office/automation/status', async (req, res) => {
     try {
-      const config = await storage.getOfficeAutomationConfig();
-      const recentLogs = await storage.getOfficeAutomationLogs(10);
-      const recentCredentials = await storage.getOfficeCredentials(5);
+      // Buscar logs recentes da memória
+      const recentLogs = automationLogs.slice(-10).reverse();
+      
+      // Buscar credenciais do banco (mantemos isso pois as credenciais são importantes)
+      let recentCredentials = [];
+      try {
+        recentCredentials = await storage.getOfficeCredentials(5);
+      } catch (e) {
+        console.log('Credenciais não disponíveis');
+      }
       
       res.json({
-        config: config || {
-          isEnabled: false,
-          batchSize: 10,
-          intervalMinutes: 5,
-          totalGenerated: 0
-        },
+        config: automationConfig,
         recentLogs,
         recentCredentials,
-        status: config?.isEnabled ? 'running' : 'stopped'
+        status: automationConfig.isEnabled ? 'running' : 'stopped'
       });
     } catch (error) {
       console.error('Erro ao buscar status de automação:', error);
@@ -6547,22 +6532,27 @@ Como posso ajudar você hoje?
   // POST /api/office/automation/generate-single - gera uma credencial única
   app.post('/api/office/automation/generate-single', async (req, res) => {
     try {
-      const config = await storage.getOfficeAutomationConfig();
+      // Atualizar config em memória para geração única
+      automationConfig.singleGeneration = true;
+      automationConfig.lastRunAt = new Date();
+      automationConfig.updatedAt = new Date();
       
-      // Atualizar config para geração única
-      if (config) {
-        await storage.updateOfficeAutomationConfig(config.id, {
-          singleGeneration: true,
-          lastRunAt: new Date()
-        });
-      }
+      // Adicionar tarefa pendente
+      pendingTasks.push({
+        id: pendingTasks.length + 1,
+        type: 'generate_single',
+        status: 'pending',
+        createdAt: new Date()
+      });
       
-      // Registrar log de solicitação
-      await storage.createOfficeAutomationLog({
+      // Registrar log em memória
+      automationLogs.push({
+        id: automationLogs.length + 1,
         action: 'generate_single',
         status: 'pending',
         details: { requestedAt: new Date() },
-        credentialsGenerated: 0
+        credentialsGenerated: 0,
+        createdAt: new Date()
       });
       
       // Enviar comando via WebSocket para extensão
@@ -6578,28 +6568,35 @@ Como posso ajudar você hoje?
   // GET /api/office/automation/next-task - extensão consulta próxima tarefa
   app.get('/api/office/automation/next-task', async (req, res) => {
     try {
-      const config = await storage.getOfficeAutomationConfig();
-      
-      if (!config) {
-        return res.json({ hasTask: false });
+      // Verificar tarefas pendentes primeiro
+      const pendingTask = pendingTasks.find(t => t.status === 'pending');
+      if (pendingTask) {
+        // Marcar como em processamento
+        pendingTask.status = 'processing';
+        return res.json({
+          hasTask: true,
+          task: {
+            type: pendingTask.type,
+            quantity: 1
+          }
+        });
       }
       
       // Verificar se há tarefa pendente
       const now = new Date();
-      const lastRun = config.lastRunAt ? new Date(config.lastRunAt) : new Date(0);
-      const intervalMs = config.intervalMinutes * 60 * 1000;
+      const lastRun = automationConfig.lastRunAt ? new Date(automationConfig.lastRunAt) : new Date(0);
+      const intervalMs = automationConfig.intervalMinutes * 60 * 1000;
       
       // Se automação está desabilitada
-      if (!config.isEnabled && !config.singleGeneration) {
+      if (!automationConfig.isEnabled && !automationConfig.singleGeneration) {
         return res.json({ hasTask: false });
       }
       
       // Se é geração única
-      if (config.singleGeneration) {
+      if (automationConfig.singleGeneration) {
         // Reset flag de geração única
-        await storage.updateOfficeAutomationConfig(config.id, {
-          singleGeneration: false
-        });
+        automationConfig.singleGeneration = false;
+        automationConfig.updatedAt = new Date();
         
         return res.json({
           hasTask: true,
@@ -6611,12 +6608,12 @@ Como posso ajudar você hoje?
       }
       
       // Verificar se é hora de gerar novo lote
-      if (config.isEnabled && (now.getTime() - lastRun.getTime() >= intervalMs)) {
+      if (automationConfig.isEnabled && (now.getTime() - lastRun.getTime() >= intervalMs)) {
         return res.json({
           hasTask: true,
           task: {
             type: 'generate_batch',
-            quantity: config.batchSize
+            quantity: automationConfig.batchSize
           }
         });
       }
@@ -6633,48 +6630,59 @@ Como posso ajudar você hoje?
     try {
       const { type, credentials, error } = req.body;
       
+      // Marcar tarefa pendente como completa
+      const processingTask = pendingTasks.find(t => t.status === 'processing');
+      if (processingTask) {
+        processingTask.status = error ? 'failed' : 'completed';
+        processingTask.completedAt = new Date();
+      }
+      
       if (error) {
-        // Registrar erro
-        await storage.createOfficeAutomationLog({
+        // Registrar erro em memória
+        automationLogs.push({
+          id: automationLogs.length + 1,
           action: type,
           status: 'failure',
           errorMessage: error,
           details: { error },
-          credentialsGenerated: 0
+          credentialsGenerated: 0,
+          createdAt: new Date()
         });
         
         return res.json({ success: false });
       }
       
-      // Salvar credenciais geradas
+      // Salvar credenciais geradas (mantemos no banco pois são importantes)
       if (credentials && credentials.length > 0) {
         for (const cred of credentials) {
-          await storage.createOfficeCredentials({
-            username: cred.username,
-            password: cred.password,
-            source: 'automation',
-            status: 'active',
-            generatedAt: new Date()
-          });
+          try {
+            await storage.createOfficeCredentials({
+              username: cred.username,
+              password: cred.password,
+              source: 'automation',
+              status: 'active',
+              generatedAt: new Date()
+            });
+          } catch (e) {
+            console.log('Não foi possível salvar credenciais no banco:', e);
+          }
         }
       }
       
-      // Atualizar configuração
-      const config = await storage.getOfficeAutomationConfig();
-      if (config) {
-        const newTotal = (config.totalGenerated || 0) + (credentials?.length || 0);
-        await storage.updateOfficeAutomationConfig(config.id, {
-          lastRunAt: new Date(),
-          totalGenerated: newTotal
-        });
-      }
+      // Atualizar configuração em memória
+      const newTotal = (automationConfig.totalGenerated || 0) + (credentials?.length || 0);
+      automationConfig.lastRunAt = new Date();
+      automationConfig.totalGenerated = newTotal;
+      automationConfig.updatedAt = new Date();
       
-      // Registrar log de sucesso
-      await storage.createOfficeAutomationLog({
+      // Registrar log de sucesso em memória
+      automationLogs.push({
+        id: automationLogs.length + 1,
         action: type,
         status: 'success',
         details: { credentials },
-        credentialsGenerated: credentials?.length || 0
+        credentialsGenerated: credentials?.length || 0,
+        createdAt: new Date()
       });
       
       // Enviar atualização via WebSocket
@@ -6691,11 +6699,19 @@ Como posso ajudar você hoje?
     }
   });
 
+  // POST /api/office/automation/report-result - alias para task-complete
+  app.post('/api/office/automation/report-result', async (req, res) => {
+    // Redireciona para task-complete
+    req.url = '/api/office/automation/task-complete';
+    return app.handle(req, res);
+  });
+
   // GET /api/office/automation/logs - busca logs de execução
   app.get('/api/office/automation/logs', async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 50;
-      const logs = await storage.getOfficeAutomationLogs(limit);
+      // Retornar logs da memória
+      const logs = automationLogs.slice(-limit).reverse();
       res.json(logs);
     } catch (error) {
       console.error('Erro ao buscar logs de automação:', error);
@@ -6707,7 +6723,13 @@ Como posso ajudar você hoje?
   app.get('/api/office/automation/credentials', async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
-      const credentials = await storage.getOfficeCredentials(limit);
+      // Ainda tentamos buscar do banco, mas se falhar retornamos array vazio
+      let credentials = [];
+      try {
+        credentials = await storage.getOfficeCredentials(limit);
+      } catch (e) {
+        console.log('Não foi possível buscar credenciais do banco:', e);
+      }
       res.json(credentials);
     } catch (error) {
       console.error('Erro ao buscar credenciais:', error);
