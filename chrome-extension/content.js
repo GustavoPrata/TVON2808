@@ -30,27 +30,40 @@ function checkAndAutoLogin() {
     
     // Aguarda um pouco e clica no recaptcha
     setTimeout(() => {
-      // Procura o checkbox do recaptcha
-      const recaptchaCheckbox = document.querySelector('.recaptcha-checkbox-border');
-      const recaptchaFrame = document.querySelector('iframe[src*="recaptcha"]');
+      // O recaptcha geralmente está em um iframe
+      const recaptchaFrame = document.querySelector('iframe[src*="recaptcha"][src*="anchor"]');
       
-      if (recaptchaCheckbox) {
-        console.log('🤖 Clicando no recaptcha...');
-        recaptchaCheckbox.click();
-      } else if (recaptchaFrame) {
-        // Se o recaptcha está em um iframe, tenta clicar no iframe
-        console.log('🤖 Tentando clicar no iframe do recaptcha...');
-        try {
-          // Tenta acessar o iframe (pode não funcionar devido a CORS)
-          const iframeDoc = recaptchaFrame.contentDocument || recaptchaFrame.contentWindow.document;
-          const checkbox = iframeDoc.querySelector('.recaptcha-checkbox-border');
-          if (checkbox) {
-            checkbox.click();
-          }
-        } catch (e) {
-          console.log('⚠️ Não foi possível acessar o iframe do recaptcha (CORS)');
-          // Tenta clicar no iframe diretamente
-          recaptchaFrame.click();
+      if (recaptchaFrame) {
+        console.log('🤖 Iframe do recaptcha encontrado!');
+        
+        // Calcula a posição do centro do checkbox dentro do iframe
+        const rect = recaptchaFrame.getBoundingClientRect();
+        const x = rect.left + 10; // 10px da borda esquerda (onde fica o checkbox)
+        const y = rect.top + rect.height / 2; // Centro vertical
+        
+        console.log(`🎯 Clicando na posição: ${x}, ${y}`);
+        
+        // Cria e dispara evento de clique na posição do checkbox
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+          clientX: x,
+          clientY: y
+        });
+        
+        // Dispara o clique no documento na posição do checkbox
+        document.elementFromPoint(x, y).dispatchEvent(clickEvent);
+        console.log('✅ Clique no recaptcha enviado!');
+        
+      } else {
+        // Fallback: procura o checkbox diretamente (caso não esteja em iframe)
+        const recaptchaCheckbox = document.querySelector('.recaptcha-checkbox-border');
+        if (recaptchaCheckbox) {
+          console.log('🤖 Checkbox do recaptcha encontrado diretamente!');
+          recaptchaCheckbox.click();
+        } else {
+          console.log('⚠️ Recaptcha não encontrado, tentando login mesmo assim...');
         }
       }
       
@@ -59,9 +72,9 @@ function checkAndAutoLogin() {
         console.log('🚀 Clicando no botão de login...');
         loginButton.click();
         console.log('✅ Login automático executado!');
-      }, 2000); // Aguarda 2 segundos para o recaptcha processar
+      }, 3000); // Aguarda 3 segundos para o recaptcha processar
       
-    }, 1000); // Aguarda 1 segundo após preencher os campos
+    }, 1500); // Aguarda 1.5 segundos após preencher os campos
   }
 }
 
