@@ -556,7 +556,32 @@ export const insertAnotacaoSchema = createInsertSchema(anotacoes).omit({
 export type Anotacao = typeof anotacoes.$inferSelect;
 export type InsertAnotacao = z.infer<typeof insertAnotacaoSchema>;
 
-// Office Extension Configuration
+// Office Automation Configuration (Sistema profissional gerenciado pelo backend)
+export const officeAutomationConfig = pgTable("office_automation_config", {
+  id: serial("id").primaryKey(),
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  batchSize: integer("batch_size").notNull().default(10), // quantas credenciais por lote
+  intervalMinutes: integer("interval_minutes").notNull().default(5), // tempo entre lotes em minutos
+  singleGeneration: boolean("single_generation").notNull().default(false), // se deve gerar apenas uma
+  lastRunAt: timestamp("last_run_at"), // última execução
+  totalGenerated: integer("total_generated").notNull().default(0), // total de credenciais geradas
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Office Automation Logs (Registro de todas as execuções)
+export const officeAutomationLogs = pgTable("office_automation_logs", {
+  id: serial("id").primaryKey(),
+  action: varchar("action", { length: 50 }).notNull(), // start, stop, generate_batch, generate_single, error, task_requested, task_completed
+  status: varchar("status", { length: 20 }).notNull(), // success, failure, pending
+  details: json("details"), // detalhes da execução (credenciais, erros, etc)
+  credentialsGenerated: integer("credentials_generated").notNull().default(0),
+  errorMessage: text("error_message"),
+  extensionId: varchar("extension_id", { length: 100 }), // identificador da extensão que executou
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Office Extension Configuration (Legacy - mantido para compatibilidade)
 export const officeExtensionConfig = pgTable("office_extension_config", {
   id: serial("id").primaryKey(),
   automationEnabled: boolean("automation_enabled").notNull().default(false),
@@ -585,6 +610,26 @@ export const officeCredentials = pgTable("office_credentials", {
   expiresAt: timestamp("expires_at"),
 });
 
+// Schemas para Office Automation
+export const insertOfficeAutomationConfigSchema = createInsertSchema(officeAutomationConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOfficeAutomationLogsSchema = createInsertSchema(officeAutomationLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types para Office Automation
+export type OfficeAutomationConfig = typeof officeAutomationConfig.$inferSelect;
+export type InsertOfficeAutomationConfig = z.infer<typeof insertOfficeAutomationConfigSchema>;
+
+export type OfficeAutomationLogs = typeof officeAutomationLogs.$inferSelect;
+export type InsertOfficeAutomationLogs = z.infer<typeof insertOfficeAutomationLogsSchema>;
+
+// Legacy schemas mantidos para compatibilidade
 export const insertOfficeExtensionConfigSchema = createInsertSchema(officeExtensionConfig).omit({
   id: true,
   createdAt: true,

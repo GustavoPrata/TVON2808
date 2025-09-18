@@ -3,6 +3,7 @@ import {
   clientes, pontos, pagamentos, pagamentosManual, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
   avisosVencimento, configAvisos, anotacoes, notificacoesRecorrentes,
+  officeAutomationConfig, officeAutomationLogs, officeCredentials,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
@@ -15,7 +16,10 @@ import {
   type AvisoVencimento, type InsertAvisoVencimento,
   type ConfigAvisos, type InsertConfigAvisos,
   type Anotacao, type InsertAnotacao,
-  type NotificacaoRecorrente, type InsertNotificacaoRecorrente
+  type NotificacaoRecorrente, type InsertNotificacaoRecorrente,
+  type OfficeAutomationConfig, type InsertOfficeAutomationConfig,
+  type OfficeAutomationLogs, type InsertOfficeAutomationLogs,
+  type OfficeCredentials, type InsertOfficeCredentials
 } from "@shared/schema";
 import { eq, desc, asc, sql, and, or, gte, lte, ilike, ne, count } from "drizzle-orm";
 
@@ -209,6 +213,21 @@ export interface IStorage {
   getNotificacoesRecorrentesAtivas(): Promise<NotificacaoRecorrente[]>;
   getNotificacoesRecorrentesParaEnviar(): Promise<NotificacaoRecorrente[]>;
   resetNotificacaoRecorrente(clienteId: number): Promise<void>;
+
+  // Office Automation Config
+  getOfficeAutomationConfig(): Promise<OfficeAutomationConfig | undefined>;
+  createOfficeAutomationConfig(config: InsertOfficeAutomationConfig): Promise<OfficeAutomationConfig>;
+  updateOfficeAutomationConfig(id: number, config: Partial<InsertOfficeAutomationConfig>): Promise<OfficeAutomationConfig>;
+  
+  // Office Automation Logs
+  getOfficeAutomationLogs(limit?: number): Promise<OfficeAutomationLogs[]>;
+  createOfficeAutomationLog(log: InsertOfficeAutomationLogs): Promise<OfficeAutomationLogs>;
+  getOfficeAutomationLogsByAction(action: string, limit?: number): Promise<OfficeAutomationLogs[]>;
+  
+  // Office Credentials
+  getOfficeCredentials(limit?: number): Promise<OfficeCredentials[]>;
+  createOfficeCredentials(credentials: InsertOfficeCredentials): Promise<OfficeCredentials>;
+  getOfficeCredentialsByStatus(status: string): Promise<OfficeCredentials[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1638,6 +1657,62 @@ export class DatabaseStorage implements IStorage {
     // Delete the notification record to reset it
     await db.delete(notificacoesRecorrentes)
       .where(eq(notificacoesRecorrentes.clienteId, clienteId));
+  }
+
+  // Office Automation Config implementation
+  async getOfficeAutomationConfig(): Promise<OfficeAutomationConfig | undefined> {
+    const result = await db.select().from(officeAutomationConfig).limit(1);
+    return result[0];
+  }
+
+  async createOfficeAutomationConfig(config: InsertOfficeAutomationConfig): Promise<OfficeAutomationConfig> {
+    const result = await db.insert(officeAutomationConfig).values(config).returning();
+    return result[0];
+  }
+
+  async updateOfficeAutomationConfig(id: number, config: Partial<InsertOfficeAutomationConfig>): Promise<OfficeAutomationConfig> {
+    const result = await db.update(officeAutomationConfig)
+      .set({ ...config, updatedAt: new Date() })
+      .where(eq(officeAutomationConfig.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Office Automation Logs implementation
+  async getOfficeAutomationLogs(limit: number = 100): Promise<OfficeAutomationLogs[]> {
+    return await db.select().from(officeAutomationLogs)
+      .orderBy(desc(officeAutomationLogs.createdAt))
+      .limit(limit);
+  }
+
+  async createOfficeAutomationLog(log: InsertOfficeAutomationLogs): Promise<OfficeAutomationLogs> {
+    const result = await db.insert(officeAutomationLogs).values(log).returning();
+    return result[0];
+  }
+
+  async getOfficeAutomationLogsByAction(action: string, limit: number = 100): Promise<OfficeAutomationLogs[]> {
+    return await db.select().from(officeAutomationLogs)
+      .where(eq(officeAutomationLogs.action, action))
+      .orderBy(desc(officeAutomationLogs.createdAt))
+      .limit(limit);
+  }
+
+  // Office Credentials implementation
+  async getOfficeCredentials(limit: number = 100): Promise<OfficeCredentials[]> {
+    return await db.select().from(officeCredentials)
+      .orderBy(desc(officeCredentials.generatedAt))
+      .limit(limit);
+  }
+
+  async createOfficeCredentials(credentials: InsertOfficeCredentials): Promise<OfficeCredentials> {
+    const result = await db.insert(officeCredentials).values(credentials).returning();
+    return result[0];
+  }
+
+  async getOfficeCredentialsByStatus(status: string): Promise<OfficeCredentials[]> {
+    return await db.select().from(officeCredentials)
+      .where(eq(officeCredentials.status, status))
+      .orderBy(desc(officeCredentials.generatedAt));
   }
 }
 

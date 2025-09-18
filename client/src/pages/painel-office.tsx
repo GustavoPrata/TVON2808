@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download, Chrome, Play, Pause, Clock, Users } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import {
@@ -142,11 +142,13 @@ export default function PainelOffice() {
   const [systemToDelete, setSystemToDelete] = useState<string | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
   const [isGeneratingIPTV, setIsGeneratingIPTV] = useState(false);
-  const [extensionConfig, setExtensionConfig] = useState({
-    automationEnabled: false,
-    quantityToGenerate: 10,
-    intervalValue: 30,
-    intervalUnit: 'minutes' as 'minutes' | 'hours'
+  const [automationConfig, setAutomationConfig] = useState({
+    isEnabled: false,
+    batchSize: 10,
+    intervalMinutes: 5,
+    singleGeneration: false,
+    lastRunAt: null as Date | null,
+    totalGenerated: 0
   });
   const [recentCredentials, setRecentCredentials] = useState<Array<{
     id: number;
@@ -168,9 +170,10 @@ export default function PainelOffice() {
     queryKey: ['/api/external-api/systems'],
   });
 
-  // Fetch extension config
-  const { data: configData } = useQuery<{ config: typeof extensionConfig }>({
-    queryKey: ['/api/office/extension-config'],
+  // Fetch automation config from backend
+  const { data: configData, refetch: refetchConfig } = useQuery<any>({
+    queryKey: ['/api/office/automation/config'],
+    refetchInterval: 5000, // Poll every 5 seconds
   });
 
   // Fetch recent credentials
@@ -184,18 +187,26 @@ export default function PainelOffice() {
       source: string;
     }>;
   }>({
-    queryKey: ['/api/office/credentials-history'],
+    queryKey: ['/api/office/automation/credentials'],
+    refetchInterval: 10000, // Poll every 10 seconds
   });
 
   useEffect(() => {
-    if (configData && configData.config) {
-      setExtensionConfig(configData.config);
+    if (configData) {
+      setAutomationConfig({
+        isEnabled: configData.isEnabled || false,
+        batchSize: configData.batchSize || 10,
+        intervalMinutes: configData.intervalMinutes || 5,
+        singleGeneration: configData.singleGeneration || false,
+        lastRunAt: configData.lastRunAt ? new Date(configData.lastRunAt) : null,
+        totalGenerated: configData.totalGenerated || 0
+      });
     }
   }, [configData]);
 
   useEffect(() => {
-    if (credentialsData && credentialsData.credentials) {
-      setRecentCredentials(credentialsData.credentials.slice(0, 5));
+    if (credentialsData && Array.isArray(credentialsData)) {
+      setRecentCredentials(credentialsData.slice(0, 5));
     }
   }, [credentialsData]);
 
@@ -687,55 +698,76 @@ export default function PainelOffice() {
               <div className="space-y-4">
                 <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
                 <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                  <Settings className="w-4 h-4" />
-                  Configuração da Automação
+                  <Activity className="w-4 h-4" />
+                  Controle de Automação Profissional
                 </h3>
                 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm">Status da Automação</Label>
+                <div className="space-y-4">
+                  {/* Status Row with Toggle */}
+                  <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+                    <div className="flex flex-col">
+                      <Label className="text-sm font-medium">Status da Automação</Label>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {automationConfig.isEnabled ? 'Sistema rodando' : 'Sistema parado'}
+                      </p>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Button
                         size="sm"
-                        variant={extensionConfig.automationEnabled ? "destructive" : "default"}
+                        variant={automationConfig.isEnabled ? "destructive" : "default"}
                         onClick={async () => {
-                          const newEnabled = !extensionConfig.automationEnabled;
-                          const newConfig = { ...extensionConfig, automationEnabled: newEnabled };
-                          setExtensionConfig(newConfig);
+                          const endpoint = automationConfig.isEnabled 
+                            ? '/api/office/automation/stop'
+                            : '/api/office/automation/start';
                           
-                          await fetch('/api/office/extension-config', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(newConfig)
-                          });
-                          
-                          toast({
-                            title: newEnabled ? "Automação Ativada" : "Automação Desativada",
-                            description: newEnabled 
-                              ? `Gerando ${newConfig.quantityToGenerate} credenciais a cada ${newConfig.intervalValue} ${newConfig.intervalUnit}`
-                              : "A geração automática foi parada",
-                            variant: "default",
-                          });
+                          const res = await fetch(endpoint, { method: 'POST' });
+                          if (res.ok) {
+                            refetchConfig();
+                            toast({
+                              title: automationConfig.isEnabled ? "Automação Parada" : "Automação Iniciada",
+                              description: automationConfig.isEnabled 
+                                ? "Sistema de geração automática desativado"
+                                : `Gerando ${automationConfig.batchSize} credenciais a cada ${automationConfig.intervalMinutes} minutos`,
+                              variant: "default",
+                            });
+                          }
                         }}
-                        className={extensionConfig.automationEnabled 
+                        className={automationConfig.isEnabled 
                           ? "bg-red-600 hover:bg-red-700" 
                           : "bg-green-600 hover:bg-green-700"}
                         data-testid="button-toggle-automation"
                       >
-                        {extensionConfig.automationEnabled ? (
+                        {automationConfig.isEnabled ? (
                           <><Pause className="w-4 h-4 mr-1" /> Parar</>
                         ) : (
                           <><Play className="w-4 h-4 mr-1" /> Iniciar</>
                         )}
                       </Button>
-                      <Badge className={extensionConfig.automationEnabled 
-                        ? "bg-green-500/20 text-green-400" 
+                      <Badge className={automationConfig.isEnabled 
+                        ? "bg-green-500/20 text-green-400 animate-pulse" 
                         : "bg-slate-500/20 text-slate-400"}>
-                        {extensionConfig.automationEnabled ? "ON" : "OFF"}
+                        {automationConfig.isEnabled ? "ATIVO" : "INATIVO"}
                       </Badge>
                     </div>
                   </div>
                   
+                  {/* Statistics */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2 bg-slate-900/50 rounded">
+                      <p className="text-xs text-slate-500">Total Gerado</p>
+                      <p className="text-lg font-bold text-white">{automationConfig.totalGenerated || 0}</p>
+                    </div>
+                    <div className="p-2 bg-slate-900/50 rounded">
+                      <p className="text-xs text-slate-500">Última Execução</p>
+                      <p className="text-xs font-mono text-white">
+                        {automationConfig.lastRunAt 
+                          ? new Date(automationConfig.lastRunAt).toLocaleTimeString('pt-BR')
+                          : 'Nunca'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Configuration Fields */}
                   <div>
                     <Label className="text-sm flex items-center gap-1 mb-2">
                       <Users className="w-4 h-4" />
@@ -745,69 +777,91 @@ export default function PainelOffice() {
                       type="number"
                       min="1"
                       max="100"
-                      value={extensionConfig.quantityToGenerate}
-                      onChange={(e) => setExtensionConfig({
-                        ...extensionConfig,
-                        quantityToGenerate: parseInt(e.target.value) || 10
+                      value={automationConfig.batchSize}
+                      onChange={(e) => setAutomationConfig({
+                        ...automationConfig,
+                        batchSize: parseInt(e.target.value) || 10
                       })}
                       className="bg-slate-800 border-slate-700"
-                      data-testid="input-quantity"
+                      disabled={automationConfig.isEnabled}
+                      data-testid="input-batch-size"
                     />
                   </div>
                   
                   <div>
                     <Label className="text-sm flex items-center gap-1 mb-2">
                       <Clock className="w-4 h-4" />
-                      Intervalo de Geração
+                      Intervalo entre Lotes (minutos)
                     </Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        min="1"
-                        max="60"
-                        value={extensionConfig.intervalValue}
-                        onChange={(e) => setExtensionConfig({
-                          ...extensionConfig,
-                          intervalValue: parseInt(e.target.value) || 30
-                        })}
-                        className="bg-slate-800 border-slate-700 flex-1"
-                        data-testid="input-interval-value"
-                      />
-                      <select
-                        value={extensionConfig.intervalUnit}
-                        onChange={(e) => setExtensionConfig({
-                          ...extensionConfig,
-                          intervalUnit: e.target.value as 'minutes' | 'hours'
-                        })}
-                        className="bg-slate-800 border-slate-700 rounded px-3 text-sm"
-                        data-testid="select-interval-unit"
-                      >
-                        <option value="minutes">Minutos</option>
-                        <option value="hours">Horas</option>
-                      </select>
-                    </div>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="1440"
+                      value={automationConfig.intervalMinutes}
+                      onChange={(e) => setAutomationConfig({
+                        ...automationConfig,
+                        intervalMinutes: parseInt(e.target.value) || 5
+                      })}
+                      className="bg-slate-800 border-slate-700"
+                      disabled={automationConfig.isEnabled}
+                      data-testid="input-interval"
+                    />
                   </div>
                   
-                  <Button
-                    onClick={async () => {
-                      await fetch('/api/office/extension-config', {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(extensionConfig)
-                      });
-                      
-                      toast({
-                        title: "Configuração Salva",
-                        description: "As configurações da extensão foram atualizadas",
-                        variant: "default",
-                      });
-                    }}
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                    size="sm"
-                    data-testid="button-save-config"
-                  >
-                    Salvar Configuração
-                  </Button>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={async () => {
+                        const res = await fetch('/api/office/automation/config', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            batchSize: automationConfig.batchSize,
+                            intervalMinutes: automationConfig.intervalMinutes
+                          })
+                        });
+                        
+                        if (res.ok) {
+                          toast({
+                            title: "Configuração Salva",
+                            description: "Parâmetros de automação atualizados com sucesso",
+                            variant: "default",
+                          });
+                        }
+                      }}
+                      className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      size="sm"
+                      disabled={automationConfig.isEnabled}
+                      data-testid="button-save-config"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-1" />
+                      Salvar Config
+                    </Button>
+                    
+                    <Button
+                      onClick={async () => {
+                        const res = await fetch('/api/office/automation/generate-single', {
+                          method: 'POST'
+                        });
+                        
+                        if (res.ok) {
+                          toast({
+                            title: "Geração Solicitada",
+                            description: "Uma credencial será gerada em instantes",
+                            variant: "default",
+                          });
+                          setTimeout(() => refetchCredentials(), 2000);
+                        }
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="border-purple-600 text-purple-400 hover:bg-purple-600/20"
+                      data-testid="button-generate-single"
+                    >
+                      <Zap className="w-4 h-4 mr-1" />
+                      Gerar Uma
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

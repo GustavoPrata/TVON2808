@@ -1,194 +1,118 @@
-// OnlineOffice IPTV Automator - Popup Script
-// Versão simplificada
+// Popup script - Interface simplificada para mostrar status do backend
 
-const batchSizeInput = document.getElementById('batchSize');
-const intervalSelect = document.getElementById('interval');
-const manualBtn = document.getElementById('manualBtn');
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
-const statusDiv = document.getElementById('status');
-const credentialsDiv = document.getElementById('credentials');
-const lastUserSpan = document.getElementById('lastUser');
-const lastPassSpan = document.getElementById('lastPass');
-const logDiv = document.getElementById('log');
-
-let automationRunning = false;
-
-// Função para adicionar log
-function addLog(message) {
-  const time = new Date().toLocaleTimeString();
-  logDiv.innerHTML = `[${time}] ${message}<br>` + logDiv.innerHTML;
-  // Limita a 10 linhas
-  const lines = logDiv.innerHTML.split('<br>');
-  if (lines.length > 10) {
-    logDiv.innerHTML = lines.slice(0, 10).join('<br>');
-  }
-}
-
-// Função para atualizar status
-async function updateStatus() {
-  try {
-    // Verifica se está na aba do OnlineOffice
-    const tabs = await chrome.tabs.query({active: true, currentWindow: true});
-    const currentTab = tabs[0];
-    const isOnlineOffice = currentTab.url && currentTab.url.includes('onlineoffice.zip');
-    
-    if (!isOnlineOffice) {
-      addLog('⚠️ Acesse onlineoffice.zip primeiro!');
-      manualBtn.disabled = true;
-      startBtn.disabled = true;
-    } else {
-      manualBtn.disabled = false;
-      startBtn.disabled = automationRunning;
-    }
-    
-    // Pega estado do background
-    const response = await chrome.runtime.sendMessage({type: 'getStatus'});
-    automationRunning = response.isRunning;
-    
-    if (automationRunning) {
-      startBtn.style.display = 'none';
-      stopBtn.style.display = 'block';
-      statusDiv.className = 'status status-running';
-      statusDiv.innerHTML = `
-        <strong>Status:</strong> 🟢 Rodando<br>
-        <strong>Total Gerado:</strong> ${response.totalGenerated} credenciais<br>
-        <strong>Lote Atual:</strong> ${response.currentBatch}<br>
-        <strong>Config:</strong> ${response.batchSize} a cada ${response.intervalMinutes} min
-      `;
-    } else {
-      startBtn.style.display = 'block';
-      stopBtn.style.display = 'none';
-      statusDiv.className = 'status status-stopped';
-      statusDiv.innerHTML = `
-        <strong>Status:</strong> 🔴 Parado<br>
-        <strong>Total Gerado:</strong> ${response.totalGenerated || 0} credenciais<br>
-        <strong>Lote Atual:</strong> ${response.currentBatch || 0}
-      `;
-    }
-    
-    // Mostra última credencial se existir
-    if (response.lastGenerated) {
-      credentialsDiv.style.display = 'block';
-      lastUserSpan.textContent = response.lastGenerated.username || '-';
-      lastPassSpan.textContent = response.lastGenerated.password || '-';
-    }
-  } catch (error) {
-    console.error('Erro ao atualizar status:', error);
-    addLog('❌ Erro ao conectar com background');
-  }
-}
-
-// Botão Gerar Manual
-manualBtn.addEventListener('click', async () => {
-  addLog('🎯 Gerando uma credencial manual...');
-  manualBtn.disabled = true;
-  
-  try {
-    const response = await chrome.runtime.sendMessage({type: 'generateOneManual'});
-    
-    if (response.success) {
-      addLog('✅ Credencial gerada com sucesso!');
-      if (response.credentials) {
-        credentialsDiv.style.display = 'block';
-        lastUserSpan.textContent = response.credentials.username;
-        lastPassSpan.textContent = response.credentials.password;
-      }
-    } else {
-      addLog(`❌ Erro: ${response.error}`);
-    }
-  } catch (error) {
-    addLog('❌ Erro ao gerar credencial');
-    console.error(error);
-  } finally {
-    manualBtn.disabled = false;
-  }
-});
-
-// Botão Iniciar
-startBtn.addEventListener('click', async () => {
-  const config = {
-    batchSize: parseInt(batchSizeInput.value) || 10,
-    intervalMinutes: parseInt(intervalSelect.value) || 5
-  };
-  
-  addLog(`🚀 Iniciando automação: ${config.batchSize} a cada ${config.intervalMinutes} min`);
-  
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type: 'startAutomation',
-      config: config
-    });
-    
-    if (response.success) {
-      addLog('✅ Automação iniciada!');
-      automationRunning = true;
-      await updateStatus();
-    } else {
-      addLog('❌ Erro ao iniciar automação');
-    }
-  } catch (error) {
-    addLog('❌ Erro ao comunicar com background');
-    console.error(error);
-  }
-});
-
-// Botão Parar
-stopBtn.addEventListener('click', async () => {
-  addLog('⏹️ Parando automação...');
-  
-  try {
-    const response = await chrome.runtime.sendMessage({type: 'stopAutomation'});
-    
-    if (response.success) {
-      addLog('✅ Automação parada!');
-      automationRunning = false;
-      await updateStatus();
-    }
-  } catch (error) {
-    addLog('❌ Erro ao parar automação');
-    console.error(error);
-  }
-});
-
-// Listener para mensagens do background
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'credentialGenerated') {
-    addLog('📋 Nova credencial gerada');
-    if (request.credentials) {
-      credentialsDiv.style.display = 'block';
-      lastUserSpan.textContent = request.credentials.username;
-      lastPassSpan.textContent = request.credentials.password;
-    }
-    if (request.progress) {
-      addLog(`Progresso: ${request.progress.current}/${request.progress.total}`);
-    }
-  }
-  
-  if (request.type === 'error') {
-    addLog(`❌ ${request.message}`);
-  }
-});
-
-// Inicialização
 document.addEventListener('DOMContentLoaded', async () => {
-  addLog('🎯 Extensão carregada');
-  await updateStatus();
+  const contentDiv = document.getElementById('content');
   
-  // Atualiza status a cada 3 segundos
-  setInterval(updateStatus, 3000);
-});
-
-// Carrega estado salvo
-chrome.storage.local.get(['automationState'], (result) => {
-  if (result.automationState) {
-    batchSizeInput.value = result.automationState.batchSize || 10;
-    intervalSelect.value = result.automationState.intervalMinutes || 5;
-    
-    if (result.automationState.lastGenerated) {
-      credentialsDiv.style.display = 'block';
-      lastUserSpan.textContent = result.automationState.lastGenerated.username || '-';
-      lastPassSpan.textContent = result.automationState.lastGenerated.password || '-';
+  // Função para renderizar o conteúdo
+  async function render() {
+    try {
+      // Busca status do background script
+      const response = await chrome.runtime.sendMessage({type: 'getStatus'});
+      
+      const isRunning = response?.isRunning || false;
+      
+      contentDiv.innerHTML = `
+        <div class="status-card">
+          <div class="status-row">
+            <span class="status-label">Status da Automação</span>
+            <span class="status-badge ${isRunning ? 'badge-active' : 'badge-inactive'}">
+              ${isRunning ? 'ATIVO' : 'INATIVO'}
+            </span>
+          </div>
+          <div class="status-row">
+            <span class="status-label">Controle</span>
+            <span class="status-value">Via Backend</span>
+          </div>
+        </div>
+        
+        <div class="info-box">
+          <span class="info-icon">ℹ️</span>
+          A automação agora é totalmente controlada pelo painel web.
+          Todas as configurações e controles estão disponíveis no site.
+        </div>
+        
+        <button class="action-button" id="openDashboard">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+          Abrir Painel de Controle
+        </button>
+        
+        <div id="recentCredentials" style="display: none;">
+          <div class="recent-credentials">
+            <div style="text-align: center; font-size: 11px; opacity: 0.7;">
+              Credenciais recentes aparecerão aqui
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Adiciona listener para o botão
+      document.getElementById('openDashboard').addEventListener('click', () => {
+        chrome.runtime.sendMessage({type: 'openDashboard'});
+        window.close();
+      });
+      
+    } catch (error) {
+      contentDiv.innerHTML = `
+        <div class="error">
+          ⚠️ Erro ao conectar com o backend.
+          <br>
+          Por favor, verifique se o site está acessível.
+        </div>
+        
+        <button class="action-button" id="retry">
+          🔄 Tentar Novamente
+        </button>
+      `;
+      
+      document.getElementById('retry').addEventListener('click', render);
     }
   }
+  
+  // Renderiza inicialmente
+  render();
+  
+  // Atualiza a cada 5 segundos
+  setInterval(render, 5000);
+  
+  // Listener para receber atualizações do background
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'credentialGenerated' && request.credentials) {
+      // Mostra as credenciais recentes
+      const recentDiv = document.getElementById('recentCredentials');
+      if (recentDiv) {
+        recentDiv.style.display = 'block';
+        const credentialsContainer = recentDiv.querySelector('.recent-credentials');
+        
+        // Adiciona nova credencial no topo
+        const newItem = document.createElement('div');
+        newItem.className = 'credential-item';
+        newItem.innerHTML = `
+          <strong>Nova:</strong> ${request.credentials.username} | ${request.credentials.password}
+        `;
+        
+        // Insere no início
+        if (credentialsContainer.firstChild) {
+          credentialsContainer.insertBefore(newItem, credentialsContainer.firstChild);
+        } else {
+          credentialsContainer.innerHTML = '';
+          credentialsContainer.appendChild(newItem);
+        }
+        
+        // Mantém apenas as últimas 3
+        while (credentialsContainer.children.length > 3) {
+          credentialsContainer.removeChild(credentialsContainer.lastChild);
+        }
+        
+        // Destaca com animação
+        newItem.style.background = 'rgba(40, 167, 69, 0.2)';
+        setTimeout(() => {
+          newItem.style.background = '';
+        }, 2000);
+      }
+    }
+  });
 });
