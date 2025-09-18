@@ -255,7 +255,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Apply auth middleware to all API routes except login routes
   app.use("/api/*", (req, res, next) => {
-    const publicPaths = ['/api/login', '/api/logout', '/api/auth/status', '/api/pix/webhook', '/api/pix/debug/pagamentos-manual', '/api/pix/test-webhook', '/api/office/save-credentials', '/api/office/credentials'];
+    const publicPaths = [
+      '/api/login', 
+      '/api/logout', 
+      '/api/auth/status', 
+      '/api/pix/webhook', 
+      '/api/pix/debug/pagamentos-manual', 
+      '/api/pix/test-webhook', 
+      '/api/office/save-credentials', 
+      '/api/office/credentials',
+      // Chrome extension automation endpoints (public for extension access)
+      '/api/office/automation/next-task',
+      '/api/office/automation/task-complete',
+      '/api/office/automation/report',
+      '/api/office/automation/config',
+      '/api/office/automation/status',
+      '/api/office/automation/credentials'
+      // Note: start/stop/generate-single endpoints remain protected (require authentication)
+    ];
     // Use originalUrl to get the full path including /api prefix
     const fullPath = req.originalUrl.split('?')[0]; // Remove query params if any
     if (publicPaths.includes(fullPath)) {
