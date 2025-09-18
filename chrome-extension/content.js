@@ -30,40 +30,110 @@ function checkAndAutoLogin() {
     
     // Aguarda um pouco e clica no recaptcha
     setTimeout(() => {
-      // O recaptcha geralmente está em um iframe
-      const recaptchaFrame = document.querySelector('iframe[src*="recaptcha"][src*="anchor"]');
+      console.log('🔍 Procurando recaptcha...');
+      
+      // Função para mostrar onde vamos clicar
+      function showClickIndicator(x, y) {
+        // Cria um indicador visual temporário
+        const indicator = document.createElement('div');
+        indicator.style.position = 'fixed';
+        indicator.style.left = (x - 15) + 'px';
+        indicator.style.top = (y - 15) + 'px';
+        indicator.style.width = '30px';
+        indicator.style.height = '30px';
+        indicator.style.background = 'rgba(255, 0, 0, 0.5)';
+        indicator.style.border = '3px solid red';
+        indicator.style.borderRadius = '50%';
+        indicator.style.zIndex = '999999';
+        indicator.style.pointerEvents = 'none';
+        document.body.appendChild(indicator);
+        console.log(`🎯 Indicador vermelho criado na posição: ${x}, ${y}`);
+        
+        // Remove o indicador após 2 segundos
+        setTimeout(() => {
+          indicator.remove();
+        }, 2000);
+      }
+      
+      // Procura o recaptcha de várias formas
+      // Método 1: Procura o iframe do recaptcha
+      const recaptchaFrame = document.querySelector('iframe[src*="recaptcha"]');
       
       if (recaptchaFrame) {
         console.log('🤖 Iframe do recaptcha encontrado!');
         
-        // Calcula a posição do centro do checkbox dentro do iframe
+        // Calcula a posição correta - logo abaixo do campo de senha
         const rect = recaptchaFrame.getBoundingClientRect();
-        const x = rect.left + 10; // 10px da borda esquerda (onde fica o checkbox)
-        const y = rect.top + rect.height / 2; // Centro vertical
         
-        console.log(`🎯 Clicando na posição: ${x}, ${y}`);
+        // Clica no canto superior esquerdo do iframe, onde está o checkbox
+        const x = rect.left + 20; // 20px da borda esquerda (onde está o checkbox)
+        const y = rect.top + 20; // 20px do topo (centro do checkbox)
         
-        // Cria e dispara evento de clique na posição do checkbox
-        const clickEvent = new MouseEvent('click', {
-          view: window,
-          bubbles: true,
-          cancelable: true,
-          clientX: x,
-          clientY: y
-        });
+        console.log(`📍 Posição do iframe: left=${rect.left}, top=${rect.top}`);
+        console.log(`🎯 Vou clicar na posição: ${x}, ${y}`);
         
-        // Dispara o clique no documento na posição do checkbox
-        document.elementFromPoint(x, y).dispatchEvent(clickEvent);
-        console.log('✅ Clique no recaptcha enviado!');
+        // Mostra onde vamos clicar
+        showClickIndicator(x, y);
+        
+        // Aguarda um pouco e clica
+        setTimeout(() => {
+          // Clica no iframe
+          recaptchaFrame.click();
+          
+          // Também tenta clicar nas coordenadas
+          const element = document.elementFromPoint(x, y);
+          if (element) {
+            console.log('🎯 Elemento encontrado nas coordenadas:', element);
+            element.click();
+            
+            // Dispara eventos adicionais
+            const clickEvent = new MouseEvent('click', {
+              view: window,
+              bubbles: true,
+              cancelable: true,
+              clientX: x,
+              clientY: y
+            });
+            element.dispatchEvent(clickEvent);
+          }
+          
+          console.log('✅ Cliques no recaptcha enviados!');
+        }, 500);
         
       } else {
-        // Fallback: procura o checkbox diretamente (caso não esteja em iframe)
-        const recaptchaCheckbox = document.querySelector('.recaptcha-checkbox-border');
+        // Método 2: Procura o checkbox diretamente
+        const recaptchaCheckbox = document.querySelector('.recaptcha-checkbox-border, #recaptcha-anchor, [role="checkbox"]');
+        
         if (recaptchaCheckbox) {
           console.log('🤖 Checkbox do recaptcha encontrado diretamente!');
-          recaptchaCheckbox.click();
+          const rect = recaptchaCheckbox.getBoundingClientRect();
+          const x = rect.left + rect.width / 2;
+          const y = rect.top + rect.height / 2;
+          
+          showClickIndicator(x, y);
+          
+          setTimeout(() => {
+            recaptchaCheckbox.click();
+            console.log('✅ Clique no checkbox enviado!');
+          }, 500);
         } else {
-          console.log('⚠️ Recaptcha não encontrado, tentando login mesmo assim...');
+          console.log('⚠️ Recaptcha não encontrado!');
+          
+          // Método 3: Procura pela posição relativa ao campo de senha
+          const senhaRect = passInput.getBoundingClientRect();
+          const x = senhaRect.left + 40; // Alinhado com o campo de senha
+          const y = senhaRect.bottom + 40; // 40px abaixo do campo de senha
+          
+          console.log('📏 Tentando posição relativa ao campo de senha');
+          showClickIndicator(x, y);
+          
+          setTimeout(() => {
+            const element = document.elementFromPoint(x, y);
+            if (element) {
+              element.click();
+              console.log('✅ Clique enviado na posição estimada!');
+            }
+          }, 500);
         }
       }
       
@@ -72,7 +142,7 @@ function checkAndAutoLogin() {
         console.log('🚀 Clicando no botão de login...');
         loginButton.click();
         console.log('✅ Login automático executado!');
-      }, 3000); // Aguarda 3 segundos para o recaptcha processar
+      }, 4000); // Aguarda 4 segundos para o recaptcha processar
       
     }, 1500); // Aguarda 1.5 segundos após preencher os campos
   }
