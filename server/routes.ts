@@ -6408,6 +6408,12 @@ Como posso ajudar você hoje?
 
   // GET /api/office/automation/config - retorna configuração atual
   app.get('/api/office/automation/config', async (req, res) => {
+    // Verificar API key da extensão
+    const extensionKey = req.headers['x-extension-key'];
+    if (extensionKey !== 'chrome-extension-secret-2024') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
     try {
       const config = await storage.getOfficeAutomationConfig();
       res.json(config);
@@ -6464,6 +6470,12 @@ Como posso ajudar você hoje?
 
   // GET /api/office/automation/status - retorna status atual
   app.get('/api/office/automation/status', async (req, res) => {
+    // Verificar API key da extensão
+    const extensionKey = req.headers['x-extension-key'];
+    if (extensionKey !== 'chrome-extension-secret-2024') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
     try {
       const config = await storage.getOfficeAutomationConfig();
       
@@ -6507,6 +6519,12 @@ Como posso ajudar você hoje?
 
   // GET /api/office/automation/next-task - extensão consulta próxima tarefa
   app.get('/api/office/automation/next-task', async (req, res) => {
+    // Verificar API key da extensão
+    const extensionKey = req.headers['x-extension-key'];
+    if (extensionKey !== 'chrome-extension-secret-2024') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
     try {
       const config = await storage.getOfficeAutomationConfig();
       
@@ -6585,8 +6603,22 @@ Como posso ajudar você hoje?
 
   // POST /api/office/automation/task-complete - extensão reporta conclusão
   app.post('/api/office/automation/task-complete', async (req, res) => {
+    // Verificar API key da extensão
+    const extensionKey = req.headers['x-extension-key'];
+    if (extensionKey !== 'chrome-extension-secret-2024') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
     try {
       const { type, credentials, error, taskId, results, summary } = req.body;
+      
+      console.log('📥 Recebendo task-complete:', {
+        type,
+        hasCredentials: !!credentials,
+        hasResults: !!results,
+        resultsCount: results?.length || 0,
+        error: error || 'none'
+      });
       
       // Atualizar status da tarefa se tiver taskId
       if (taskId) {
@@ -6598,47 +6630,70 @@ Como posso ajudar você hoje?
       }
       
       if (error) {
-        console.error('Erro reportado pela extensão:', error);
+        console.error('❌ Erro reportado pela extensão:', error);
         return res.json({ success: true }); // Retorna success para não travar a extensão
       }
       
       // Processar credenciais únicas ou em lote
       let processedCount = 0;
+      let savedCredentials = [];
+      let errors = [];
       
       // Se tem credenciais únicas (generate_single)
       if (credentials && credentials.username && credentials.password) {
         try {
-          await storage.createOfficeCredentials({
+          console.log('💾 Salvando credencial única:', credentials.username);
+          const saved = await storage.createOfficeCredentials({
             username: credentials.username,
             password: credentials.password,
             source: 'automation',
             status: 'active',
             generatedAt: new Date()
           });
+          savedCredentials.push(saved);
           processedCount = 1;
+          console.log('✅ Credencial única salva com sucesso');
         } catch (e) {
-          console.log('Erro ao salvar credencial única:', e);
+          console.error('❌ Erro ao salvar credencial única:', e);
+          errors.push({ credential: credentials.username, error: e.message });
         }
       }
       
       // Se tem resultados em lote (generate_batch)
       if (results && Array.isArray(results)) {
+        console.log(`📦 Processando lote de ${results.length} credenciais`);
+        
         for (const result of results) {
-          if (result.success && result.username && result.password) {
+          // Verificar múltiplas possibilidades de estrutura de dados
+          const username = result.username || result.user || result.login;
+          const password = result.password || result.pass || result.senha;
+          const success = result.success !== false; // Assume sucesso se não explicitamente falso
+          
+          if (success && username && password) {
             try {
-              await storage.createOfficeCredentials({
-                username: result.username,
-                password: result.password,
+              console.log(`💾 Salvando credencial do lote: ${username}`);
+              const saved = await storage.createOfficeCredentials({
+                username: username,
+                password: password,
                 source: 'automation',
                 status: 'active',
                 generatedAt: new Date()
               });
+              savedCredentials.push(saved);
               processedCount++;
             } catch (e) {
-              console.log('Erro ao salvar credencial do lote:', e);
+              console.error(`❌ Erro ao salvar credencial ${username}:`, e);
+              errors.push({ credential: username, error: e.message });
             }
+          } else {
+            console.warn(`⚠️ Credencial incompleta ou com erro:`, {
+              username,
+              hasPassword: !!password,
+              success
+            });
           }
         }
+        console.log(`✅ Lote processado: ${processedCount} de ${results.length} salvas`);
       }
       
       // Atualizar configuração apenas se houve sucesso
@@ -6646,32 +6701,62 @@ Como posso ajudar você hoje?
         const config = await storage.getOfficeAutomationConfig();
         const newTotal = (config.totalGenerated || 0) + processedCount;
         
-        // NÃO atualizar lastRunAt aqui - já foi atualizado em next-task
         await storage.updateOfficeAutomationConfig({
           totalGenerated: newTotal
         });
         
-        // Log de sucesso
-        console.log(`✅ Tarefa concluída: ${processedCount} credenciais processadas`);
+        // Log de sucesso detalhado
+        console.log(`✅ Tarefa concluída com sucesso!`);
+        console.log(`   📊 Credenciais processadas: ${processedCount}`);
+        console.log(`   📈 Total acumulado: ${newTotal}`);
+        if (errors.length > 0) {
+          console.log(`   ⚠️ Erros encontrados: ${errors.length}`);
+        }
       }
+      
+      // Criar log de automação
+      await storage.createOfficeAutomationLog({
+        taskType: type || 'task_complete',
+        status: processedCount > 0 ? 'completed' : 'failed',
+        responseData: {
+          processedCount,
+          savedCredentials: savedCredentials.length,
+          errors: errors.length > 0 ? errors : undefined
+        }
+      });
       
       // Enviar atualização via WebSocket
       broadcastMessage('office_automation_task_complete', {
         type,
         credentialsGenerated: processedCount,
-        summary: summary || { successCount: processedCount, errorCount: 0 },
+        savedCredentials: savedCredentials.length,
+        summary: summary || { 
+          successCount: processedCount, 
+          errorCount: errors.length,
+          totalAttempted: (results?.length || 1)
+        },
         timestamp: new Date()
       });
       
-      res.json({ success: true });
+      res.json({ 
+        success: true,
+        processedCount,
+        errors: errors.length > 0 ? errors : undefined
+      });
     } catch (error) {
-      console.error('Erro ao processar conclusão de tarefa:', error);
+      console.error('❌ Erro crítico ao processar conclusão de tarefa:', error);
       res.status(500).json({ error: 'Erro ao processar conclusão' });
     }
   });
 
   // POST /api/office/automation/report - reporta resultado da extensão
   app.post('/api/office/automation/report', async (req, res) => {
+    // Verificar API key da extensão
+    const extensionKey = req.headers['x-extension-key'];
+    if (extensionKey !== 'chrome-extension-secret-2024') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
     // Redireciona para task-complete com os mesmos dados
     req.url = '/api/office/automation/task-complete';
     return app.handle(req, res);
@@ -6690,8 +6775,16 @@ Como posso ajudar você hoje?
 
   // GET /api/office/automation/credentials - busca credenciais geradas
   app.get('/api/office/automation/credentials', async (req, res) => {
+    // Verificar API key da extensão
+    const extensionKey = req.headers['x-extension-key'];
+    if (extensionKey !== 'chrome-extension-secret-2024') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
     try {
-      const credentials = await storage.getOfficeCredentials(50);
+      // Retornar TODAS as credenciais, sem limite artificial
+      // Se houver muitas, o frontend pode paginar
+      const credentials = await storage.getOfficeCredentials(1000); // Limite alto para garantir que pegue todas
       res.json(credentials);
     } catch (error) {
       console.error('Erro ao buscar credenciais:', error);

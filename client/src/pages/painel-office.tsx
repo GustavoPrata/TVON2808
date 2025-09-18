@@ -210,8 +210,8 @@ export default function PainelOffice() {
   }, [configData]);
 
   useEffect(() => {
-    if (credentialsData && Array.isArray(credentialsData)) {
-      setRecentCredentials(credentialsData.slice(0, 5));
+    if (credentialsData && credentialsData.credentials) {
+      setRecentCredentials(credentialsData.credentials || []);
     }
   }, [credentialsData]);
 
@@ -974,7 +974,12 @@ export default function PainelOffice() {
                 <h3 className="text-sm font-semibold text-white mb-3 flex items-center justify-between">
                   <span className="flex items-center gap-2">
                     <Shield className="w-4 h-4" />
-                    Últimas Credenciais Geradas
+                    Credenciais Geradas
+                    {recentCredentials.length > 0 && (
+                      <Badge variant="secondary" className="ml-2 bg-blue-500/20 text-blue-300">
+                        {recentCredentials.length} total
+                      </Badge>
+                    )}
                   </span>
                   <Button
                     size="sm"
@@ -992,30 +997,86 @@ export default function PainelOffice() {
                     Nenhuma credencial gerada ainda
                   </p>
                 ) : (
-                  <div className="space-y-2">
-                    {recentCredentials.map((cred, index) => (
-                      <div key={cred.id || index} className="p-2 bg-slate-900/50 rounded border border-slate-700/50">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-slate-400">
-                            {new Date(cred.generatedAt).toLocaleString('pt-BR')}
-                          </span>
-                          <Badge className="bg-green-500/20 text-green-400 text-xs">
-                            {cred.source || 'extension'}
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div>
-                            <span className="text-slate-500">Usuário:</span>
-                            <p className="font-mono text-white">{cred.username}</p>
+                  <ScrollArea className="h-[400px] w-full rounded-md">
+                    <div className="space-y-2 pr-4">
+                      {recentCredentials.map((cred, index) => (
+                        <div key={cred.id || index} className="p-2 bg-slate-900/50 rounded border border-slate-700/50 group hover:border-slate-600 transition-colors">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-slate-400">
+                              #{recentCredentials.length - index} • {new Date(cred.generatedAt).toLocaleString('pt-BR')}
+                            </span>
+                            <Badge className="bg-green-500/20 text-green-400 text-xs">
+                              {cred.source || 'extension'}
+                            </Badge>
                           </div>
-                          <div>
-                            <span className="text-slate-500">Senha:</span>
-                            <p className="font-mono text-white">{cred.password}</p>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                              <span className="text-slate-500">Usuário:</span>
+                              <div className="flex items-center gap-1">
+                                <p className="font-mono text-white">{cred.username}</p>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="p-0 h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(cred.username);
+                                    toast({
+                                      title: "✅ Copiado!",
+                                      description: `Usuário ${cred.username} copiado`,
+                                      duration: 2000,
+                                    });
+                                  }}
+                                  data-testid={`copy-username-${index}`}
+                                >
+                                  <Shield className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-slate-500">Senha:</span>
+                              <div className="flex items-center gap-1">
+                                <p className="font-mono text-white">{cred.password}</p>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="p-0 h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(cred.password);
+                                    toast({
+                                      title: "✅ Copiado!",
+                                      description: `Senha copiada`,
+                                      duration: 2000,
+                                    });
+                                  }}
+                                  data-testid={`copy-password-${index}`}
+                                >
+                                  <Shield className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
                           </div>
+                          {/* Copy All Button */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="w-full mt-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity h-6 bg-slate-800/50 hover:bg-slate-700/50"
+                            onClick={() => {
+                              const text = `Usuário: ${cred.username}\nSenha: ${cred.password}`;
+                              navigator.clipboard.writeText(text);
+                              toast({
+                                title: "✅ Credencial Copiada!",
+                                description: "Usuário e senha copiados",
+                                duration: 2000,
+                              });
+                            }}
+                            data-testid={`copy-all-${index}`}
+                          >
+                            Copiar Tudo
+                          </Button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 )}
               </div>
             </div>

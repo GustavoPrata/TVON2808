@@ -84,7 +84,8 @@ async function checkForTasks() {
     const response = await fetch(`${API_BASE}/api/office/automation/next-task`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Extension-Key': 'chrome-extension-secret-2024'
       }
     }).catch(err => {
       console.error('❌ Erro na requisição:', err);
@@ -349,7 +350,8 @@ async function reportTaskResult(result) {
     const response = await fetch(`${API_BASE}/api/office/automation/task-complete`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Extension-Key': 'chrome-extension-secret-2024'
       },
       body: JSON.stringify(result)
     });

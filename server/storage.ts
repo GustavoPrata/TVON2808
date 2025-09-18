@@ -1733,7 +1733,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Office Credentials implementation
-  async getOfficeCredentials(limit: number = 100): Promise<OfficeCredentials[]> {
+  async getOfficeCredentials(limit: number = 10000): Promise<OfficeCredentials[]> {
+    // Limite alto para garantir que pegue todas as credenciais
+    // Frontend pode implementar paginação se necessário
     return await db.select().from(officeCredentials)
       .orderBy(desc(officeCredentials.generatedAt))
       .limit(limit);
