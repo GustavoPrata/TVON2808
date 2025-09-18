@@ -5,7 +5,9 @@
 // CONFIGURAÇÃO
 // ===========================================================================
 const API_BASE = 'https://tv-on.site';
-const POLLING_INTERVAL = 10000; // 10 segundos
+const POLLING_INTERVAL_ACTIVE = 30000; // 30 segundos quando não há tarefas
+const POLLING_INTERVAL_IDLE = 60000; // 60 segundos quando automação está desabilitada
+const POLLING_INTERVAL_FAST = 10000; // 10 segundos após processar tarefa
 
 // ===========================================================================
 // ESTADO GLOBAL (mínimo, apenas para cache)
@@ -14,8 +16,10 @@ let pollingTimer = null;
 let isProcessingTask = false;
 let lastStatus = {
   isEnabled: false,
-  badge: ''
+  badge: '',
+  lastCheck: 0
 };
+let currentPollingInterval = POLLING_INTERVAL_IDLE;
 
 // ===========================================================================
 // INICIALIZAÇÃO
@@ -40,19 +44,24 @@ startPolling();
 // ===========================================================================
 // POLLING DO BACKEND
 // ===========================================================================
-function startPolling() {
-  console.log('🔄 Iniciando polling do backend...');
+function startPolling(intervalOverride = null) {
+  console.log(`🔄 Iniciando polling do backend com intervalo: ${intervalOverride || currentPollingInterval}ms`);
   
   // Cancela polling anterior se existir
   if (pollingTimer) {
     clearInterval(pollingTimer);
   }
   
+  // Define o intervalo se foi especificado
+  if (intervalOverride !== null) {
+    currentPollingInterval = intervalOverride;
+  }
+  
   // Faz primeira checagem imediata
   checkForTasks();
   
-  // Configura polling recorrente
-  pollingTimer = setInterval(checkForTasks, POLLING_INTERVAL);
+  // Configura polling recorrente com intervalo adaptativo
+  pollingTimer = setInterval(checkForTasks, currentPollingInterval);
 }
 
 async function checkForTasks() {
@@ -61,6 +70,14 @@ async function checkForTasks() {
     console.log('⏳ Já processando tarefa, pulando checagem...');
     return;
   }
+  
+  // Evita requisições muito frequentes
+  const now = Date.now();
+  if (now - lastStatus.lastCheck < 5000) {
+    console.log('🚫 Checagem muito recente, aguardando...');
+    return;
+  }
+  lastStatus.lastCheck = now;
   
   try {
     // Consulta próxima tarefa no backend
@@ -88,10 +105,22 @@ async function checkForTasks() {
     const data = await response.json();
     
     // Atualiza badge baseado no status
-    updateBadge(data.isEnabled);
+    updateBadge(data.isEnabled || false);
+    lastStatus.isEnabled = data.isEnabled || false;
+    
+    // Ajusta intervalo de polling baseado no status
+    if (!lastStatus.isEnabled && currentPollingInterval !== POLLING_INTERVAL_IDLE) {
+      console.log('🟠 Automação desabilitada, mudando para polling lento (60s)...');
+      startPolling(POLLING_INTERVAL_IDLE);
+      return;
+    } else if (lastStatus.isEnabled && currentPollingInterval !== POLLING_INTERVAL_ACTIVE) {
+      console.log('🟢 Automação habilitada, mudando para polling normal (30s)...');
+      startPolling(POLLING_INTERVAL_ACTIVE);
+    }
     
     // Se não há tarefa, continua polling
     if (!data.hasTask) {
+      console.log(`⏰ Sem tarefas. Próxima checagem em ${currentPollingInterval / 1000}s`);
       return;
     }
     
@@ -102,6 +131,16 @@ async function checkForTasks() {
     
     // Processa a tarefa
     await processTask(data.task);
+    
+    // Após processar, fazer polling mais rápido temporariamente
+    console.log('⚡ Tarefa processada, fazendo polling rápido temporário (10s)...');
+    startPolling(POLLING_INTERVAL_FAST);
+    setTimeout(() => {
+      if (lastStatus.isEnabled) {
+        console.log('⏰ Voltando ao polling normal (30s)...');
+        startPolling(POLLING_INTERVAL_ACTIVE);
+      }
+    }, 60000); // Volta ao normal após 1 minuto
     
   } catch (error) {
     console.error('❌ Erro no polling:', error);
@@ -227,10 +266,10 @@ async function generateBatch(tabId, task) {
   console.log(`❌ Erros: ${errorCount}`);
   console.log('========================================\n');
   
-  // Reporta resultados ao backend
-  await reportTaskResult({
+  // Reporta resultados ao backend - IMPORTANTE: Usar formato correto
+  const reportSuccess = await reportTaskResult({
     taskId: task.id,
-    success: true,
+    type: 'generate_batch',
     results: results,
     summary: {
       successCount,
@@ -238,6 +277,12 @@ async function generateBatch(tabId, task) {
       total: quantity
     }
   });
+  
+  if (!reportSuccess) {
+    console.error('⚠️ Falha ao reportar resultado ao backend!');
+  } else {
+    console.log('✅ Resultado reportado ao backend com sucesso');
+  }
 }
 
 async function generateSingle(tabId, task) {
@@ -251,15 +296,21 @@ async function generateSingle(tabId, task) {
       console.log(`   Usuario: ${response.credentials.username}`);
       console.log(`   Senha: ${response.credentials.password}`);
       
-      // Reporta sucesso ao backend
-      await reportTaskResult({
+      // Reporta sucesso ao backend - IMPORTANTE: Usar formato correto
+      const reportSuccess = await reportTaskResult({
         taskId: task.id,
-        success: true,
+        type: 'generate_single',
         credentials: {
           username: response.credentials.username,
           password: response.credentials.password
         }
       });
+      
+      if (!reportSuccess) {
+        console.error('⚠️ Falha ao reportar credencial ao backend!');
+      } else {
+        console.log('✅ Credencial reportada ao backend com sucesso');
+      }
       
       // Notifica popup
       chrome.runtime.sendMessage({
@@ -275,11 +326,15 @@ async function generateSingle(tabId, task) {
     console.error('❌ Erro ao gerar credencial:', error.message);
     
     // Reporta erro ao backend
-    await reportTaskResult({
+    const reportSuccess = await reportTaskResult({
       taskId: task.id,
-      success: false,
+      type: 'generate_single',
       error: error.message
     });
+    
+    if (!reportSuccess) {
+      console.error('⚠️ Falha ao reportar erro ao backend!');
+    }
   }
 }
 
@@ -287,10 +342,11 @@ async function generateSingle(tabId, task) {
 // COMUNICAÇÃO COM BACKEND
 // ===========================================================================
 async function reportTaskResult(result) {
-  console.log('📤 Reportando resultado ao backend:', result);
+  console.log('📤 Reportando resultado ao backend:', JSON.stringify(result, null, 2));
   
   try {
-    const response = await fetch(`${API_BASE}/api/office/automation/report`, {
+    // Usa o endpoint correto task-complete
+    const response = await fetch(`${API_BASE}/api/office/automation/task-complete`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -300,8 +356,13 @@ async function reportTaskResult(result) {
     
     if (!response.ok) {
       console.error('❌ Erro ao reportar resultado:', response.status);
+      const errorText = await response.text();
+      console.error('Resposta do servidor:', errorText);
+      return false;
     } else {
-      console.log('✅ Resultado reportado com sucesso');
+      const data = await response.json();
+      console.log('✅ Resultado reportado com sucesso:', data);
+      return true;
     }
     
   } catch (error) {

@@ -6492,46 +6492,64 @@ Como posso ajudar você hoje?
   app.get('/api/office/automation/next-task', async (req, res) => {
     try {
       const config = await storage.getOfficeAutomationConfig();
-      const task = await storage.getNextPendingTask();
       
-      // Se há tarefa pendente
-      if (task) {
-        return res.json({
-          hasTask: true,
-          task: {
-            type: task.action || 'generate_single',
-            quantity: 1
-          }
-        });
+      // IMPORTANTE: Sempre incluir o status isEnabled na resposta
+      const baseResponse = {
+        isEnabled: config.isEnabled,
+        hasTask: false
+      };
+      
+      // Se automação está desabilitada, NUNCA retornar tarefas automáticas
+      if (!config.isEnabled) {
+        // Verifica se há tarefa pendente manual (single generation)
+        const pendingTask = await storage.getNextPendingTask();
+        if (pendingTask) {
+          return res.json({
+            ...baseResponse,
+            hasTask: true,
+            task: {
+              id: pendingTask.id,
+              type: pendingTask.taskType || 'generate_single',
+              quantity: 1
+            }
+          });
+        }
+        
+        // Verifica flag de geração única
+        if (config.singleGeneration) {
+          // Reset flag de geração única IMEDIATAMENTE
+          await storage.updateOfficeAutomationConfig({ 
+            singleGeneration: false
+          });
+          
+          return res.json({
+            ...baseResponse,
+            hasTask: true,
+            task: {
+              type: 'generate_single',
+              quantity: 1
+            }
+          });
+        }
+        
+        // Automação desabilitada e sem tarefas manuais
+        return res.json(baseResponse);
       }
       
-      // Verificar se há tarefa pendente baseado na configuração
+      // Automação HABILITADA - verificar intervalo
       const now = new Date();
       const lastRun = config.lastRunAt ? new Date(config.lastRunAt) : new Date(0);
       const intervalMs = config.intervalMinutes * 60 * 1000;
       
-      // Se automação está desabilitada
-      if (!config.isEnabled && !config.singleGeneration) {
-        return res.json({ hasTask: false });
-      }
-      
-      // Se é geração única
-      if (config.singleGeneration) {
-        // Reset flag de geração única
-        await storage.updateOfficeAutomationConfig({ singleGeneration: false });
+      // Verificar se já passou o intervalo configurado
+      if (now.getTime() - lastRun.getTime() >= intervalMs) {
+        // IMPORTANTE: Atualizar lastRunAt IMEDIATAMENTE para evitar duplicação
+        await storage.updateOfficeAutomationConfig({ 
+          lastRunAt: now
+        });
         
         return res.json({
-          hasTask: true,
-          task: {
-            type: 'generate_single',
-            quantity: 1
-          }
-        });
-      }
-      
-      // Verificar se é hora de gerar novo lote
-      if (config.isEnabled && (now.getTime() - lastRun.getTime() >= intervalMs)) {
-        return res.json({
+          ...baseResponse,
           hasTask: true,
           task: {
             type: 'generate_batch',
@@ -6540,7 +6558,8 @@ Como posso ajudar você hoje?
         });
       }
       
-      res.json({ hasTask: false });
+      // Ainda não é hora de gerar novo lote
+      res.json(baseResponse);
     } catch (error) {
       console.error('Erro ao buscar próxima tarefa:', error);
       res.status(500).json({ error: 'Erro ao buscar tarefa' });
@@ -6550,49 +6569,80 @@ Como posso ajudar você hoje?
   // POST /api/office/automation/task-complete - extensão reporta conclusão
   app.post('/api/office/automation/task-complete', async (req, res) => {
     try {
-      const { type, credentials, error, taskId } = req.body;
+      const { type, credentials, error, taskId, results, summary } = req.body;
       
       // Atualizar status da tarefa se tiver taskId
       if (taskId) {
         await storage.updateTaskStatus(taskId, error ? 'failed' : 'completed', {
-          error,
-          result: credentials ? JSON.stringify(credentials) : null
+          errorMessage: error,
+          username: credentials?.username,
+          password: credentials?.password
         });
       }
       
       if (error) {
-        return res.json({ success: false });
+        console.error('Erro reportado pela extensão:', error);
+        return res.json({ success: true }); // Retorna success para não travar a extensão
       }
       
-      // Salvar credenciais geradas
-      if (credentials && credentials.length > 0) {
-        for (const cred of credentials) {
-          try {
-            await storage.createOfficeCredentials({
-              username: cred.username,
-              password: cred.password,
-              source: 'automation',
-              status: 'active',
-              generatedAt: new Date()
-            });
-          } catch (e) {
-            console.log('Não foi possível salvar credenciais no banco:', e);
+      // Processar credenciais únicas ou em lote
+      let processedCount = 0;
+      
+      // Se tem credenciais únicas (generate_single)
+      if (credentials && credentials.username && credentials.password) {
+        try {
+          await storage.createOfficeCredentials({
+            username: credentials.username,
+            password: credentials.password,
+            source: 'automation',
+            status: 'active',
+            generatedAt: new Date()
+          });
+          processedCount = 1;
+        } catch (e) {
+          console.log('Erro ao salvar credencial única:', e);
+        }
+      }
+      
+      // Se tem resultados em lote (generate_batch)
+      if (results && Array.isArray(results)) {
+        for (const result of results) {
+          if (result.success && result.username && result.password) {
+            try {
+              await storage.createOfficeCredentials({
+                username: result.username,
+                password: result.password,
+                source: 'automation',
+                status: 'active',
+                generatedAt: new Date()
+              });
+              processedCount++;
+            } catch (e) {
+              console.log('Erro ao salvar credencial do lote:', e);
+            }
           }
         }
       }
       
-      // Atualizar configuração no banco
-      const config = await storage.getOfficeAutomationConfig();
-      const newTotal = (config.totalGenerated || 0) + (credentials?.length || 0);
-      await storage.updateOfficeAutomationConfig({
-        lastRunAt: new Date(),
-        totalGenerated: newTotal
-      });
+      // Atualizar configuração apenas se houve sucesso
+      if (processedCount > 0) {
+        const config = await storage.getOfficeAutomationConfig();
+        const newTotal = (config.totalGenerated || 0) + processedCount;
+        
+        // NÃO atualizar lastRunAt aqui - já foi atualizado em next-task
+        await storage.updateOfficeAutomationConfig({
+          totalGenerated: newTotal
+        });
+        
+        // Log de sucesso
+        console.log(`✅ Tarefa concluída: ${processedCount} credenciais processadas`);
+      }
       
       // Enviar atualização via WebSocket
       broadcastMessage('office_automation_task_complete', {
         type,
-        credentialsGenerated: credentials?.length || 0,
+        credentialsGenerated: processedCount,
+        summary: summary || { successCount: processedCount, errorCount: 0 },
         timestamp: new Date()
       });
       
@@ -6603,9 +6653,9 @@ Como posso ajudar você hoje?
     }
   });
 
-  // POST /api/office/automation/report-result - alias para task-complete
-  app.post('/api/office/automation/report-result', async (req, res) => {
-    // Redireciona para task-complete
+  // POST /api/office/automation/report - reporta resultado da extensão
+  app.post('/api/office/automation/report', async (req, res) => {
+    // Redireciona para task-complete com os mesmos dados
     req.url = '/api/office/automation/task-complete';
     return app.handle(req, res);
   });
