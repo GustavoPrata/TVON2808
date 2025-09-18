@@ -6,7 +6,10 @@ console.log('👋 OnlineOffice Automator carregado!');
 // ===========================================================================
 // CONFIGURAÇÃO
 // ===========================================================================
-const API_BASE = 'https://tv-on.site';
+// Use window.location.origin para pegar a URL correta do servidor
+const API_BASE = window.location.origin.includes('replit.dev') 
+  ? window.location.origin 
+  : 'http://localhost:5000';
 
 // ===========================================================================
 // LISTENER GLOBAL PARA FECHAR MODAIS COM ESC
@@ -95,102 +98,6 @@ async function saveCredentialsToDatabase(username, password) {
   }
 }
 
-// ===========================================================================
-// FUNÇÃO PARA MOSTRAR MODAL DE SUCESSO CUSTOMIZADO
-// ===========================================================================
-function showSuccessModal(username, password) {
-  console.log('🎉 Mostrando modal de sucesso com credenciais');
-  
-  // Remove modal anterior se existir
-  const existingModal = document.getElementById('iptv-success-modal');
-  if (existingModal) {
-    existingModal.remove();
-  }
-  
-  // Cria o modal customizado
-  const modalHTML = `
-    <div id="iptv-success-modal" class="modal" style="display: block; position: fixed; z-index: 99999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
-      <div class="modal-content" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; width: 90%;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h3 style="margin: 0; color: #333;">✅ Credencial Gerada com Sucesso!</h3>
-          <button id="close-modal-btn" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999;">&times;</button>
-        </div>
-        
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 15px;">
-          <p style="margin: 5px 0;"><strong>Usuário:</strong> <span style="font-family: monospace; background: white; padding: 5px; border-radius: 3px;">${username}</span></p>
-          <p style="margin: 5px 0;"><strong>Senha:</strong> <span style="font-family: monospace; background: white; padding: 5px; border-radius: 3px;">${password}</span></p>
-        </div>
-        
-        <div id="save-status" style="padding: 10px; border-radius: 5px; margin-bottom: 15px; background: #d4edda; color: #155724; display: none;">
-          <strong>💾 Credenciais salvas no banco de dados!</strong>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; gap: 10px;">
-          <button id="copy-credentials-btn" style="flex: 1; padding: 10px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">📋 Copiar</button>
-          <button id="close-modal-btn2" style="flex: 1; padding: 10px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">Fechar</button>
-        </div>
-        
-        <div style="margin-top: 15px; font-size: 12px; color: #666; text-align: center;">
-          Pressione <strong>ESC</strong> para fechar este modal
-        </div>
-      </div>
-    </div>
-  `;
-  
-  // Adiciona o modal ao DOM
-  document.body.insertAdjacentHTML('beforeend', modalHTML);
-  
-  // Adiciona listeners aos botões
-  const modal = document.getElementById('iptv-success-modal');
-  const closeBtn = document.getElementById('close-modal-btn');
-  const closeBtn2 = document.getElementById('close-modal-btn2');
-  const copyBtn = document.getElementById('copy-credentials-btn');
-  const saveStatus = document.getElementById('save-status');
-  
-  // Função para fechar o modal
-  const closeModal = () => {
-    modal.remove();
-    console.log('✅ Modal de sucesso fechado');
-  };
-  
-  // Fechar ao clicar no X
-  closeBtn.addEventListener('click', closeModal);
-  closeBtn2.addEventListener('click', closeModal);
-  
-  // Fechar ao clicar fora do modal
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      closeModal();
-    }
-  });
-  
-  // Copiar credenciais
-  copyBtn.addEventListener('click', () => {
-    const text = `Usuário: ${username}\nSenha: ${password}`;
-    navigator.clipboard.writeText(text).then(() => {
-      copyBtn.textContent = '✅ Copiado!';
-      copyBtn.style.background = '#17a2b8';
-      setTimeout(() => {
-        copyBtn.textContent = '📋 Copiar';
-        copyBtn.style.background = '#28a745';
-      }, 2000);
-    });
-  });
-  
-  // Salvar no banco de dados
-  saveCredentialsToDatabase(username, password).then(success => {
-    if (success) {
-      saveStatus.style.display = 'block';
-    } else {
-      saveStatus.style.display = 'block';
-      saveStatus.style.background = '#f8d7da';
-      saveStatus.style.color = '#721c24';
-      saveStatus.innerHTML = '<strong>⚠️ Erro ao salvar no banco de dados</strong>';
-    }
-  });
-  
-  return modal;
-}
 
 // ===========================================================================
 // LISTENER PARA COMANDOS DO BACKGROUND
@@ -400,10 +307,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     }
                   }, 500);
                   
-                  // 6. MOSTRAR MODAL DE SUCESSO CUSTOMIZADO E SALVAR NO BANCO
-                  setTimeout(() => {
-                    showSuccessModal(username, password);
-                  }, 1000);
+                  // 6. SALVAR NO BANCO DE DADOS SILENCIOSAMENTE
+                  saveCredentialsToDatabase(username, password).then(success => {
+                    if (success) {
+                      console.log('✅ Credenciais salvas no banco com sucesso!');
+                    } else {
+                      console.error('⚠️ Erro ao salvar credenciais no banco');
+                    }
+                  });
                   
                   // 7. ENVIAR RESPOSTA PARA O BACKGROUND
                   sendResponse({
