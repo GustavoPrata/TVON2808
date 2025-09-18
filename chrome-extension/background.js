@@ -64,10 +64,23 @@ async function checkForTasks() {
   
   try {
     // Consulta próxima tarefa no backend
-    const response = await fetch(`${API_BASE}/api/office/automation/next-task`);
+    const response = await fetch(`${API_BASE}/api/office/automation/next-task`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).catch(err => {
+      console.error('❌ Erro na requisição:', err);
+      return null;
+    });
+    
+    if (!response) {
+      updateBadge(false);
+      return;
+    }
     
     if (!response.ok) {
-      console.error('❌ Erro ao consultar backend:', response.status);
+      console.error('❌ Erro ao consultar backend. Status:', response.status);
       updateBadge(false);
       return;
     }
