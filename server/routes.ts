@@ -6385,27 +6385,13 @@ Como posso ajudar você hoje?
   // OFFICE AUTOMATION APIs - Sistema profissional gerenciado pelo backend
   // ============================================================================
 
-  // Armazenamento em memória para automação (substituindo o banco de dados)
-  let automationConfig = {
-    id: 1,
-    isEnabled: false,
-    batchSize: 10,
-    intervalMinutes: 60,
-    singleGeneration: false,
-    lastRunAt: null as Date | null,
-    totalGenerated: 0,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  };
-
-  let automationLogs: any[] = [];
-  let pendingTasks: any[] = [];
+  // Nota: Sistema de automação agora usa banco de dados ao invés de memória
 
   // GET /api/office/automation/config - retorna configuração atual
   app.get('/api/office/automation/config', async (req, res) => {
     try {
-      // Retornar configuração da memória
-      res.json(automationConfig);
+      const config = await storage.getOfficeAutomationConfig();
+      res.json(config);
     } catch (error) {
       console.error('Erro ao buscar configuração de automação:', error);
       res.status(500).json({ error: 'Erro ao buscar configuração' });
@@ -6415,33 +6401,12 @@ Como posso ajudar você hoje?
   // POST /api/office/automation/config - atualiza configuração
   app.post('/api/office/automation/config', async (req, res) => {
     try {
-      const { isEnabled, batchSize, intervalMinutes } = req.body;
-      
-      // Atualizar configuração em memória
-      if (isEnabled !== undefined) automationConfig.isEnabled = isEnabled;
-      if (batchSize !== undefined) automationConfig.batchSize = batchSize;
-      if (intervalMinutes !== undefined) automationConfig.intervalMinutes = intervalMinutes;
-      automationConfig.updatedAt = new Date();
-      
-      // Registrar log em memória
-      automationLogs.push({
-        id: automationLogs.length + 1,
-        action: 'config_updated',
-        status: 'success',
-        details: { isEnabled, batchSize, intervalMinutes },
-        credentialsGenerated: 0,
-        createdAt: new Date()
-      });
-      
-      // Manter apenas os últimos 100 logs
-      if (automationLogs.length > 100) {
-        automationLogs = automationLogs.slice(-100);
-      }
+      const config = await storage.updateOfficeAutomationConfig(req.body);
       
       // Enviar atualização via WebSocket
-      broadcastMessage('office_automation_config', automationConfig);
+      broadcastMessage('office_automation_config', config);
       
-      res.json(automationConfig);
+      res.json(config);
     } catch (error) {
       console.error('Erro ao atualizar configuração de automação:', error);
       res.status(500).json({ error: 'Erro ao atualizar configuração' });
@@ -6451,25 +6416,12 @@ Como posso ajudar você hoje?
   // POST /api/office/automation/start - inicia automação
   app.post('/api/office/automation/start', async (req, res) => {
     try {
-      // Atualizar configuração em memória
-      automationConfig.isEnabled = true;
-      automationConfig.lastRunAt = new Date();
-      automationConfig.updatedAt = new Date();
-      
-      // Registrar log em memória
-      automationLogs.push({
-        id: automationLogs.length + 1,
-        action: 'start',
-        status: 'success',
-        details: { startedAt: new Date() },
-        credentialsGenerated: 0,
-        createdAt: new Date()
-      });
+      const config = await storage.updateOfficeAutomationConfig({ isEnabled: true });
       
       // Enviar atualização via WebSocket
-      broadcastMessage('office_automation_started', automationConfig);
+      broadcastMessage('office_automation_started', config);
       
-      res.json({ success: true, config: automationConfig });
+      res.json({ success: true, config });
     } catch (error) {
       console.error('Erro ao iniciar automação:', error);
       res.status(500).json({ error: 'Erro ao iniciar automação' });
@@ -6479,24 +6431,12 @@ Como posso ajudar você hoje?
   // POST /api/office/automation/stop - para automação
   app.post('/api/office/automation/stop', async (req, res) => {
     try {
-      // Atualizar configuração em memória
-      automationConfig.isEnabled = false;
-      automationConfig.updatedAt = new Date();
-      
-      // Registrar log em memória
-      automationLogs.push({
-        id: automationLogs.length + 1,
-        action: 'stop',
-        status: 'success',
-        details: { stoppedAt: new Date() },
-        credentialsGenerated: 0,
-        createdAt: new Date()
-      });
+      const config = await storage.updateOfficeAutomationConfig({ isEnabled: false });
       
       // Enviar atualização via WebSocket
-      broadcastMessage('office_automation_stopped', automationConfig);
+      broadcastMessage('office_automation_stopped', config);
       
-      res.json({ success: true, config: automationConfig });
+      res.json({ success: true, config });
     } catch (error) {
       console.error('Erro ao parar automação:', error);
       res.status(500).json({ error: 'Erro ao parar automação' });
@@ -6506,10 +6446,12 @@ Como posso ajudar você hoje?
   // GET /api/office/automation/status - retorna status atual
   app.get('/api/office/automation/status', async (req, res) => {
     try {
-      // Buscar logs recentes da memória
-      const recentLogs = automationLogs.slice(-10).reverse();
+      const config = await storage.getOfficeAutomationConfig();
       
-      // Buscar credenciais do banco (mantemos isso pois as credenciais são importantes)
+      // Buscar logs recentes do banco
+      const recentLogs = await storage.getOfficeAutomationLogs(10);
+      
+      // Buscar credenciais do banco
       let recentCredentials = [];
       try {
         recentCredentials = await storage.getOfficeCredentials(5);
@@ -6518,10 +6460,10 @@ Como posso ajudar você hoje?
       }
       
       res.json({
-        config: automationConfig,
+        config,
         recentLogs,
         recentCredentials,
-        status: automationConfig.isEnabled ? 'running' : 'stopped'
+        status: config.isEnabled ? 'running' : 'stopped'
       });
     } catch (error) {
       console.error('Erro ao buscar status de automação:', error);
@@ -6532,28 +6474,7 @@ Como posso ajudar você hoje?
   // POST /api/office/automation/generate-single - gera uma credencial única
   app.post('/api/office/automation/generate-single', async (req, res) => {
     try {
-      // Atualizar config em memória para geração única
-      automationConfig.singleGeneration = true;
-      automationConfig.lastRunAt = new Date();
-      automationConfig.updatedAt = new Date();
-      
-      // Adicionar tarefa pendente
-      pendingTasks.push({
-        id: pendingTasks.length + 1,
-        type: 'generate_single',
-        status: 'pending',
-        createdAt: new Date()
-      });
-      
-      // Registrar log em memória
-      automationLogs.push({
-        id: automationLogs.length + 1,
-        action: 'generate_single',
-        status: 'pending',
-        details: { requestedAt: new Date() },
-        credentialsGenerated: 0,
-        createdAt: new Date()
-      });
+      await storage.createPendingTask('single_generation', {});
       
       // Enviar comando via WebSocket para extensão
       broadcastMessage('office_automation_generate_single', { timestamp: new Date() });
@@ -6568,35 +6489,34 @@ Como posso ajudar você hoje?
   // GET /api/office/automation/next-task - extensão consulta próxima tarefa
   app.get('/api/office/automation/next-task', async (req, res) => {
     try {
-      // Verificar tarefas pendentes primeiro
-      const pendingTask = pendingTasks.find(t => t.status === 'pending');
-      if (pendingTask) {
-        // Marcar como em processamento
-        pendingTask.status = 'processing';
+      const config = await storage.getOfficeAutomationConfig();
+      const task = await storage.getNextPendingTask();
+      
+      // Se há tarefa pendente
+      if (task) {
         return res.json({
           hasTask: true,
           task: {
-            type: pendingTask.type,
+            type: task.action || 'generate_single',
             quantity: 1
           }
         });
       }
       
-      // Verificar se há tarefa pendente
+      // Verificar se há tarefa pendente baseado na configuração
       const now = new Date();
-      const lastRun = automationConfig.lastRunAt ? new Date(automationConfig.lastRunAt) : new Date(0);
-      const intervalMs = automationConfig.intervalMinutes * 60 * 1000;
+      const lastRun = config.lastRunAt ? new Date(config.lastRunAt) : new Date(0);
+      const intervalMs = config.intervalMinutes * 60 * 1000;
       
       // Se automação está desabilitada
-      if (!automationConfig.isEnabled && !automationConfig.singleGeneration) {
+      if (!config.isEnabled && !config.singleGeneration) {
         return res.json({ hasTask: false });
       }
       
       // Se é geração única
-      if (automationConfig.singleGeneration) {
+      if (config.singleGeneration) {
         // Reset flag de geração única
-        automationConfig.singleGeneration = false;
-        automationConfig.updatedAt = new Date();
+        await storage.updateOfficeAutomationConfig({ singleGeneration: false });
         
         return res.json({
           hasTask: true,
@@ -6608,12 +6528,12 @@ Como posso ajudar você hoje?
       }
       
       // Verificar se é hora de gerar novo lote
-      if (automationConfig.isEnabled && (now.getTime() - lastRun.getTime() >= intervalMs)) {
+      if (config.isEnabled && (now.getTime() - lastRun.getTime() >= intervalMs)) {
         return res.json({
           hasTask: true,
           task: {
             type: 'generate_batch',
-            quantity: automationConfig.batchSize
+            quantity: config.batchSize
           }
         });
       }
@@ -6628,31 +6548,21 @@ Como posso ajudar você hoje?
   // POST /api/office/automation/task-complete - extensão reporta conclusão
   app.post('/api/office/automation/task-complete', async (req, res) => {
     try {
-      const { type, credentials, error } = req.body;
+      const { type, credentials, error, taskId } = req.body;
       
-      // Marcar tarefa pendente como completa
-      const processingTask = pendingTasks.find(t => t.status === 'processing');
-      if (processingTask) {
-        processingTask.status = error ? 'failed' : 'completed';
-        processingTask.completedAt = new Date();
+      // Atualizar status da tarefa se tiver taskId
+      if (taskId) {
+        await storage.updateTaskStatus(taskId, error ? 'failed' : 'completed', {
+          error,
+          result: credentials ? JSON.stringify(credentials) : null
+        });
       }
       
       if (error) {
-        // Registrar erro em memória
-        automationLogs.push({
-          id: automationLogs.length + 1,
-          action: type,
-          status: 'failure',
-          errorMessage: error,
-          details: { error },
-          credentialsGenerated: 0,
-          createdAt: new Date()
-        });
-        
         return res.json({ success: false });
       }
       
-      // Salvar credenciais geradas (mantemos no banco pois são importantes)
+      // Salvar credenciais geradas
       if (credentials && credentials.length > 0) {
         for (const cred of credentials) {
           try {
@@ -6669,20 +6579,12 @@ Como posso ajudar você hoje?
         }
       }
       
-      // Atualizar configuração em memória
-      const newTotal = (automationConfig.totalGenerated || 0) + (credentials?.length || 0);
-      automationConfig.lastRunAt = new Date();
-      automationConfig.totalGenerated = newTotal;
-      automationConfig.updatedAt = new Date();
-      
-      // Registrar log de sucesso em memória
-      automationLogs.push({
-        id: automationLogs.length + 1,
-        action: type,
-        status: 'success',
-        details: { credentials },
-        credentialsGenerated: credentials?.length || 0,
-        createdAt: new Date()
+      // Atualizar configuração no banco
+      const config = await storage.getOfficeAutomationConfig();
+      const newTotal = (config.totalGenerated || 0) + (credentials?.length || 0);
+      await storage.updateOfficeAutomationConfig({
+        lastRunAt: new Date(),
+        totalGenerated: newTotal
       });
       
       // Enviar atualização via WebSocket
@@ -6709,9 +6611,7 @@ Como posso ajudar você hoje?
   // GET /api/office/automation/logs - busca logs de execução
   app.get('/api/office/automation/logs', async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 50;
-      // Retornar logs da memória
-      const logs = automationLogs.slice(-limit).reverse();
+      const logs = await storage.getOfficeAutomationLogs(100);
       res.json(logs);
     } catch (error) {
       console.error('Erro ao buscar logs de automação:', error);
@@ -6722,14 +6622,7 @@ Como posso ajudar você hoje?
   // GET /api/office/automation/credentials - busca credenciais geradas
   app.get('/api/office/automation/credentials', async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 20;
-      // Ainda tentamos buscar do banco, mas se falhar retornamos array vazio
-      let credentials = [];
-      try {
-        credentials = await storage.getOfficeCredentials(limit);
-      } catch (e) {
-        console.log('Não foi possível buscar credenciais do banco:', e);
-      }
+      const credentials = await storage.getOfficeCredentials(50);
       res.json(credentials);
     } catch (error) {
       console.error('Erro ao buscar credenciais:', error);
