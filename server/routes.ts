@@ -6408,9 +6408,17 @@ Como posso ajudar você hoje?
 
   // GET /api/office/automation/config - retorna configuração atual
   app.get('/api/office/automation/config', async (req, res) => {
-    // Verificar API key da extensão
+    // Verificar autenticação: aceitar tanto API key da extensão quanto sessão autenticada
     const extensionKey = req.headers['x-extension-key'];
-    if (extensionKey !== 'chrome-extension-secret-2024') {
+    const isAuthenticated = (req.session as any)?.user;
+    
+    // Se não tem nem API key nem está autenticado
+    if (!extensionKey && !isAuthenticated) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    // Se tem API key, verificar se é válida
+    if (extensionKey && extensionKey !== 'chrome-extension-secret-2024') {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
@@ -6775,9 +6783,17 @@ Como posso ajudar você hoje?
 
   // GET /api/office/automation/credentials - busca credenciais geradas
   app.get('/api/office/automation/credentials', async (req, res) => {
-    // Verificar API key da extensão
+    // Verificar autenticação: aceitar tanto API key da extensão quanto sessão autenticada
     const extensionKey = req.headers['x-extension-key'];
-    if (extensionKey !== 'chrome-extension-secret-2024') {
+    const isAuthenticated = (req.session as any)?.user;
+    
+    // Se não tem nem API key nem está autenticado
+    if (!extensionKey && !isAuthenticated) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    // Se tem API key, verificar se é válida
+    if (extensionKey && extensionKey !== 'chrome-extension-secret-2024') {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
