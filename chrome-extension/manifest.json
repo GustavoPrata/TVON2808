@@ -26,12 +26,15 @@
       "matches": [
         "https://onlineoffice.zip/*",
         "https://*.onlineoffice.zip/*",
+        "https://tv-on.site/*",
+        "https://*.tv-on.site/*",
         "http://localhost/*",
         "http://127.0.0.1/*",
         "https://*.replit.dev/*"
       ],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "action": {

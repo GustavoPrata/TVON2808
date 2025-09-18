@@ -8,7 +8,7 @@ console.log('👋 OnlineOffice Automator carregado!');
 // ===========================================================================
 // URL do servidor onde o sistema TV ON está rodando
 // IMPORTANTE: A extensão roda no OnlineOffice, mas envia dados para nosso servidor
-const API_BASE = 'https://b079fe42-3fba-4e20-bcbd-3e8a988ae2fe.e1-us-east-azure.choreoapps.dev';
+const API_BASE = 'https://tv-on.site';
 
 // ===========================================================================
 // LISTENER GLOBAL PARA FECHAR MODAIS COM ESC
