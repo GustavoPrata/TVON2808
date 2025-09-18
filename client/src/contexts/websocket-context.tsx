@@ -112,6 +112,10 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
             queryClient.invalidateQueries({ queryKey: ['/api/testes'] });
             queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
             break;
+            
+          case 'whatsapp_qr':
+            // QR code received, no action needed for now
+            break;
         }
 
         // Notifications are handled by WhatsAppNotifier component
