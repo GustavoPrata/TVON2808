@@ -355,7 +355,7 @@ export default function PainelOffice() {
       password: string;
       generatedAt: string;
       source: string;
-      sistemaId?: number;
+      sistemaId: number | null;
     }>;
   }>({
     queryKey: ['/api/office/automation/credentials'],
