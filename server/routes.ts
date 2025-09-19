@@ -7115,6 +7115,7 @@ Como posso ajudar você hoje?
                 const saved = await storage.createOfficeCredentials({
                   username: username,
                   password: password,
+                  sistemaId: systemId || null, // Adicionar systemId se disponível
                   source: 'automation',
                   status: 'active',
                   generatedAt: new Date()
@@ -7159,6 +7160,7 @@ Como posso ajudar você hoje?
             const saved = await storage.createOfficeCredentials({
               username: credentials.username,
               password: credentials.password,
+              sistemaId: systemId || null, // Adicionar systemId se disponível
               source: 'automation',
               status: 'active',
               generatedAt: new Date()
@@ -7193,9 +7195,9 @@ Como posso ajudar você hoje?
           if (sistema.apiUserId) {
             console.log('🔄 Atualizando credenciais na API externa...');
             
-            // Calcular nova data de expiração (30 dias)
+            // Calcular nova data de expiração (6 horas)
             const newExpiration = new Date();
-            newExpiration.setDate(newExpiration.getDate() + 30);
+            newExpiration.setHours(newExpiration.getHours() + 6);
             const expTimestamp = Math.floor(newExpiration.getTime() / 1000);
             
             await externalApiService.updateUser(sistema.apiUserId, {
@@ -7212,7 +7214,7 @@ Como posso ajudar você hoje?
           const updateData: any = {
             usuario: credentials.username,
             senha: credentials.password,
-            expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 dias
+            expiracao: new Date(Date.now() + 6 * 60 * 60 * 1000), // 6 horas
             lastRenewalAt: new Date(),
             renewalCount: (sistema.renewalCount || 0) + 1,
             lastCheckedAt: new Date()
@@ -7227,6 +7229,7 @@ Como posso ajudar você hoje?
           const saved = await storage.createOfficeCredentials({
             username: credentials.username,
             password: credentials.password,
+            sistemaId: systemId, // Adicionar systemId para renovação
             source: 'renewal',
             status: 'active',
             generatedAt: new Date(),
@@ -7242,7 +7245,7 @@ Como posso ajudar você hoje?
                 `Sistema: ${sistema.nome}\n` +
                 `Novo usuário: ${credentials.username}\n` +
                 `Nova senha: ${credentials.password}\n` +
-                `Validade estendida por 30 dias\n\n` +
+                `Validade estendida por 6 horas\n\n` +
                 `_Renovação automática realizada com sucesso._`;
               
               await whatsappService.sendTextMessage(cliente.whatsapp, message);
