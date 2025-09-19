@@ -911,6 +911,18 @@ export default function PainelOffice() {
           </CardContent>
         </Card>
 
+        {/* Botão de Baixar Extensão */}
+        <div className="mb-6 flex justify-center">
+          <a
+            href="/chrome-extension.zip"
+            download="chrome-extension.zip"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <Chrome className="h-5 w-5" />
+            Baixar Extensão Chrome
+          </a>
+        </div>
+
         {/* Extension Configuration */}
         <Card className="bg-dark-card border-slate-700">
           <CardHeader className="pb-4">
