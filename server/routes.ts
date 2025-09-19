@@ -6619,28 +6619,10 @@ Como posso ajudar você hoje?
       let savedCredentials = [];
       let errors = [];
       
-      // Se tem credenciais únicas (generate_single)
-      if (credentials && credentials.username && credentials.password) {
-        try {
-          console.log('💾 Salvando credencial única:', credentials.username);
-          const saved = await storage.createOfficeCredentials({
-            username: credentials.username,
-            password: credentials.password,
-            source: 'automation',
-            status: 'active',
-            generatedAt: new Date()
-          });
-          savedCredentials.push(saved);
-          processedCount = 1;
-          console.log('✅ Credencial única salva com sucesso');
-        } catch (e) {
-          console.error('❌ Erro ao salvar credencial única:', e);
-          errors.push({ credential: credentials.username, error: e.message });
-        }
-      }
-      
-      // Se tem resultados em lote (generate_batch)
-      if (results && Array.isArray(results)) {
+      // IMPORTANTE: Processar APENAS UM caminho por vez para evitar duplicação
+      // Prioridade: results (lote) > credentials (único)
+      if (results && Array.isArray(results) && results.length > 0) {
+        // Processar resultados em lote (generate_batch)
         console.log(`📦 Processando lote de ${results.length} credenciais`);
         
         for (const result of results) {
@@ -6651,16 +6633,33 @@ Como posso ajudar você hoje?
           
           if (success && username && password) {
             try {
-              console.log(`💾 Salvando credencial do lote: ${username}`);
-              const saved = await storage.createOfficeCredentials({
-                username: username,
-                password: password,
-                source: 'automation',
-                status: 'active',
-                generatedAt: new Date()
-              });
-              savedCredentials.push(saved);
-              processedCount++;
+              // Verificar duplicação antes de salvar credencial do lote
+              const recentCredentials = await storage.getOfficeCredentials(100);
+              const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+              
+              const duplicate = recentCredentials.find(c => 
+                c.username === username && 
+                c.password === password &&
+                c.source === 'automation' &&
+                new Date(c.generatedAt) > fiveMinutesAgo
+              );
+              
+              if (duplicate) {
+                console.log(`⚠️ Credencial duplicada detectada no lote, pulando: ${username}`);
+                savedCredentials.push(duplicate);
+                processedCount++;
+              } else {
+                console.log(`💾 Salvando credencial do lote: ${username}`);
+                const saved = await storage.createOfficeCredentials({
+                  username: username,
+                  password: password,
+                  source: 'automation',
+                  status: 'active',
+                  generatedAt: new Date()
+                });
+                savedCredentials.push(saved);
+                processedCount++;
+              }
             } catch (e) {
               console.error(`❌ Erro ao salvar credencial ${username}:`, e);
               errors.push({ credential: username, error: e.message });
@@ -6674,6 +6673,42 @@ Como posso ajudar você hoje?
           }
         }
         console.log(`✅ Lote processado: ${processedCount} de ${results.length} salvas`);
+      }
+      // Se NÃO tem results, então processa credentials único
+      else if (credentials && credentials.username && credentials.password) {
+        try {
+          // Verificar se já existe uma credencial idêntica criada recentemente (últimos 5 minutos)
+          const recentCredentials = await storage.getOfficeCredentials(100);
+          const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+          
+          const duplicate = recentCredentials.find(c => 
+            c.username === credentials.username && 
+            c.password === credentials.password &&
+            c.source === 'automation' &&
+            new Date(c.generatedAt) > fiveMinutesAgo
+          );
+          
+          if (duplicate) {
+            console.log('⚠️ Credencial duplicada detectada, pulando salvamento:', credentials.username);
+            savedCredentials.push(duplicate); // Usar a existente
+            processedCount = 1;
+          } else {
+            console.log('💾 Salvando credencial única:', credentials.username);
+            const saved = await storage.createOfficeCredentials({
+              username: credentials.username,
+              password: credentials.password,
+              source: 'automation',
+              status: 'active',
+              generatedAt: new Date()
+            });
+            savedCredentials.push(saved);
+            processedCount = 1;
+            console.log('✅ Credencial única salva com sucesso');
+          }
+        } catch (e) {
+          console.error('❌ Erro ao salvar credencial única:', e);
+          errors.push({ credential: credentials.username, error: e.message });
+        }
       }
       
       // Atualizar configuração apenas se houve sucesso
