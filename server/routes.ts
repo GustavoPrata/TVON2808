@@ -33,6 +33,7 @@ import { z } from "zod";
 import { asc, desc, sql, eq, and } from "drizzle-orm";
 import ffmpeg from "fluent-ffmpeg";
 import { promises as fs } from "fs";
+import fsSync from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
 import multer from "multer";
@@ -185,12 +186,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve chrome extension zip file
   app.get("/chrome-extension.zip", (req, res) => {
     const filePath = path.join(process.cwd(), "chrome-extension.zip");
-    res.download(filePath, "chrome-extension.zip", (err) => {
-      if (err) {
-        console.error("Error downloading chrome extension:", err);
-        res.status(404).json({ error: "Extension file not found" });
-      }
-    });
+    
+    // Check if file exists
+    if (!fsSync.existsSync(filePath)) {
+      return res.status(404).json({ error: "Extension file not found" });
+    }
+    
+    // Set proper headers for ZIP file
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="chrome-extension.zip"');
+    
+    // Send the file
+    res.sendFile(filePath);
   });
   
   // Authentication routes (before checkAuth middleware)
