@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { format, parseISO, differenceInDays, differenceInHours, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatInTimeZone } from 'date-fns-tz';
 import {
   DndContext, 
   closestCenter,
@@ -103,13 +104,14 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
     opacity: isDragging ? 0.5 : 1,
   };
 
-  // Formatar data de expiração
+  // Formatar data de expiração usando timezone de Brasília
   const formatExpiration = (dateStr?: string) => {
     if (!dateStr) return null;
     try {
       const date = parseISO(dateStr);
       if (!isValid(date)) return null;
-      return format(date, "dd/MM/yyyy HH:mm", { locale: ptBR });
+      // Converter UTC para timezone de Brasília e formatar
+      return formatInTimeZone(date, 'America/Sao_Paulo', "dd/MM/yyyy HH:mm", { locale: ptBR });
     } catch {
       return null;
     }
@@ -255,6 +257,31 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
     </TableRow>
   );
 }
+
+// Funções auxiliares para formatar data/hora com timezone de Brasília
+const formatDateTimeBrasil = (dateStr: string | Date) => {
+  try {
+    const date = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
+    if (!isValid(date)) return 'Data inválida';
+    
+    // Formatar com timezone de Brasília (DD/MM/YYYY HH:mm:ss)
+    return formatInTimeZone(date, 'America/Sao_Paulo', "dd/MM/yyyy HH:mm:ss", { locale: ptBR });
+  } catch {
+    return 'Data inválida';
+  }
+};
+
+const formatDateTimeShortBrasil = (dateStr: string | Date) => {
+  try {
+    const date = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
+    if (!isValid(date)) return 'Data inválida';
+    
+    // Formatar com timezone de Brasília (DD/MM HH:mm)
+    return formatInTimeZone(date, 'America/Sao_Paulo', "dd/MM HH:mm", { locale: ptBR });
+  } catch {
+    return 'Data inválida';
+  }
+};
 
 export default function PainelOffice() {
   const { toast } = useToast();
@@ -988,14 +1015,7 @@ export default function PainelOffice() {
                       </p>
                       <p className="text-xs font-mono text-white">
                         {automationConfig.lastRunAt 
-                          ? new Date(automationConfig.lastRunAt).toLocaleString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              second: '2-digit'
-                            })
+                          ? formatDateTimeBrasil(automationConfig.lastRunAt)
                           : 'Nenhuma execução ainda'}
                       </p>
                     </div>
@@ -1162,7 +1182,7 @@ export default function PainelOffice() {
                         <div key={cred.id || index} className="p-2 bg-slate-900/50 rounded border border-slate-700/50 group hover:border-slate-600 transition-colors">
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs text-slate-400">
-                              #{recentCredentials.length - index} • {new Date(cred.generatedAt).toLocaleString('pt-BR')}
+                              #{recentCredentials.length - index} • {formatDateTimeShortBrasil(cred.generatedAt)}
                             </span>
                             <div className="flex items-center gap-2">
                               <Badge className="bg-green-500/20 text-green-400 text-xs">
