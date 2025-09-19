@@ -154,6 +154,7 @@ export default function PainelOffice() {
   const [isToggling, setIsToggling] = useState(false);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
   const [isGeneratingSingle, setIsGeneratingSingle] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [recentCredentials, setRecentCredentials] = useState<Array<{
     id: number;
     username: string;
@@ -214,6 +215,15 @@ export default function PainelOffice() {
       setRecentCredentials(credentialsData.credentials || []);
     }
   }, [credentialsData]);
+
+  // Atualizar o timer a cada segundo
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const systemForm = useForm<SystemForm>({
     resolver: zodResolver(systemSchema),
@@ -847,9 +857,19 @@ export default function PainelOffice() {
                           {(() => {
                             const nextRun = new Date(automationConfig.lastRunAt);
                             nextRun.setMinutes(nextRun.getMinutes() + automationConfig.intervalMinutes);
-                            const now = new Date();
-                            const diff = Math.max(0, Math.floor((nextRun.getTime() - now.getTime()) / 60000));
-                            return `Em ${diff} minuto${diff !== 1 ? 's' : ''}`;
+                            const diffMs = Math.max(0, nextRun.getTime() - currentTime.getTime());
+                            
+                            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                            const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+                            
+                            if (hours > 0) {
+                              return `Em ${hours}h ${minutes}min ${seconds}s`;
+                            } else if (minutes > 0) {
+                              return `Em ${minutes}min ${seconds}s`;
+                            } else {
+                              return `Em ${seconds}s`;
+                            }
                           })()}
                         </p>
                       </div>
