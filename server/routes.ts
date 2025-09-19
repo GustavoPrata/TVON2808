@@ -5875,6 +5875,61 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Download Chrome Extension as ZIP for OnlineOffice IPTV
+  app.get("/api/office/automation/extension.zip", async (req, res) => {
+    try {
+      const archiver = (await import('archiver')).default;
+      const extensionPath = path.join(process.cwd(), 'chrome-extension');
+      
+      // Check if extension directory exists
+      try {
+        await fs.access(extensionPath);
+      } catch {
+        return res.status(404).json({
+          success: false,
+          message: "Extensão não encontrada",
+          error: "A pasta chrome-extension não existe"
+        });
+      }
+
+      // Set response headers for zip download
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="onlineoffice-chrome-extension.zip"');
+
+      // Create archive
+      const archive = archiver('zip', {
+        zlib: { level: 9 } // Maximum compression
+      });
+
+      // Handle archive errors
+      archive.on('error', (err) => {
+        console.error('❌ Erro ao criar arquivo ZIP:', err);
+        res.status(500).json({
+          success: false,
+          message: "Erro ao criar arquivo ZIP",
+          error: err.message
+        });
+      });
+
+      // Pipe archive data to the response
+      archive.pipe(res);
+
+      // Add the entire chrome-extension directory to the archive
+      archive.directory(extensionPath, false);
+
+      // Finalize the archive
+      await archive.finalize();
+      
+    } catch (error) {
+      console.error('❌ Erro ao preparar download da extensão em ZIP:', error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao preparar download da extensão",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
+      });
+    }
+  });
+
   // Save credentials from Chrome Extension
   app.post("/api/office/save-credentials", async (req, res) => {
     try {

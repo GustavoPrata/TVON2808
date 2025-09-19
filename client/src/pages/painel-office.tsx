@@ -307,8 +307,6 @@ export default function PainelOffice() {
   const [globalRenewalEnabled, setGlobalRenewalEnabled] = useState(false);
   const [automationConfig, setAutomationConfig] = useState({
     isEnabled: false,
-    batchSize: 10,
-    intervalMinutes: 5,
     singleGeneration: false,
     lastRunAt: null as Date | null,
     totalGenerated: 0,
@@ -377,8 +375,6 @@ export default function PainelOffice() {
     if (configData) {
       setAutomationConfig(prev => ({
         isEnabled: configData.isEnabled || false,
-        batchSize: configData.batchSize || 10,
-        intervalMinutes: configData.intervalMinutes || 5,
         singleGeneration: configData.singleGeneration || false,
         lastRunAt: configData.lastRunAt ? new Date(configData.lastRunAt) : null,
         totalGenerated: configData.totalGenerated || 0,
@@ -967,7 +963,7 @@ export default function PainelOffice() {
                                 title: automationConfig.isEnabled ? "Automação Parada" : "Automação Iniciada",
                                 description: automationConfig.isEnabled 
                                   ? "Sistema de geração automática desativado"
-                                  : `Gerando ${automationConfig.batchSize} credenciais a cada ${automationConfig.intervalMinutes} minutos`,
+                                  : "Sistema de geração automática ativado",
                                 variant: "default",
                               });
                               setShowStopConfirm(false);
@@ -1049,105 +1045,37 @@ export default function PainelOffice() {
                       </p>
                     </div>
                     
-                    {automationConfig.isEnabled && automationConfig.lastRunAt && (
-                      <div className="p-2 bg-slate-900/50 rounded">
-                        <p className="text-xs text-slate-500 flex items-center gap-1 mb-1">
-                          <Calendar className="w-3 h-3" />
-                          Próxima Execução
-                        </p>
-                        <p className="text-xs font-mono text-white">
-                          {(() => {
-                            const nextRun = new Date(automationConfig.lastRunAt);
-                            nextRun.setMinutes(nextRun.getMinutes() + automationConfig.intervalMinutes);
-                            const diffMs = Math.max(0, nextRun.getTime() - currentTime.getTime());
-                            
-                            const hours = Math.floor(diffMs / (1000 * 60 * 60));
-                            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                            const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-                            
-                            if (hours > 0) {
-                              return `Em ${hours}h ${minutes}min ${seconds}s`;
-                            } else if (minutes > 0) {
-                              return `Em ${minutes}min ${seconds}s`;
-                            } else {
-                              return `Em ${seconds}s`;
-                            }
-                          })()}
-                        </p>
-                      </div>
-                    )}
                   </div>
                   
                   {/* Configuration Fields */}
                   <div>
                     <Label className="text-sm flex items-center gap-1 mb-2">
-                      <Users className="w-4 h-4" />
-                      Quantidade por Lote
-                    </Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={automationConfig.batchSize}
-                      onChange={(e) => setAutomationConfig({
-                        ...automationConfig,
-                        batchSize: parseInt(e.target.value) || 10
-                      })}
-                      className="bg-slate-800 border-slate-700"
-                      disabled={automationConfig.isEnabled}
-                      data-testid="input-batch-size"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label className="text-sm flex items-center gap-1 mb-2">
-                      <Clock className="w-4 h-4" />
-                      Intervalo entre Lotes (minutos)
-                    </Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="1440"
-                      value={automationConfig.intervalMinutes}
-                      onChange={(e) => setAutomationConfig({
-                        ...automationConfig,
-                        intervalMinutes: parseInt(e.target.value) || 5
-                      })}
-                      className="bg-slate-800 border-slate-700"
-                      disabled={automationConfig.isEnabled}
-                      data-testid="input-interval"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label className="text-sm flex items-center gap-1 mb-2">
                       <Timer className="w-4 h-4" />
-                      Renovação Antes do Vencimento
+                      Renovação Antes do Vencimento (minutos)
                     </Label>
-                    <select
-                      className="w-full bg-slate-800 border-slate-700 rounded-md px-3 py-2 text-sm text-slate-200"
-                      data-testid="select-renewal-time"
-                    >
-                      <option value="10">10 minutos</option>
-                      <option value="30">30 minutos</option>
-                      <option value="60" selected>1 hora</option>
-                      <option value="120">2 horas</option>
-                      <option value="360">6 horas</option>
-                      <option value="720">12 horas</option>
-                      <option value="1440">24 horas</option>
-                    </select>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="10080"
+                      defaultValue={60}
+                      placeholder="Ex: 60 = 1 hora antes"
+                      className="bg-slate-800 border-slate-700"
+                      disabled={automationConfig.isEnabled}
+                      data-testid="input-renewal-time"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">0 = Desabilitado | Digite o tempo em minutos</p>
                   </div>
                   
                   {/* Action Buttons */}
                   <div className="flex gap-2">
                     <Button
                       onClick={async () => {
+                        const renewalTime = (document.querySelector('[data-testid="input-renewal-time"]') as HTMLInputElement)?.value || '60';
                         const res = await fetch('/api/office/automation/config', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
-                            batchSize: automationConfig.batchSize,
-                            intervalMinutes: automationConfig.intervalMinutes
+                            renewalAdvanceTime: parseInt(renewalTime)
                           })
                         });
                         
@@ -1177,17 +1105,21 @@ export default function PainelOffice() {
                           });
                           
                           if (res.ok) {
-                            setAutomationConfig(prev => ({
-                              ...prev,
-                              sessionGenerated: (prev.sessionGenerated || 0) + 1
-                            }));
                             toast({
-                              title: "✅ Credencial Gerada!",
-                              description: "Uma nova credencial foi gerada com sucesso",
+                              title: "📡 Solicitação Enviada",
+                              description: "Gerando credencial via extensão Chrome...",
                               variant: "default",
                             });
-                            setTimeout(() => refetchCredentials(), 2000);
+                            setTimeout(() => refetchCredentials(), 3000);
+                          } else {
+                            throw new Error('Falha ao solicitar geração');
                           }
+                        } catch (error) {
+                          toast({
+                            title: "❌ Erro",
+                            description: "Falha ao solicitar geração de credencial",
+                            variant: "destructive",
+                          });
                         } finally {
                           setIsGeneratingSingle(false);
                         }
@@ -1203,6 +1135,24 @@ export default function PainelOffice() {
                       ) : (
                         <><Plus className="w-4 h-4 mr-1" /> Gerar Uma</>
                       )}
+                    </Button>
+                    
+                    <Button
+                      onClick={() => {
+                        window.open('/api/office/automation/extension.zip', '_blank');
+                        toast({
+                          title: "📥 Download Iniciado",
+                          description: "A extensão Chrome está sendo baixada",
+                          variant: "default",
+                        });
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="border-green-600 text-green-400 hover:bg-green-600/20"
+                      data-testid="button-download-extension"
+                    >
+                      <Chrome className="w-4 h-4 mr-1" />
+                      Baixar Extensão
                     </Button>
                   </div>
                 </div>
