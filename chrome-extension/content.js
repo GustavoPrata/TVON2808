@@ -366,16 +366,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     }
                   }, 500);
                   
-                  // 6. SALVAR NO BANCO DE DADOS SILENCIOSAMENTE
-                  saveCredentialsToDatabase(username, password).then(success => {
-                    if (success) {
-                      console.log('✅ Credenciais salvas no banco com sucesso!');
-                    } else {
-                      console.error('⚠️ Erro ao salvar credenciais no banco');
-                    }
-                  });
+                  // 6. NÃO SALVAR AQUI - será salvo pelo background via task-complete
+                  console.log('📦 Credenciais extraídas, enviando para o background processar...');
                   
-                  // 7. ENVIAR RESPOSTA PARA O BACKGROUND
+                  // 7. ENVIAR RESPOSTA PARA O BACKGROUND (que salvará via task-complete)
                   sendResponse({
                     success: true,
                     credentials: {
