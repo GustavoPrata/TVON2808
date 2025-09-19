@@ -8063,6 +8063,87 @@ Como posso ajudar você hoje?
     }
   });
 
+  // POST /api/extension/logs - recebe logs da extensão Chrome
+  app.post('/api/extension/logs', async (req, res) => {
+    try {
+      const { logs } = req.body;
+      
+      // Valida se recebemos logs
+      if (!logs || !Array.isArray(logs)) {
+        return res.status(400).json({ error: 'Logs inválidos' });
+      }
+
+      console.log(`📝 Recebendo ${logs.length} logs da extensão Chrome`);
+      
+      // Armazena logs no banco de dados
+      for (const log of logs) {
+        await storage.addOfficeAutomationLog({
+          level: log.level || 'INFO',
+          message: log.message || '',
+          context: log.context || {},
+          source: 'chrome-extension',
+          traceId: log.traceId || null,
+          timestamp: log.timestamp || new Date().toISOString()
+        });
+      }
+
+      res.json({ success: true, count: logs.length });
+    } catch (error) {
+      console.error('Erro ao salvar logs da extensão:', error);
+      res.status(500).json({ error: 'Erro ao salvar logs' });
+    }
+  });
+
+  // GET /api/extension/logs - busca logs da extensão Chrome
+  app.get('/api/extension/logs', async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const level = req.query.level as string;
+      
+      // Busca logs com filtro de source = 'chrome-extension'
+      let logs = await storage.getOfficeAutomationLogs(limit);
+      
+      // Filtra apenas logs da extensão
+      logs = logs.filter(log => log.source === 'chrome-extension');
+      
+      // Aplica filtro de nível se fornecido
+      if (level && level !== 'all') {
+        logs = logs.filter(log => log.level === level);
+      }
+
+      // Formata logs para o frontend
+      const formattedLogs = logs.map(log => ({
+        timestamp: log.timestamp,
+        level: log.level,
+        message: log.message,
+        context: log.context,
+        traceId: log.traceId
+      }));
+
+      res.json({ success: true, logs: formattedLogs });
+    } catch (error) {
+      console.error('Erro ao buscar logs da extensão:', error);
+      res.status(500).json({ error: 'Erro ao buscar logs' });
+    }
+  });
+
+  // DELETE /api/extension/logs - limpa logs da extensão Chrome
+  app.delete('/api/extension/logs', checkAuth, async (req, res) => {
+    try {
+      // Deleta logs da extensão do banco
+      const deleted = await storage.db
+        .delete(officeAutomationLogs)
+        .where(eq(officeAutomationLogs.source, 'chrome-extension'))
+        .returning();
+      
+      console.log(`🗑️ ${deleted.length} logs da extensão Chrome removidos`);
+      res.json({ success: true, count: deleted.length });
+    } catch (error) {
+      console.error('Erro ao limpar logs da extensão:', error);
+      res.status(500).json({ error: 'Erro ao limpar logs' });
+    }
+  });
+
   // GET /api/office/automation/credentials - busca credenciais geradas
   app.get('/api/office/automation/credentials', async (req, res) => {
     // Verificar autenticação: aceitar tanto API key da extensão quanto sessão autenticada
