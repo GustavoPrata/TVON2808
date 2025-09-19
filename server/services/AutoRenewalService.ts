@@ -150,7 +150,18 @@ export class AutoRenewalService {
           return false;
         }
 
-        // Verificar se já foi renovado recentemente (últimas 4 horas)
+        // Verificar se está vencido ou próximo do vencimento
+        const expiracaoDate = new Date(sistema.expiracao);
+        const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
+        const isExpired = expiracaoDate <= now;
+        
+        // SE ESTÁ VENCIDO, renovar imediatamente sem verificar última renovação
+        if (isExpired) {
+          console.log(`🚨 Sistema ${sistema.id} (${sistema.username}) VENCIDO há ${Math.abs(minutosAteExpiracao).toFixed(0)} minutos - renovação IMEDIATA`);
+          return true;
+        }
+        
+        // Se NÃO está vencido, aplicar a regra de aguardar 4 horas entre renovações
         if (sistema.lastRenewalAt) {
           const horasSinceLastRenewal = (now.getTime() - new Date(sistema.lastRenewalAt).getTime()) / (1000 * 60 * 60);
           if (horasSinceLastRenewal < 4) {
@@ -159,17 +170,8 @@ export class AutoRenewalService {
           }
         }
         
-        // Verificar se está vencido ou próximo do vencimento
-        const expiracaoDate = new Date(sistema.expiracao);
-        const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
-        
-        // Renovar se:
-        // 1. Já está vencido (expiracao <= now)
-        // 2. Está próximo do vencimento (dentro do renewalAdvanceTime)
-        if (expiracaoDate <= now) {
-          console.log(`❗ Sistema ${sistema.id} (${sistema.username}) VENCIDO - expiracao: ${expiracaoDate.toISOString()}`);
-          return true;
-        } else if (minutosAteExpiracao <= renewalAdvanceMinutes) {
+        // Verificar se está próximo do vencimento (dentro do tempo configurado)
+        if (minutosAteExpiracao <= renewalAdvanceMinutes) {
           console.log(`⚠️ Sistema ${sistema.id} (${sistema.username}) próximo do vencimento - ${minutosAteExpiracao.toFixed(0)}min restantes`);
           return true;
         } else {
@@ -259,12 +261,14 @@ export class AutoRenewalService {
           taskType: 'renewal',
           sistemaId: sistema.id, // Garantir que sistemaId está no metadata
           systemId: sistema.id, // Manter ambas as chaves por compatibilidade
+          system_id: sistema.id, // Adicionar também com underscore para compatibilidade
           originalUsername: sistema.username,
           systemUsername: sistema.username,
           systemExpiration: sistema.expiracao,
           status: 'pending',
           requestedAt: new Date().toISOString(),
-          traceId: traceId
+          traceId: traceId,
+          generateNewCredentials: true // Flag explícita para gerar novas credenciais
         }
       };
       
