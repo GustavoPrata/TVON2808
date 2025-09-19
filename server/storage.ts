@@ -1328,8 +1328,8 @@ export class DatabaseStorage implements IStorage {
     // Default URL (same as used in other systems)
     const url = data.url || 'https://onlineoffice.zip/iptv/';
     
-    // Default expiration (1 year from now)
-    const expiracao = data.expiracao || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    // Default expiration (6 hours from now)
+    const expiracao = data.expiracao || new Date(Date.now() + 6 * 60 * 60 * 1000);
     
     // Create the sistema
     const sistema = await this.createSistema({
