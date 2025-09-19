@@ -10,9 +10,27 @@ export function setWebSocketServer(wss: any) {
   wssRef = wss;
 }
 
+// Interfaces para a fila de renovação
+interface RenewalQueueItem {
+  sistemaId: number;
+  username: string;
+  status: 'waiting' | 'processing' | 'completed' | 'error';
+  estimatedTime?: number; // Minutos até renovação
+  addedAt: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  error?: string;
+  expiration: string;
+  lastRenewalAt?: string | null;
+  renewalCount?: number;
+}
+
 export class AutoRenewalService {
   private intervalId: NodeJS.Timeout | null = null;
   private isRenewing: Set<number> = new Set(); // Evita renovações duplicadas
+  private renewalQueue: Map<number, RenewalQueueItem> = new Map(); // Fila de renovação
+  private nextCheckTime: Date | null = null;
+  private lastCheckTime: Date | null = null;
 
   start() {
     // Parar intervalo anterior se existir
@@ -22,6 +40,7 @@ export class AutoRenewalService {
 
     // Rodar a cada 60 segundos
     this.intervalId = setInterval(() => {
+      this.nextCheckTime = new Date(Date.now() + 60000); // Próxima verificação em 60s
       this.checkAndRenewSystems().catch(error => {
         console.error('❌ Erro no serviço de renovação automática:', error);
       });
@@ -45,6 +64,11 @@ export class AutoRenewalService {
 
   async checkAndRenewSystems() {
     try {
+      this.lastCheckTime = new Date();
+      
+      // Limpar itens antigos da fila (mais de 1 hora)
+      this.cleanupQueue();
+      
       // 1. Buscar configuração global
       const config = await storage.getOfficeAutomationConfig();
       
@@ -73,6 +97,28 @@ export class AutoRenewalService {
       // Log de verificação
       console.log(`🔍 Verificando ${sistemasAutoRenew.length} sistemas com renovação automática...`);
 
+      // Atualizar fila com todos os sistemas elegíveis
+      for (const sistema of sistemasAutoRenew) {
+        const expiracaoDate = new Date(sistema.expiracao);
+        const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
+        
+        // Adicionar ou atualizar na fila se não estiver processando
+        if (!this.renewalQueue.has(sistema.id) || this.renewalQueue.get(sistema.id)?.status === 'completed' || this.renewalQueue.get(sistema.id)?.status === 'error') {
+          const queueItem: RenewalQueueItem = {
+            sistemaId: sistema.id,
+            username: sistema.username,
+            status: 'waiting',
+            estimatedTime: minutosAteExpiracao > 0 ? Math.floor(minutosAteExpiracao) : 0,
+            addedAt: new Date(),
+            expiration: sistema.expiracao,
+            lastRenewalAt: sistema.lastRenewalAt,
+            renewalCount: sistema.renewalCount || 0
+          };
+          
+          this.renewalQueue.set(sistema.id, queueItem);
+        }
+      }
+      
       // Filtrar sistemas que precisam de renovação
       const sistemasParaRenovar = sistemasAutoRenew.filter(sistema => {
         // Verificar se já está sendo renovado
@@ -126,6 +172,13 @@ export class AutoRenewalService {
         
         // Marcar como renovando
         this.isRenewing.add(sistema.id);
+        
+        // Atualizar status na fila
+        const queueItem = this.renewalQueue.get(sistema.id);
+        if (queueItem) {
+          queueItem.status = 'processing';
+          queueItem.startedAt = new Date();
+        }
 
         try {
           // Renovar sistema e aguardar conclusão antes de processar o próximo
@@ -138,6 +191,14 @@ export class AutoRenewalService {
           console.error(`❌ Erro ao renovar sistema ${sistema.id}:`, error);
           // Remover flag de renovação em caso de erro
           this.isRenewing.delete(sistema.id);
+          
+          // Atualizar status na fila
+          const queueItem = this.renewalQueue.get(sistema.id);
+          if (queueItem) {
+            queueItem.status = 'error';
+            queueItem.error = error instanceof Error ? error.message : 'Erro desconhecido';
+            queueItem.completedAt = new Date();
+          }
         }
       }
       
@@ -193,6 +254,13 @@ export class AutoRenewalService {
 
       console.log(`📊 Sistema ${sistema.id} marcado como renovado no banco`);
       console.log(`✅ Task de renovação para sistema ${sistema.id} - ${sistema.username} criada e aguardando processamento pela extensão`);
+      
+      // Atualizar status na fila
+      const queueItem = this.renewalQueue.get(sistema.id);
+      if (queueItem) {
+        queueItem.status = 'completed';
+        queueItem.completedAt = new Date();
+      }
 
       // 3. Agendar remoção da flag de renovação após 5 minutos
       setTimeout(() => {
@@ -205,6 +273,76 @@ export class AutoRenewalService {
       // Remover flag de renovação em caso de erro
       this.isRenewing.delete(sistema.id);
       throw error; // Re-throw para que o erro seja tratado no nível superior
+    }
+  }
+
+  // Limpar itens antigos da fila
+  private cleanupQueue() {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    
+    for (const [sistemaId, item] of this.renewalQueue.entries()) {
+      // Remover itens completados ou com erro há mais de 1 hora
+      if ((item.status === 'completed' || item.status === 'error') && 
+          item.completedAt && item.completedAt < oneHourAgo) {
+        this.renewalQueue.delete(sistemaId);
+      }
+    }
+  }
+  
+  // Obter status da fila de renovação
+  getRenewalQueue() {
+    const queue = Array.from(this.renewalQueue.values())
+      .sort((a, b) => {
+        // Priorizar por status: processing > waiting > completed/error
+        const statusOrder = { processing: 0, waiting: 1, completed: 2, error: 3 };
+        const statusDiff = statusOrder[a.status] - statusOrder[b.status];
+        if (statusDiff !== 0) return statusDiff;
+        
+        // Depois ordenar por tempo estimado
+        return (a.estimatedTime || 999) - (b.estimatedTime || 999);
+      });
+    
+    return {
+      queue,
+      nextCheckTime: this.nextCheckTime,
+      lastCheckTime: this.lastCheckTime,
+      isRunning: this.intervalId !== null,
+      processingCount: queue.filter(item => item.status === 'processing').length,
+      waitingCount: queue.filter(item => item.status === 'waiting').length,
+      completedCount: queue.filter(item => item.status === 'completed').length,
+      errorCount: queue.filter(item => item.status === 'error').length
+    };
+  }
+  
+  // Obter informações sobre sistemas programados para renovação
+  async getScheduledRenewals() {
+    try {
+      const sistemas = await db
+        .select()
+        .from(sistemasTable)
+        .where(eq(sistemasTable.autoRenewalEnabled, true));
+      
+      const now = new Date();
+      
+      return sistemas.map(sistema => {
+        const expiracaoDate = new Date(sistema.expiracao);
+        const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
+        
+        return {
+          sistemaId: sistema.id,
+          username: sistema.username,
+          expiration: sistema.expiracao,
+          minutesUntilExpiration: Math.floor(minutosAteExpiracao),
+          isExpired: expiracaoDate <= now,
+          lastRenewalAt: sistema.lastRenewalAt,
+          renewalCount: sistema.renewalCount || 0,
+          autoRenewalEnabled: sistema.autoRenewalEnabled,
+          renewalAdvanceTime: sistema.renewalAdvanceTime
+        };
+      }).sort((a, b) => a.minutesUntilExpiration - b.minutesUntilExpiration);
+    } catch (error) {
+      console.error('Erro ao obter renovações programadas:', error);
+      return [];
     }
   }
 

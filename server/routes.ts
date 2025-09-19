@@ -14,6 +14,7 @@ import { authenticate, checkAuth } from "./auth";
 import bcrypt from 'bcrypt';
 import { initAdmin } from "./init-admin";
 import { OnlineOfficeService } from "./services/onlineoffice";
+import { autoRenewalService } from "./services/AutoRenewalService";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import {
   insertClienteSchema,
@@ -6874,6 +6875,215 @@ Como posso ajudar você hoje?
     } catch (error) {
       console.error('Erro ao atualizar configuração de automação:', error);
       res.status(500).json({ error: 'Erro ao atualizar configuração' });
+    }
+  });
+
+  // GET /api/sistemas/renewal-queue - retorna a fila de renovação em tempo real
+  app.get('/api/sistemas/renewal-queue', async (req, res) => {
+    try {
+      // Obter a fila de renovação atual
+      const queueStatus = autoRenewalService.getRenewalQueue();
+      
+      // Obter sistemas programados para renovação
+      const scheduledRenewals = await autoRenewalService.getScheduledRenewals();
+      
+      res.json({
+        success: true,
+        queue: queueStatus.queue,
+        nextCheckTime: queueStatus.nextCheckTime,
+        lastCheckTime: queueStatus.lastCheckTime,
+        isRunning: queueStatus.isRunning,
+        stats: {
+          processing: queueStatus.processingCount,
+          waiting: queueStatus.waitingCount,
+          completed: queueStatus.completedCount,
+          error: queueStatus.errorCount
+        },
+        scheduledRenewals,
+        currentTime: new Date()
+      });
+    } catch (error) {
+      console.error('Erro ao buscar fila de renovação:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao buscar fila de renovação'
+      });
+    }
+  });
+  
+  // ========================================================================
+  // ENDPOINTS PARA GERENCIAR LOGS DA EXTENSÃO
+  // ========================================================================
+  
+  // GET /api/extension/logs - buscar logs da extensão
+  // Este endpoint precisa que o cliente tenha a extensão instalada
+  // A comunicação será feita via mensagem do Chrome runtime
+  app.get('/api/extension/logs', async (req, res) => {
+    try {
+      // Parâmetros de filtro opcionais
+      const { level, searchText, limit = 1000 } = req.query;
+      
+      // Como não podemos acessar a extensão diretamente do servidor,
+      // vamos retornar logs salvos no storage se implementarmos cache
+      // Por ora, instruímos o frontend a buscar diretamente da extensão
+      
+      res.json({
+        success: true,
+        message: 'Use o frontend para buscar logs da extensão via Chrome runtime',
+        filters: {
+          level,
+          searchText,
+          limit: parseInt(limit as string) || 1000
+        },
+        note: 'Logs devem ser buscados diretamente da extensão Chrome'
+      });
+    } catch (error) {
+      console.error('Erro ao buscar logs da extensão:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao buscar logs da extensão'
+      });
+    }
+  });
+  
+  // DELETE /api/extension/logs - limpar logs da extensão
+  app.delete('/api/extension/logs', async (req, res) => {
+    try {
+      // Instrui o frontend a enviar comando para extensão
+      res.json({
+        success: true,
+        message: 'Use o frontend para limpar logs via Chrome runtime',
+        action: 'clearLogs'
+      });
+    } catch (error) {
+      console.error('Erro ao limpar logs da extensão:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao limpar logs da extensão'
+      });
+    }
+  });
+  
+  // GET /api/extension/logs/download - baixar logs como arquivo .txt
+  app.get('/api/extension/logs/download', async (req, res) => {
+    try {
+      // Este endpoint precisará receber os logs como POST do frontend
+      // que os obtém da extensão
+      res.json({
+        success: false,
+        message: 'Use POST /api/extension/logs/export com os logs no body'
+      });
+    } catch (error) {
+      console.error('Erro ao baixar logs:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao baixar logs'
+      });
+    }
+  });
+  
+  // POST /api/extension/logs/export - recebe logs do frontend e retorna como arquivo
+  app.post('/api/extension/logs/export', (req, res) => {
+    try {
+      const { logs, formatted } = req.body;
+      
+      if (!formatted && !logs) {
+        return res.status(400).json({
+          success: false,
+          error: 'Logs não fornecidos'
+        });
+      }
+      
+      // Criar conteúdo do arquivo
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `extension-logs-${timestamp}.txt`;
+      
+      // Se tem texto formatado, usa ele; senão, formata os logs
+      let content = formatted || '';
+      
+      if (!formatted && logs) {
+        content = '=== OnlineOffice Extension Logs ===\n';
+        content += `Exportado em: ${new Date().toLocaleString('pt-BR')}\n`;
+        content += `Total de logs: ${logs.length}\n`;
+        content += '=' .repeat(50) + '\n\n';
+        
+        logs.forEach((log: any) => {
+          const date = new Date(log.timestamp);
+          const timeStr = date.toLocaleTimeString('pt-BR');
+          const dateStr = date.toLocaleDateString('pt-BR');
+          const contextStr = log.context && Object.keys(log.context).length > 0 
+            ? ` | ${JSON.stringify(log.context)}` 
+            : '';
+          content += `[${log.level}] ${dateStr} ${timeStr} - ${log.message}${contextStr}\n`;
+        });
+      }
+      
+      // Enviar arquivo para download
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(content);
+      
+    } catch (error) {
+      console.error('Erro ao exportar logs:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao exportar logs'
+      });
+    }
+  });
+  
+  // POST /api/extension/logs/cache - recebe logs da extensão para cache no servidor
+  app.post('/api/extension/logs/cache', async (req, res) => {
+    try {
+      const { logs } = req.body;
+      
+      if (!logs || !Array.isArray(logs)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Logs inválidos'
+        });
+      }
+      
+      // Por ora, apenas confirma recebimento
+      // Podemos implementar cache no storage se necessário
+      console.log(`📝 Recebidos ${logs.length} logs da extensão para cache`);
+      
+      res.json({
+        success: true,
+        cached: logs.length,
+        message: 'Logs recebidos com sucesso'
+      });
+      
+    } catch (error) {
+      console.error('Erro ao cachear logs:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao cachear logs'
+      });
+    }
+  });
+  
+  // POST /api/sistemas/renewal-queue/force/:id - forçar renovação de um sistema
+  app.post('/api/sistemas/renewal-queue/force/:id', checkAuth, async (req, res) => {
+    try {
+      const sistemaId = parseInt(req.params.id);
+      
+      if (isNaN(sistemaId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'ID do sistema inválido'
+        });
+      }
+      
+      const result = await autoRenewalService.forceRenew(sistemaId);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Erro ao forçar renovação:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao forçar renovação'
+      });
     }
   });
 
