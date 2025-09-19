@@ -20,15 +20,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             </span>
           </div>
           <div class="status-row">
-            <span class="status-label">Controle</span>
-            <span class="status-value">Via Backend</span>
+            <span class="status-label">Modo</span>
+            <span class="status-value">Automático 24/7</span>
+          </div>
+          <div class="status-row">
+            <span class="status-label">Funcionamento</span>
+            <span class="status-value" style="color: #28a745;">Em Background</span>
           </div>
         </div>
         
-        <div class="info-box">
-          <span class="info-icon">ℹ️</span>
-          A automação agora é totalmente controlada pelo painel web.
-          Todas as configurações e controles estão disponíveis no site.
+        <div class="info-box" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
+          <span class="info-icon">✨</span>
+          <strong>Extensão Funcionando Automaticamente!</strong><br>
+          <span style="font-size: 11px;">
+            A extensão está rodando em background e funcionará mesmo com esta janela fechada.
+            Ela verifica tarefas a cada 30 segundos e abre a aba do OnlineOffice automaticamente quando necessário.
+          </span>
         </div>
         
         <button class="action-button" id="openDashboard">

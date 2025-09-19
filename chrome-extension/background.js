@@ -8,6 +8,7 @@ const API_BASE = 'https://tv-on.site';
 const POLLING_INTERVAL_ACTIVE = 30000; // 30 segundos quando não há tarefas
 const POLLING_INTERVAL_IDLE = 60000; // 60 segundos quando automação está desabilitada
 const POLLING_INTERVAL_FAST = 10000; // 10 segundos após processar tarefa
+const OFFICE_URL = 'https://onlineoffice.zip/iptv/index.php'; // URL específica do painel IPTV
 
 // ===========================================================================
 // ESTADO GLOBAL (mínimo, apenas para cache)
@@ -26,42 +27,85 @@ let currentPollingInterval = POLLING_INTERVAL_IDLE;
 // ===========================================================================
 console.log('🚀 Background script iniciado (versão backend-driven)');
 
-// Inicia polling ao carregar
+// Usa Chrome Alarms API para manter a extensão sempre ativa
+function setupAlarms() {
+  // Remove alarme anterior se existir
+  chrome.alarms.clear('pollBackend', () => {
+    // Cria novo alarme que dispara a cada 30 segundos
+    chrome.alarms.create('pollBackend', {
+      periodInMinutes: 0.5, // 30 segundos
+      delayInMinutes: 0 // Começa imediatamente
+    });
+    console.log('⏰ Alarme configurado para polling automático');
+  });
+  
+  // Cria alarme adicional para verificação de status
+  chrome.alarms.create('checkStatus', {
+    periodInMinutes: 1, // A cada minuto
+    delayInMinutes: 0
+  });
+}
+
+// Listener para os alarmes
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'pollBackend') {
+    console.log('⏰ Alarme disparado: checando tarefas...');
+    await checkForTasks();
+  } else if (alarm.name === 'checkStatus') {
+    // Verifica se precisa abrir a aba do OnlineOffice
+    await ensureOfficeTabOpen();
+  }
+});
+
+// Inicia quando o Chrome abre
 chrome.runtime.onStartup.addListener(() => {
-  console.log('📦 Chrome iniciado, iniciando polling do backend...');
-  startPolling();
+  console.log('📦 Chrome iniciado, configurando automação...');
+  setupAlarms();
+  checkForTasks(); // Checa imediatamente
+  ensureOfficeTabOpen(); // Garante que a aba está aberta
 });
 
-// Inicia polling quando instalado
+// Inicia quando instalado/atualizado
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('🔧 Extensão instalada/atualizada, iniciando polling...');
-  startPolling();
+  console.log('🔧 Extensão instalada/atualizada, configurando automação...');
+  setupAlarms();
+  checkForTasks(); // Checa imediatamente
 });
 
-// Inicia polling imediatamente
-startPolling();
+// Inicia verificação imediata
+setupAlarms();
+checkForTasks();
+
+// Função para garantir que a aba do OnlineOffice está aberta
+async function ensureOfficeTabOpen() {
+  // Só abre se a automação está habilitada
+  if (!lastStatus.isEnabled) return;
+  
+  const tabs = await chrome.tabs.query({
+    url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
+  });
+  
+  if (tabs.length === 0) {
+    console.log('📂 Abrindo aba do OnlineOffice automaticamente...');
+    chrome.tabs.create({ 
+      url: OFFICE_URL,
+      active: false // Abre em background
+    });
+  }
+}
 
 // ===========================================================================
-// POLLING DO BACKEND
+// POLLING DO BACKEND (Agora usando Alarms API)
 // ===========================================================================
-function startPolling(intervalOverride = null) {
-  console.log(`🔄 Iniciando polling do backend com intervalo: ${intervalOverride || currentPollingInterval}ms`);
+function updatePollingInterval(minutes) {
+  console.log(`🔄 Atualizando intervalo de polling para ${minutes} minutos`);
   
-  // Cancela polling anterior se existir
-  if (pollingTimer) {
-    clearInterval(pollingTimer);
-  }
-  
-  // Define o intervalo se foi especificado
-  if (intervalOverride !== null) {
-    currentPollingInterval = intervalOverride;
-  }
-  
-  // Faz primeira checagem imediata
-  checkForTasks();
-  
-  // Configura polling recorrente com intervalo adaptativo
-  pollingTimer = setInterval(checkForTasks, currentPollingInterval);
+  chrome.alarms.clear('pollBackend', () => {
+    chrome.alarms.create('pollBackend', {
+      periodInMinutes: minutes,
+      delayInMinutes: 0
+    });
+  });
 }
 
 async function checkForTasks() {
@@ -112,11 +156,13 @@ async function checkForTasks() {
     // Ajusta intervalo de polling baseado no status
     if (!lastStatus.isEnabled && currentPollingInterval !== POLLING_INTERVAL_IDLE) {
       console.log('🟠 Automação desabilitada, mudando para polling lento (60s)...');
-      startPolling(POLLING_INTERVAL_IDLE);
+      currentPollingInterval = POLLING_INTERVAL_IDLE;
+      updatePollingInterval(1); // 1 minuto
       return;
     } else if (lastStatus.isEnabled && currentPollingInterval !== POLLING_INTERVAL_ACTIVE) {
       console.log('🟢 Automação habilitada, mudando para polling normal (30s)...');
-      startPolling(POLLING_INTERVAL_ACTIVE);
+      currentPollingInterval = POLLING_INTERVAL_ACTIVE;
+      updatePollingInterval(0.5); // 30 segundos
     }
     
     // Se não há tarefa, continua polling
@@ -135,11 +181,13 @@ async function checkForTasks() {
     
     // Após processar, fazer polling mais rápido temporariamente
     console.log('⚡ Tarefa processada, fazendo polling rápido temporário (10s)...');
-    startPolling(POLLING_INTERVAL_FAST);
+    currentPollingInterval = POLLING_INTERVAL_FAST;
+    updatePollingInterval(0.17); // ~10 segundos
     setTimeout(() => {
       if (lastStatus.isEnabled) {
         console.log('⏰ Voltando ao polling normal (30s)...');
-        startPolling(POLLING_INTERVAL_ACTIVE);
+        currentPollingInterval = POLLING_INTERVAL_ACTIVE;
+        updatePollingInterval(0.5); // 30 segundos
       }
     }, 60000); // Volta ao normal após 1 minuto
     
@@ -162,21 +210,38 @@ async function processTask(task) {
   console.log('========================================');
   
   // Procura aba do OnlineOffice
-  const tabs = await chrome.tabs.query({
+  let tabs = await chrome.tabs.query({
     url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
   });
   
+  // Se não encontrar, tenta abrir automaticamente
   if (tabs.length === 0) {
-    console.error('❌ ERRO: Nenhuma aba OnlineOffice encontrada!');
+    console.log('📂 Nenhuma aba OnlineOffice encontrada. Abrindo automaticamente...');
     
-    // Reporta erro ao backend
-    await reportTaskResult({
-      taskId: task.id,
-      success: false,
-      error: 'Nenhuma aba OnlineOffice encontrada'
+    // Cria nova aba com o OnlineOffice
+    const newTab = await chrome.tabs.create({
+      url: OFFICE_URL,
+      active: false // Abre em background
     });
     
-    return;
+    // Aguarda a aba carregar
+    console.log('⏳ Aguardando aba carregar...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Procura novamente
+    tabs = await chrome.tabs.query({
+      url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
+    });
+    
+    if (tabs.length === 0) {
+      console.error('❌ ERRO: Não conseguiu abrir aba OnlineOffice!');
+      await reportTaskResult({
+        taskId: task.id,
+        success: false,
+        error: 'Não conseguiu abrir aba OnlineOffice'
+      });
+      return;
+    }
   }
   
   const tabId = tabs[0].id;
