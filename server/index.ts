@@ -123,38 +123,42 @@ app.use((req, res, next) => {
       const pontosDisponiveis = await storage.getAvailablePoints();
       console.log(`💡 ${pontosDisponiveis} pontos disponíveis para renovação`);
       
-      let sistemasRenovados = 0;
+      let tarefasCriadas = 0;
       
       for (const sistema of sistemasParaRenovar) {
         if (!sistema.autoRenewalEnabled) continue;
         
         const now = new Date();
-        const expiration = new Date(sistema.expiration!);
+        const expiration = new Date(sistema.expiracao!);
         const diffMinutes = Math.floor((expiration.getTime() - now.getTime()) / (1000 * 60));
         
         // Verifica se está dentro do tempo de renovação antecipada
         if (diffMinutes <= (sistema.renewalAdvanceTime || 60)) {
-          console.log(`🔄 Renovando sistema ${sistema.systemId}...`);
+          console.log(`📝 Criando tarefa de renovação para sistema ${sistema.id}...`);
           
           try {
-            // Aqui seria feita a chamada para a extensão Chrome gerar novas credenciais
-            // Por enquanto, vamos apenas estender a validade
-            await storage.renovarSistema(sistema.systemId, {
-              expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-              lastRenewalAt: new Date().toISOString(),
-              renewalCount: (sistema.renewalCount || 0) + 1
+            // Criar tarefa para a extensão Chrome gerar novas credenciais
+            await storage.createPendingTask('renew_system', {
+              systemId: sistema.id,
+              currentUsername: sistema.usuario,
+              currentPassword: sistema.senha,
+              expiracao: sistema.expiracao,
+              clienteId: sistema.clienteId
             });
             
-            sistemasRenovados++;
-            console.log(`✅ Sistema ${sistema.systemId} renovado com sucesso`);
+            // Marcar sistema como em renovação para evitar duplicatas
+            await storage.marcarSistemaComoRenovando(sistema.id);
+            
+            tarefasCriadas++;
+            console.log(`📋 Tarefa de renovação criada para sistema ${sistema.id}`);
           } catch (error) {
-            console.error(`❌ Erro ao renovar sistema ${sistema.systemId}:`, error);
+            console.error(`❌ Erro ao criar tarefa de renovação para sistema ${sistema.id}:`, error);
           }
         }
       }
       
-      if (sistemasRenovados > 0) {
-        console.log(`✨ ${sistemasRenovados} sistemas renovados automaticamente`);
+      if (tarefasCriadas > 0) {
+        console.log(`📬 ${tarefasCriadas} tarefas de renovação criadas e aguardando processamento`);
       }
     } catch (error) {
       console.error("Erro ao verificar sistemas para renovação:", error);

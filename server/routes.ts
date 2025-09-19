@@ -6714,7 +6714,7 @@ Como posso ajudar você hoje?
     }
     
     try {
-      const { type, credentials, error, taskId, results, summary } = req.body;
+      const { type, credentials, error, taskId, results, summary, systemId, oldCredentials, clienteId } = req.body;
       
       console.log('📥 Recebendo task-complete:', {
         type,
@@ -6832,6 +6832,90 @@ Como posso ajudar você hoje?
         } catch (e) {
           console.error('❌ Erro ao salvar credencial única:', e);
           errors.push({ credential: credentials.username, error: e.message });
+        }
+      }
+      // Processar renovação de sistema IPTV
+      else if (type === 'renew_system' && credentials && systemId) {
+        console.log('🔄 Processando renovação de sistema IPTV...');
+        console.log(`   System ID: ${systemId}`);
+        console.log(`   Novo usuário: ${credentials.username}`);
+        
+        try {
+          // Buscar o sistema
+          const sistema = await storage.getSistemaById(systemId);
+          if (!sistema) {
+            throw new Error(`Sistema ${systemId} não encontrado`);
+          }
+          
+          console.log(`📊 Sistema encontrado: ${sistema.nome}`);
+          console.log(`   API System ID: ${sistema.systemId}`);
+          console.log(`   Usuário anterior: ${oldCredentials?.username || 'N/A'}`);
+          
+          // Atualizar sistema na API externa
+          if (sistema.apiUserId) {
+            console.log('🔄 Atualizando credenciais na API externa...');
+            
+            // Calcular nova data de expiração (30 dias)
+            const newExpiration = new Date();
+            newExpiration.setDate(newExpiration.getDate() + 30);
+            const expTimestamp = Math.floor(newExpiration.getTime() / 1000);
+            
+            await externalApiService.updateUser(sistema.apiUserId, {
+              username: credentials.username,
+              password: credentials.password,
+              exp_date: expTimestamp.toString(),
+              system: parseInt(sistema.systemId)
+            });
+            
+            console.log('✅ API externa atualizada com sucesso');
+          }
+          
+          // Atualizar sistema local
+          const updateData: any = {
+            usuario: credentials.username,
+            senha: credentials.password,
+            expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 dias
+            lastRenewalAt: new Date(),
+            renewalCount: (sistema.renewalCount || 0) + 1,
+            lastCheckedAt: new Date()
+          };
+          
+          await storage.updateSistema(systemId, updateData);
+          console.log('✅ Sistema local atualizado com sucesso');
+          
+          processedCount = 1;
+          
+          // Salvar credencial no histórico
+          const saved = await storage.createOfficeCredentials({
+            username: credentials.username,
+            password: credentials.password,
+            source: 'renewal',
+            status: 'active',
+            generatedAt: new Date(),
+            observacoes: `Renovação automática do sistema ${sistema.nome}`
+          });
+          savedCredentials.push(saved);
+          
+          // Enviar notificação para o cliente se houver
+          if (clienteId) {
+            const cliente = await storage.getClienteById(clienteId);
+            if (cliente && cliente.whatsapp) {
+              const message = `✅ *Sistema Renovado Automaticamente*\n\n` +
+                `Sistema: ${sistema.nome}\n` +
+                `Novo usuário: ${credentials.username}\n` +
+                `Nova senha: ${credentials.password}\n` +
+                `Validade estendida por 30 dias\n\n` +
+                `_Renovação automática realizada com sucesso._`;
+              
+              await whatsappService.sendTextMessage(cliente.whatsapp, message);
+              console.log('📱 Notificação WhatsApp enviada ao cliente');
+            }
+          }
+          
+          console.log('✅ Renovação de sistema concluída com sucesso!');
+        } catch (e) {
+          console.error('❌ Erro ao renovar sistema:', e);
+          errors.push({ systemId, error: e.message });
         }
       }
       

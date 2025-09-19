@@ -1955,7 +1955,8 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(officeAutomationLogs)
       .values({
         taskType: taskType,
-        status: 'pending'
+        status: 'pending',
+        data: data ? JSON.stringify(data) : null
       })
       .returning();
     return result[0];

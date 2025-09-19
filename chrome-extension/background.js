@@ -252,6 +252,8 @@ async function processTask(task) {
     await generateBatch(tabId, task);
   } else if (task.type === 'generate_single') {
     await generateSingle(tabId, task);
+  } else if (task.type === 'renew_system') {
+    await renewSystem(tabId, task);
   }
 }
 
@@ -400,6 +402,83 @@ async function generateSingle(tabId, task) {
     
     if (!reportSuccess) {
       console.error('⚠️ Falha ao reportar erro ao backend!');
+    }
+  }
+}
+
+async function renewSystem(tabId, task) {
+  console.log('🔄 Renovando sistema IPTV...');
+  console.log(`   System ID: ${task.data?.systemId || 'N/A'}`);
+  console.log(`   Usuario atual: ${task.data?.currentUsername || 'N/A'}`);
+  
+  try {
+    // Parse data se for string
+    let taskData = task.data;
+    if (typeof taskData === 'string') {
+      try {
+        taskData = JSON.parse(taskData);
+      } catch (e) {
+        console.error('⚠️ Erro ao fazer parse do data:', e);
+      }
+    }
+    
+    const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
+    
+    if (response && response.success && response.credentials) {
+      console.log('✅ Nova credencial gerada para renovação!');
+      console.log(`   Novo Usuario: ${response.credentials.username}`);
+      console.log(`   Nova Senha: ${response.credentials.password}`);
+      console.log(`   Sistema: ${taskData?.systemId || 'desconhecido'}`);
+      
+      // Reporta sucesso ao backend com systemId
+      const reportSuccess = await reportTaskResult({
+        taskId: task.id,
+        type: 'renew_system',
+        systemId: taskData?.systemId,
+        credentials: {
+          username: response.credentials.username,
+          password: response.credentials.password
+        },
+        oldCredentials: {
+          username: taskData?.currentUsername,
+          password: taskData?.currentPassword
+        },
+        clienteId: taskData?.clienteId
+      });
+      
+      if (!reportSuccess) {
+        console.error('⚠️ Falha ao reportar renovação ao backend!');
+      } else {
+        console.log('✅ Renovação reportada ao backend com sucesso');
+      }
+      
+    } else {
+      throw new Error(response?.error || 'Erro desconhecido ao renovar');
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao renovar sistema:', error.message);
+    
+    // Parse data se for string
+    let taskData = task.data;
+    if (typeof taskData === 'string') {
+      try {
+        taskData = JSON.parse(taskData);
+      } catch (e) {
+        // Ignora erro de parse
+      }
+    }
+    
+    // Reporta erro ao backend
+    const reportSuccess = await reportTaskResult({
+      taskId: task.id,
+      type: 'renew_system',
+      systemId: taskData?.systemId,
+      error: error.message
+    });
+    
+    if (!reportSuccess) {
+      console.error('⚠️ Falha ao reportar erro de renovação ao backend!');
     }
   }
 }
