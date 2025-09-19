@@ -5515,8 +5515,8 @@ Como posso ajudar você hoje?
       // Atualizar sistema com novas credenciais
       const result = await storage.updateSistemaRenewal(sistemaId, username, password);
       
-      // Registrar renovação automática
-      await storage.registrarRenovacaoAutomatica(sistemaId, { username, password });
+      // NÃO chamar registrarRenovacaoAutomatica - updateSistemaRenewal já fez tudo necessário
+      // await storage.registrarRenovacaoAutomatica(sistemaId, { username, password });
       
       res.json(result);
     } catch (error) {
@@ -6231,11 +6231,11 @@ Como posso ajudar você hoje?
             console.error(`❌ Erro ao atualizar API externa:`, apiError);
           }
           
-          // Registrar renovação automática
-          await storage.registrarRenovacaoAutomatica(systemId, {
-            username: usuario,
-            password: senha
-          });
+          // NÃO chamar registrarRenovacaoAutomatica - updateSistemaRenewal já fez tudo necessário
+          // await storage.registrarRenovacaoAutomatica(systemId, {
+          //   username: usuario,
+          //   password: senha
+          // });
           
           // Atualizar task como completa se houver taskId
           if (taskId) {
@@ -6481,11 +6481,17 @@ Como posso ajudar você hoje?
         // Continuar mesmo se falhar na API externa
       }
       
-      // 3. Registrar renovação (mas NÃO salvar em officeCredentials para evitar duplicação)
-      await storage.registrarRenovacaoAutomatica(sistemaId, {
-        username,
-        password
-      });
+      // 3. NÃO chamar registrarRenovacaoAutomatica pois ela sobrescreve a expiração para 30 dias
+      // O updateSistemaRenewal já fez tudo que é necessário:
+      //   - Define expiração = hora atual + 6 horas
+      //   - Atualiza username e password
+      //   - Define status = 'active'
+      //   - Atualiza lastRenewalAt = hora atual
+      //   - Incrementa renewalCount
+      // await storage.registrarRenovacaoAutomatica(sistemaId, {
+      //   username,
+      //   password
+      // });
       
       // 4. Broadcast via WebSocket para atualizar interface
       const wsMessage = JSON.stringify({
