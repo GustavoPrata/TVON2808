@@ -12,7 +12,7 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Edit2, Save, X, Plus, Trash2, Calendar, Phone, CreditCard, User, Users, Monitor, Smartphone, Tv, CheckCircle, XCircle, AlertTriangle, DollarSign, Clock, Shield, Eye, EyeOff, Wifi, Key, CalendarDays, Copy, ExternalLink, Link as LinkIcon, FileText, ZoomIn, ZoomOut, Move } from 'lucide-react';
+import { ArrowLeft, Edit2, Save, X, Plus, Trash2, Calendar, Phone, CreditCard, User, Users, Monitor, Smartphone, Tv, CheckCircle, XCircle, AlertTriangle, DollarSign, Clock, Shield, Eye, EyeOff, Wifi, Key, CalendarDays, Copy, ExternalLink, Link as LinkIcon, FileText, ZoomIn, ZoomOut, Move, Loader2 } from 'lucide-react';
 import { FaWhatsapp } from 'react-icons/fa';
 import { api } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
@@ -58,6 +58,7 @@ export default function ClienteDetalhes() {
     expiracao: format(addYears(new Date(), 1), 'yyyy-MM-dd'),
     sistemaId: null as number | null
   });
+  const [isGeneratingSistema, setIsGeneratingSistema] = useState(false);
 
   const { data: cliente, isLoading: isLoadingCliente } = useQuery({
     queryKey: ['/api/clientes', id],
@@ -439,6 +440,37 @@ export default function ClienteDetalhes() {
     const diffTime = expiryDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+  };
+
+  const handleGenerateSistema = async () => {
+    setIsGeneratingSistema(true);
+    try {
+      const response = await api.post('/api/sistemas/auto-generate');
+      
+      if (response.success && response.sistema) {
+        // Invalidate queries to refresh the sistemas list
+        await queryClient.invalidateQueries({ queryKey: ['/api/sistemas/disponiveis'] });
+        
+        // Select the newly generated system
+        setNewPonto({ ...newPonto, sistemaId: response.sistema.id });
+        
+        toast({
+          title: "Sucesso",
+          description: `Sistema ${response.sistema.systemId} gerado com sucesso!`,
+        });
+      } else {
+        throw new Error(response.error || 'Erro ao gerar sistema');
+      }
+    } catch (error: any) {
+      console.error('Erro ao gerar sistema:', error);
+      toast({
+        title: "Erro",
+        description: error.response?.data?.error || error.message || "Erro ao gerar sistema. Verifique se a extensão Chrome está ativa.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingSistema(false);
+    }
   };
 
   const getExpiryColor = (days: number) => {
@@ -1769,26 +1801,41 @@ export default function ClienteDetalhes() {
 
             <div>
               <Label htmlFor="sistema" className="text-slate-400">Sistema *</Label>
-              <Select
-                value={newPonto.sistemaId?.toString() || ''}
-                onValueChange={(value) => setNewPonto({ ...newPonto, sistemaId: parseInt(value) })}
-              >
-                <SelectTrigger id="sistema" className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition-colors">
-                  <SelectValue placeholder="Selecione um sistema" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sistemas.map((sistema: any) => (
-                    <SelectItem 
-                      key={sistema.id} 
-                      value={sistema.id.toString()}
-                      disabled={sistema.pontosAtivos >= sistema.maxPontosAtivos}
-                    >
-                      {sistema.systemId} ({sistema.pontosAtivos || 0}/{sistema.maxPontosAtivos || 100})
-                      {sistema.pontosAtivos >= sistema.maxPontosAtivos && ' - Limite atingido'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select
+                  value={newPonto.sistemaId?.toString() || ''}
+                  onValueChange={(value) => setNewPonto({ ...newPonto, sistemaId: parseInt(value) })}
+                >
+                  <SelectTrigger id="sistema" className="bg-slate-800/50 border-slate-700 hover:bg-slate-700/50 transition-colors flex-1">
+                    <SelectValue placeholder="Selecione um sistema" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sistemas.map((sistema: any) => (
+                      <SelectItem 
+                        key={sistema.id} 
+                        value={sistema.id.toString()}
+                        disabled={sistema.pontosAtivos >= sistema.maxPontosAtivos}
+                      >
+                        {sistema.systemId} ({sistema.pontosAtivos || 0}/{sistema.maxPontosAtivos || 100})
+                        {sistema.pontosAtivos >= sistema.maxPontosAtivos && ' - Limite atingido'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  onClick={handleGenerateSistema}
+                  disabled={isGeneratingSistema}
+                  className="bg-blue-600 hover:bg-blue-700 px-3"
+                  title="Gerar Novo Sistema"
+                >
+                  {isGeneratingSistema ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
             </div>
 
             <div>
