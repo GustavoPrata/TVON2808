@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RenewalQueueSection, ExtensionLogsSection } from '@/components/renewal-queue-logs';
+import { UnifiedLogsSection } from '@/components/unified-logs';
 
 const systemSchema = z.object({
   username: z.string().min(1, 'Usuário obrigatório'),
@@ -1193,7 +1194,10 @@ export default function PainelOffice() {
         {/* Renewal Queue Section */}
         <RenewalQueueSection />
 
-        {/* Extension Logs Section */}
+        {/* Central de Logs Unificados - TODOS OS LOGS EM UM SÓ LUGAR */}
+        <UnifiedLogsSection />
+        
+        {/* Extension Logs Section (mantido para compatibilidade) */}
         <ExtensionLogsSection />
       </div>
 
