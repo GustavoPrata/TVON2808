@@ -8127,6 +8127,58 @@ Como posso ajudar você hoje?
     }
   });
 
+  // GET /api/all-logs - busca TODOS os logs (aplicação + extensão)
+  app.get('/api/all-logs', async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 500;
+      const level = req.query.level as string;
+      const source = req.query.source as string; // 'all', 'chrome-extension', 'application'
+      
+      // Busca todos os logs
+      let logs = await storage.getOfficeAutomationLogs(limit);
+      
+      // Filtra por fonte se especificado
+      if (source && source !== 'all') {
+        logs = logs.filter(log => {
+          if (source === 'chrome-extension') {
+            return log.source === 'chrome-extension';
+          } else if (source === 'application') {
+            return !log.source || log.source !== 'chrome-extension';
+          }
+          return true;
+        });
+      }
+      
+      // Aplica filtro de nível se fornecido
+      if (level && level !== 'all') {
+        logs = logs.filter(log => log.level === level);
+      }
+
+      // Formata logs para o frontend com indicação de fonte
+      const formattedLogs = logs.map(log => ({
+        timestamp: log.timestamp,
+        level: log.level,
+        message: log.message,
+        context: log.context,
+        traceId: log.traceId,
+        source: log.source || 'application',
+        sourceLabel: log.source === 'chrome-extension' ? '🔧 Extensão' : '🚀 Aplicação'
+      }));
+
+      // Ordena por timestamp decrescente (mais recente primeiro)
+      formattedLogs.sort((a, b) => {
+        const dateA = new Date(a.timestamp).getTime();
+        const dateB = new Date(b.timestamp).getTime();
+        return dateB - dateA;
+      });
+
+      res.json({ success: true, logs: formattedLogs });
+    } catch (error) {
+      console.error('Erro ao buscar todos os logs:', error);
+      res.status(500).json({ error: 'Erro ao buscar logs' });
+    }
+  });
+
   // DELETE /api/extension/logs - limpa logs da extensão Chrome
   app.delete('/api/extension/logs', checkAuth, async (req, res) => {
     try {
