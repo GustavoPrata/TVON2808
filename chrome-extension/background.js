@@ -7,6 +7,7 @@
 class ExtensionLogger {
   constructor() {
     this.MAX_LOGS = 1000;
+    this.STORAGE_KEY = 'extension_logs';
     this.LOG_LEVELS = {
       DEBUG: 'DEBUG',
       INFO: 'INFO', 
@@ -21,9 +22,9 @@ class ExtensionLogger {
     };
   }
 
-  // Adiciona log ao localStorage
-  addLog(level, message, context = {}) {
-    const logs = this.getLogs();
+  // Adiciona log ao chrome.storage.local
+  async addLog(level, message, context = {}) {
+    const logs = await this.getLogs();
     const logEntry = {
       timestamp: new Date().toISOString(),
       level: level,
@@ -39,11 +40,11 @@ class ExtensionLogger {
     }
     
     try {
-      localStorage.setItem('extension_logs', JSON.stringify(logs));
+      await chrome.storage.local.set({ [this.STORAGE_KEY]: logs });
     } catch (e) {
-      // Se falhar ao salvar (estouro de cota), limpar logs antigos
-      this.clearOldLogs();
-      localStorage.setItem('extension_logs', JSON.stringify(logs.slice(-500)));
+      // Se falhar ao salvar, limpar logs antigos
+      await this.clearOldLogs();
+      await chrome.storage.local.set({ [this.STORAGE_KEY]: logs.slice(-500) });
     }
     
     // Também enviar para o console com estilo
@@ -58,64 +59,66 @@ class ExtensionLogger {
   }
 
   // Recupera todos os logs
-  getLogs() {
+  async getLogs() {
     try {
-      const logs = localStorage.getItem('extension_logs');
-      return logs ? JSON.parse(logs) : [];
+      const result = await chrome.storage.local.get(this.STORAGE_KEY);
+      return result[this.STORAGE_KEY] || [];
     } catch (e) {
       return [];
     }
   }
 
   // Filtra logs por nível
-  getLogsByLevel(level) {
-    return this.getLogs().filter(log => log.level === level);
+  async getLogsByLevel(level) {
+    const logs = await this.getLogs();
+    return logs.filter(log => log.level === level);
   }
 
   // Busca logs por texto
-  searchLogs(searchText) {
+  async searchLogs(searchText) {
     const lowerSearch = searchText.toLowerCase();
-    return this.getLogs().filter(log => 
+    const logs = await this.getLogs();
+    return logs.filter(log => 
       log.message.toLowerCase().includes(lowerSearch) ||
       JSON.stringify(log.context).toLowerCase().includes(lowerSearch)
     );
   }
 
   // Limpa todos os logs
-  clearLogs() {
-    localStorage.removeItem('extension_logs');
-    this.info('Logs limpos pelo usuário');
+  async clearLogs() {
+    await chrome.storage.local.remove(this.STORAGE_KEY);
+    await this.info('Logs limpos pelo usuário');
   }
 
   // Limpa logs antigos (mantém apenas os últimos 500)
-  clearOldLogs() {
-    const logs = this.getLogs();
+  async clearOldLogs() {
+    const logs = await this.getLogs();
     if (logs.length > 500) {
       const recentLogs = logs.slice(-500);
-      localStorage.setItem('extension_logs', JSON.stringify(recentLogs));
+      await chrome.storage.local.set({ [this.STORAGE_KEY]: recentLogs });
     }
   }
 
   // Métodos de conveniência para cada nível
-  debug(message, context = {}) {
-    this.addLog(this.LOG_LEVELS.DEBUG, message, context);
+  async debug(message, context = {}) {
+    await this.addLog(this.LOG_LEVELS.DEBUG, message, context);
   }
 
-  info(message, context = {}) {
-    this.addLog(this.LOG_LEVELS.INFO, message, context);
+  async info(message, context = {}) {
+    await this.addLog(this.LOG_LEVELS.INFO, message, context);
   }
 
-  warn(message, context = {}) {
-    this.addLog(this.LOG_LEVELS.WARN, message, context);
+  async warn(message, context = {}) {
+    await this.addLog(this.LOG_LEVELS.WARN, message, context);
   }
 
-  error(message, context = {}) {
-    this.addLog(this.LOG_LEVELS.ERROR, message, context);
+  async error(message, context = {}) {
+    await this.addLog(this.LOG_LEVELS.ERROR, message, context);
   }
 
   // Formata logs para exibição
-  formatLogs(logs = null) {
-    const logsToFormat = logs || this.getLogs();
+  async formatLogs(logs = null) {
+    const logsToFormat = logs || await this.getLogs();
     return logsToFormat.map(log => {
       const date = new Date(log.timestamp);
       const timeStr = date.toLocaleTimeString('pt-BR');
@@ -128,14 +131,15 @@ class ExtensionLogger {
   }
 
   // Exporta logs como texto
-  exportAsText() {
-    const logs = this.getLogs();
+  async exportAsText() {
+    const logs = await this.getLogs();
     const header = `=== OnlineOffice Extension Logs ===\n`;
     const exportDate = `Exportado em: ${new Date().toLocaleString('pt-BR')}\n`;
     const totalLogs = `Total de logs: ${logs.length}\n`;
     const separator = '=' .repeat(50) + '\n\n';
     
-    return header + exportDate + totalLogs + separator + this.formatLogs(logs);
+    const formatted = await this.formatLogs(logs);
+    return header + exportDate + totalLogs + separator + formatted;
   }
 }
 
@@ -166,18 +170,21 @@ let currentPollingInterval = POLLING_INTERVAL_IDLE;
 // ===========================================================================
 // INICIALIZAÇÃO
 // ===========================================================================
-logger.info('🚀 Background script iniciado (versão backend-driven)');
+// Inicialização assíncrona do logger
+(async () => {
+  await logger.info('🚀 Background script iniciado (versão backend-driven)');
+})();
 
 // Usa Chrome Alarms API para manter a extensão sempre ativa
-function setupAlarms() {
+async function setupAlarms() {
   // Remove alarme anterior se existir
-  chrome.alarms.clear('pollBackend', () => {
+  chrome.alarms.clear('pollBackend', async () => {
     // Cria novo alarme que dispara a cada 20 segundos (mais rápido para não perder timing)
     chrome.alarms.create('pollBackend', {
       periodInMinutes: 0.33, // 20 segundos
       delayInMinutes: 0 // Começa imediatamente
     });
-    logger.info('⏰ Alarme configurado para polling automático a cada 20s');
+    await logger.info('⏰ Alarme configurado para polling automático a cada 20s');
   });
   
   // Cria alarme adicional para verificação de status
@@ -190,7 +197,7 @@ function setupAlarms() {
 // Listener para os alarmes
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'pollBackend') {
-    logger.debug('⏰ Alarme disparado: checando tarefas...', { alarm: alarm.name });
+    await logger.debug('⏰ Alarme disparado: checando tarefas...', { alarm: alarm.name });
     await checkForTasks();
   } else if (alarm.name === 'checkStatus') {
     // Verifica se precisa abrir a aba do OnlineOffice
@@ -199,23 +206,25 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 
 // Inicia quando o Chrome abre
-chrome.runtime.onStartup.addListener(() => {
-  logger.info('📦 Chrome iniciado, configurando automação...');
-  setupAlarms();
-  checkForTasks(); // Checa imediatamente
-  ensureOfficeTabOpen(); // Garante que a aba está aberta
+chrome.runtime.onStartup.addListener(async () => {
+  await logger.info('📦 Chrome iniciado, configurando automação...');
+  await setupAlarms();
+  await checkForTasks(); // Checa imediatamente
+  await ensureOfficeTabOpen(); // Garante que a aba está aberta
 });
 
 // Inicia quando instalado/atualizado
-chrome.runtime.onInstalled.addListener(() => {
-  logger.info('🔧 Extensão instalada/atualizada, configurando automação...');
-  setupAlarms();
-  checkForTasks(); // Checa imediatamente
+chrome.runtime.onInstalled.addListener(async () => {
+  await logger.info('🔧 Extensão instalada/atualizada, configurando automação...');
+  await setupAlarms();
+  await checkForTasks(); // Checa imediatamente
 });
 
 // Inicia verificação imediata
-setupAlarms();
-checkForTasks();
+(async () => {
+  await setupAlarms();
+  await checkForTasks();
+})();
 
 // Função para garantir que a aba do OnlineOffice está aberta
 async function ensureOfficeTabOpen() {
@@ -227,7 +236,7 @@ async function ensureOfficeTabOpen() {
   });
   
   if (tabs.length === 0) {
-    logger.info('📂 Abrindo aba do OnlineOffice automaticamente...');
+    await logger.info('📂 Abrindo aba do OnlineOffice automaticamente...');
     chrome.tabs.create({ 
       url: OFFICE_URL,
       active: false // Abre em background
@@ -238,8 +247,8 @@ async function ensureOfficeTabOpen() {
 // ===========================================================================
 // POLLING DO BACKEND (Agora usando Alarms API)
 // ===========================================================================
-function updatePollingInterval(minutes) {
-  logger.debug(`🔄 Atualizando intervalo de polling para ${minutes} minutos`);
+async function updatePollingInterval(minutes) {
+  await logger.debug(`🔄 Atualizando intervalo de polling para ${minutes} minutos`);
   
   chrome.alarms.clear('pollBackend', () => {
     chrome.alarms.create('pollBackend', {
@@ -252,14 +261,14 @@ function updatePollingInterval(minutes) {
 async function checkForTasks() {
   // Se já está processando, pula esta checagem
   if (isProcessingTask) {
-    logger.debug('⏳ Já processando tarefa, pulando checagem...');
+    await logger.debug('⏳ Já processando tarefa, pulando checagem...');
     return;
   }
   
   // Evita requisições muito frequentes
   const now = Date.now();
   if (now - lastStatus.lastCheck < 5000) {
-    logger.debug('🚫 Checagem muito recente, aguardando...');
+    await logger.debug('🚫 Checagem muito recente, aguardando...');
     return;
   }
   lastStatus.lastCheck = now;
@@ -272,47 +281,47 @@ async function checkForTasks() {
         'Content-Type': 'application/json',
         'X-Extension-Key': 'chrome-extension-secret-2024'
       }
-    }).catch(err => {
-      logger.error('❌ Erro na requisição:', { error: err.message });
+    }).catch(async err => {
+      await logger.error('❌ Erro na requisição:', { error: err.message });
       return null;
     });
     
     if (!response) {
-      updateBadge(false);
+      await updateBadge(false);
       return;
     }
     
     if (!response.ok) {
-      logger.error('❌ Erro ao consultar backend', { status: response.status });
-      updateBadge(false);
+      await logger.error('❌ Erro ao consultar backend', { status: response.status });
+      await updateBadge(false);
       return;
     }
     
     const data = await response.json();
     
     // Atualiza badge baseado no status
-    updateBadge(data.isEnabled || false);
+    await updateBadge(data.isEnabled || false);
     lastStatus.isEnabled = data.isEnabled || false;
     
     // Ajusta intervalo de polling baseado no status
     if (!lastStatus.isEnabled && currentPollingInterval !== POLLING_INTERVAL_IDLE) {
-      logger.info('🟠 Automação desabilitada, mudando para polling lento (60s)...');
+      await logger.info('🟠 Automação desabilitada, mudando para polling lento (60s)...');
       currentPollingInterval = POLLING_INTERVAL_IDLE;
-      updatePollingInterval(1); // 1 minuto
+      await updatePollingInterval(1); // 1 minuto
       return;
     } else if (lastStatus.isEnabled && currentPollingInterval !== POLLING_INTERVAL_ACTIVE) {
-      logger.info('🟢 Automação habilitada, mudando para polling normal (30s)...');
+      await logger.info('🟢 Automação habilitada, mudando para polling normal (30s)...');
       currentPollingInterval = POLLING_INTERVAL_ACTIVE;
-      updatePollingInterval(0.5); // 30 segundos
+      await updatePollingInterval(0.5); // 30 segundos
     }
     
     // Se não há tarefa, continua polling
     if (!data.hasTask) {
-      logger.debug(`⏰ Sem tarefas. Próxima checagem em ${currentPollingInterval / 1000}s`);
+      await logger.debug(`⏰ Sem tarefas. Próxima checagem em ${currentPollingInterval / 1000}s`);
       return;
     }
     
-    logger.info('📋 Nova tarefa recebida do backend', { task: data.task });
+    await logger.info('📋 Nova tarefa recebida do backend', { task: data.task });
     
     // Marca como processando
     isProcessingTask = true;
@@ -321,20 +330,20 @@ async function checkForTasks() {
     await processTask(data.task);
     
     // Após processar, fazer polling mais rápido temporariamente
-    logger.info('⚡ Tarefa processada, fazendo polling rápido temporário (10s)...');
+    await logger.info('⚡ Tarefa processada, fazendo polling rápido temporário (10s)...');
     currentPollingInterval = POLLING_INTERVAL_FAST;
-    updatePollingInterval(0.17); // ~10 segundos
-    setTimeout(() => {
+    await updatePollingInterval(0.17); // ~10 segundos
+    setTimeout(async () => {
       if (lastStatus.isEnabled) {
-        logger.info('⏰ Voltando ao polling normal (30s)...');
+        await logger.info('⏰ Voltando ao polling normal (30s)...');
         currentPollingInterval = POLLING_INTERVAL_ACTIVE;
-        updatePollingInterval(0.5); // 30 segundos
+        await updatePollingInterval(0.5); // 30 segundos
       }
     }, 60000); // Volta ao normal após 1 minuto
     
   } catch (error) {
-    logger.error('❌ Erro no polling', { error: error.message });
-    updateBadge(false);
+    await logger.error('❌ Erro no polling', { error: error.message });
+    await updateBadge(false);
   } finally {
     isProcessingTask = false;
   }
@@ -344,11 +353,11 @@ async function checkForTasks() {
 // PROCESSAMENTO DE TAREFAS
 // ===========================================================================
 async function processTask(task) {
-  logger.info('========================================');
-  logger.info('🎯 PROCESSANDO TAREFA DO BACKEND');
-  logger.info(`📦 Tipo: ${task.type}`);
-  logger.info(`🔢 Quantidade: ${task.quantity || 1}`);
-  logger.info('========================================');
+  await logger.info('========================================');
+  await logger.info('🎯 PROCESSANDO TAREFA DO BACKEND');
+  await logger.info(`📦 Tipo: ${task.type}`);
+  await logger.info(`🔢 Quantidade: ${task.quantity || 1}`);
+  await logger.info('========================================');
   
   // Procura aba do OnlineOffice
   let tabs = await chrome.tabs.query({
@@ -357,7 +366,7 @@ async function processTask(task) {
   
   // Se não encontrar, tenta abrir automaticamente
   if (tabs.length === 0) {
-    logger.warn('📂 Nenhuma aba OnlineOffice encontrada. Abrindo automaticamente...');
+    await logger.warn('📂 Nenhuma aba OnlineOffice encontrada. Abrindo automaticamente...');
     
     // Cria nova aba com o OnlineOffice
     const newTab = await chrome.tabs.create({
@@ -366,7 +375,7 @@ async function processTask(task) {
     });
     
     // Aguarda a aba carregar
-    logger.info('⏳ Aguardando aba carregar...');
+    await logger.info('⏳ Aguardando aba carregar...');
     await new Promise(resolve => setTimeout(resolve, 5000));
     
     // Procura novamente
@@ -375,7 +384,7 @@ async function processTask(task) {
     });
     
     if (tabs.length === 0) {
-      logger.error('❌ ERRO: Não conseguiu abrir aba OnlineOffice!');
+      await logger.error('❌ ERRO: Não conseguiu abrir aba OnlineOffice!');
       await reportTaskResult({
         taskId: task.id,
         success: false,
@@ -386,7 +395,7 @@ async function processTask(task) {
   }
   
   const tabId = tabs[0].id;
-  logger.info(`✅ Aba encontrada`, { url: tabs[0].url });
+  await logger.info(`✅ Aba encontrada`, { url: tabs[0].url });
   
   // Processa baseado no tipo de tarefa
   if (task.type === 'generate_batch') {
@@ -404,10 +413,10 @@ async function generateBatch(tabId, task) {
   let errorCount = 0;
   const results = [];
   
-  logger.info(`📦 Gerando lote de ${quantity} credenciais...`);
+  await logger.info(`📦 Gerando lote de ${quantity} credenciais...`);
   
   for (let i = 0; i < quantity; i++) {
-    logger.info(`🎯 Gerando credencial ${i + 1}/${quantity}...`);
+    await logger.info(`🎯 Gerando credencial ${i + 1}/${quantity}...`);
     
     try {
       // Envia comando para content script
@@ -416,7 +425,7 @@ async function generateBatch(tabId, task) {
       if (response && response.success && response.credentials) {
         successCount++;
         
-        logger.info(`✅ Sucesso! Credencial ${i + 1} gerada`, {
+        await logger.info(`✅ Sucesso! Credencial ${i + 1} gerada`, {
           username: response.credentials.username,
           password: response.credentials.password
         });
@@ -439,7 +448,7 @@ async function generateBatch(tabId, task) {
         
       } else {
         errorCount++;
-        logger.error(`❌ Erro na credencial ${i + 1}`, { error: response?.error || 'Sem resposta' });
+        await logger.error(`❌ Erro na credencial ${i + 1}`, { error: response?.error || 'Sem resposta' });
         
         results.push({
           success: false,
@@ -449,7 +458,7 @@ async function generateBatch(tabId, task) {
       
     } catch (error) {
       errorCount++;
-      logger.error(`❌ Erro ao gerar credencial ${i + 1}`, { error: error.message });
+      await logger.error(`❌ Erro ao gerar credencial ${i + 1}`, { error: error.message });
       
       results.push({
         success: false,
@@ -458,23 +467,23 @@ async function generateBatch(tabId, task) {
       
       // Se perdeu conexão com a aba, parar
       if (error.message.includes('Could not establish connection')) {
-        logger.error('🔌 Perdeu conexão com a aba. Parando lote...');
+        await logger.error('🔌 Perdeu conexão com a aba. Parando lote...');
         break;
       }
     }
     
     // Aguarda entre gerações
     if (i < quantity - 1) {
-      logger.debug('⏳ Aguardando 5 segundos antes da próxima...');
+      await logger.debug('⏳ Aguardando 5 segundos antes da próxima...');
       await new Promise(resolve => setTimeout(resolve, 5000));
     }
   }
   
-  logger.info('========================================');
-  logger.info('📊 LOTE COMPLETO');
-  logger.info(`✅ Sucesso: ${successCount} credenciais`);
-  logger.info(`❌ Erros: ${errorCount}`);
-  logger.info('========================================');
+  await logger.info('========================================');
+  await logger.info('📊 LOTE COMPLETO');
+  await logger.info(`✅ Sucesso: ${successCount} credenciais`);
+  await logger.info(`❌ Erros: ${errorCount}`);
+  await logger.info('========================================');
   
   // Reporta resultados ao backend - IMPORTANTE: Usar formato correto
   const reportSuccess = await reportTaskResult({
@@ -489,20 +498,20 @@ async function generateBatch(tabId, task) {
   });
   
   if (!reportSuccess) {
-    logger.error('⚠️ Falha ao reportar resultado ao backend!');
+    await logger.error('⚠️ Falha ao reportar resultado ao backend!');
   } else {
-    logger.info('✅ Resultado reportado ao backend com sucesso');
+    await logger.info('✅ Resultado reportado ao backend com sucesso');
   }
 }
 
 async function generateSingle(tabId, task) {
-  logger.info('🎯 Gerando credencial única...');
+  await logger.info('🎯 Gerando credencial única...');
   
   try {
     const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
     
     if (response && response.success && response.credentials) {
-      logger.info('✅ Credencial gerada com sucesso!', {
+      await logger.info('✅ Credencial gerada com sucesso!', {
         username: response.credentials.username,
         password: response.credentials.password
       });
@@ -518,9 +527,9 @@ async function generateSingle(tabId, task) {
       });
       
       if (!reportSuccess) {
-        logger.error('⚠️ Falha ao reportar credencial ao backend!');
+        await logger.error('⚠️ Falha ao reportar credencial ao backend!');
       } else {
-        logger.info('✅ Credencial reportada ao backend com sucesso');
+        await logger.info('✅ Credencial reportada ao backend com sucesso');
       }
       
       // Notifica popup
@@ -534,7 +543,7 @@ async function generateSingle(tabId, task) {
     }
     
   } catch (error) {
-    logger.error('❌ Erro ao gerar credencial', { error: error.message });
+    await logger.error('❌ Erro ao gerar credencial', { error: error.message });
     
     // Reporta erro ao backend
     const reportSuccess = await reportTaskResult({
@@ -544,13 +553,13 @@ async function generateSingle(tabId, task) {
     });
     
     if (!reportSuccess) {
-      logger.error('⚠️ Falha ao reportar erro ao backend!');
+      await logger.error('⚠️ Falha ao reportar erro ao backend!');
     }
   }
 }
 
 async function renewSystem(tabId, task) {
-  logger.info('🔄 Renovando sistema IPTV...', { taskData: task });
+  await logger.info('🔄 Renovando sistema IPTV...', { taskData: task });
   
   // Extrair sistemaId de diferentes locais possíveis
   const sistemaId = task.sistemaId || 
@@ -566,7 +575,7 @@ async function renewSystem(tabId, task) {
                           task.data?.currentUsername || 
                           'N/A';
   
-  logger.info('📋 Dados da renovação', {
+  await logger.info('📋 Dados da renovação', {
     sistemaId: sistemaId || 'N/A',
     usuarioAtual: originalUsername,
     taskId: task.id
@@ -581,7 +590,7 @@ async function renewSystem(tabId, task) {
       try {
         taskData = JSON.parse(taskData);
       } catch (e) {
-        logger.warn('⚠️ Erro ao fazer parse do data', { error: e.message });
+        await logger.warn('⚠️ Erro ao fazer parse do data', { error: e.message });
       }
     }
     
@@ -589,21 +598,21 @@ async function renewSystem(tabId, task) {
       try {
         metadata = JSON.parse(metadata);
       } catch (e) {
-        logger.warn('⚠️ Erro ao fazer parse do metadata', { error: e.message });
+        await logger.warn('⚠️ Erro ao fazer parse do metadata', { error: e.message });
       }
     }
     
     const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
     
     if (response && response.success && response.credentials) {
-      logger.info('✅ Nova credencial gerada para renovação!', {
+      await logger.info('✅ Nova credencial gerada para renovação!', {
         novoUsuario: response.credentials.username,
         novaSenha: response.credentials.password,
         sistemaId: sistemaId || 'desconhecido'
       });
       
       // NOVO: Editar o sistema no OnlineOffice com as novas credenciais
-      logger.info('📝 Iniciando edição do sistema no OnlineOffice...', { sistemaId });
+      await logger.info('📝 Iniciando edição do sistema no OnlineOffice...', { sistemaId });
       
       try {
         // Envia comando para editar o sistema
@@ -617,7 +626,7 @@ async function renewSystem(tabId, task) {
         if (!editResponse || !editResponse.success) {
           // Se falhou ao editar, lança erro
           const errorMsg = editResponse?.error || 'Falha desconhecida ao editar sistema';
-          logger.error('❌ Falha ao editar sistema no OnlineOffice', { 
+          await logger.error('❌ Falha ao editar sistema no OnlineOffice', { 
             sistemaId, 
             error: errorMsg,
             response: editResponse 
@@ -625,14 +634,14 @@ async function renewSystem(tabId, task) {
           throw new Error(`Falha ao editar sistema: ${errorMsg}`);
         }
         
-        logger.info('✅ Sistema editado com sucesso no OnlineOffice!', {
+        await logger.info('✅ Sistema editado com sucesso no OnlineOffice!', {
           sistemaId,
           username: response.credentials.username
         });
         
       } catch (editError) {
         // Se falhou ao editar, reporta erro e não continua
-        logger.error('❌ Erro crítico ao editar sistema', { 
+        await logger.error('❌ Erro crítico ao editar sistema', { 
           sistemaId,
           error: editError.message
         });
@@ -663,7 +672,7 @@ async function renewSystem(tabId, task) {
       }
       
       // Só reporta sucesso se AMBOS geraram credenciais E editaram o sistema
-      logger.info('✅ Renovação completa: credenciais geradas E sistema editado!', { sistemaId });
+      await logger.info('✅ Renovação completa: credenciais geradas E sistema editado!', { sistemaId });
       
       // Reporta sucesso ao backend com sistemaId garantido
       const reportSuccess = await reportTaskResult({
@@ -691,9 +700,9 @@ async function renewSystem(tabId, task) {
       });
       
       if (!reportSuccess) {
-        logger.error('⚠️ Falha ao reportar renovação ao backend!', { sistemaId });
+        await logger.error('⚠️ Falha ao reportar renovação ao backend!', { sistemaId });
       } else {
-        logger.info('✅ Renovação completa reportada ao backend com sucesso', { 
+        await logger.info('✅ Renovação completa reportada ao backend com sucesso', { 
           sistemaId,
           username: response.credentials.username,
           edited: true
@@ -705,7 +714,7 @@ async function renewSystem(tabId, task) {
     }
     
   } catch (error) {
-    logger.error('❌ Erro ao renovar sistema', { error: error.message, sistemaId });
+    await logger.error('❌ Erro ao renovar sistema', { error: error.message, sistemaId });
     
     // Parse data e metadata se forem strings
     let taskData = task.data;
@@ -742,7 +751,7 @@ async function renewSystem(tabId, task) {
     });
     
     if (!reportSuccess) {
-      logger.error('⚠️ Falha ao reportar erro de renovação ao backend!');
+      await logger.error('⚠️ Falha ao reportar erro de renovação ao backend!');
     }
   }
 }
@@ -751,7 +760,7 @@ async function renewSystem(tabId, task) {
 // COMUNICAÇÃO COM BACKEND
 // ===========================================================================
 async function reportTaskResult(result) {
-  logger.info('📤 Reportando resultado ao backend', { result });
+  await logger.info('📤 Reportando resultado ao backend', { result });
   
   try {
     // Usa o endpoint correto task-complete
@@ -766,19 +775,19 @@ async function reportTaskResult(result) {
     
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error('❌ Erro ao reportar resultado', { 
+      await logger.error('❌ Erro ao reportar resultado', { 
         status: response.status,
         response: errorText 
       });
       return false;
     } else {
       const data = await response.json();
-      logger.info('✅ Resultado reportado com sucesso', { response: data });
+      await logger.info('✅ Resultado reportado com sucesso', { response: data });
       return true;
     }
     
   } catch (error) {
-    logger.error('❌ Erro ao reportar resultado', { error: error.message });
+    await logger.error('❌ Erro ao reportar resultado', { error: error.message });
     return false;
   }
 }
@@ -786,7 +795,7 @@ async function reportTaskResult(result) {
 // ===========================================================================
 // ATUALIZAÇÃO DE BADGE
 // ===========================================================================
-function updateBadge(isEnabled) {
+async function updateBadge(isEnabled) {
   const newBadge = isEnabled ? 'ON' : '';
   
   // Só atualiza se mudou
@@ -794,10 +803,10 @@ function updateBadge(isEnabled) {
     if (isEnabled) {
       chrome.action.setBadgeText({ text: 'ON' });
       chrome.action.setBadgeBackgroundColor({ color: '#28a745' });
-      logger.debug('🟢 Badge: ON');
+      await logger.debug('🟢 Badge: ON');
     } else {
       chrome.action.setBadgeText({ text: '' });
-      logger.debug('⚫ Badge: OFF');
+      await logger.debug('⚫ Badge: OFF');
     }
     
     lastStatus.badge = newBadge;
@@ -808,20 +817,20 @@ function updateBadge(isEnabled) {
 // ===========================================================================
 // LISTENER DE MENSAGENS DO POPUP E COMUNICAÇÃO COM BACKEND
 // ===========================================================================
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  logger.debug('📨 Mensagem recebida', { type: request.type, from: sender.tab ? 'tab' : 'popup' });
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+  await logger.debug('📨 Mensagem recebida', { type: request.type, from: sender.tab ? 'tab' : 'popup' });
   
   // Mensagens de gerenciamento de logs
   if (request.type === 'getLogs') {
     const filters = request.filters || {};
-    let logs = logger.getLogs();
+    let logs = await logger.getLogs();
     
     // Aplicar filtros
     if (filters.level) {
       logs = logs.filter(log => log.level === filters.level);
     }
     if (filters.searchText) {
-      logs = logger.searchLogs(filters.searchText);
+      logs = await logger.searchLogs(filters.searchText);
     }
     if (filters.limit) {
       logs = logs.slice(-filters.limit);
@@ -830,19 +839,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({
       success: true,
       logs: logs,
-      formatted: logger.formatLogs(logs)
+      formatted: await logger.formatLogs(logs)
     });
     return true;
   }
   
   if (request.type === 'clearLogs') {
-    logger.clearLogs();
+    await logger.clearLogs();
     sendResponse({ success: true });
     return true;
   }
   
   if (request.type === 'exportLogs') {
-    const exportText = logger.exportAsText();
+    const exportText = await logger.exportAsText();
     sendResponse({
       success: true,
       text: exportText
@@ -871,7 +880,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   // Outras mensagens são ignoradas pois tudo é controlado pelo backend
-  logger.debug('⚠️ Mensagem ignorada - controle via backend');
+  await logger.debug('⚠️ Mensagem ignorada - controle via backend');
   sendResponse({
     success: false,
     message: 'Use o painel de controle web para gerenciar a automação'
@@ -879,4 +888,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
-logger.info('✅ Background script carregado e polling iniciado');
+// Log de carregamento inicial
+(async () => {
+  await logger.info('✅ Background script carregado e polling iniciado');
+})();
