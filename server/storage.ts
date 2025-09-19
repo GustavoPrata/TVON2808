@@ -23,6 +23,50 @@ import {
 } from "@shared/schema";
 import { eq, desc, asc, sql, and, or, gte, lte, ilike, ne, count } from "drizzle-orm";
 
+// Helper functions para mapeamento snake_case <-> camelCase
+function mapSistemaToFrontend(sistema: Sistema): any {
+  if (!sistema) return sistema;
+  
+  return {
+    ...sistema,
+    autoRenewalEnabled: sistema.autoRenewalEnabled,
+    renewalAdvanceTime: sistema.renewalAdvanceTime,
+    lastRenewalAt: sistema.lastRenewalAt,
+    renewalCount: sistema.renewalCount,
+    expiracao: sistema.expiration, // map expiration to expiracao for backward compatibility
+    pontosAtivos: sistema.pontosAtivos,
+    maxPontosAtivos: sistema.maxPontosAtivos,
+    criadoEm: sistema.criadoEm,
+    atualizadoEm: sistema.atualizadoEm
+  };
+}
+
+function mapSistemaFromFrontend(data: any): any {
+  if (!data) return data;
+  
+  // Map camelCase from frontend to snake_case for database
+  const mapped: any = { ...data };
+  
+  if ('autoRenewalEnabled' in data) {
+    mapped.autoRenewalEnabled = data.autoRenewalEnabled;
+  }
+  if ('renewalAdvanceTime' in data) {
+    mapped.renewalAdvanceTime = data.renewalAdvanceTime;
+  }
+  if ('lastRenewalAt' in data) {
+    mapped.lastRenewalAt = data.lastRenewalAt;
+  }
+  if ('renewalCount' in data) {
+    mapped.renewalCount = data.renewalCount;
+  }
+  if ('expiracao' in data) {
+    mapped.expiration = data.expiracao; // map expiracao to expiration for database
+    delete mapped.expiracao;
+  }
+  
+  return mapped;
+}
+
 export interface IStorage {
   // Clientes
   getClientes(): Promise<Cliente[]>;
@@ -1073,7 +1117,8 @@ export class DatabaseStorage implements IStorage {
 
   async getSistemas(): Promise<Sistema[]> {
     try {
-      return await db.select().from(sistemas).orderBy(asc(sistemas.systemId));
+      const result = await db.select().from(sistemas).orderBy(asc(sistemas.systemId));
+      return result.map(mapSistemaToFrontend);
     } catch (error: any) {
       if (error.code === '42P01') {
         // Table doesn't exist, create it
@@ -1096,25 +1141,27 @@ export class DatabaseStorage implements IStorage {
 
   async getSistemaById(id: number): Promise<Sistema | undefined> {
     const result = await db.select().from(sistemas).where(eq(sistemas.id, id)).limit(1);
-    return result[0];
+    return result[0] ? mapSistemaToFrontend(result[0]) : undefined;
   }
 
   async getSistemaBySystemId(systemId: string): Promise<Sistema | undefined> {
     const result = await db.select().from(sistemas).where(eq(sistemas.systemId, systemId)).limit(1);
-    return result[0];
+    return result[0] ? mapSistemaToFrontend(result[0]) : undefined;
   }
 
   async createSistema(sistema: InsertSistema): Promise<Sistema> {
-    const result = await db.insert(sistemas).values(sistema).returning();
-    return result[0];
+    const mapped = mapSistemaFromFrontend(sistema);
+    const result = await db.insert(sistemas).values(mapped).returning();
+    return mapSistemaToFrontend(result[0]);
   }
 
   async updateSistema(id: number, sistema: Partial<InsertSistema>): Promise<Sistema> {
+    const mapped = mapSistemaFromFrontend(sistema);
     const result = await db.update(sistemas)
-      .set({ ...sistema, atualizadoEm: new Date() })
+      .set({ ...mapped, atualizadoEm: new Date() })
       .where(eq(sistemas.id, id))
       .returning();
-    return result[0];
+    return mapSistemaToFrontend(result[0]);
   }
 
   async deleteSistema(id: number): Promise<void> {
@@ -1144,7 +1191,7 @@ export class DatabaseStorage implements IStorage {
           systemId: apiSystem.system_id,
           username: apiSystem.username,
           password: apiSystem.password,
-          expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
+          expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
         });
       }
     }
@@ -1169,11 +1216,19 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(sistemas.autoRenewalEnabled, true),
-          ne(sistemas.status, 'renewing'),
-          sql`${sistemas.expiracao} <= ${now} + INTERVAL '1 minute' * ${sistemas.renewalAdvanceTime}`
+          ne(sistemas.status, 'renewing')
         )
       );
-    return result;
+    
+    // Filtrar sistemas que estão dentro do tempo de renovação antecipada
+    const filteredResult = result.filter((sistema) => {
+      if (!sistema.expiracao) return false;
+      const renewalTime = (sistema.renewalAdvanceTime || 60) * 60 * 1000; // Em milissegundos
+      const timeToExpire = sistema.expiracao.getTime() - now.getTime();
+      return timeToExpire <= renewalTime && timeToExpire > 0;
+    });
+    
+    return filteredResult.map(mapSistemaToFrontend);
   }
 
   async getSistemasVencidos(): Promise<Sistema[]> {
@@ -1187,7 +1242,7 @@ export class DatabaseStorage implements IStorage {
           eq(sistemas.status, 'active')
         )
       );
-    return result;
+    return result.map(mapSistemaToFrontend);
   }
 
   async getSistemasProximoVencimento(dias: number): Promise<Sistema[]> {
@@ -1204,7 +1259,7 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .orderBy(asc(sistemas.expiracao));
-    return result;
+    return result.map(mapSistemaToFrontend);
   }
 
   async updateSistemaRenewal(id: number, username: string, password: string): Promise<Sistema> {
@@ -1213,7 +1268,7 @@ export class DatabaseStorage implements IStorage {
       .set({
         username,
         password,
-        expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Adiciona 30 dias
+        expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Adiciona 30 dias
         lastRenewalAt: new Date(),
         renewalCount: sql`${sistemas.renewalCount} + 1`,
         status: 'active',
@@ -1221,7 +1276,7 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(sistemas.id, id))
       .returning();
-    return result;
+    return mapSistemaToFrontend(result);
   }
 
   async marcarSistemaComoRenovando(id: number): Promise<void> {
@@ -1261,7 +1316,7 @@ export class DatabaseStorage implements IStorage {
         .set({
           username: novaCredencial.username,
           password: novaCredencial.password,
-          expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           lastRenewalAt: new Date(),
           renewalCount: sql`${sistemas.renewalCount} + 1`,
           status: 'active',
@@ -1301,7 +1356,7 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(asc(sistemas.expiracao));
     
-    return result;
+    return result.map(mapSistemaToFrontend);
   }
 
   // Método para renovar sistema (atualizar expiração e outros dados)

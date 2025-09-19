@@ -195,10 +195,9 @@ app.use((req, res, next) => {
             // Criar tarefa para a extensão Chrome gerar novas credenciais
             await storage.createPendingTask('renew_system', {
               systemId: sistema.id,
-              currentUsername: sistema.usuario,
-              currentPassword: sistema.senha,
-              expiracao: sistema.expiracao,
-              clienteId: sistema.clienteId
+              currentUsername: sistema.username,
+              currentPassword: sistema.password,
+              expiracao: sistema.expiracao
             });
             
             // Marcar sistema como em renovação para evitar duplicatas
