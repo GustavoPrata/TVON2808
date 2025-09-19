@@ -491,7 +491,221 @@ observer.observe(document.body, {
   subtree: true
 });
 
+// ===========================================================================
+// FUNÇÕES AUXILIARES
+// ===========================================================================
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForPageLoad() {
+  return new Promise(resolve => {
+    if (document.readyState === 'complete') {
+      resolve();
+    } else {
+      window.addEventListener('load', () => resolve(), { once: true });
+    }
+  });
+}
+
+// ===========================================================================
+// FUNÇÃO PARA EDITAR SISTEMA NO ONLINEOFFICE
+// ===========================================================================
+async function editSystem(sistemaId, username, password) {
+  console.log('📝 Iniciando edição do sistema', { sistemaId, username });
+  
+  try {
+    // Navegar para página de edição
+    const editUrl = `https://onlineoffice.zip/iptv/edit_system.php?id=${sistemaId}`;
+    console.log('🔄 Navegando para:', editUrl);
+    window.location.href = editUrl;
+    
+    // Aguardar página carregar completamente
+    await waitForPageLoad();
+    console.log('✅ Página de edição carregada');
+    await sleep(2000); // Aguarda elementos carregarem
+    
+    // Preencher campos de username e password
+    console.log('🔍 Procurando campos de edição...');
+    
+    // Tenta diferentes seletores para o campo de username
+    let usernameField = document.querySelector('input[name="username"]') ||
+                        document.querySelector('input[name="user"]') ||
+                        document.querySelector('input[name="usuario"]') ||
+                        document.querySelector('#username') ||
+                        document.querySelector('input[type="text"][placeholder*="usuário" i]');
+    
+    // Tenta diferentes seletores para o campo de password
+    let passwordField = document.querySelector('input[name="password"]') ||
+                        document.querySelector('input[name="senha"]') ||
+                        document.querySelector('input[name="pass"]') ||
+                        document.querySelector('#password') ||
+                        document.querySelector('input[type="password"]') ||
+                        document.querySelector('input[type="text"][placeholder*="senha" i]');
+    
+    if (!usernameField || !passwordField) {
+      console.error('❌ Campos não encontrados. Username:', !!usernameField, 'Password:', !!passwordField);
+      
+      // Tenta buscar por labels para encontrar os campos
+      const labels = document.querySelectorAll('label');
+      labels.forEach(label => {
+        const text = label.textContent.toLowerCase();
+        if ((text.includes('usuário') || text.includes('username') || text.includes('user')) && !usernameField) {
+          const input = label.parentElement.querySelector('input') || 
+                       label.nextElementSibling || 
+                       document.querySelector(`#${label.getAttribute('for')}`);
+          if (input) usernameField = input;
+        }
+        if ((text.includes('senha') || text.includes('password') || text.includes('pass')) && !passwordField) {
+          const input = label.parentElement.querySelector('input') || 
+                       label.nextElementSibling || 
+                       document.querySelector(`#${label.getAttribute('for')}`);
+          if (input) passwordField = input;
+        }
+      });
+      
+      if (!usernameField || !passwordField) {
+        throw new Error(`Campos de edição não encontrados. Username: ${!!usernameField}, Password: ${!!passwordField}`);
+      }
+    }
+    
+    console.log('✅ Campos encontrados, preenchendo valores...');
+    
+    // Limpar e preencher os campos
+    usernameField.value = '';
+    usernameField.value = username;
+    usernameField.dispatchEvent(new Event('input', { bubbles: true }));
+    usernameField.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log(`✓ Username preenchido: ${username}`);
+    
+    passwordField.value = '';
+    passwordField.value = password;
+    passwordField.dispatchEvent(new Event('input', { bubbles: true }));
+    passwordField.dispatchEvent(new Event('change', { bubbles: true }));
+    console.log(`✓ Password preenchido: ${password}`);
+    
+    await sleep(500); // Aguarda campos serem processados
+    
+    // Procurar botão de salvar
+    console.log('🔍 Procurando botão de salvar...');
+    let saveButton = document.querySelector('button[type="submit"]') ||
+                     document.querySelector('input[type="submit"]') ||
+                     document.querySelector('button[name="save"]') ||
+                     document.querySelector('button[name="salvar"]') ||
+                     Array.from(document.querySelectorAll('button')).find(btn => 
+                       btn.textContent.toLowerCase().includes('salvar') || 
+                       btn.textContent.toLowerCase().includes('save') ||
+                       btn.textContent.toLowerCase().includes('atualizar') ||
+                       btn.textContent.toLowerCase().includes('update')
+                     );
+    
+    if (!saveButton) {
+      console.error('❌ Botão de salvar não encontrado');
+      throw new Error('Botão de salvar não encontrado');
+    }
+    
+    console.log('✅ Botão de salvar encontrado, clicando...');
+    saveButton.click();
+    
+    // Aguardar resposta do servidor
+    console.log('⏳ Aguardando confirmação...');
+    await sleep(3000);
+    
+    // Verificar se houve sucesso
+    const successIndicators = [
+      '.alert-success',
+      '.success',
+      '.alert.alert-success',
+      '.swal2-success',
+      '[class*="success"]'
+    ];
+    
+    let successFound = false;
+    for (const selector of successIndicators) {
+      const element = document.querySelector(selector);
+      if (element && element.offsetParent !== null) { // Verifica se está visível
+        successFound = true;
+        console.log(`✅ Indicador de sucesso encontrado: ${selector}`);
+        break;
+      }
+    }
+    
+    // Se não encontrou indicador de sucesso, verifica se voltou para a página de listagem
+    if (!successFound) {
+      const currentUrl = window.location.href;
+      if (currentUrl.includes('index.php') || currentUrl.includes('list') || currentUrl.includes('sistemas')) {
+        console.log('✅ Redirecionado para listagem - edição provavelmente bem-sucedida');
+        successFound = true;
+      }
+    }
+    
+    // Verifica se houve erro
+    const errorIndicators = [
+      '.alert-danger',
+      '.error',
+      '.alert.alert-danger',
+      '.swal2-error',
+      '[class*="error"]',
+      '[class*="danger"]'
+    ];
+    
+    for (const selector of errorIndicators) {
+      const element = document.querySelector(selector);
+      if (element && element.offsetParent !== null) {
+        const errorText = element.textContent || '';
+        console.error(`❌ Erro detectado: ${errorText}`);
+        throw new Error(`Erro ao salvar: ${errorText}`);
+      }
+    }
+    
+    if (successFound) {
+      console.log('✅ Sistema editado com sucesso', { sistemaId, username });
+      return { success: true, sistemaId, username, password };
+    } else {
+      console.warn('⚠️ Não foi possível confirmar o sucesso da edição, mas não houve erro');
+      return { success: true, sistemaId, username, password, warning: 'Confirmação não encontrada' };
+    }
+    
+  } catch (error) {
+    console.error('❌ Erro ao editar sistema', { 
+      sistemaId, 
+      username,
+      error: error.message,
+      stack: error.stack
+    });
+    return { 
+      success: false, 
+      sistemaId,
+      error: error.message 
+    };
+  }
+}
+
+// Listener para comandos de edição do background
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'editSystem') {
+    console.log('📨 Comando de edição recebido:', request);
+    
+    editSystem(request.sistemaId, request.username, request.password)
+      .then(result => {
+        console.log('📤 Enviando resultado da edição:', result);
+        sendResponse(result);
+      })
+      .catch(error => {
+        console.error('❌ Erro na edição:', error);
+        sendResponse({
+          success: false,
+          error: error.message
+        });
+      });
+    
+    // Retorna true para indicar resposta assíncrona
+    return true;
+  }
+});
+
 // Notifica que o script está pronto
 console.log('✅ Content script pronto e aguardando comandos!');
 console.log('🔑 Listener para ESC ativo');
 console.log('👁️ Observer para detecção de credenciais ativo');
+console.log('📝 Função de edição de sistema disponível');

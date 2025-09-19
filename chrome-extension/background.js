@@ -602,6 +602,69 @@ async function renewSystem(tabId, task) {
         sistemaId: sistemaId || 'desconhecido'
       });
       
+      // NOVO: Editar o sistema no OnlineOffice com as novas credenciais
+      logger.info('📝 Iniciando edição do sistema no OnlineOffice...', { sistemaId });
+      
+      try {
+        // Envia comando para editar o sistema
+        const editResponse = await chrome.tabs.sendMessage(tabId, {
+          action: 'editSystem',
+          sistemaId: sistemaId,
+          username: response.credentials.username,
+          password: response.credentials.password
+        });
+        
+        if (!editResponse || !editResponse.success) {
+          // Se falhou ao editar, lança erro
+          const errorMsg = editResponse?.error || 'Falha desconhecida ao editar sistema';
+          logger.error('❌ Falha ao editar sistema no OnlineOffice', { 
+            sistemaId, 
+            error: errorMsg,
+            response: editResponse 
+          });
+          throw new Error(`Falha ao editar sistema: ${errorMsg}`);
+        }
+        
+        logger.info('✅ Sistema editado com sucesso no OnlineOffice!', {
+          sistemaId,
+          username: response.credentials.username
+        });
+        
+      } catch (editError) {
+        // Se falhou ao editar, reporta erro e não continua
+        logger.error('❌ Erro crítico ao editar sistema', { 
+          sistemaId,
+          error: editError.message
+        });
+        
+        // Reporta falha ao backend
+        await reportTaskResult({
+          taskId: task.id,
+          type: 'renew_system',
+          sistemaId: sistemaId,
+          systemId: sistemaId,
+          error: `Credenciais geradas mas falha ao editar sistema: ${editError.message}`,
+          partialSuccess: {
+            credentialsGenerated: true,
+            systemEdited: false,
+            newUsername: response.credentials.username
+          },
+          metadata: {
+            ...metadata,
+            sistemaId: sistemaId,
+            originalUsername: originalUsername,
+            failedAt: new Date().toISOString(),
+            failureReason: 'edit_system_failed'
+          }
+        });
+        
+        // Sai da função sem reportar sucesso completo
+        return;
+      }
+      
+      // Só reporta sucesso se AMBOS geraram credenciais E editaram o sistema
+      logger.info('✅ Renovação completa: credenciais geradas E sistema editado!', { sistemaId });
+      
       // Reporta sucesso ao backend com sistemaId garantido
       const reportSuccess = await reportTaskResult({
         taskId: task.id,
@@ -622,14 +685,19 @@ async function renewSystem(tabId, task) {
           ...metadata,
           sistemaId: sistemaId,
           originalUsername: originalUsername,
-          renewedAt: new Date().toISOString()
+          renewedAt: new Date().toISOString(),
+          systemEdited: true // Marca que o sistema foi editado
         }
       });
       
       if (!reportSuccess) {
         logger.error('⚠️ Falha ao reportar renovação ao backend!', { sistemaId });
       } else {
-        logger.info('✅ Renovação reportada ao backend com sucesso', { sistemaId });
+        logger.info('✅ Renovação completa reportada ao backend com sucesso', { 
+          sistemaId,
+          username: response.credentials.username,
+          edited: true
+        });
       }
       
     } else {
