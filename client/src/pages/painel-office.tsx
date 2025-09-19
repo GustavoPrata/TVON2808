@@ -911,29 +911,27 @@ export default function PainelOffice() {
           </CardContent>
         </Card>
 
-        {/* Botão de Baixar Extensão */}
-        <div className="mb-6 flex justify-center">
-          <a
-            href="/chrome-extension.zip"
-            download="chrome-extension.zip"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            <Chrome className="h-5 w-5" />
-            Baixar Extensão Chrome
-          </a>
-        </div>
-
         {/* Extension Configuration */}
         <Card className="bg-dark-card border-slate-700">
           <CardHeader className="pb-4">
-            <div>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Chrome className="w-5 h-5 text-green-400" />
-                Configuração da Extensão Chrome
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Configure a automação de geração de credenciais IPTV
-              </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Chrome className="w-5 h-5 text-green-400" />
+                  Configuração da Extensão Chrome
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Configure a automação de geração de credenciais IPTV
+                </CardDescription>
+              </div>
+              <a
+                href="/chrome-extension.zip"
+                download="chrome-extension.zip"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
+              >
+                <Chrome className="h-4 w-4" />
+                Baixar Extensão
+              </a>
             </div>
           </CardHeader>
           
