@@ -5503,24 +5503,66 @@ Como posso ajudar você hoje?
     }
   });
 
-  // Processar renovação automática (chamado pelo serviço de renovação)
+  // Processar renovação automática (chamado pela extensão Chrome)
   app.post("/api/sistemas/process-renewal", async (req, res) => {
     try {
-      const { sistemaId, username, password } = req.body;
+      const { sistemaId, username, password, taskId, traceId } = req.body;
+      const finalTraceId = traceId || `renewal_${sistemaId}_${Date.now()}`;
+      
+      console.log(`🔄 [Process-Renewal] Processando renovação [${finalTraceId}]`, {
+        sistemaId,
+        username,
+        taskId,
+        traceId: finalTraceId
+      });
       
       if (!sistemaId || !username || !password) {
+        console.error(`❌ [Process-Renewal] Dados incompletos [${finalTraceId}]`);
         return res.status(400).json({ error: "Dados incompletos para renovação" });
       }
       
-      // Atualizar sistema com novas credenciais
-      const result = await storage.updateSistemaRenewal(sistemaId, username, password);
+      // Atualizar sistema com novas credenciais (expiracao de 6 horas)
+      const result = await storage.updateSistemaRenewal(sistemaId, username, password, finalTraceId);
       
-      // NÃO chamar registrarRenovacaoAutomatica - updateSistemaRenewal já fez tudo necessário
-      // await storage.registrarRenovacaoAutomatica(sistemaId, { username, password });
+      // Se taskId foi fornecido, atualizar o status da task na office_credentials
+      if (taskId) {
+        console.log(`📊 [Process-Renewal] Atualizando status da task ${taskId} [${finalTraceId}]`);
+        try {
+          await db
+            .update(officeCredentials)
+            .set({
+              status: 'completed',
+              username: username,
+              password: password,
+              generatedAt: new Date(),
+              usedAt: new Date()
+            })
+            .where(eq(officeCredentials.id, taskId));
+          console.log(`✅ [Process-Renewal] Task ${taskId} marcada como completa [${finalTraceId}]`);
+        } catch (taskError) {
+          console.error(`⚠️ [Process-Renewal] Erro ao atualizar task ${taskId} [${finalTraceId}]:`, taskError);
+          // Não falha a renovação se houver erro ao atualizar a task
+        }
+      }
       
+      // Log da renovação bem-sucedida
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'Process-Renewal',
+        mensagem: `Sistema ${sistemaId} renovado com sucesso via extensão`,
+        detalhes: {
+          sistemaId,
+          username,
+          taskId,
+          traceId: finalTraceId,
+          expiracao: result.expiracao
+        }
+      });
+      
+      console.log(`✅ [Process-Renewal] Renovação concluída com sucesso [${finalTraceId}]`);
       res.json(result);
     } catch (error) {
-      console.error("Erro ao processar renovação:", error);
+      console.error("❌ [Process-Renewal] Erro ao processar renovação:", error);
       res.status(500).json({ error: "Erro ao processar renovação" });
     }
   });

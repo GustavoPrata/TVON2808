@@ -401,6 +401,12 @@ async function setupAlarms() {
     periodInMinutes: 1, // A cada minuto
     delayInMinutes: 0
   });
+  
+  // Cria alarme específico para checagem de renovação a cada 30 segundos
+  chrome.alarms.create('checkRenewalTasks', {
+    periodInMinutes: 0.5, // 30 segundos
+    delayInMinutes: 0
+  });
 }
 
 // Listener para os alarmes
@@ -411,6 +417,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   } else if (alarm.name === 'checkStatus') {
     // Verifica se precisa abrir a aba do OnlineOffice
     await ensureOfficeTabOpen();
+  } else if (alarm.name === 'checkRenewalTasks') {
+    // Checagem específica para tarefas de renovação a cada 30 segundos
+    await logger.debug('🔄 Checando tarefas de renovação...', { alarm: alarm.name });
+    await checkForTasks();
   }
 });
 
@@ -807,7 +817,7 @@ async function generateSingle(tabId, task) {
 }
 
 async function renewSystem(tabId, task) {
-  await logger.info('🔄 Renovando sistema IPTV (somente gerando credenciais)...', { taskData: task });
+  await logger.info('🔄 Renovando sistema IPTV...', { taskData: task });
   
   // Extrair sistemaId de diferentes locais possíveis
   const sistemaId = task.sistemaId || 
@@ -815,6 +825,7 @@ async function renewSystem(tabId, task) {
                     task.data?.systemId || 
                     task.metadata?.sistemaId || 
                     task.metadata?.systemId || 
+                    task.metadata?.system_id ||
                     null;
                      
   const originalUsername = task.data?.originalUsername || 
@@ -823,18 +834,34 @@ async function renewSystem(tabId, task) {
                           task.data?.currentUsername || 
                           'N/A';
   
+  const traceId = task.metadata?.traceId || `renewal_ext_${Date.now()}`;
+  
   await logger.info('📋 Dados da renovação', {
     sistemaId: sistemaId || 'N/A',
     usuarioAtual: originalUsername,
     taskId: task.id,
-    taskType: task.type
+    taskType: task.type,
+    traceId: traceId
   });
   
   // Validação do sistemaId
   if (!sistemaId) {
     await logger.error('❌ ERRO CRÍTICO: sistemaId não encontrado na task', {
-      task: JSON.stringify(task)
+      task: JSON.stringify(task),
+      traceId: traceId
     });
+    // Reporta erro ao backend
+    await reportTaskResult({
+      taskId: task.id,
+      type: task.type || 'renewal',
+      error: 'sistemaId não encontrado na task',
+      metadata: {
+        ...task.metadata,
+        error: 'sistemaId não encontrado',
+        traceId: traceId
+      }
+    });
+    return;
   }
   
   try {
@@ -868,44 +895,99 @@ async function renewSystem(tabId, task) {
         sistemaId: sistemaId || 'desconhecido'
       });
       
-      // IMPORTANTE: NÃO EDITA O SISTEMA - apenas envia as credenciais para o servidor
-      await logger.info('📤 Enviando credenciais para o servidor (sem editar sistema)...', { 
+      // IMPORTANTE: Chamar o endpoint updateSistemaRenewal para atualizar o sistema
+      await logger.info('📤 Enviando credenciais para atualizar o sistema...', { 
         sistemaId,
-        info: 'A edição do sistema será feita pela aplicação principal'
+        username: response.credentials.username,
+        traceId: traceId
       });
       
-      // Reporta sucesso ao backend com as credenciais geradas
-      const reportSuccess = await reportTaskResult({
-        taskId: task.id,
-        type: task.type || 'renewal',
-        sistemaId: sistemaId,
-        systemId: sistemaId, // Manter ambos por compatibilidade
-        credentials: {
-          username: response.credentials.username,
-          password: response.credentials.password,
-          sistemaId: sistemaId
-        },
-        oldCredentials: {
-          username: originalUsername,
-          password: taskData?.currentPassword || metadata?.currentPassword || 'unknown'
-        },
-        clienteId: taskData?.clienteId || metadata?.clienteId,
-        metadata: {
-          ...metadata,
-          sistemaId: sistemaId,
-          originalUsername: originalUsername,
-          renewedAt: new Date().toISOString(),
-          systemEdited: false // IMPORTANTE: Sistema NÃO foi editado pela extensão
+      // Chamar o endpoint para atualizar o sistema com as novas credenciais
+      try {
+        const updateResponse = await fetch(`${API_BASE}/api/sistemas/process-renewal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Extension-Key': 'chrome-extension-secret-2024'
+          },
+          body: JSON.stringify({
+            sistemaId: sistemaId,
+            username: response.credentials.username,
+            password: response.credentials.password,
+            taskId: task.id,
+            traceId: traceId
+          })
+        });
+        
+        if (!updateResponse.ok) {
+          const errorText = await updateResponse.text();
+          throw new Error(`Erro ao atualizar sistema: ${errorText}`);
         }
-      });
-      
-      if (!reportSuccess) {
-        await logger.error('⚠️ Falha ao reportar credenciais ao backend!', { sistemaId });
-      } else {
-        await logger.info('✅ Credenciais enviadas ao backend com sucesso!', { 
-          sistemaId,
+        
+        const updateResult = await updateResponse.json();
+        await logger.info('✅ Sistema atualizado com sucesso!', {
+          sistemaId: sistemaId,
           username: response.credentials.username,
-          info: 'Sistema será editado pela aplicação principal'
+          expiracao: updateResult.expiracao,
+          traceId: traceId
+        });
+        
+        // Reporta sucesso ao backend com as credenciais geradas
+        const reportSuccess = await reportTaskResult({
+          taskId: task.id,
+          type: task.type || 'renewal',
+          sistemaId: sistemaId,
+          systemId: sistemaId, // Manter ambos por compatibilidade
+          credentials: {
+            username: response.credentials.username,
+            password: response.credentials.password,
+            sistemaId: sistemaId
+          },
+          metadata: {
+            ...metadata,
+            sistemaId: sistemaId,
+            originalUsername: originalUsername,
+            renewedAt: new Date().toISOString(),
+            systemUpdated: true,
+            traceId: traceId,
+            expiracao: updateResult.expiracao
+          }
+        });
+        
+        if (!reportSuccess) {
+          await logger.error('⚠️ Falha ao reportar conclusão ao backend!', { sistemaId, traceId });
+        } else {
+          await logger.info('✅ Renovação completa reportada ao backend!', { 
+            sistemaId,
+            username: response.credentials.username,
+            traceId: traceId
+          });
+        }
+        
+      } catch (updateError) {
+        await logger.error('❌ Erro ao atualizar sistema no backend', {
+          error: updateError.message,
+          sistemaId,
+          traceId: traceId
+        });
+        
+        // Mesmo com erro no update, reporta as credenciais geradas
+        await reportTaskResult({
+          taskId: task.id,
+          type: task.type || 'renewal',
+          sistemaId: sistemaId,
+          credentials: {
+            username: response.credentials.username,
+            password: response.credentials.password
+          },
+          error: `Credenciais geradas mas erro ao atualizar sistema: ${updateError.message}`,
+          metadata: {
+            ...metadata,
+            sistemaId: sistemaId,
+            systemUpdated: false,
+            updateError: updateError.message,
+            traceId: traceId
+          }
         });
       }
       
