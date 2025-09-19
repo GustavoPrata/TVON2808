@@ -5521,8 +5521,21 @@ Como posso ajudar você hoje?
         return res.status(400).json({ error: "Dados incompletos para renovação" });
       }
       
+      // Converter sistemaId para systemId se necessário
+      let finalSystemId = sistemaId;
+      if (typeof sistemaId === 'number' || !isNaN(Number(sistemaId))) {
+        // Se sistemaId é número, buscar o sistema para obter o systemId
+        const sistema = await storage.getSistemaById(Number(sistemaId));
+        if (!sistema) {
+          console.error(`❌ [Process-Renewal] Sistema não encontrado: ${sistemaId} [${finalTraceId}]`);
+          return res.status(404).json({ error: "Sistema não encontrado" });
+        }
+        finalSystemId = sistema.systemId;
+        console.log(`🔄 [Process-Renewal] Convertendo ID ${sistemaId} para systemId ${finalSystemId} [${finalTraceId}]`);
+      }
+      
       // Atualizar sistema com novas credenciais (expiracao de 6 horas)
-      const result = await storage.updateSistemaRenewal(sistemaId, username, password);
+      const result = await storage.updateSistemaRenewal(finalSystemId, username, password);
       
       // Se taskId foi fornecido, atualizar o status da task na office_credentials
       if (taskId) {
