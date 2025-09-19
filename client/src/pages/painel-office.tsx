@@ -147,13 +147,15 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
           <GripVertical className="w-4 h-4" />
         </button>
       </TableCell>
+      <TableCell className="text-slate-300 w-20 text-center">
+        <Badge variant="outline" className="text-xs">{system.system_id}</Badge>
+      </TableCell>
       <TableCell className="text-slate-300">
         <div className="flex items-center gap-2">
           <Server className="w-4 h-4 text-slate-400" />
           <div>
-            <div className="font-medium flex items-center gap-1">
-              <span>{system.username || `Sistema ${system.system_id}`}</span>
-              <Badge variant="outline" className="text-xs ml-1">ID: {system.system_id}</Badge>
+            <div className="font-medium">
+              {system.username || `Sistema ${system.system_id}`}
             </div>
             {system.nota && (
               <div className="text-xs text-slate-500">{system.nota}</div>
@@ -229,46 +231,6 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
             </div>
           </div>
         </div>
-      </TableCell>
-      <TableCell className="text-center">
-        <button
-          onClick={async (e) => {
-            e.stopPropagation();
-            try {
-              const response = await fetch(`/api/sistemas/${system.system_id}/renewal-config`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  autoRenewalEnabled: !system.autoRenewalEnabled,
-                  renewalAdvanceTime: 60 // Default 60 minutes
-                })
-              });
-              
-              if (response.ok) {
-                toast({
-                  title: system.autoRenewalEnabled ? "Renovação desativada" : "Renovação ativada",
-                  description: `Sistema ${system.system_id} atualizado`,
-                  variant: "default",
-                });
-                refetchSystems();
-              }
-            } catch (error) {
-              toast({
-                title: "Erro",
-                description: "Falha ao atualizar configuração de renovação",
-                variant: "destructive",
-              });
-            }
-          }}
-          className="transition-colors"
-          data-testid={`toggle-renewal-${system.system_id}`}
-        >
-          {system.autoRenewalEnabled ? (
-            <ToggleRight className="w-5 h-5 text-green-400 hover:text-green-300" />
-          ) : (
-            <ToggleLeft className="w-5 h-5 text-slate-500 hover:text-slate-300" />
-          )}
-        </button>
       </TableCell>
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-2">
@@ -839,6 +801,7 @@ export default function PainelOffice() {
                       <TableHeader>
                         <TableRow className="border-slate-700 hover:bg-transparent">
                           <TableHead className="text-slate-400 w-10"></TableHead>
+                          <TableHead className="text-slate-400 w-20 text-center">ID</TableHead>
                           <TableHead className="text-slate-400">
                             <div className="flex items-center gap-2">
                               <Server className="w-4 h-4" />
@@ -861,12 +824,6 @@ export default function PainelOffice() {
                             <div className="flex items-center justify-center gap-2">
                               <Users className="w-4 h-4" />
                               Pontos Ativos
-                            </div>
-                          </TableHead>
-                          <TableHead className="text-slate-400 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <RefreshCw className="w-4 h-4" />
-                              Renovação
                             </div>
                           </TableHead>
                           <TableHead className="text-slate-400 text-right">Ações</TableHead>
