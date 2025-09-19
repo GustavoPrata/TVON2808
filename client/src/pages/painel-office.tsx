@@ -297,7 +297,8 @@ export default function PainelOffice() {
     singleGeneration: false,
     lastRunAt: null as Date | null,
     totalGenerated: 0,
-    sessionGenerated: 0
+    sessionGenerated: 0,
+    renewalAdvanceTime: 60
   });
   const [isToggling, setIsToggling] = useState(false);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
@@ -365,7 +366,8 @@ export default function PainelOffice() {
         singleGeneration: configData.singleGeneration || false,
         lastRunAt: configData.lastRunAt ? new Date(configData.lastRunAt) : null,
         totalGenerated: configData.totalGenerated || 0,
-        sessionGenerated: configData.sessionGenerated || prev.sessionGenerated || 0
+        sessionGenerated: configData.sessionGenerated || prev.sessionGenerated || 0,
+        renewalAdvanceTime: configData.renewalAdvanceTime || 60
       }));
     }
   }, [configData]);
@@ -1032,7 +1034,8 @@ export default function PainelOffice() {
                       type="number"
                       min="0"
                       max="10080"
-                      defaultValue={60}
+                      value={automationConfig.renewalAdvanceTime || 60}
+                      onChange={(e) => setAutomationConfig(prev => ({ ...prev, renewalAdvanceTime: parseInt(e.target.value) || 60 }))}
                       placeholder="Ex: 60 = 1 hora antes"
                       className="bg-slate-800 border-slate-700"
                       disabled={automationConfig.isEnabled}
@@ -1045,12 +1048,11 @@ export default function PainelOffice() {
                   <div className="flex gap-2">
                     <Button
                       onClick={async () => {
-                        const renewalTime = (document.querySelector('[data-testid="input-renewal-time"]') as HTMLInputElement)?.value || '60';
                         const res = await fetch('/api/office/automation/config', {
-                          method: 'POST',
+                          method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
-                            renewalAdvanceTime: parseInt(renewalTime)
+                            renewalAdvanceTime: automationConfig.renewalAdvanceTime
                           })
                         });
                         

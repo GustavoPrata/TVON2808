@@ -2001,7 +2001,8 @@ export class DatabaseStorage implements IStorage {
           isEnabled: false,
           batchSize: 10,
           intervalMinutes: 60,
-          singleGeneration: false
+          singleGeneration: false,
+          renewalAdvanceTime: 60  // Adicionar valor padrão
         })
         .returning();
       return defaultConfig[0];
@@ -2030,6 +2031,7 @@ export class DatabaseStorage implements IStorage {
         batchSize: 10,
         intervalMinutes: 60,
         singleGeneration: false,
+        renewalAdvanceTime: 60,  // Adicionar valor padrão
         ...config
       } as InsertOfficeAutomationConfig)
       .returning();

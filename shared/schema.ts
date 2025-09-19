@@ -573,6 +573,7 @@ export const officeAutomationConfig = pgTable("office_automation_config", {
   batchSize: integer("batch_size").notNull().default(10),
   intervalMinutes: integer("interval_minutes").notNull().default(60),
   singleGeneration: boolean("single_generation").notNull().default(false),
+  renewalAdvanceTime: integer("renewal_advance_time").notNull().default(60), // Tempo em minutos antes do vencimento para renovar
   lastRunAt: timestamp("last_run_at"),
   totalGenerated: integer("total_generated").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),

@@ -5995,7 +5995,7 @@ Como posso ajudar você hoje?
   // Save credentials from Chrome Extension
   app.post("/api/office/save-credentials", async (req, res) => {
     try {
-      const { usuario, senha, vencimento, source } = req.body;
+      const { usuario, senha, vencimento, source, taskType, systemId, taskId } = req.body;
       
       if (!usuario || !senha) {
         return res.status(400).json({
@@ -6017,6 +6017,53 @@ Como posso ajudar você hoje?
       });
       
       console.log('✅ Credencial salva no banco com ID:', savedCredential.id);
+      
+      // Processar renovação automática se for o caso
+      if (taskType === 'renewal' && systemId) {
+        try {
+          console.log(`🔄 Processando renovação automática para sistema ${systemId}`);
+          
+          // Adicionar 6 horas à expiração
+          const novaExpiracao = new Date();
+          novaExpiracao.setHours(novaExpiracao.getHours() + 6);
+          
+          // Atualizar sistema com novas credenciais
+          await storage.updateSistemaRenewal(systemId, usuario, senha);
+          
+          // Registrar renovação automática
+          await storage.registrarRenovacaoAutomatica(systemId, {
+            username: usuario,
+            password: senha
+          });
+          
+          // Atualizar task como completa se houver taskId
+          if (taskId) {
+            await storage.updateOfficeCredentials(taskId, {
+              status: 'completed',
+              metadata: {
+                systemId,
+                renewedAt: new Date().toISOString(),
+                newExpiration: novaExpiracao.toISOString()
+              }
+            });
+          }
+          
+          console.log(`✅ Sistema ${systemId} renovado com sucesso`);
+          console.log(`   Novo usuário: ${usuario}`);
+          console.log(`   Nova expiração: ${novaExpiracao.toISOString()}`);
+          
+          // Enviar notificação via WebSocket sobre renovação bem-sucedida
+          broadcastMessage('system_renewal_completed', {
+            systemId,
+            newUsername: usuario,
+            newExpiration: novaExpiracao.toISOString(),
+            renewedAt: new Date().toISOString()
+          });
+        } catch (renewalError) {
+          console.error(`❌ Erro ao processar renovação do sistema ${systemId}:`, renewalError);
+          // Não falhar a requisição principal, apenas registrar o erro
+        }
+      }
       
       // Broadcast via WebSocket to update UI in real-time
       const wsMessage = JSON.stringify({
@@ -6762,10 +6809,61 @@ Como posso ajudar você hoje?
     }
   });
 
+  // PUT /api/office/automation/config - atualiza configuração com validação schema
+  app.put('/api/office/automation/config', checkAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        isEnabled: z.boolean().optional(),
+        batchSize: z.number().min(1).max(100).optional(),
+        intervalMinutes: z.number().min(1).max(1440).optional(),
+        singleGeneration: z.boolean().optional(),
+        renewalAdvanceTime: z.number().min(1).max(1440).optional(), // Tempo em minutos antes do vencimento
+      });
+
+      const validated = schema.parse(req.body);
+      
+      // Obter configuração anterior para comparar
+      const previousConfig = await storage.getOfficeAutomationConfig();
+      
+      // Atualizar configuração
+      const config = await storage.updateOfficeAutomationConfig(validated);
+      
+      // Gerenciar serviço de renovação automática se isEnabled mudou
+      if (validated.isEnabled !== undefined && validated.isEnabled !== previousConfig.isEnabled) {
+        const { autoRenewalService } = await import('./services/AutoRenewalService');
+        
+        if (validated.isEnabled) {
+          autoRenewalService.start();
+          console.log('🔄 Serviço de renovação automática iniciado (configuração habilitada)');
+        } else {
+          autoRenewalService.stop();
+          console.log('⏹️ Serviço de renovação automática parado (configuração desabilitada)');
+        }
+      }
+      
+      // Enviar atualização via WebSocket
+      broadcastMessage('office_automation_config', config);
+      
+      console.log('✅ Configuração de automação atualizada:', validated);
+      res.json(config);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Dados inválidos', details: error.errors });
+      }
+      console.error('Erro ao atualizar configuração de automação:', error);
+      res.status(500).json({ error: 'Erro ao atualizar configuração' });
+    }
+  });
+
   // POST /api/office/automation/start - inicia automação
   app.post('/api/office/automation/start', async (req, res) => {
     try {
       const config = await storage.updateOfficeAutomationConfig({ isEnabled: true });
+      
+      // Iniciar serviço de renovação automática
+      const { autoRenewalService } = await import('./services/AutoRenewalService');
+      autoRenewalService.start();
+      console.log('✅ Serviço de renovação automática iniciado via endpoint');
       
       // Enviar atualização via WebSocket
       broadcastMessage('office_automation_started', config);
@@ -6781,6 +6879,11 @@ Como posso ajudar você hoje?
   app.post('/api/office/automation/stop', async (req, res) => {
     try {
       const config = await storage.updateOfficeAutomationConfig({ isEnabled: false });
+      
+      // Parar serviço de renovação automática
+      const { autoRenewalService } = await import('./services/AutoRenewalService');
+      autoRenewalService.stop();
+      console.log('⏹️ Serviço de renovação automática parado via endpoint');
       
       // Enviar atualização via WebSocket
       broadcastMessage('office_automation_stopped', config);

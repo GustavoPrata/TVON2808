@@ -98,6 +98,20 @@ app.use((req, res, next) => {
     `);
     
     console.log("✅ Colunas de renovação automática verificadas/criadas com sucesso");
+    
+    // Adicionar campo renewal_advance_time na tabela office_automation_config
+    await db.execute(sql`
+      DO $$ 
+      BEGIN
+        -- Adicionar coluna renewal_advance_time se não existir
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                      WHERE table_name='office_automation_config' AND column_name='renewal_advance_time') THEN
+          ALTER TABLE office_automation_config ADD COLUMN renewal_advance_time INTEGER DEFAULT 60;
+        END IF;
+      END $$;
+    `);
+    
+    console.log("✅ Campo renewal_advance_time adicionado à tabela office_automation_config");
   } catch (error) {
     console.error("⚠️ Erro ao verificar/criar colunas de renovação automática:", error);
     // Não falhar a aplicação, apenas registrar o erro
@@ -160,76 +174,26 @@ app.use((req, res, next) => {
     await checkExpiredTests();
   });
   
-  // Função para renovação automática de sistemas IPTV
-  async function checkSystemsForRenewal() {
-    try {
-      console.log("🔄 Verificando sistemas IPTV para renovação automática...");
-      
-      // Buscar sistemas com renovação automática ativada
-      const sistemasParaRenovar = await storage.getSistemasExpirandoEm(24 * 60); // 24 horas
-      
-      if (sistemasParaRenovar.length === 0) {
-        return;
-      }
-      
-      console.log(`📋 ${sistemasParaRenovar.length} sistemas precisam ser renovados`);
-      
-      // Buscar pontos disponíveis
-      const pontosDisponiveis = await storage.getAvailablePoints();
-      console.log(`💡 ${pontosDisponiveis} pontos disponíveis para renovação`);
-      
-      let tarefasCriadas = 0;
-      
-      for (const sistema of sistemasParaRenovar) {
-        if (!sistema.autoRenewalEnabled) continue;
-        
-        const now = new Date();
-        const expiration = new Date(sistema.expiracao!);
-        const diffMinutes = Math.floor((expiration.getTime() - now.getTime()) / (1000 * 60));
-        
-        // Verifica se está dentro do tempo de renovação antecipada
-        if (diffMinutes <= (sistema.renewalAdvanceTime || 60)) {
-          console.log(`📝 Criando tarefa de renovação para sistema ${sistema.id}...`);
-          
-          try {
-            // Criar tarefa para a extensão Chrome gerar novas credenciais
-            await storage.createPendingTask('renew_system', {
-              systemId: sistema.id,
-              currentUsername: sistema.username,
-              currentPassword: sistema.password,
-              expiracao: sistema.expiracao
-            });
-            
-            // Marcar sistema como em renovação para evitar duplicatas
-            await storage.marcarSistemaComoRenovando(sistema.id);
-            
-            tarefasCriadas++;
-            console.log(`📋 Tarefa de renovação criada para sistema ${sistema.id}`);
-          } catch (error) {
-            console.error(`❌ Erro ao criar tarefa de renovação para sistema ${sistema.id}:`, error);
-          }
-        }
-      }
-      
-      if (tarefasCriadas > 0) {
-        console.log(`📬 ${tarefasCriadas} tarefas de renovação criadas e aguardando processamento`);
-      }
-    } catch (error) {
-      console.error("Erro ao verificar sistemas para renovação:", error);
-    }
-  }
+  // Importar e inicializar o serviço de renovação automática
+  const { autoRenewalService } = await import("./services/AutoRenewalService");
   
-  // Executar verificação de renovação a cada 10 minutos
-  cron.schedule("*/10 * * * *", async () => {
-    await checkSystemsForRenewal();
-  });
+  // Iniciar o serviço de renovação automática se a configuração estiver habilitada
+  try {
+    const config = await storage.getOfficeAutomationConfig();
+    if (config && config.isEnabled) {
+      autoRenewalService.start();
+      console.log("✅ Serviço de renovação automática iniciado");
+    } else {
+      console.log("⚠️ Serviço de renovação automática desabilitado na configuração");
+    }
+  } catch (error) {
+    console.error("❌ Erro ao iniciar serviço de renovação automática:", error);
+  }
   
   // Executar verificação imediatamente ao iniciar
   setTimeout(async () => {
     console.log("🔍 Iniciando verificação de testes expirados...");
     await checkExpiredTests();
-    console.log("🔄 Iniciando verificação de sistemas IPTV para renovação...");
-    await checkSystemsForRenewal();
   }, 5000); // Aguardar 5 segundos para garantir que tudo está inicializado
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
