@@ -57,11 +57,12 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - Corrected sistemaId passing throughout renewal flow (extension -> backend -> credentials)
 - Updated system expiration to 6 hours after credential generation (instead of 30 days)
 - Added real-time renewal queue visualization in painel-office
-- Implemented comprehensive logging system for Chrome extension with localStorage persistence (1000 log limit)
+- Implemented comprehensive logging system for Chrome extension using chrome.storage.local (Manifest V3 compatible)
 - Added extension log viewer with filtering, search and export capabilities
 - Created endpoints for renewal queue monitoring and extension log management
 - Fixed Chrome extension to edit system in OnlineOffice after generating credentials
 - Added editSystem() function to ensure systems are updated with new credentials
+- Fixed localStorage error in service worker by migrating to chrome.storage.local API
 - Fixed field mapping between snake_case (database) and camelCase (frontend)
 - Added renewal configuration fields to sistemas table (expiracao, autoRenewalEnabled, renewalAdvanceTime, lastRenewalAt, renewalCount, status)
 - Integrated renewal task handling in Chrome extension background.js
