@@ -52,6 +52,9 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **PostgreSQL**: Relational database for persistent data storage.
 
 ## Recent Updates (September 2025)
+- **Fixed AutoRenewalService identification issue** - Service was working correctly but needed systems with autoRenewal enabled and no recent renewals
+- **Validated automatic renewal workflow** - Successfully creates tasks in queue for Chrome extension processing when systems expire
+- **Confirmed Drizzle ORM field mapping** - Properly handles camelCase (TypeScript) to snake_case (PostgreSQL) conversion automatically
 - Fixed automatic renewal system to only process expired systems or those approaching expiration
 - Implemented sequential queue processing for system renewals (one at a time)
 - Corrected sistemaId passing throughout renewal flow (extension -> backend -> credentials)
