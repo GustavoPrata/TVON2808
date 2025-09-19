@@ -143,10 +143,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               
               // 4. AGUARDAR E EXTRAIR CREDENCIAIS
               setTimeout(() => {
-                console.log('Extraindo credenciais...');
+                console.log('Aguardando modal de credenciais aparecer...');
                 
-                let username = null;
-                let password = null;
+                // Aguarda mais tempo para o modal de credenciais aparecer
+                setTimeout(() => {
+                  console.log('Extraindo credenciais...');
+                  
+                  let username = null;
+                  let password = null;
                 
                 // Método 1: Procura inputs readonly com as credenciais
                 const inputs = document.querySelectorAll('input[readonly], input[type="text"]');
@@ -195,6 +199,56 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     const text = modalContent.innerText || modalContent.textContent;
                     console.log('Texto do modal:', text);
                     
+                    // Método especial para OnlineOffice - detecta formato específico do modal
+                    // O modal tem formato:
+                    // USUÁRIO:
+                    // 12345usuario
+                    // SENHA:
+                    // senha123
+                    // VENCIMENTO:
+                    // data
+                    
+                    if (text.includes('USUÁRIO') && text.includes('SENHA')) {
+                      // Divide por linhas e remove espaços
+                      const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+                      
+                      // Procura índice de USUÁRIO e SENHA
+                      let userIndex = -1;
+                      let passIndex = -1;
+                      let expiryIndex = -1;
+                      
+                      for (let i = 0; i < lines.length; i++) {
+                        if (lines[i].includes('USUÁRIO')) userIndex = i;
+                        if (lines[i].includes('SENHA')) passIndex = i;
+                        if (lines[i].includes('VENCIMENTO')) expiryIndex = i;
+                      }
+                      
+                      // Extrai valores que estão depois dos labels
+                      if (userIndex >= 0 && userIndex + 1 < lines.length) {
+                        // Pega a linha após USUÁRIO que não seja SENHA ou VENCIMENTO
+                        for (let i = userIndex + 1; i < lines.length && i < passIndex; i++) {
+                          const line = lines[i];
+                          if (line && !line.includes('SENHA') && !line.includes('VENCIMENTO') && !line.includes(':')) {
+                            username = line;
+                            console.log(`✓ Usuário detectado: ${username}`);
+                            break;
+                          }
+                        }
+                      }
+                      
+                      if (passIndex >= 0 && passIndex + 1 < lines.length) {
+                        // Pega a linha após SENHA que não seja VENCIMENTO
+                        for (let i = passIndex + 1; i < lines.length && (expiryIndex < 0 || i < expiryIndex); i++) {
+                          const line = lines[i];
+                          if (line && !line.includes('VENCIMENTO') && !line.includes(':')) {
+                            password = line;
+                            console.log(`✓ Senha detectada: ${password}`);
+                            break;
+                          }
+                        }
+                      }
+                    }
+                    
                     // Tenta extrair com diferentes padrões
                     const patterns = [
                       /usu[áa]rio:?\s*([^\s\n]+)/i,
@@ -234,27 +288,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       for (let i = 0; i < lines.length; i++) {
                         const line = lines[i].trim();
                         
-                        if (line.includes('USUÁRIO') || line.includes('Usuário') || line.includes('usuário')) {
-                          // Verifica se tem : na mesma linha
-                          if (line.includes(':')) {
-                            const parts = line.split(':');
-                            if (parts[1]) {
-                              username = parts[1].trim();
+                        // Procura por USUÁRIO em várias formas
+                        if (line.match(/USU[ÁA]RIO/i)) {
+                          // Se a próxima linha existe e não contém outros labels
+                          if (i + 1 < lines.length && !lines[i + 1].includes('SENHA') && !lines[i + 1].includes('VENCIMENTO')) {
+                            const nextLine = lines[i + 1].trim();
+                            // Verifica se não é um label e tem conteúdo
+                            if (nextLine && !nextLine.includes(':') && !nextLine.match(/USU[ÁA]RIO|SENHA|VENCIMENTO/i)) {
+                              username = nextLine;
                             }
-                          } else if (i + 1 < lines.length) {
-                            // Pega próxima linha
-                            username = lines[i + 1].trim();
                           }
                         }
                         
-                        if (line.includes('SENHA') || line.includes('Senha') || line.includes('senha')) {
-                          if (line.includes(':')) {
-                            const parts = line.split(':');
-                            if (parts[1]) {
-                              password = parts[1].trim();
+                        // Procura por SENHA
+                        if (line.match(/SENHA/i)) {
+                          // Se a próxima linha existe e não contém outros labels
+                          if (i + 1 < lines.length && !lines[i + 1].includes('VENCIMENTO') && !lines[i + 1].includes('USUÁRIO')) {
+                            const nextLine = lines[i + 1].trim();
+                            // Verifica se não é um label e tem conteúdo
+                            if (nextLine && !nextLine.includes(':') && !nextLine.match(/USU[ÁA]RIO|SENHA|VENCIMENTO/i)) {
+                              password = nextLine;
                             }
-                          } else if (i + 1 < lines.length) {
-                            password = lines[i + 1].trim();
                           }
                         }
                       }
@@ -333,6 +387,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     error: 'Não conseguiu extrair credenciais'
                   });
                 }
+                
+                }, 2000); // Fecha o setTimeout adicional para aguardar modal
                 
               }, 3000);
               

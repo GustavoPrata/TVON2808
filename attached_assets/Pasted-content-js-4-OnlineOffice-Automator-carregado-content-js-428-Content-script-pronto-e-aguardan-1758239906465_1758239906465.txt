@@ -1,0 +1,59 @@
+content.js:4 👋 OnlineOffice Automator carregado!
+content.js:428 ✅ Content script pronto e aguardando comandos!
+content.js:429 🔑 Listener para ESC ativo
+content.js:430 👁️ Observer para detecção de credenciais ativo
+content.js:105 📨 Comando recebido: {action: 'generateOne'}
+content.js:108 🎯 Gerando uma credencial...
+content.js:113 Procurando botão Gerar IPTV...
+content.js:119 ✅ Botão Gerar IPTV encontrado!
+content.js:124 Procurando botão Confirmar...
+content.js:130 ✅ Botão Confirmar encontrado!
+content.js:140 ✅ Segundo Confirmar encontrado, clicando...
+content.js:146 Extraindo credenciais...
+content.js:153 Encontrou 0 inputs na página
+content.js:174 Tentando extrair do texto do modal...
+content.js:189 Modal encontrado com selector: .modal-body
+content.js:196 Texto do modal: 15 dias - 0.6 Créditos1 mês - 1 Crédito2 meses - 2 Créditos3 meses - 3 Créditos4 meses - 4 Créditos6 meses - 5 Créditos (Promoção)12 meses - 10 Créditos (Promoção) Estender 
+content.js:267 Tentando método específico de elementos...
+content.js:285 ✅ Credenciais extraídas com sucesso!
+content.js:286 📋 Usuário: SENHA:, Senha: VENCIMENTO:
+content.js:67 💾 Salvando credenciais no banco de dados...
+/#/users-iptv:1 Access to fetch at 'https://tv-on.site/api/office/automation/task-complete' from origin 'https://onlineoffice.zip' has been blocked by CORS policy: Request header field x-extension-key is not allowed by Access-Control-Allow-Headers in preflight response.
+content.js:70  POST https://tv-on.site/api/office/automation/task-complete net::ERR_FAILED
+saveCredentialsToDatabase @ content.js:70
+(anónimo) @ content.js:310
+setTimeout
+(anónimo) @ content.js:145
+setTimeout
+(anónimo) @ content.js:134
+setTimeout
+(anónimo) @ content.js:123
+setTimeout
+(anónimo) @ content.js:111
+content.js:95 ❌ Erro ao salvar credenciais no banco: TypeError: Failed to fetch
+    at saveCredentialsToDatabase (content.js:70:28)
+    at content.js:310:19
+saveCredentialsToDatabase @ content.js:95
+await in saveCredentialsToDatabase
+(anónimo) @ content.js:310
+setTimeout
+(anónimo) @ content.js:145
+setTimeout
+(anónimo) @ content.js:134
+setTimeout
+(anónimo) @ content.js:123
+setTimeout
+(anónimo) @ content.js:111
+content.js:314 ⚠️ Erro ao salvar credenciais no banco
+(anónimo) @ content.js:314
+Promise.then
+(anónimo) @ content.js:310
+setTimeout
+(anónimo) @ content.js:145
+setTimeout
+(anónimo) @ content.js:134
+setTimeout
+(anónimo) @ content.js:123
+setTimeout
+(anónimo) @ content.js:111
+content.js:290 Fechando modal original do site...

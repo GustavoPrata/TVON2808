@@ -242,7 +242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.path.startsWith('/api/office/automation/')) {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Extension-Key');
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       
       // Handle preflight OPTIONS requests
