@@ -61,9 +61,9 @@ export default function Login() {
           description: "Login realizado com sucesso!",
         });
         
-        // Redirect to home page
+        // Navigate without page reload
         setTimeout(() => {
-          window.location.href = "/";
+          setLocation("/");
         }, 500);
       }
     } catch (error: any) {
@@ -104,7 +104,7 @@ export default function Login() {
           });
           
           setTimeout(() => {
-            window.location.href = "/";
+            setLocation("/");
           }, 500);
         }
       } catch (error: any) {

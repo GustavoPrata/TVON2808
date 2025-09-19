@@ -245,7 +245,7 @@ export function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
             onClick={async () => {
               try {
                 await fetch('/api/logout', { method: 'POST' });
-                window.location.href = '/';
+                setLocation('/');
               } catch (error) {
                 console.error('Logout error:', error);
               }

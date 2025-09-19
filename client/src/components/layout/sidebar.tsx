@@ -295,7 +295,7 @@ export function Sidebar() {
                   onClick={async () => {
                     try {
                       await fetch('/api/logout', { method: 'POST' });
-                      window.location.href = '/';
+                      setLocation('/');
                     } catch (error) {
                       console.error('Logout error:', error);
                     }
@@ -341,7 +341,7 @@ export function Sidebar() {
               onClick={async () => {
                 try {
                   await fetch('/api/logout', { method: 'POST' });
-                  window.location.href = '/';
+                  setLocation('/');
                 } catch (error) {
                   console.error('Logout error:', error);
                 }
