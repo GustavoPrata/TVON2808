@@ -56,6 +56,9 @@ class ExtensionLogger {
     if (Object.keys(context).length > 0) {
       console.log('Context:', context);
     }
+    
+    // Adiciona log à fila para envio ao backend
+    queueLogForBackend(level, message, context);
   }
 
   // Recupera todos os logs
@@ -145,6 +148,81 @@ class ExtensionLogger {
 
 // Instância global do logger
 const logger = new ExtensionLogger();
+
+// ===========================================================================
+// SISTEMA DE ENVIO DE LOGS PARA O BACKEND
+// ===========================================================================
+let pendingLogs = [];
+let lastLogSentTime = Date.now();
+
+// Função para enviar logs acumulados para o backend
+async function sendLogsToBackend() {
+  // Não envia se não houver logs pendentes
+  if (pendingLogs.length === 0) {
+    return;
+  }
+  
+  // Copia e limpa logs pendentes
+  const logsToSend = [...pendingLogs];
+  pendingLogs = [];
+  
+  try {
+    const apiBase = API_BASE || await getApiBase();
+    const response = await fetch(`${apiBase}/api/extension/logs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Extension-Key': 'chrome-extension-secret-2024'
+      },
+      body: JSON.stringify({ logs: logsToSend })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log(`📤 ${result.count} logs enviados para o servidor`);
+      lastLogSentTime = Date.now();
+    } else {
+      // Se falhar, adiciona os logs de volta
+      pendingLogs = [...logsToSend, ...pendingLogs];
+      console.error('Erro ao enviar logs para o servidor:', response.status);
+    }
+  } catch (error) {
+    // Se falhar, adiciona os logs de volta  
+    pendingLogs = [...logsToSend, ...pendingLogs];
+    console.error('Erro ao enviar logs para o servidor:', error);
+  }
+}
+
+// Função para adicionar log à fila de envio
+function queueLogForBackend(level, message, context = {}) {
+  pendingLogs.push({
+    timestamp: new Date().toISOString(),
+    level: level,
+    message: message,
+    context: context,
+    traceId: context.traceId || null
+  });
+  
+  // Limita o tamanho da fila
+  if (pendingLogs.length > 500) {
+    pendingLogs = pendingLogs.slice(-500);
+  }
+  
+  // Se tiver muitos logs acumulados, envia imediatamente
+  if (pendingLogs.length >= 50) {
+    sendLogsToBackend();
+  }
+}
+
+// Envio periódico de logs (a cada 30 segundos)
+setInterval(async () => {
+  await sendLogsToBackend();
+}, 30000);
+
+// Envio de logs quando a extensão é descarregada
+chrome.runtime.onSuspend.addListener(async () => {
+  await sendLogsToBackend();
+});
 
 // ===========================================================================
 // LISTENER PARA LOGS DO CONTENT SCRIPT
