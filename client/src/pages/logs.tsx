@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -9,9 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
-import { FileText, Trash2, Eye, AlertCircle, Info, AlertTriangle, Search, Filter, Clock, Activity, Database, Layers, MessageSquare } from 'lucide-react';
+import { FileText, Trash2, Eye, AlertCircle, Info, AlertTriangle, Search, Filter, Clock, Activity, Database, Layers, MessageSquare, Pause, Play } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
+import { format } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
+import { ptBR } from 'date-fns/locale';
 import type { Log } from '@/types';
 
 export default function Logs() {
@@ -19,19 +22,64 @@ export default function Logs() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLog, setSelectedLog] = useState<Log | null>(null);
   const [logLimit, setLogLimit] = useState(100);
+  const [mergedLogs, setMergedLogs] = useState<Log[]>([]);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const lastFetchTime = useRef<Date | null>(null);
+  const isInitialLoad = useRef(true);
+
+  // Função para fazer merge inteligente dos logs
+  const mergeLogs = useCallback((newLogs: Log[], existingLogs: Log[]) => {
+    const logMap = new Map<string, Log>();
+    
+    // Adicionar logs existentes ao Map
+    existingLogs.forEach(log => {
+      const key = `${log.id}_${log.timestamp}`;
+      logMap.set(key, log);
+    });
+    
+    // Adicionar ou atualizar com novos logs
+    newLogs.forEach(log => {
+      const key = `${log.id}_${log.timestamp}`;
+      logMap.set(key, log);
+    });
+    
+    // Converter de volta para array e ordenar por timestamp
+    return Array.from(logMap.values())
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, logLimit);
+  }, [logLimit]);
 
   const { data: logs, isLoading, refetch } = useQuery({
     queryKey: ['/api/logs', logLimit],
     queryFn: () => api.getLogs(logLimit),
-    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
+    refetchInterval: autoRefresh ? 5000 : false,
+    enabled: autoRefresh || isInitialLoad.current,
   });
+
+  // Atualizar logs merged quando novos dados chegarem
+  useEffect(() => {
+    if (logs) {
+      setMergedLogs(prev => {
+        // Se é a primeira vez ou se os logs foram limpos
+        if (isInitialLoad.current || prev.length === 0 || logs.length === 0) {
+          isInitialLoad.current = false;
+          return logs;
+        }
+        // Fazer merge inteligente
+        return mergeLogs(logs, prev);
+      });
+      lastFetchTime.current = new Date();
+    }
+  }, [logs, mergeLogs]);
 
   const clearLogsMutation = useMutation({
     mutationFn: api.clearLogs,
     onSuccess: () => {
       toast({ title: 'Logs limpos com sucesso!' });
+      setMergedLogs([]); // Limpar logs locais também
+      isInitialLoad.current = true;
       queryClient.invalidateQueries({ queryKey: ['/api/logs'] });
     },
     onError: () => {
@@ -39,12 +87,13 @@ export default function Logs() {
     },
   });
 
-
-  const filteredLogs = logs?.filter(log => {
+  const filteredLogs = mergedLogs.filter(log => {
     const matchesLevel = filterLevel === 'all' || log.nivel === filterLevel;
     const matchesSearch = !searchTerm || 
       log.mensagem.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.origem.toLowerCase().includes(searchTerm.toLowerCase());
+      log.origem.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (log.detalhes && JSON.stringify(log.detalhes).toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (log.context && JSON.stringify(log.context).toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesLevel && matchesSearch;
   });
 
@@ -67,12 +116,36 @@ export default function Logs() {
   };
 
   const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return {
-      date: date.toLocaleDateString('pt-BR'),
-      time: date.toLocaleTimeString('pt-BR'),
-      full: date.toLocaleString('pt-BR'),
-    };
+    try {
+      // Converter para horário de Brasília (UTC-3)
+      const date = toZonedTime(new Date(timestamp), 'America/Sao_Paulo');
+      return {
+        date: format(date, 'dd/MM/yyyy', { locale: ptBR }),
+        time: format(date, 'HH:mm:ss', { locale: ptBR }),
+        full: format(date, "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR }),
+      };
+    } catch (e) {
+      // Fallback para formato simples
+      const date = new Date(timestamp);
+      return {
+        date: date.toLocaleDateString('pt-BR'),
+        time: date.toLocaleTimeString('pt-BR'),
+        full: date.toLocaleString('pt-BR'),
+      };
+    }
+  };
+
+  // Formatar metadata/context de forma legível
+  const formatContext = (context: any) => {
+    if (!context) return null;
+    try {
+      if (typeof context === 'string') {
+        return context;
+      }
+      return JSON.stringify(context, null, 2);
+    } catch (e) {
+      return String(context);
+    }
   };
 
   const handleClearLogs = () => {
@@ -89,8 +162,14 @@ export default function Logs() {
       'Notifications': 'bg-yellow-500/20 text-yellow-400',
       'Database': 'bg-orange-500/20 text-orange-400',
       'WhatsApp Bot': 'bg-cyan-500/20 text-cyan-400',
+      'AutoRenewal': 'bg-indigo-500/20 text-indigo-400',
     };
     return colors[origem as keyof typeof colors] || 'bg-gray-500/20 text-gray-400';
+  };
+
+  // Função para gerar key estável para cada log
+  const getLogKey = (log: Log) => {
+    return `${log.id}_${log.timestamp}_${log.origem}`;
   };
 
   if (isLoading) {
@@ -134,6 +213,25 @@ export default function Logs() {
               className="pl-10 w-full md:w-64 bg-dark-surface border-slate-600"
             />
           </div>
+          
+          <Button
+            variant={autoRefresh ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className="text-xs md:text-sm"
+          >
+            {autoRefresh ? (
+              <><Pause className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />Pausar</>
+            ) : (
+              <><Play className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />Atualizar</>
+            )}
+          </Button>
+          
+          {lastFetchTime.current && (
+            <span className="text-xs text-slate-400 hidden md:inline">
+              Últ. atualização: {format(lastFetchTime.current, 'HH:mm:ss')}
+            </span>
+          )}
           
           <div className="flex bg-dark-surface border border-slate-600 rounded-lg overflow-x-auto">
             <Button
@@ -241,9 +339,10 @@ export default function Logs() {
               <tbody>
                 {filteredLogs?.map((log) => {
                   const timestamp = formatTimestamp(log.timestamp);
+                  const logKey = getLogKey(log);
                   
                   return (
-                    <tr key={log.id} className="table-row hover-card">
+                    <tr key={logKey} className="table-row hover-card">
                       <td className="table-cell">
                         <div className="font-mono text-sm">
                           <div className="text-slate-300">{timestamp.date}</div>
@@ -286,7 +385,7 @@ export default function Logs() {
                                 Detalhes do Log
                               </DialogTitle>
                               <DialogDescription className="text-slate-400">
-                                {timestamp.full}
+                                {timestamp.full} (Horário de Brasília)
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
@@ -317,11 +416,19 @@ export default function Logs() {
                                 <div>
                                   <Label className="text-sm font-medium text-slate-300">Detalhes</Label>
                                   <ScrollArea className="mt-2 h-40">
-                                    <pre className="text-xs bg-dark-surface p-3 rounded-lg text-slate-300 overflow-x-auto">
-                                      {typeof log.detalhes === 'string' 
-                                        ? log.detalhes 
-                                        : JSON.stringify(log.detalhes, null, 2)
-                                      }
+                                    <pre className="text-xs bg-dark-surface p-3 rounded-lg text-slate-300 overflow-x-auto whitespace-pre-wrap">
+                                      {formatContext(log.detalhes)}
+                                    </pre>
+                                  </ScrollArea>
+                                </div>
+                              )}
+                              
+                              {log.context && (
+                                <div>
+                                  <Label className="text-sm font-medium text-slate-300">Contexto</Label>
+                                  <ScrollArea className="mt-2 h-40">
+                                    <pre className="text-xs bg-dark-surface p-3 rounded-lg text-slate-300 overflow-x-auto whitespace-pre-wrap">
+                                      {formatContext(log.context)}
                                     </pre>
                                   </ScrollArea>
                                 </div>

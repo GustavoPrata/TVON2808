@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Loader2, RefreshCw, Download, Trash2, Search, 
-  FileText, Layers, Terminal, Filter, AlertCircle
+  FileText, Layers, Terminal, Filter, AlertCircle, Pause, Play
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
 import { ptBR } from 'date-fns/locale';
 
 interface UnifiedLog {
@@ -32,11 +33,37 @@ export function UnifiedLogsSection() {
   const [searchText, setSearchText] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const lastFetchTime = useRef<Date | null>(null);
+  const isInitialLoad = useRef(true);
+  
+  // Função para fazer merge inteligente dos logs
+  const mergeLogs = useCallback((newLogs: UnifiedLog[], existingLogs: UnifiedLog[]) => {
+    const logMap = new Map<string, UnifiedLog>();
+    
+    // Adicionar logs existentes ao Map
+    existingLogs.forEach(log => {
+      const key = `${log.timestamp}_${log.source}_${log.level}_${log.message}`;
+      logMap.set(key, log);
+    });
+    
+    // Adicionar ou atualizar com novos logs
+    newLogs.forEach(log => {
+      const key = `${log.timestamp}_${log.source}_${log.level}_${log.message}`;
+      logMap.set(key, log);
+    });
+    
+    // Converter de volta para array e ordenar por timestamp
+    return Array.from(logMap.values())
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 1000); // Limitar a 1000 logs
+  }, []);
 
   // Função para buscar todos os logs
   const fetchAllLogs = async () => {
     try {
-      setIsLoadingLogs(true);
+      if (isInitialLoad.current) {
+        setIsLoadingLogs(true);
+      }
       
       // Busca todos os logs do backend
       const params = new URLSearchParams();
@@ -55,21 +82,34 @@ export function UnifiedLogsSection() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setLogs(data.logs || []);
-          filterLogs(data.logs || [], levelFilter, sourceFilter, searchText);
+          setLogs(prev => {
+            // Se é a primeira vez ou se os logs foram limpos
+            if (isInitialLoad.current || prev.length === 0 || (data.logs || []).length === 0) {
+              isInitialLoad.current = false;
+              return data.logs || [];
+            }
+            // Fazer merge inteligente
+            return mergeLogs(data.logs || [], prev);
+          });
+          lastFetchTime.current = new Date();
         }
       } else {
         console.error('Erro ao buscar logs:', response.statusText);
       }
     } catch (error) {
       console.error('Erro ao buscar logs:', error);
-      toast({
-        title: '❌ Erro',
-        description: 'Não foi possível buscar os logs',
-        variant: 'destructive'
-      });
+      if (isInitialLoad.current) {
+        toast({
+          title: '❌ Erro',
+          description: 'Não foi possível buscar os logs',
+          variant: 'destructive'
+        });
+      }
     } finally {
-      setIsLoadingLogs(false);
+      if (isInitialLoad.current) {
+        setIsLoadingLogs(false);
+        isInitialLoad.current = false;
+      }
     }
   };
 
@@ -117,6 +157,7 @@ export function UnifiedLogsSection() {
       
       setLogs([]);
       setFilteredLogs([]);
+      isInitialLoad.current = true;
       toast({
         title: '✅ Logs limpos',
         description: 'Os logs foram removidos',
@@ -128,6 +169,25 @@ export function UnifiedLogsSection() {
         description: 'Não foi possível limpar os logs',
         variant: 'destructive',
       });
+    }
+  };
+  
+  // Função para gerar key estável para cada log
+  const getLogKey = (log: UnifiedLog, index: number) => {
+    return `${log.timestamp}_${log.source}_${log.level}_${index}`;
+  };
+  
+  // Função para formatar timestamp para horário brasileiro
+  const formatTimestamp = (timestamp: string) => {
+    try {
+      if (!timestamp || isNaN(new Date(timestamp).getTime())) {
+        return 'N/A';
+      }
+      // Converter para horário de Brasília (UTC-3)
+      const date = toZonedTime(new Date(timestamp), 'America/Sao_Paulo');
+      return format(date, 'HH:mm:ss.SSS', { locale: ptBR });
+    } catch (e) {
+      return 'N/A';
     }
   };
 
@@ -179,6 +239,11 @@ export function UnifiedLogsSection() {
   useEffect(() => {
     filterLogs(logs, levelFilter, sourceFilter, searchText);
   }, [logs, levelFilter, sourceFilter, searchText]);
+  
+  // Atualizar filterLogs para usar logs atualizado
+  useEffect(() => {
+    filterLogs(logs, levelFilter, sourceFilter, searchText);
+  }, []);
 
   const getLogColor = (level: string) => {
     switch (level) {
@@ -224,10 +289,15 @@ export function UnifiedLogsSection() {
               onClick={() => setAutoRefresh(!autoRefresh)}
               variant="outline"
               size="sm"
-              className={`border-slate-700 ${autoRefresh ? 'text-green-400' : ''}`}
+              className={`border-slate-700 ${autoRefresh ? 'text-green-400' : 'text-slate-400'}`}
               data-testid="button-auto-refresh-unified"
+              title={autoRefresh ? 'Pausar atualização automática' : 'Ativar atualização automática'}
             >
-              <RefreshCw className={`w-4 h-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+              {autoRefresh ? (
+                <Pause className="w-4 h-4" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
             </Button>
             <Button
               onClick={fetchAllLogs}
@@ -347,11 +417,13 @@ export function UnifiedLogsSection() {
             ) : filteredLogs.length > 0 ? (
               <ScrollArea className="h-[400px]">
                 <div className="space-y-1 font-mono text-xs">
-                  {filteredLogs.map((log, index) => (
-                    <div 
-                      key={index}
-                      className="p-2 hover:bg-slate-800/30 rounded transition-colors border-b border-slate-800/30"
-                    >
+                  {filteredLogs.map((log, index) => {
+                    const logKey = getLogKey(log, index);
+                    return (
+                      <div 
+                        key={logKey}
+                        className="p-2 hover:bg-slate-800/30 rounded transition-colors border-b border-slate-800/30"
+                      >
                       <div className="flex items-start gap-2">
                         {getSourceBadge(log.source, log.sourceLabel)}
                         <Badge className={`text-[10px] ${
@@ -362,10 +434,8 @@ export function UnifiedLogsSection() {
                         }`}>
                           {log.level}
                         </Badge>
-                        <span className="text-slate-500">
-                          {log.timestamp && !isNaN(new Date(log.timestamp).getTime()) 
-                            ? format(new Date(log.timestamp), 'HH:mm:ss.SSS')
-                            : 'N/A'}
+                        <span className="text-slate-500 text-[10px]" title="Horário de Brasília">
+                          {formatTimestamp(log.timestamp)}
                         </span>
                         <span className={`flex-1 ${getLogColor(log.level)}`}>
                           {log.message}
@@ -381,8 +451,9 @@ export function UnifiedLogsSection() {
                           <pre>{JSON.stringify(log.context, null, 2)}</pre>
                         </div>
                       )}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </ScrollArea>
             ) : (
@@ -397,11 +468,12 @@ export function UnifiedLogsSection() {
           </div>
 
           {/* Legenda */}
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-purple-500/20 rounded"></div>
-              <span>Logs da Extensão Chrome</span>
-            </div>
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-purple-500/20 rounded"></div>
+                <span>Logs da Extensão Chrome</span>
+              </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-green-500/20 rounded"></div>
               <span>Logs da Aplicação</span>
@@ -410,10 +482,16 @@ export function UnifiedLogsSection() {
               <div className="w-3 h-3 bg-red-500/20 rounded"></div>
               <span>Erros</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-yellow-500/20 rounded"></div>
-              <span>Avisos</span>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-yellow-500/20 rounded"></div>
+                <span>Avisos</span>
+              </div>
             </div>
+            {lastFetchTime.current && (
+              <span className="text-xs text-slate-400">
+                Últ. atualização: {format(lastFetchTime.current, 'HH:mm:ss')}
+              </span>
+            )}
           </div>
         </div>
       </CardContent>

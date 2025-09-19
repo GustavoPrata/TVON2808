@@ -32,33 +32,59 @@ export class AutoRenewalService {
   private nextCheckTime: Date | null = null;
   private lastCheckTime: Date | null = null;
 
-  start() {
+  async start() {
     // Parar intervalo anterior se existir
     if (this.intervalId) {
       clearInterval(this.intervalId);
     }
 
     // Rodar a cada 60 segundos
-    this.intervalId = setInterval(() => {
+    this.intervalId = setInterval(async () => {
       this.nextCheckTime = new Date(Date.now() + 60000); // Próxima verificação em 60s
-      this.checkAndRenewSystems().catch(error => {
+      try {
+        await this.checkAndRenewSystems();
+      } catch (error) {
         console.error('❌ Erro no serviço de renovação automática:', error);
-      });
+        await storage.createLog({
+          nivel: 'error',
+          origem: 'AutoRenewal',
+          mensagem: 'Erro no serviço de renovação automática',
+          detalhes: { error: error instanceof Error ? error.message : String(error) }
+        });
+      }
     }, 60000);
 
     console.log('🔄 Renovação automática ATIVADA - verificando a cada 60 segundos');
+    await storage.createLog({
+      nivel: 'info',
+      origem: 'AutoRenewal',
+      mensagem: 'Serviço de renovação automática ATIVADO',
+      detalhes: { interval: '60 segundos' }
+    });
     
     // Executar primeira verificação imediatamente
-    this.checkAndRenewSystems().catch(error => {
+    this.checkAndRenewSystems().catch(async error => {
       console.error('❌ Erro na primeira verificação de renovação:', error);
+      await storage.createLog({
+        nivel: 'error',
+        origem: 'AutoRenewal',
+        mensagem: 'Erro na primeira verificação de renovação',
+        detalhes: { error: error instanceof Error ? error.message : String(error) }
+      });
     });
   }
 
-  stop() {
+  async stop() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
       console.log('⏹️ Renovação automática DESATIVADA');
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'AutoRenewal',
+        mensagem: 'Serviço de renovação automática DESATIVADO',
+        detalhes: null
+      });
     }
   }
 
@@ -67,6 +93,13 @@ export class AutoRenewalService {
       this.lastCheckTime = new Date();
       console.log('\n🔍 === INICIANDO VERIFICAÇÃO DE RENOVAÇÃO AUTOMÁTICA ===');
       console.log(`⏰ Horário da verificação: ${this.lastCheckTime.toISOString()}`);
+      
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'AutoRenewal',
+        mensagem: 'Iniciando verificação de renovação automática',
+        detalhes: { checkTime: this.lastCheckTime.toISOString() }
+      });
       
       // Limpar itens antigos da fila (mais de 1 hora)
       this.cleanupQueue();
@@ -80,6 +113,12 @@ export class AutoRenewalService {
       
       if (!config || !config.isEnabled) {
         console.log('⚠️ Serviço de renovação desabilitado na configuração');
+        await storage.createLog({
+          nivel: 'warn',
+          origem: 'AutoRenewal',
+          mensagem: 'Serviço de renovação desabilitado na configuração',
+          detalhes: null
+        });
         return;
       }
 
@@ -99,8 +138,24 @@ export class AutoRenewalService {
       
       console.log(`📋 Total de sistemas com autoRenewal habilitado: ${sistemasAutoRenew.length}`);
       
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'AutoRenewal',
+        mensagem: 'Sistemas com renovação automática verificados',
+        detalhes: {
+          totalSistemas: sistemasAutoRenew.length,
+          renewalAdvanceMinutes: renewalAdvanceMinutes
+        }
+      });
+      
       if (sistemasAutoRenew.length === 0) {
         console.log('ℹ️ Nenhum sistema com renovação automática habilitada');
+        await storage.createLog({
+          nivel: 'info',
+          origem: 'AutoRenewal',
+          mensagem: 'Nenhum sistema com renovação automática habilitada',
+          detalhes: null
+        });
         return;
       }
       
@@ -183,11 +238,27 @@ export class AutoRenewalService {
       if (sistemasParaRenovar.length === 0) {
         console.log('✨ Nenhum sistema precisa de renovação no momento');
         console.log('🔍 === FIM DA VERIFICAÇÃO DE RENOVAÇÃO AUTOMÁTICA ===\n');
+        await storage.createLog({
+          nivel: 'info',
+          origem: 'AutoRenewal',
+          mensagem: 'Nenhum sistema precisa de renovação no momento',
+          detalhes: { sistemasAnalisados: sistemasAutoRenew.length }
+        });
         return;
       }
 
       console.log(`\n✅ ${sistemasParaRenovar.length} sistema(s) prontos para renovação!`);
       console.log(`🔄 Iniciando processo de renovação sequencial...`);
+      
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'AutoRenewal',
+        mensagem: 'Iniciando renovação de sistemas',
+        detalhes: {
+          totalParaRenovar: sistemasParaRenovar.length,
+          sistemas: sistemasParaRenovar.map(s => ({ id: s.id, username: s.username, expiracao: s.expiracao }))
+        }
+      });
 
       // 3. Processar cada sistema SEQUENCIALMENTE (não em paralelo)
       for (const sistema of sistemasParaRenovar) {
@@ -211,11 +282,33 @@ export class AutoRenewalService {
           // Renovar sistema e aguardar conclusão antes de processar o próximo
           await this.renewSystem(sistema);
           
+          await storage.createLog({
+            nivel: 'info',
+            origem: 'AutoRenewal',
+            mensagem: 'Sistema renovado com sucesso',
+            detalhes: {
+              sistemaId: sistema.id,
+              username: sistema.username
+            }
+          });
+          
           // Aguardar 5 segundos entre renovações para não sobrecarregar
           console.log(`⏳ Aguardando 5 segundos antes da próxima renovação...`);
           await new Promise(resolve => setTimeout(resolve, 5000));
         } catch (error) {
           console.error(`❌ Erro ao renovar sistema ${sistema.id}:`, error);
+          
+          await storage.createLog({
+            nivel: 'error',
+            origem: 'AutoRenewal',
+            mensagem: 'Erro ao renovar sistema',
+            detalhes: {
+              sistemaId: sistema.id,
+              username: sistema.username,
+              error: error instanceof Error ? error.message : String(error)
+            }
+          });
+          
           // Remover flag de renovação em caso de erro
           this.isRenewing.delete(sistema.id);
           
@@ -231,9 +324,27 @@ export class AutoRenewalService {
       
       console.log(`✅ Processo de renovação sequencial concluído`);
       console.log('🔍 === FIM DA VERIFICAÇÃO DE RENOVAÇÃO AUTOMÁTICA ===\n');
+      
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'AutoRenewal',
+        mensagem: 'Verificação de renovação automática concluída',
+        detalhes: {
+          sistemasRenovados: sistemasParaRenovar.length
+        }
+      });
     } catch (error) {
       console.error('❌ Erro ao verificar sistemas para renovação:', error);
       console.log('🔍 === FIM DA VERIFICAÇÃO DE RENOVAÇÃO AUTOMÁTICA (COM ERRO) ===\n');
+      
+      await storage.createLog({
+        nivel: 'error',
+        origem: 'AutoRenewal',
+        mensagem: 'Erro ao verificar sistemas para renovação',
+        detalhes: {
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
     }
   }
 
@@ -246,6 +357,20 @@ export class AutoRenewalService {
       console.log(`  Expiração atual: ${sistema.expiracao}`);
       console.log(`  Última renovação: ${sistema.lastRenewalAt || 'NUNCA'}`);
       console.log(`  Contagem de renovações: ${sistema.renewalCount || 0}`);
+      
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'AutoRenewal',
+        mensagem: 'Iniciando renovação de sistema individual',
+        detalhes: {
+          traceId,
+          sistemaId: sistema.id,
+          username: sistema.username,
+          expiracaoAtual: sistema.expiracao,
+          ultimaRenovacao: sistema.lastRenewalAt || null,
+          contagemRenovacoes: sistema.renewalCount || 0
+        }
+      });
 
       // 1. Criar task pendente no banco com sistemaId no metadata
       console.log(`💾 [AutoRenewal] Criando task de renovação no banco [${traceId}]...`);
@@ -284,6 +409,18 @@ export class AutoRenewalService {
       console.log(`  Sistema ID: ${task.sistemaId}`);
       console.log(`  Username da task: ${task.username}`);
       console.log(`  Metadata:`, JSON.stringify(task.metadata, null, 2));
+      
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'AutoRenewal',
+        mensagem: 'Task de renovação criada com sucesso',
+        detalhes: {
+          traceId,
+          taskId: task.id,
+          sistemaId: task.sistemaId,
+          taskUsername: task.username
+        }
+      });
 
       // 2. Marcar sistema como em renovação no banco
       console.log(`📊 [AutoRenewal] Atualizando sistema no banco [${traceId}]...`);
@@ -325,8 +462,20 @@ export class AutoRenewalService {
     } catch (error) {
       console.error(`🔴 [AutoRenewal] ERRO ao criar task de renovação [${traceId}]:`, error);
       console.error(`  Sistema ID: ${sistema.id}`);
-      console.error(`  Mensagem: ${error.message}`);
-      console.error(`  Stack:`, error.stack);
+      console.error(`  Mensagem: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(`  Stack:`, error instanceof Error ? error.stack : 'N/A');
+      
+      await storage.createLog({
+        nivel: 'error',
+        origem: 'AutoRenewal',
+        mensagem: 'Erro ao criar task de renovação',
+        detalhes: {
+          traceId,
+          sistemaId: sistema.id,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : 'N/A'
+        }
+      });
       
       // Remover flag de renovação em caso de erro
       this.isRenewing.delete(sistema.id);
@@ -414,15 +563,45 @@ export class AutoRenewalService {
         .limit(1);
 
       if (!sistema) {
+        await storage.createLog({
+          nivel: 'warn',
+          origem: 'AutoRenewal',
+          mensagem: 'Sistema não encontrado para renovação forçada',
+          detalhes: {
+            sistemaId: systemId
+          }
+        });
         throw new Error(`Sistema ${systemId} não encontrado`);
       }
 
       console.log(`🔄 Forçando renovação do sistema ${systemId}`);
+      
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'AutoRenewal',
+        mensagem: 'Renovação forçada iniciada',
+        detalhes: {
+          sistemaId: systemId,
+          username: sistema.username
+        }
+      });
+      
       await this.renewSystem(sistema);
       return { success: true, message: `Renovação do sistema ${systemId} iniciada` };
     } catch (error) {
       console.error(`❌ Erro ao forçar renovação do sistema ${systemId}:`, error);
-      return { success: false, error: error.message };
+      
+      await storage.createLog({
+        nivel: 'error',
+        origem: 'AutoRenewal',
+        mensagem: 'Erro ao forçar renovação',
+        detalhes: {
+          sistemaId: systemId,
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+      
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 }
