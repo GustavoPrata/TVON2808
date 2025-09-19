@@ -52,6 +52,9 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **PostgreSQL**: Relational database for persistent data storage.
 
 ## Recent Updates (September 2025)
+- **Bug Crítico de Renovação Corrigido** - Resolvido problema onde lastRenewalAt era atualizado prematuramente na criação de tasks, não na conclusão
+- **Endpoint de Reset de Renovação** - Criado /api/sistemas/reset-renewal/:id para resetar sistemas travados em estado de renovação
+- **Limpeza de Estado Aprimorada** - Sistema agora limpa corretamente estado in-memory quando tasks são deletadas
 - **Sistema de Logs Unificados Completo** - Implementado visualização centralizada de todos os logs (aplicação + extensão Chrome) em tempo real no painel-office
 - **Endpoints de Logs Expandidos** - Criado GET /api/all-logs para buscar logs unificados com filtros por fonte, nível e busca
 - **Melhorias na Interface de Logs** - Nova seção "Central de Logs Unificados" com estatísticas em tempo real, filtros avançados e download
