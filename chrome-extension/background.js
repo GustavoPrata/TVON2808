@@ -149,7 +149,49 @@ const logger = new ExtensionLogger();
 // ===========================================================================
 // CONFIGURAÇÃO
 // ===========================================================================
-const API_BASE = 'https://tv-on.site';
+// Função para determinar a URL do servidor dinamicamente
+async function getApiBase() {
+  // Primeiro, verifica se há uma configuração salva no storage
+  const stored = await chrome.storage.local.get('apiBase');
+  if (stored.apiBase) {
+    await logger.info(`📍 Usando API configurada: ${stored.apiBase}`);
+    return stored.apiBase;
+  }
+  
+  // Lista de servidores possíveis em ordem de prioridade
+  const servers = [
+    'http://localhost:5000',           // Desenvolvimento local
+    'http://127.0.0.1:5000',          // Desenvolvimento local alternativo
+    'https://tv-on.site'               // Produção
+  ];
+  
+  // Tenta cada servidor para ver qual está disponível
+  for (const server of servers) {
+    try {
+      await logger.debug(`🔍 Testando servidor: ${server}`);
+      const response = await fetch(`${server}/api`, {
+        method: 'HEAD',
+        mode: 'cors'
+      }).catch(() => null);
+      
+      if (response && response.ok) {
+        await logger.info(`✅ Servidor disponível: ${server}`);
+        // Salva o servidor funcional no storage
+        await chrome.storage.local.set({ apiBase: server });
+        return server;
+      }
+    } catch (e) {
+      await logger.debug(`❌ Servidor não disponível: ${server}`);
+    }
+  }
+  
+  // Se nenhum servidor responder, usa o padrão de produção
+  await logger.warn('⚠️ Nenhum servidor respondeu, usando produção como fallback');
+  return 'https://tv-on.site';
+}
+
+// Variável global para armazenar a URL do API
+let API_BASE = null;
 const POLLING_INTERVAL_ACTIVE = 30000; // 30 segundos quando não há tarefas
 const POLLING_INTERVAL_IDLE = 60000; // 60 segundos quando automação está desabilitada
 const POLLING_INTERVAL_FAST = 10000; // 10 segundos após processar tarefa
@@ -170,9 +212,12 @@ let currentPollingInterval = POLLING_INTERVAL_IDLE;
 // ===========================================================================
 // INICIALIZAÇÃO
 // ===========================================================================
-// Inicialização assíncrona do logger
+// Inicialização assíncrona do logger e API
 (async () => {
   await logger.info('🚀 Background script iniciado (versão backend-driven)');
+  // Inicializa API_BASE dinamicamente
+  API_BASE = await getApiBase();
+  await logger.info(`🔗 Servidor API configurado: ${API_BASE}`);
 })();
 
 // Usa Chrome Alarms API para manter a extensão sempre ativa
@@ -227,9 +272,9 @@ chrome.runtime.onInstalled.addListener(async () => {
 })();
 
 // Função para garantir que a aba do OnlineOffice está aberta
-async function ensureOfficeTabOpen() {
-  // Só abre se a automação está habilitada
-  if (!lastStatus.isEnabled) return;
+async function ensureOfficeTabOpen(forceOpen = false) {
+  // Só abre se a automação está habilitada OU se forceOpen é true (quando há task)
+  if (!lastStatus.isEnabled && !forceOpen) return;
   
   const tabs = await chrome.tabs.query({
     url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
@@ -273,9 +318,19 @@ async function checkForTasks() {
   }
   lastStatus.lastCheck = now;
   
+  // Garante que API_BASE está definido
+  if (!API_BASE) {
+    API_BASE = await getApiBase();
+    await logger.info(`🔗 Servidor API re-configurado: ${API_BASE}`);
+  }
+  
   try {
+    // Log detalhado da URL sendo usada
+    const fullUrl = `${API_BASE}/api/office/automation/next-task`;
+    await logger.info(`🔍 Buscando tarefas em: ${fullUrl}`);
+    
     // Consulta próxima tarefa no backend
-    const response = await fetch(`${API_BASE}/api/office/automation/next-task`, {
+    const response = await fetch(fullUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -299,9 +354,23 @@ async function checkForTasks() {
     
     const data = await response.json();
     
+    // Log detalhado da resposta
+    await logger.info(`📦 Resposta do servidor:`, { 
+      hasTask: data.hasTask,
+      isEnabled: data.isEnabled,
+      taskType: data.task?.type,
+      server: API_BASE
+    });
+    
     // Atualiza badge baseado no status
     await updateBadge(data.isEnabled || false);
     lastStatus.isEnabled = data.isEnabled || false;
+    
+    // Se há task, SEMPRE abre a aba OnlineOffice
+    if (data.hasTask) {
+      await logger.info('✅ TASK ENCONTRADA! Abrindo aba OnlineOffice...');
+      await ensureOfficeTabOpen(true); // força abertura quando há task
+    }
     
     // Ajusta intervalo de polling baseado no status
     if (!lastStatus.isEnabled && currentPollingInterval !== POLLING_INTERVAL_IDLE) {
@@ -321,7 +390,11 @@ async function checkForTasks() {
       return;
     }
     
-    await logger.info('📋 Nova tarefa recebida do backend', { task: data.task });
+    await logger.info('📋 Nova tarefa recebida do backend', { 
+      task: data.task,
+      taskId: data.task?.id,
+      taskType: data.task?.type 
+    });
     
     // Marca como processando
     isProcessingTask = true;
@@ -791,7 +864,16 @@ async function renewSystem(tabId, task) {
 // COMUNICAÇÃO COM BACKEND
 // ===========================================================================
 async function reportTaskResult(result) {
-  await logger.info('📤 Reportando resultado ao backend', { result });
+  // Garante que API_BASE está definido
+  if (!API_BASE) {
+    API_BASE = await getApiBase();
+    await logger.info(`🔗 Servidor API re-configurado: ${API_BASE}`);
+  }
+  
+  await logger.info('📤 Reportando resultado ao backend', { 
+    result,
+    server: API_BASE
+  });
   
   try {
     // Usa o endpoint correto task-complete
@@ -903,11 +985,41 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   
   if (request.type === 'openDashboard') {
     // Abre o painel de controle
+    const dashboardUrl = API_BASE || 'http://localhost:5000';
     chrome.tabs.create({ 
-      url: `${API_BASE}/painel-office` 
+      url: `${dashboardUrl}/painel-office` 
     });
     sendResponse({success: true});
     return true;
+  }
+  
+  if (request.type === 'getCurrentServer') {
+    // Retorna o servidor atual
+    sendResponse({ server: API_BASE });
+    return true;
+  }
+  
+  if (request.type === 'serverUpdated') {
+    // Atualiza o servidor quando alterado no popup
+    (async () => {
+      API_BASE = request.server;
+      await logger.info(`🔄 Servidor atualizado via popup: ${API_BASE}`);
+      // Força nova checagem com o novo servidor
+      await checkForTasks();
+    })();
+    sendResponse({success: true});
+    return true;
+  }
+  
+  if (request.type === 'autoDetectServer') {
+    // Re-detecta o servidor
+    (async () => {
+      await logger.info('🔍 Re-detectando servidor...');
+      API_BASE = await getApiBase();
+      await logger.info(`✅ Servidor detectado: ${API_BASE}`);
+      sendResponse({ server: API_BASE });
+    })();
+    return true; // Indica resposta assíncrona
   }
   
   // Outras mensagens são ignoradas pois tudo é controlado pelo backend

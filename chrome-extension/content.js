@@ -8,7 +8,55 @@ console.log('👋 OnlineOffice Automator carregado!');
 // ===========================================================================
 // URL do servidor onde o sistema TV ON está rodando
 // IMPORTANTE: A extensão roda no OnlineOffice, mas envia dados para nosso servidor
-const API_BASE = 'https://tv-on.site';
+// Função para determinar a URL do servidor dinamicamente
+async function getApiBase() {
+  // Primeiro, verifica se há uma configuração salva no storage
+  const stored = await chrome.storage.local.get('apiBase');
+  if (stored.apiBase) {
+    console.log(`📍 Usando API configurada: ${stored.apiBase}`);
+    return stored.apiBase;
+  }
+  
+  // Lista de servidores possíveis em ordem de prioridade
+  const servers = [
+    'http://localhost:5000',           // Desenvolvimento local
+    'http://127.0.0.1:5000',          // Desenvolvimento local alternativo
+    'https://tv-on.site'               // Produção
+  ];
+  
+  // Tenta cada servidor para ver qual está disponível
+  for (const server of servers) {
+    try {
+      console.log(`🔍 Testando servidor: ${server}`);
+      const response = await fetch(`${server}/api`, {
+        method: 'HEAD',
+        mode: 'cors'
+      }).catch(() => null);
+      
+      if (response && response.ok) {
+        console.log(`✅ Servidor disponível: ${server}`);
+        // Salva o servidor funcional no storage
+        await chrome.storage.local.set({ apiBase: server });
+        return server;
+      }
+    } catch (e) {
+      console.log(`❌ Servidor não disponível: ${server}`);
+    }
+  }
+  
+  // Se nenhum servidor responder, usa o padrão de produção
+  console.warn('⚠️ Nenhum servidor respondeu, usando produção como fallback');
+  return 'https://tv-on.site';
+}
+
+// Variável global para armazenar a URL do API
+let API_BASE = null;
+
+// Inicializa API_BASE assim que o script carregar
+(async () => {
+  API_BASE = await getApiBase();
+  console.log(`🔗 Content Script - Servidor API configurado: ${API_BASE}`);
+})();
 
 // Flag para evitar duplicação de credenciais
 let isGeneratingViaCommand = false;
@@ -68,6 +116,14 @@ document.addEventListener('keydown', function(event) {
 // ===========================================================================
 async function saveCredentialsToDatabase(username, password) {
   console.log('💾 Salvando credenciais no banco de dados...');
+  
+  // Garante que API_BASE está definido
+  if (!API_BASE) {
+    API_BASE = await getApiBase();
+    console.log(`🔗 API re-configurada: ${API_BASE}`);
+  }
+  
+  console.log(`📤 Enviando para: ${API_BASE}/api/office/automation/task-complete`);
   
   try {
     const response = await fetch(`${API_BASE}/api/office/automation/task-complete`, {

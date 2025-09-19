@@ -204,6 +204,29 @@
       opacity: 0.7;
     }
     
+    .config-toggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      cursor: pointer;
+      color: white;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+    
+    .config-toggle:hover {
+      background: rgba(255,255,255,0.3);
+      transform: rotate(90deg);
+    }
+    
     .recent-credentials {
       margin-top: 15px;
       padding: 10px;
@@ -227,6 +250,9 @@
 </head>
 <body>
   <div class="container">
+    <!-- Botão de Configuração -->
+    <button class="config-toggle" id="configToggle" title="Configurações">⚙️</button>
+    
     <div class="header">
       <h1>
         <span class="logo">IP</span>
@@ -239,6 +265,30 @@
       <div class="loading">
         <span class="spinner"></span>
         Conectando ao backend...
+      </div>
+    </div>
+    
+    <!-- Seção de Configuração do Servidor -->
+    <div id="serverConfig" style="display: none;">
+      <div class="status-card">
+        <div class="status-row">
+          <span class="status-label">🔗 Servidor Atual</span>
+        </div>
+        <div style="margin-top: 10px;">
+          <input type="text" id="serverUrl" placeholder="http://localhost:5000" 
+                 style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.3); 
+                        background: rgba(0,0,0,0.2); color: white; font-size: 13px;">
+        </div>
+        <div style="margin-top: 10px; display: flex; gap: 10px;">
+          <button id="saveServer" style="flex: 1; padding: 8px; border-radius: 4px; border: none; 
+                                          background: #28a745; color: white; cursor: pointer; font-size: 13px;">
+            Salvar
+          </button>
+          <button id="autoDetect" style="flex: 1; padding: 8px; border-radius: 4px; border: none; 
+                                          background: #6c757d; color: white; cursor: pointer; font-size: 13px;">
+            Auto-detectar
+          </button>
+        </div>
       </div>
     </div>
     

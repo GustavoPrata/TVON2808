@@ -2,6 +2,11 @@
 
 document.addEventListener('DOMContentLoaded', async () => {
   const contentDiv = document.getElementById('content');
+  const serverConfigDiv = document.getElementById('serverConfig');
+  const configToggle = document.getElementById('configToggle');
+  
+  // Estado da configuração
+  let showingConfig = false;
   
   // Função para renderizar o conteúdo
   async function render() {
@@ -78,6 +83,86 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('retry').addEventListener('click', render);
     }
   }
+  
+  // Toggle de configuração
+  configToggle.addEventListener('click', () => {
+    showingConfig = !showingConfig;
+    if (showingConfig) {
+      contentDiv.style.display = 'none';
+      serverConfigDiv.style.display = 'block';
+      loadServerConfig();
+    } else {
+      contentDiv.style.display = 'block';
+      serverConfigDiv.style.display = 'none';
+    }
+  });
+  
+  // Carrega configuração do servidor
+  async function loadServerConfig() {
+    const stored = await chrome.storage.local.get('apiBase');
+    const serverUrl = document.getElementById('serverUrl');
+    if (stored.apiBase) {
+      serverUrl.value = stored.apiBase;
+    } else {
+      // Tenta detectar o servidor atual
+      const response = await chrome.runtime.sendMessage({type: 'getCurrentServer'});
+      if (response?.server) {
+        serverUrl.value = response.server;
+      } else {
+        serverUrl.value = 'http://localhost:5000';
+      }
+    }
+  }
+  
+  // Salva configuração do servidor
+  document.getElementById('saveServer')?.addEventListener('click', async () => {
+    const serverUrl = document.getElementById('serverUrl').value.trim();
+    if (serverUrl) {
+      // Remove barra final se houver
+      const cleanUrl = serverUrl.replace(/\/$/, '');
+      await chrome.storage.local.set({ apiBase: cleanUrl });
+      
+      // Notifica background script
+      chrome.runtime.sendMessage({type: 'serverUpdated', server: cleanUrl});
+      
+      // Feedback visual
+      const btn = document.getElementById('saveServer');
+      btn.textContent = '✅ Salvo!';
+      setTimeout(() => {
+        btn.textContent = 'Salvar';
+        // Volta para tela principal
+        showingConfig = false;
+        contentDiv.style.display = 'block';
+        serverConfigDiv.style.display = 'none';
+        render();
+      }, 1500);
+    }
+  });
+  
+  // Auto-detecta servidor
+  document.getElementById('autoDetect')?.addEventListener('click', async () => {
+    const btn = document.getElementById('autoDetect');
+    btn.textContent = '🔍 Detectando...';
+    
+    // Remove configuração salva para forçar auto-detecção
+    await chrome.storage.local.remove('apiBase');
+    
+    // Pede ao background para re-detectar
+    const response = await chrome.runtime.sendMessage({type: 'autoDetectServer'});
+    
+    if (response?.server) {
+      document.getElementById('serverUrl').value = response.server;
+      btn.textContent = '✅ Detectado!';
+      setTimeout(() => {
+        btn.textContent = 'Auto-detectar';
+      }, 2000);
+    } else {
+      btn.textContent = '❌ Falhou';
+      setTimeout(() => {
+        btn.textContent = 'Auto-detectar';
+      }, 2000);
+    }
+  });
   
   // Renderiza inicialmente
   render();
