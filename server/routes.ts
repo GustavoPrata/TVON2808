@@ -5108,6 +5108,130 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Endpoints de Renovação Automática de Sistemas
+  app.get("/api/sistemas/para-renovar", async (req, res) => {
+    try {
+      const sistemas = await storage.getSistemasParaRenovar();
+      res.json(sistemas);
+    } catch (error) {
+      console.error("Erro ao buscar sistemas para renovar:", error);
+      res.status(500).json({ error: "Erro ao buscar sistemas para renovar" });
+    }
+  });
+
+  app.get("/api/sistemas/vencidos", async (req, res) => {
+    try {
+      const sistemas = await storage.getSistemasVencidos();
+      res.json(sistemas);
+    } catch (error) {
+      console.error("Erro ao buscar sistemas vencidos:", error);
+      res.status(500).json({ error: "Erro ao buscar sistemas vencidos" });
+    }
+  });
+
+  app.get("/api/sistemas/proximo-vencimento/:dias", async (req, res) => {
+    try {
+      const dias = parseInt(req.params.dias);
+      const sistemas = await storage.getSistemasProximoVencimento(dias);
+      res.json(sistemas);
+    } catch (error) {
+      console.error("Erro ao buscar sistemas próximo ao vencimento:", error);
+      res.status(500).json({ error: "Erro ao buscar sistemas próximo ao vencimento" });
+    }
+  });
+
+  // Atualizar configuração de renovação de um sistema
+  app.patch("/api/sistemas/:id/renewal-config", async (req, res) => {
+    try {
+      const { autoRenewalEnabled, renewalAdvanceTime } = req.body;
+      const result = await storage.updateSistema(Number(req.params.id), {
+        autoRenewalEnabled,
+        renewalAdvanceTime
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao atualizar configuração de renovação:", error);
+      res.status(500).json({ error: "Erro ao atualizar configuração de renovação" });
+    }
+  });
+
+  // Atualizar validade de um sistema
+  app.patch("/api/sistemas/:id/expiration", async (req, res) => {
+    try {
+      const { expiration } = req.body;
+      const result = await storage.updateSistema(Number(req.params.id), {
+        expiration: new Date(expiration)
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao atualizar validade do sistema:", error);
+      res.status(500).json({ error: "Erro ao atualizar validade do sistema" });
+    }
+  });
+
+  // Renovar sistema manualmente
+  app.post("/api/sistemas/:id/renew", async (req, res) => {
+    try {
+      const sistemaId = Number(req.params.id);
+      
+      // Marcar como renovando
+      await storage.marcarSistemaComoRenovando(sistemaId);
+      
+      // Criar tarefa para extensão
+      const task = await storage.createPendingTask('renew_system', {
+        sistemaId
+      });
+      
+      res.json({
+        message: "Renovação iniciada",
+        taskId: task.id
+      });
+    } catch (error) {
+      console.error("Erro ao iniciar renovação:", error);
+      res.status(500).json({ error: "Erro ao iniciar renovação do sistema" });
+    }
+  });
+
+  // Processar renovação automática (chamado pelo serviço de renovação)
+  app.post("/api/sistemas/process-renewal", async (req, res) => {
+    try {
+      const { sistemaId, username, password } = req.body;
+      
+      if (!sistemaId || !username || !password) {
+        return res.status(400).json({ error: "Dados incompletos para renovação" });
+      }
+      
+      // Atualizar sistema com novas credenciais
+      const result = await storage.updateSistemaRenewal(sistemaId, username, password);
+      
+      // Registrar renovação automática
+      await storage.registrarRenovacaoAutomatica(sistemaId, { username, password });
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Erro ao processar renovação:", error);
+      res.status(500).json({ error: "Erro ao processar renovação" });
+    }
+  });
+
+  // Obter logs de renovação
+  app.get("/api/sistemas/renewal-logs", async (req, res) => {
+    try {
+      const { limit = 50 } = req.query;
+      const renewalLogs = await db
+        .select()
+        .from(logs)
+        .where(eq(logs.origem, 'sistema_renewal'))
+        .orderBy(desc(logs.timestamp))
+        .limit(parseInt(limit as string));
+      
+      res.json(renewalLogs);
+    } catch (error) {
+      console.error("Erro ao buscar logs de renovação:", error);
+      res.status(500).json({ error: "Erro ao buscar logs de renovação" });
+    }
+  });
+
   // Vencimentos
   app.get("/api/vencimentos", async (req, res) => {
     try {

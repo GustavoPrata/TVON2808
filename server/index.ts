@@ -105,10 +105,73 @@ app.use((req, res, next) => {
     await checkExpiredTests();
   });
   
+  // Função para renovação automática de sistemas IPTV
+  async function checkSystemsForRenewal() {
+    try {
+      console.log("🔄 Verificando sistemas IPTV para renovação automática...");
+      
+      // Buscar sistemas com renovação automática ativada
+      const sistemasParaRenovar = await storage.getSistemasExpirandoEm(24 * 60); // 24 horas
+      
+      if (sistemasParaRenovar.length === 0) {
+        return;
+      }
+      
+      console.log(`📋 ${sistemasParaRenovar.length} sistemas precisam ser renovados`);
+      
+      // Buscar pontos disponíveis
+      const pontosDisponiveis = await storage.getAvailablePoints();
+      console.log(`💡 ${pontosDisponiveis} pontos disponíveis para renovação`);
+      
+      let sistemasRenovados = 0;
+      
+      for (const sistema of sistemasParaRenovar) {
+        if (!sistema.autoRenewalEnabled) continue;
+        
+        const now = new Date();
+        const expiration = new Date(sistema.expiration!);
+        const diffMinutes = Math.floor((expiration.getTime() - now.getTime()) / (1000 * 60));
+        
+        // Verifica se está dentro do tempo de renovação antecipada
+        if (diffMinutes <= (sistema.renewalAdvanceTime || 60)) {
+          console.log(`🔄 Renovando sistema ${sistema.systemId}...`);
+          
+          try {
+            // Aqui seria feita a chamada para a extensão Chrome gerar novas credenciais
+            // Por enquanto, vamos apenas estender a validade
+            await storage.renovarSistema(sistema.systemId, {
+              expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+              lastRenewalAt: new Date().toISOString(),
+              renewalCount: (sistema.renewalCount || 0) + 1
+            });
+            
+            sistemasRenovados++;
+            console.log(`✅ Sistema ${sistema.systemId} renovado com sucesso`);
+          } catch (error) {
+            console.error(`❌ Erro ao renovar sistema ${sistema.systemId}:`, error);
+          }
+        }
+      }
+      
+      if (sistemasRenovados > 0) {
+        console.log(`✨ ${sistemasRenovados} sistemas renovados automaticamente`);
+      }
+    } catch (error) {
+      console.error("Erro ao verificar sistemas para renovação:", error);
+    }
+  }
+  
+  // Executar verificação de renovação a cada 10 minutos
+  cron.schedule("*/10 * * * *", async () => {
+    await checkSystemsForRenewal();
+  });
+  
   // Executar verificação imediatamente ao iniciar
   setTimeout(async () => {
     console.log("🔍 Iniciando verificação de testes expirados...");
     await checkExpiredTests();
+    console.log("🔄 Iniciando verificação de sistemas IPTV para renovação...");
+    await checkSystemsForRenewal();
   }, 5000); // Aguardar 5 segundos para garantir que tudo está inicializado
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -131,6 +131,17 @@ export interface IStorage {
   updateSistema(id: number, sistema: Partial<InsertSistema>): Promise<Sistema>;
   deleteSistema(id: number): Promise<void>;
   syncSistemasFromApi(apiSystems: Array<{system_id: string; username: string; password: string}>): Promise<void>;
+  // Métodos para gerenciamento de validade
+  getSistemasParaRenovar(): Promise<Sistema[]>;
+  getSistemasVencidos(): Promise<Sistema[]>;
+  getSistemasProximoVencimento(dias: number): Promise<Sistema[]>;
+  getSistemasExpirandoEm(minutos: number): Promise<Sistema[]>; // Sistemas expirando em X minutos
+  updateSistemaRenewal(id: number, username: string, password: string): Promise<Sistema>;
+  marcarSistemaComoRenovando(id: number): Promise<void>;
+  marcarRenovacaoFalhou(id: number, erro: string): Promise<void>;
+  registrarRenovacaoAutomatica(sistemaId: number, novaCredencial: {username: string; password: string}): Promise<void>;
+  renovarSistema(systemId: string, data: any): Promise<void>; // Atualiza sistema com novos dados
+  getAvailablePoints(): Promise<number>; // Retorna pontos disponíveis
 
   // Redirect URLs
   getRedirectUrls(): Promise<RedirectUrl[]>;
@@ -157,6 +168,7 @@ export interface IStorage {
   getTestesExpirados(): Promise<Teste[]>;
   getTestesExpiradosNaoNotificados(): Promise<Teste[]>;
   expireOldTestes(): Promise<void>;
+  markTesteAsNotificado(id: number): Promise<void>; // Marca teste como notificado
   
   // Indicações (Referral System)
   getIndicacoesByIndicadorId(indicadorId: number): Promise<Indicacao[]>;
@@ -1127,11 +1139,12 @@ export class DatabaseStorage implements IStorage {
           });
         }
       } else {
-        // Create new
+        // Create new com validade padrão de 30 dias
         await this.createSistema({
           systemId: apiSystem.system_id,
           username: apiSystem.username,
-          password: apiSystem.password
+          password: apiSystem.password,
+          expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
         });
       }
     }
@@ -1143,6 +1156,181 @@ export class DatabaseStorage implements IStorage {
         await this.deleteSistema(existing.id);
       }
     }
+  }
+
+  // Métodos para gerenciamento de validade
+  async getSistemasParaRenovar(): Promise<Sistema[]> {
+    // Buscar sistemas que precisam ser renovados
+    // Considera o tempo de antecedência configurado
+    const now = new Date();
+    const result = await db
+      .select()
+      .from(sistemas)
+      .where(
+        and(
+          eq(sistemas.autoRenewalEnabled, true),
+          ne(sistemas.status, 'renewing'),
+          sql`${sistemas.expiration} <= ${now} + INTERVAL '1 minute' * ${sistemas.renewalAdvanceTime}`
+        )
+      );
+    return result;
+  }
+
+  async getSistemasVencidos(): Promise<Sistema[]> {
+    const now = new Date();
+    const result = await db
+      .select()
+      .from(sistemas)
+      .where(
+        and(
+          lte(sistemas.expiration, now),
+          eq(sistemas.status, 'active')
+        )
+      );
+    return result;
+  }
+
+  async getSistemasProximoVencimento(dias: number): Promise<Sistema[]> {
+    const now = new Date();
+    const futureDate = new Date(Date.now() + dias * 24 * 60 * 60 * 1000);
+    const result = await db
+      .select()
+      .from(sistemas)
+      .where(
+        and(
+          gte(sistemas.expiration, now),
+          lte(sistemas.expiration, futureDate),
+          eq(sistemas.status, 'active')
+        )
+      )
+      .orderBy(asc(sistemas.expiration));
+    return result;
+  }
+
+  async updateSistemaRenewal(id: number, username: string, password: string): Promise<Sistema> {
+    const [result] = await db
+      .update(sistemas)
+      .set({
+        username,
+        password,
+        expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Adiciona 30 dias
+        lastRenewalAt: new Date(),
+        renewalCount: sql`${sistemas.renewalCount} + 1`,
+        status: 'active',
+        atualizadoEm: new Date()
+      })
+      .where(eq(sistemas.id, id))
+      .returning();
+    return result;
+  }
+
+  async marcarSistemaComoRenovando(id: number): Promise<void> {
+    await db
+      .update(sistemas)
+      .set({
+        status: 'renewing',
+        atualizadoEm: new Date()
+      })
+      .where(eq(sistemas.id, id));
+  }
+
+  async marcarRenovacaoFalhou(id: number, erro: string): Promise<void> {
+    await db
+      .update(sistemas)
+      .set({
+        status: 'failed',
+        atualizadoEm: new Date()
+      })
+      .where(eq(sistemas.id, id));
+    
+    // Registrar erro no log
+    await db.insert(logs).values({
+      nivel: 'error',
+      origem: 'sistema_renewal',
+      mensagem: `Falha ao renovar sistema ${id}: ${erro}`,
+      detalhes: { sistemaId: id, erro },
+      timestamp: new Date()
+    });
+  }
+
+  async registrarRenovacaoAutomatica(sistemaId: number, novaCredencial: {username: string; password: string}): Promise<void> {
+    await db.transaction(async (tx) => {
+      // Atualizar o sistema
+      await tx
+        .update(sistemas)
+        .set({
+          username: novaCredencial.username,
+          password: novaCredencial.password,
+          expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          lastRenewalAt: new Date(),
+          renewalCount: sql`${sistemas.renewalCount} + 1`,
+          status: 'active',
+          atualizadoEm: new Date()
+        })
+        .where(eq(sistemas.id, sistemaId));
+      
+      // Registrar no log
+      await tx.insert(logs).values({
+        nivel: 'info',
+        origem: 'sistema_renewal',
+        mensagem: `Sistema ${sistemaId} renovado automaticamente`,
+        detalhes: {
+          sistemaId,
+          novoUsername: novaCredencial.username
+        },
+        timestamp: new Date()
+      });
+    });
+  }
+
+  // Método para obter sistemas expirando em X minutos
+  async getSistemasExpirandoEm(minutos: number): Promise<Sistema[]> {
+    const now = new Date();
+    const futureTime = new Date(now.getTime() + minutos * 60 * 1000);
+    
+    const result = await db
+      .select()
+      .from(sistemas)
+      .where(
+        and(
+          eq(sistemas.autoRenewalEnabled, true),
+          lte(sistemas.expiration, futureTime),
+          gte(sistemas.expiration, now),
+          eq(sistemas.status, 'active')
+        )
+      )
+      .orderBy(asc(sistemas.expiration));
+    
+    return result;
+  }
+
+  // Método para renovar sistema (atualizar expiração e outros dados)
+  async renovarSistema(systemId: string, data: any): Promise<void> {
+    await db
+      .update(sistemas)
+      .set({
+        ...data,
+        atualizadoEm: new Date()
+      })
+      .where(eq(sistemas.systemId, systemId));
+  }
+
+  // Método para obter pontos disponíveis (pontos não atribuídos a sistemas)
+  async getAvailablePoints(): Promise<number> {
+    // Contar pontos que não estão associados a nenhum sistema
+    const result = await db
+      .select({ count: count() })
+      .from(pontos)
+      .where(
+        and(
+          or(
+            eq(pontos.sistemaId, sql`NULL`),
+            eq(pontos.status, 'inativo')
+          )
+        )
+      );
+    
+    return Number(result[0]?.count || 0);
   }
 
   // Update system active points count

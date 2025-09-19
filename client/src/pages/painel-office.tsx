@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import {
@@ -54,6 +54,9 @@ const systemSchema = z.object({
   username: z.string().min(1, 'Usuário obrigatório'),
   password: z.string().min(1, 'Senha obrigatória'),
   maxPontosAtivos: z.number().optional(),
+  expiration: z.string().optional(),
+  autoRenewalEnabled: z.boolean().optional(),
+  renewalAdvanceTime: z.number().optional(),
 });
 
 type SystemForm = z.infer<typeof systemSchema>;
@@ -64,6 +67,12 @@ interface System {
   password: string;
   maxPontosAtivos?: number;
   pontosAtivos?: number;
+  expiration?: string;
+  autoRenewalEnabled?: boolean;
+  renewalAdvanceTime?: number;
+  status?: string;
+  lastRenewalAt?: string;
+  renewalCount?: number;
 }
 
 interface SortableRowProps {
@@ -103,10 +112,70 @@ function SortableRow({ system, onEdit, onDelete }: SortableRowProps) {
       <TableCell className="text-slate-300 font-mono">{system.system_id}</TableCell>
       <TableCell className="text-slate-300">{system.username}</TableCell>
       <TableCell className="text-slate-300 font-mono">{system.password}</TableCell>
+      <TableCell className="text-slate-300 text-xs">
+        {system.expiration ? (
+          <div className="flex items-center gap-1">
+            <CalendarClock className="w-3 h-3" />
+            <span className={(() => {
+              const now = new Date();
+              const exp = new Date(system.expiration);
+              const diffDays = Math.floor((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+              
+              if (diffDays < 0) return "text-red-400";
+              if (diffDays <= 3) return "text-yellow-400";
+              return "text-green-400";
+            })()}>
+              {new Date(system.expiration).toLocaleDateString('pt-BR')}
+            </span>
+          </div>
+        ) : (
+          <span className="text-slate-500">-</span>
+        )}
+      </TableCell>
       <TableCell className="text-slate-300 text-center">
         <span className={(system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) ? 'text-red-400' : 'text-green-400'}>
           {system.pontosAtivos || 0} / {system.maxPontosAtivos || 100}
         </span>
+      </TableCell>
+      <TableCell className="text-center">
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            try {
+              const response = await fetch(`/api/sistemas/${system.system_id}/renewal-config`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  autoRenewalEnabled: !system.autoRenewalEnabled,
+                  renewalAdvanceTime: 60 // Default 60 minutes
+                })
+              });
+              
+              if (response.ok) {
+                toast({
+                  title: system.autoRenewalEnabled ? "Renovação desativada" : "Renovação ativada",
+                  description: `Sistema ${system.system_id} atualizado`,
+                  variant: "default",
+                });
+                refetchSystems();
+              }
+            } catch (error) {
+              toast({
+                title: "Erro",
+                description: "Falha ao atualizar configuração de renovação",
+                variant: "destructive",
+              });
+            }
+          }}
+          className="transition-colors"
+          data-testid={`toggle-renewal-${system.system_id}`}
+        >
+          {system.autoRenewalEnabled ? (
+            <ToggleRight className="w-5 h-5 text-green-400 hover:text-green-300" />
+          ) : (
+            <ToggleLeft className="w-5 h-5 text-slate-500 hover:text-slate-300" />
+          )}
+        </button>
       </TableCell>
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-2">
@@ -142,6 +211,8 @@ export default function PainelOffice() {
   const [systemToDelete, setSystemToDelete] = useState<string | null>(null);
   const [iframeKey, setIframeKey] = useState(0);
   const [isGeneratingIPTV, setIsGeneratingIPTV] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [globalRenewalEnabled, setGlobalRenewalEnabled] = useState(false);
   const [automationConfig, setAutomationConfig] = useState({
     isEnabled: false,
     batchSize: 10,
@@ -173,8 +244,20 @@ export default function PainelOffice() {
   );
 
   // Fetch systems
-  const { data: systems = [], isLoading: loadingSystems, refetch: refetchSystems } = useQuery<System[]>({
+  const { data: systemsRaw = [], isLoading: loadingSystems, refetch: refetchSystems } = useQuery<System[]>({
     queryKey: ['/api/external-api/systems'],
+  });
+
+  // Sort systems by expiration date
+  const systems = [...systemsRaw].sort((a, b) => {
+    if (!a.expiration && !b.expiration) return 0;
+    if (!a.expiration) return 1;
+    if (!b.expiration) return -1;
+    
+    const dateA = new Date(a.expiration).getTime();
+    const dateB = new Date(b.expiration).getTime();
+    
+    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
   });
 
   // Fetch automation config from backend
@@ -607,6 +690,19 @@ export default function PainelOffice() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant={globalRenewalEnabled ? "destructive" : "default"}
+              size="sm"
+              onClick={() => setGlobalRenewalEnabled(!globalRenewalEnabled)}
+              className={globalRenewalEnabled ? "bg-green-600 hover:bg-green-700" : "bg-slate-600 hover:bg-slate-700"}
+              data-testid="button-global-renewal"
+            >
+              {globalRenewalEnabled ? (
+                <><ToggleRight className="w-4 h-4 mr-1" /> Renovação Ativada</>
+              ) : (
+                <><ToggleLeft className="w-4 h-4 mr-1" /> Renovação Desativada</>
+              )}
+            </Button>
             <Badge className="bg-blue-500/20 text-blue-400">
               <Settings className="w-3 h-3 mr-1" />
               {totalSystems} sistemas
@@ -642,15 +738,29 @@ export default function PainelOffice() {
                   Gerencie os sistemas para criação de pontos
                 </CardDescription>
               </div>
-              <Button
-                onClick={() => openSystemDialog()}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-                size="sm"
-                data-testid="button-add-system"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Novo Sistema
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => {
+                    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  className="text-slate-400 hover:text-slate-300"
+                  title={`Ordenar por vencimento (${sortOrder === 'asc' ? 'crescente' : 'decrescente'})`}
+                  data-testid="button-sort-expiration"
+                >
+                  <ArrowUpDown className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => openSystemDialog()}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                  size="sm"
+                  data-testid="button-add-system"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Novo Sistema
+                </Button>
+              </div>
             </div>
           </CardHeader>
           
@@ -692,7 +802,9 @@ export default function PainelOffice() {
                           <TableHead className="text-slate-400">ID</TableHead>
                           <TableHead className="text-slate-400">Usuário</TableHead>
                           <TableHead className="text-slate-400">Senha</TableHead>
+                          <TableHead className="text-slate-400">Validade</TableHead>
                           <TableHead className="text-slate-400 text-center">Pontos</TableHead>
+                          <TableHead className="text-slate-400 text-center">Renov.</TableHead>
                           <TableHead className="text-slate-400 text-right">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -993,6 +1105,25 @@ export default function PainelOffice() {
                     />
                   </div>
                   
+                  <div>
+                    <Label className="text-sm flex items-center gap-1 mb-2">
+                      <Timer className="w-4 h-4" />
+                      Renovação Antes do Vencimento
+                    </Label>
+                    <select
+                      className="w-full bg-slate-800 border-slate-700 rounded-md px-3 py-2 text-sm text-slate-200"
+                      data-testid="select-renewal-time"
+                    >
+                      <option value="10">10 minutos</option>
+                      <option value="30">30 minutos</option>
+                      <option value="60" selected>1 hora</option>
+                      <option value="120">2 horas</option>
+                      <option value="360">6 horas</option>
+                      <option value="720">12 horas</option>
+                      <option value="1440">24 horas</option>
+                    </select>
+                  </div>
+                  
                   {/* Action Buttons */}
                   <div className="flex gap-2">
                     <Button
@@ -1277,6 +1408,19 @@ export default function PainelOffice() {
                 data-testid="input-system-max-pontos"
               />
               <p className="text-xs text-slate-500">Limite máximo de pontos que este sistema pode ter ativos</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="expiration" className="text-sm">Validade</Label>
+              <Input
+                id="expiration"
+                type="date"
+                {...systemForm.register('expiration')}
+                className="bg-slate-800 border-slate-700"
+                data-testid="input-system-expiration"
+                defaultValue={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+              />
+              <p className="text-xs text-slate-500">Data de validade do sistema (padrão: 30 dias)</p>
             </div>
             
             <div className="flex justify-end gap-2">
