@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
-import { format, parseISO, differenceInDays, isValid } from 'date-fns';
+import { format, parseISO, differenceInDays, differenceInHours, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   DndContext, 
@@ -121,10 +121,10 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
     try {
       const date = parseISO(dateStr);
       if (!isValid(date)) return 'unknown';
-      const diffDays = differenceInDays(date, new Date());
+      const diffHours = differenceInHours(date, new Date());
       
-      if (diffDays < 0) return 'expired';
-      if (diffDays <= 3) return 'warning';
+      if (diffHours < 0) return 'expired';
+      if (diffHours <= 1) return 'warning';
       return 'ok';
     } catch {
       return 'unknown';
@@ -175,15 +175,13 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
             {expirationStatus === 'expired' && (
               <>
                 <XCircle className="w-4 h-4 text-red-400" />
-                <span className="text-red-400 text-sm font-medium">Expirado</span>
-                <span className="text-red-400 text-xs">({formattedExpiration})</span>
+                <span className="text-red-400 text-sm">{formattedExpiration}</span>
               </>
             )}
             {expirationStatus === 'warning' && (
               <>
                 <AlertIcon className="w-4 h-4 text-yellow-400" />
-                <span className="text-yellow-400 text-sm font-medium">Expira em breve</span>
-                <span className="text-yellow-400 text-xs">({formattedExpiration})</span>
+                <span className="text-yellow-400 text-sm">{formattedExpiration}</span>
               </>
             )}
             {expirationStatus === 'ok' && (
