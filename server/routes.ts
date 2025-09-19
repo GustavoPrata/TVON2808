@@ -182,6 +182,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve static files for uploads
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
   
+  // Serve chrome extension zip file
+  app.get("/chrome-extension.zip", (req, res) => {
+    const filePath = path.join(process.cwd(), "chrome-extension.zip");
+    res.download(filePath, "chrome-extension.zip", (err) => {
+      if (err) {
+        console.error("Error downloading chrome extension:", err);
+        res.status(404).json({ error: "Extension file not found" });
+      }
+    });
+  });
+  
   // Authentication routes (before checkAuth middleware)
   app.post("/api/login", async (req, res) => {
     const { user, password, rememberMe } = req.body;
