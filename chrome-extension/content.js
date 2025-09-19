@@ -1,7 +1,58 @@
 // OnlineOffice IPTV Automator - Content Script
-// Versão corrigida - extração funcionando com salvamento no banco e ESC
+// Versão com sistema de logging completo
 
 console.log('👋 OnlineOffice Automator carregado!');
+
+// ===========================================================================
+// SISTEMA DE LOGGING
+// ===========================================================================
+// Gera um ID único para rastrear operações
+function generateTraceId() {
+  return `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// Função para enviar logs para o background script
+function log(level, message, context = {}) {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    level,
+    message,
+    context: {
+      ...context,
+      url: window.location.href,
+      traceId: context.traceId || generateTraceId()
+    }
+  };
+  
+  // Log local para debug
+  const colors = {
+    DEBUG: '#6c757d',
+    INFO: '#0d6efd', 
+    WARN: '#ffc107',
+    ERROR: '#dc3545'
+  };
+  console.log(
+    `%c[${level}] ${message}`,
+    `color: ${colors[level] || '#000'}; font-weight: ${level === 'ERROR' ? 'bold' : 'normal'}`,
+    context
+  );
+  
+  // Envia para background script
+  if (chrome?.runtime?.sendMessage) {
+    chrome.runtime.sendMessage({
+      type: 'LOG',
+      logEntry
+    }).catch(err => {
+      console.warn('Falha ao enviar log para background:', err);
+    });
+  }
+}
+
+// Inicialização do script
+log('INFO', 'Content script iniciado com sucesso', {
+  timestamp: new Date().toISOString(),
+  userAgent: navigator.userAgent
+});
 
 // ===========================================================================
 // CONFIGURAÇÃO
@@ -10,10 +61,13 @@ console.log('👋 OnlineOffice Automator carregado!');
 // IMPORTANTE: A extensão roda no OnlineOffice, mas envia dados para nosso servidor
 // Função para determinar a URL do servidor dinamicamente
 async function getApiBase() {
+  const traceId = generateTraceId();
+  log('DEBUG', 'Iniciando detecção de API base', { traceId });
+  
   // Primeiro, verifica se há uma configuração salva no storage
   const stored = await chrome.storage.local.get('apiBase');
   if (stored.apiBase) {
-    console.log(`📍 Usando API configurada: ${stored.apiBase}`);
+    log('INFO', `API configurada encontrada: ${stored.apiBase}`, { traceId, apiBase: stored.apiBase });
     return stored.apiBase;
   }
   
@@ -24,28 +78,32 @@ async function getApiBase() {
     'https://tv-on.site'               // Produção
   ];
   
+  log('DEBUG', 'Testando servidores disponíveis', { traceId, servers });
+  
   // Tenta cada servidor para ver qual está disponível
   for (const server of servers) {
     try {
-      console.log(`🔍 Testando servidor: ${server}`);
+      log('DEBUG', `Testando servidor: ${server}`, { traceId, server });
       const response = await fetch(`${server}/api`, {
         method: 'HEAD',
         mode: 'cors'
       }).catch(() => null);
       
       if (response && response.ok) {
-        console.log(`✅ Servidor disponível: ${server}`);
+        log('INFO', `Servidor disponível encontrado: ${server}`, { traceId, server, status: response.status });
         // Salva o servidor funcional no storage
         await chrome.storage.local.set({ apiBase: server });
         return server;
+      } else {
+        log('WARN', `Servidor não respondeu: ${server}`, { traceId, server, status: response?.status });
       }
     } catch (e) {
-      console.log(`❌ Servidor não disponível: ${server}`);
+      log('ERROR', `Erro ao testar servidor: ${server}`, { traceId, server, error: e.message, stack: e.stack });
     }
   }
   
   // Se nenhum servidor responder, usa o padrão de produção
-  console.warn('⚠️ Nenhum servidor respondeu, usando produção como fallback');
+  log('WARN', 'Nenhum servidor respondeu, usando produção como fallback', { traceId });
   return 'https://tv-on.site';
 }
 
@@ -54,8 +112,10 @@ let API_BASE = null;
 
 // Inicializa API_BASE assim que o script carregar
 (async () => {
+  const traceId = generateTraceId();
+  log('INFO', 'Inicializando configuração da API', { traceId });
   API_BASE = await getApiBase();
-  console.log(`🔗 Content Script - Servidor API configurado: ${API_BASE}`);
+  log('INFO', `Servidor API configurado: ${API_BASE}`, { traceId, apiBase: API_BASE });
 })();
 
 // Flag para evitar duplicação de credenciais
@@ -115,43 +175,75 @@ document.addEventListener('keydown', function(event) {
 // FUNÇÃO PARA SALVAR CREDENCIAIS NO BANCO
 // ===========================================================================
 async function saveCredentialsToDatabase(username, password) {
-  console.log('💾 Salvando credenciais no banco de dados...');
+  const traceId = generateTraceId();
+  log('INFO', 'Iniciando salvamento de credenciais', { 
+    traceId, 
+    username,
+    password: '***' // Mascara a senha nos logs
+  });
   
   // Garante que API_BASE está definido
   if (!API_BASE) {
+    log('DEBUG', 'API_BASE não definido, reconfigurando...', { traceId });
     API_BASE = await getApiBase();
-    console.log(`🔗 API re-configurada: ${API_BASE}`);
+    log('INFO', `API reconfigurada: ${API_BASE}`, { traceId, apiBase: API_BASE });
   }
   
-  console.log(`📤 Enviando para: ${API_BASE}/api/office/automation/task-complete`);
+  // Usar o endpoint correto que existe no backend
+  const endpoint = `${API_BASE}/api/office/automation/credentials`;
+  log('INFO', `Enviando credenciais para: ${endpoint}`, { traceId, endpoint });
   
   try {
-    const response = await fetch(`${API_BASE}/api/office/automation/task-complete`, {
+    const payload = {
+      type: 'manual_generation',
+      credentials: {
+        username: username,
+        password: password
+      },
+      timestamp: new Date().toISOString(),
+      traceId: traceId
+    };
+    
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Extension-Key': 'chrome-extension-secret-2024'
+        'X-Extension-Key': 'chrome-extension-secret-2024',
+        'X-Trace-Id': traceId
       },
-      body: JSON.stringify({
-        type: 'manual_generation',
-        credentials: {
-          username: username,
-          password: password
-        },
-        timestamp: new Date().toISOString()
-      })
+      body: JSON.stringify(payload)
     });
     
+    const responseText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      data = { rawResponse: responseText };
+    }
+    
     if (response.ok) {
-      const data = await response.json();
-      console.log('✅ Credenciais salvas no banco com sucesso:', data);
+      log('INFO', 'Credenciais salvas com sucesso', { 
+        traceId, 
+        response: data,
+        status: response.status 
+      });
       return true;
     } else {
-      console.error('❌ Erro ao salvar credenciais. Status:', response.status);
+      log('ERROR', 'Erro ao salvar credenciais', { 
+        traceId, 
+        status: response.status,
+        response: data,
+        statusText: response.statusText
+      });
       return false;
     }
   } catch (error) {
-    console.error('❌ Erro ao salvar credenciais no banco:', error);
+    log('ERROR', 'Exceção ao salvar credenciais', { 
+      traceId, 
+      error: error.message,
+      stack: error.stack
+    });
     return false;
   }
 }
@@ -161,17 +253,18 @@ async function saveCredentialsToDatabase(username, password) {
 // LISTENER PARA COMANDOS DO BACKGROUND
 // ===========================================================================
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('📨 Comando recebido:', request);
+  const traceId = request.traceId || generateTraceId();
+  log('INFO', 'Comando recebido do background', { traceId, action: request.action, request });
   
   // Responde ao ping para manter conexão viva
   if (request.action === 'ping') {
-    console.log('💓 Ping recebido, respondendo pong...');
+    log('DEBUG', 'Ping recebido, respondendo pong', { traceId });
     sendResponse({ pong: true });
     return true;
   }
   
   if (request.action === 'generateOne') {
-    console.log('🎯 Gerando uma credencial...');
+    log('INFO', 'Iniciando geração de credencial', { traceId });
     
     // Define flag para evitar duplicação
     isGeneratingViaCommand = true;
@@ -179,24 +272,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // SEQUÊNCIA CORRETA DE CLIQUES
     setTimeout(() => {
       // 1. CLICAR NO BOTÃO "GERAR IPTV"
-      console.log('Procurando botão Gerar IPTV...');
+      log('DEBUG', 'Procurando botão Gerar IPTV...', { traceId });
       let btnGerar = Array.from(document.querySelectorAll('button')).find(btn => 
         btn.textContent.includes('Gerar IPTV')
       );
       
       if (btnGerar) {
-        console.log('✅ Botão Gerar IPTV encontrado!');
+        log('INFO', 'Botão Gerar IPTV encontrado e clicado', { traceId });
         btnGerar.click();
         
         // 2. AGUARDAR E CLICAR EM "CONFIRMAR" NO MODAL
         setTimeout(() => {
-          console.log('Procurando botão Confirmar...');
+          log('DEBUG', 'Procurando botão Confirmar...', { traceId });
           let btnConfirmar = Array.from(document.querySelectorAll('button')).find(btn => 
             btn.textContent === 'Confirmar' || btn.textContent.includes('Confirmar')
           );
           
           if (btnConfirmar) {
-            console.log('✅ Botão Confirmar encontrado!');
+            log('INFO', 'Botão Confirmar encontrado e clicado', { traceId });
             btnConfirmar.click();
             
             // 3. AGUARDAR SEGUNDO "CONFIRMAR" (SE HOUVER)
@@ -206,29 +299,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               );
               
               if (btnConfirmar2) {
-                console.log('✅ Segundo Confirmar encontrado, clicando...');
+                log('INFO', 'Segundo botão Confirmar encontrado e clicado', { traceId });
                 btnConfirmar2.click();
               }
               
               // 4. AGUARDAR E EXTRAIR CREDENCIAIS
               setTimeout(() => {
-                console.log('Aguardando modal de credenciais aparecer...');
+                log('DEBUG', 'Aguardando modal de credenciais aparecer...', { traceId });
                 
                 // Aguarda mais tempo para o modal de credenciais aparecer
                 setTimeout(() => {
-                  console.log('Extraindo credenciais...');
+                  log('INFO', 'Iniciando extração de credenciais', { traceId });
                   
                   let username = null;
                   let password = null;
                 
                 // Método 1: Procura inputs readonly com as credenciais
                 const inputs = document.querySelectorAll('input[readonly], input[type="text"]');
-                console.log(`Encontrou ${inputs.length} inputs na página`);
+                log('DEBUG', `Encontrados ${inputs.length} inputs na página`, { traceId });
                 
                 // Tenta extrair dos inputs
                 inputs.forEach((input, index) => {
                   const value = input.value;
-                  console.log(`Input ${index}: ${value}`);
+                  log('DEBUG', `Input ${index}: ${value ? '***' : 'vazio'}`, { traceId });
                   
                   // Se tem valor e parece ser uma credencial
                   if (value && value.trim()) {
@@ -244,7 +337,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 
                 // Método 2: Se não achou nos inputs, tenta no texto do modal
                 if (!username || !password) {
-                  console.log('Tentando extrair do texto do modal...');
+                  log('DEBUG', 'Tentando extrair do texto do modal...', { traceId });
                   
                   // Procura por diferentes tipos de modal
                   const modalSelectors = [
@@ -259,14 +352,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   for (const selector of modalSelectors) {
                     modalContent = document.querySelector(selector);
                     if (modalContent) {
-                      console.log(`Modal encontrado com selector: ${selector}`);
+                      log('DEBUG', `Modal encontrado com selector: ${selector}`, { traceId });
                       break;
                     }
                   }
                   
                   if (modalContent) {
                     const text = modalContent.innerText || modalContent.textContent;
-                    console.log('Texto do modal:', text);
+                    log('DEBUG', 'Texto do modal encontrado', { traceId, textLength: text?.length });
                     
                     // Método especial para OnlineOffice - detecta formato específico do modal
                     // O modal tem formato:
@@ -299,7 +392,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                           const line = lines[i];
                           if (line && !line.includes('SENHA') && !line.includes('VENCIMENTO') && !line.includes(':')) {
                             username = line;
-                            console.log(`✓ Usuário detectado: ${username}`);
+                            log('INFO', 'Usuário detectado do modal', { traceId, username });
                             break;
                           }
                         }
@@ -311,7 +404,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                           const line = lines[i];
                           if (line && !line.includes('VENCIMENTO') && !line.includes(':')) {
                             password = line;
-                            console.log(`✓ Senha detectada: ${password}`);
+                            log('INFO', 'Senha detectada do modal', { traceId, password: '***' });
                             break;
                           }
                         }
@@ -405,18 +498,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 }
                 
                 if (username && password) {
-                  console.log('✅ Credenciais extraídas com sucesso!');
-                  console.log(`📋 Usuário: ${username}, Senha: ${password}`);
+                  log('INFO', 'Credenciais extraídas com sucesso', { 
+                    traceId, 
+                    username, 
+                    password: '***'
+                  });
                   
                   // 5. FECHAR MODAL ORIGINAL DO SITE
                   setTimeout(() => {
-                    console.log('Fechando modal original do site...');
+                    log('DEBUG', 'Fechando modal original do site...', { traceId });
                     
                     // Tenta clicar no backdrop/overlay
                     const backdrop = document.querySelector('.swal2-container, .modal-backdrop, .overlay');
                     if (backdrop) {
                       backdrop.click();
-                      console.log('✅ Modal original fechado via backdrop');
+                      log('INFO', 'Modal original fechado via backdrop', { traceId });
                     }
                     
                     // Tenta clicar no botão OK ou Fechar
@@ -425,12 +521,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     );
                     if (okButton) {
                       okButton.click();
-                      console.log('✅ Modal original fechado via botão OK');
+                      log('INFO', 'Modal original fechado via botão OK', { traceId });
                     }
                   }, 500);
                   
                   // 6. NÃO SALVAR AQUI - será salvo pelo background via task-complete
-                  console.log('📦 Credenciais extraídas, enviando para o background processar...');
+                  log('INFO', 'Credenciais extraídas, enviando para o background processar', { traceId });
                   
                   // 7. ENVIAR RESPOSTA PARA O BACKGROUND (que salvará via task-complete)
                   sendResponse({
@@ -439,21 +535,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       username: username,
                       password: password,
                       timestamp: new Date().toISOString()
-                    }
+                    },
+                    traceId: traceId
                   });
                   
                   // Reset flag após processar
                   setTimeout(() => {
                     isGeneratingViaCommand = false;
-                    console.log('🔄 Flag resetada');
+                    log('DEBUG', 'Flag resetada', { traceId });
                   }, 2000);
                   
                 } else {
-                  console.error('❌ Não conseguiu extrair credenciais');
-                  console.log('Username:', username, 'Password:', password);
+                  log('ERROR', 'Não conseguiu extrair credenciais', { 
+                    traceId,
+                    usernameFound: !!username,
+                    passwordFound: !!password
+                  });
                   sendResponse({
                     success: false,
-                    error: 'Não conseguiu extrair credenciais'
+                    error: 'Não conseguiu extrair credenciais',
+                    traceId: traceId
                   });
                 }
                 
@@ -464,19 +565,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             }, 1500);
             
           } else {
-            console.error('❌ Botão Confirmar não encontrado!');
+            log('ERROR', 'Botão Confirmar não encontrado', { traceId });
             sendResponse({
               success: false,
-              error: 'Botão Confirmar não encontrado'
+              error: 'Botão Confirmar não encontrado',
+              traceId: traceId
             });
           }
         }, 2000);
         
       } else {
-        console.error('❌ Botão Gerar IPTV não encontrado!');
+        log('ERROR', 'Botão Gerar IPTV não encontrado', { traceId });
         sendResponse({
           success: false,
-          error: 'Botão Gerar IPTV não encontrado'
+          error: 'Botão Gerar IPTV não encontrado',
+          traceId: traceId
         });
       }
       
@@ -503,7 +606,7 @@ const observer = new MutationObserver((mutations) => {
         if (text && (text.includes('USUÁRIO') || text.includes('Usuário')) && 
             (text.includes('SENHA') || text.includes('Senha'))) {
           
-          console.log('🔍 Detectado modal com credenciais!');
+          log('INFO', 'Detectado modal com credenciais', { hasUsername: text.includes('USUÁRIO'), hasPassword: text.includes('SENHA') });
           
           // Extrai credenciais
           let username = null;
@@ -535,11 +638,11 @@ const observer = new MutationObserver((mutations) => {
             
             // Verifica se NÃO está gerando via comando para evitar duplicação
             if (!isGeneratingViaCommand) {
-              console.log(`📋 Credenciais detectadas manualmente: ${username} / ${password}`);
+              log('INFO', 'Credenciais detectadas manualmente', { username, password: '***' });
               // Salva no banco de dados
               saveCredentialsToDatabase(username, password);
             } else {
-              console.log(`⚠️ Credenciais detectadas mas já salvas via comando: ${username}`);
+              log('DEBUG', 'Credenciais detectadas mas já salvas via comando', { username });
             }
           }
         }

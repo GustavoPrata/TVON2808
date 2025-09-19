@@ -147,6 +147,30 @@ class ExtensionLogger {
 const logger = new ExtensionLogger();
 
 // ===========================================================================
+// LISTENER PARA LOGS DO CONTENT SCRIPT
+// ===========================================================================
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+  // Processa logs do content script
+  if (request.type === 'LOG') {
+    const logEntry = request.logEntry;
+    await logger.addLog(
+      logEntry.level, 
+      `[Content] ${logEntry.message}`,
+      {
+        ...logEntry.context,
+        source: 'content_script',
+        tabId: sender?.tab?.id,
+        url: sender?.tab?.url
+      }
+    );
+    return false; // Não precisa de resposta assíncrona
+  }
+  
+  // Outros listeners podem ser adicionados aqui
+  return false;
+});
+
+// ===========================================================================
 // CONFIGURAÇÃO
 // ===========================================================================
 // Função para determinar a URL do servidor dinamicamente

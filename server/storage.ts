@@ -1267,28 +1267,100 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateSistemaRenewal(id: number, username: string, password: string): Promise<Sistema> {
-    console.log(`🔄 [Storage] Atualizando sistema ${id} com novas credenciais`);
+    const traceId = `renewal_${id}_${Date.now()}`;
+    console.log(`🔄 [Storage] INICIANDO updateSistemaRenewal - TraceId: ${traceId}`);
+    console.log(`   Sistema ID: ${id}`);
     console.log(`   Username: ${username}`);
+    console.log(`   Password: ***`);
     
-    // Adiciona 6 horas à expiração
-    const novaExpiracao = new Date(Date.now() + 6 * 60 * 60 * 1000); // 6 horas
+    // Busca estado ANTES da atualização
+    const [sistemaBefore] = await db
+      .select()
+      .from(sistemas)
+      .where(eq(sistemas.id, id));
     
-    const [result] = await db
-      .update(sistemas)
-      .set({
-        username,
-        password,
-        expiracao: novaExpiracao,
-        lastRenewalAt: new Date(),
-        renewalCount: sql`${sistemas.renewalCount} + 1`,
-        status: 'active',
-        atualizadoEm: new Date()
-      })
-      .where(eq(sistemas.id, id))
-      .returning();
+    if (sistemaBefore) {
+      console.log(`🔍 [Storage] Estado ANTES da atualização [${traceId}]:`);
+      console.log(`   - Username atual: ${sistemaBefore.username}`);
+      console.log(`   - Expiração atual: ${sistemaBefore.expiracao}`);
+      console.log(`   - LastRenewal: ${sistemaBefore.lastRenewalAt}`);
+      console.log(`   - RenewalCount: ${sistemaBefore.renewalCount}`);
+      console.log(`   - Status: ${sistemaBefore.status}`);
+    } else {
+      console.log(`⚠️ [Storage] Sistema ${id} não encontrado! [${traceId}]`);
+      throw new Error(`Sistema ${id} não encontrado`);
+    }
+    
+    // Calcula nova expiração - SEMPRE adiciona 6 horas ao momento atual
+    const agora = new Date();
+    const novaExpiracao = new Date(agora.getTime() + 6 * 60 * 60 * 1000); // 6 horas a partir de AGORA
+    
+    console.log(`🕰️ [Storage] Cálculo de expiração [${traceId}]:`);
+    console.log(`   - Momento atual: ${agora.toISOString()}`);
+    console.log(`   - Nova expiração (+6h): ${novaExpiracao.toISOString()}`);
+    console.log(`   - Diferença em horas: ${(novaExpiracao.getTime() - agora.getTime()) / (1000 * 60 * 60)}h`);
+    
+    // Executa UPDATE no banco
+    console.log(`💾 [Storage] Executando UPDATE no banco [${traceId}]...`);
+    
+    try {
+      const [result] = await db
+        .update(sistemas)
+        .set({
+          username,
+          password,
+          expiracao: novaExpiracao,
+          lastRenewalAt: agora,
+          renewalCount: sql`${sistemas.renewalCount} + 1`,
+          status: 'active',
+          atualizadoEm: agora
+        })
+        .where(eq(sistemas.id, id))
+        .returning();
       
-    console.log(`✅ [Storage] Sistema ${id} atualizado com expiração: ${novaExpiracao.toISOString()}`);
-    return mapSistemaToFrontend(result);
+      if (result) {
+        console.log(`✅ [Storage] UPDATE executado com sucesso [${traceId}]`);
+        console.log(`🔍 [Storage] Estado DEPOIS da atualização:`);
+        console.log(`   - Username novo: ${result.username}`);
+        console.log(`   - Expiração nova: ${result.expiracao}`);
+        console.log(`   - LastRenewal novo: ${result.lastRenewalAt}`);
+        console.log(`   - RenewalCount novo: ${result.renewalCount}`);
+        console.log(`   - Status novo: ${result.status}`);
+        
+        // Verifica se a expiração realmente mudou
+        if (sistemaBefore.expiracao && result.expiracao) {
+          const expiracaoMudou = sistemaBefore.expiracao.getTime() !== result.expiracao.getTime();
+          console.log(`🎯 [Storage] Expiração mudou? ${expiracaoMudou ? '✅ SIM' : '❌ NÃO'} [${traceId}]`);
+          
+          if (!expiracaoMudou) {
+            console.error(`🔴 [Storage] ERRO CRÍTICO: Expiração não mudou após UPDATE! [${traceId}]`);
+            console.error(`   - Expiração esperada: ${novaExpiracao.toISOString()}`);
+            console.error(`   - Expiração retornada: ${result.expiracao}`);
+          }
+        }
+        
+        // Log activity
+        await this.logActivity(
+          'sistema_renewal',
+          `Sistema ${id} renovado com sucesso`,
+          {
+            sistemaId: id,
+            username,
+            novaExpiracao: novaExpiracao.toISOString(),
+            traceId
+          }
+        );
+        
+        return mapSistemaToFrontend(result);
+      } else {
+        console.error(`❌ [Storage] UPDATE retornou vazio [${traceId}]`);
+        throw new Error('UPDATE retornou vazio');
+      }
+    } catch (error) {
+      console.error(`🔴 [Storage] ERRO ao executar UPDATE [${traceId}]:`, error);
+      console.error(`   Stack: ${error.stack}`);
+      throw error;
+    }
   }
 
   async marcarSistemaComoRenovando(id: number): Promise<void> {

@@ -7733,12 +7733,28 @@ Como posso ajudar você hoje?
   app.post('/api/office/automation/task-complete', async (req, res) => {
     // Verificar API key da extensão
     const extensionKey = req.headers['x-extension-key'];
+    const traceId = req.headers['x-trace-id'] || `task_${Date.now()}`;
+    
     if (extensionKey !== 'chrome-extension-secret-2024') {
+      console.error(`🔴 [task-complete] Unauthorized - TraceId: ${traceId}`);
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
     try {
       const { type, credentials, error, taskId, results, summary, systemId, sistemaId, oldCredentials, clienteId, metadata } = req.body;
+      
+      // Log completo do payload recebido
+      console.log(`📥 [task-complete] RECEBENDO REQUEST - TraceId: ${traceId}`);
+      console.log(`  Type: ${type}`);
+      console.log(`  TaskId: ${taskId}`);
+      console.log(`  Credentials:`, credentials ? { username: credentials.username, password: '***' } : null);
+      console.log(`  Error: ${error || 'none'}`);
+      console.log(`  Headers:`, {
+        'x-extension-key': '***',
+        'x-trace-id': traceId,
+        'content-type': req.headers['content-type']
+      });
+      console.log(`  Metadata:`, metadata);
       
       // Extrair sistemaId de múltiplas fontes possíveis
       const finalSistemaId = sistemaId || systemId || 
@@ -7747,15 +7763,13 @@ Como posso ajudar você hoje?
                             metadata?.systemId || 
                             null;
       
-      console.log('📥 Recebendo task-complete:', {
-        type,
-        hasCredentials: !!credentials,
-        hasResults: !!results,
-        resultsCount: results?.length || 0,
-        error: error || 'none',
-        sistemaId: finalSistemaId,
-        metadata: metadata
-      });
+      console.log(`🔍 [task-complete] Sistema ID resolvido: ${finalSistemaId} [${traceId}]`);
+      console.log(`  Fontes verificadas:`);
+      console.log(`    - req.body.sistemaId: ${sistemaId}`);
+      console.log(`    - req.body.systemId: ${systemId}`);
+      console.log(`    - credentials.sistemaId: ${credentials?.sistemaId}`);
+      console.log(`    - metadata.sistemaId: ${metadata?.sistemaId}`);
+      console.log(`    - metadata.systemId: ${metadata?.systemId}`);
       
       // Atualizar status da tarefa se tiver taskId
       if (taskId) {
@@ -7881,53 +7895,46 @@ Como posso ajudar você hoje?
       }
       // Processar renovação de sistema IPTV (suporta ambos os tipos)
       else if ((type === 'renew_system' || type === 'renewal') && credentials && finalSistemaId) {
-        console.log('🔄 Processando renovação de sistema IPTV...');
-        console.log(`   Sistema ID: ${finalSistemaId}`);
-        console.log(`   Novo usuário: ${credentials.username}`);
-        console.log(`   Metadata recebido:`, metadata);
+        console.log(`🔄 [task-complete] PROCESSANDO RENOVAÇÃO - TraceId: ${traceId}`);
+        console.log(`  Sistema ID: ${finalSistemaId}`);
+        console.log(`  Novo usuário: ${credentials.username}`);
+        console.log(`  Nova senha: ***`);
+        console.log(`  Metadata:`, metadata);
         
         try {
-          // Buscar o sistema
+          // Buscar o sistema ANTES da atualização
+          console.log(`🔍 [task-complete] Buscando sistema ${finalSistemaId} ANTES da atualização... [${traceId}]`);
           const sistema = await storage.getSistemaById(finalSistemaId);
           if (!sistema) {
+            console.error(`🔴 [task-complete] Sistema ${finalSistemaId} não encontrado! [${traceId}]`);
             throw new Error(`Sistema ${finalSistemaId} não encontrado`);
           }
           
-          console.log(`📊 Sistema encontrado: ${sistema.nome}`);
-          console.log(`   API System ID: ${sistema.systemId}`);
-          console.log(`   Usuário anterior: ${oldCredentials?.username || 'N/A'}`);
+          console.log(`📊 [task-complete] Estado ANTES da atualização [${traceId}]:`);
+          console.log(`  Nome: ${sistema.nome}`);
+          console.log(`  SystemId: ${sistema.systemId}`);
+          console.log(`  Usuário atual: ${sistema.username || sistema.usuario}`);
+          console.log(`  Expiração atual: ${sistema.expiracao}`);
+          console.log(`  LastRenewal atual: ${sistema.lastRenewalAt}`);
+          console.log(`  RenewalCount atual: ${sistema.renewalCount}`);
+          console.log(`  Status atual: ${sistema.status}`);
           
-          // Atualizar sistema na API externa
-          if (sistema.apiUserId) {
-            console.log('🔄 Atualizando credenciais na API externa...');
-            
-            // Calcular nova data de expiração (6 horas)
-            const newExpiration = new Date();
-            newExpiration.setHours(newExpiration.getHours() + 6);
-            const expTimestamp = Math.floor(newExpiration.getTime() / 1000);
-            
-            await externalApiService.updateUser(sistema.apiUserId, {
-              username: credentials.username,
-              password: credentials.password,
-              exp_date: expTimestamp.toString(),
-              system: parseInt(sistema.systemId)
-            });
-            
-            console.log('✅ API externa atualizada com sucesso');
+          // Usar o método updateSistemaRenewal que já tem logs detalhados
+          console.log(`💾 [task-complete] Chamando updateSistemaRenewal... [${traceId}]`);
+          const sistemaAtualizado = await storage.updateSistemaRenewal(
+            finalSistemaId,
+            credentials.username,
+            credentials.password
+          );
+          
+          if (sistemaAtualizado) {
+            console.log(`✅ [task-complete] Sistema renovado com sucesso [${traceId}]:`);
+            console.log(`  Nova expiração: ${sistemaAtualizado.expiracao}`);
+            console.log(`  Novo lastRenewal: ${sistemaAtualizado.lastRenewalAt}`);
+            console.log(`  Novo renewalCount: ${sistemaAtualizado.renewalCount}`);
+          } else {
+            console.error(`❌ [task-complete] updateSistemaRenewal retornou null [${traceId}]`);
           }
-          
-          // Atualizar sistema local
-          const updateData: any = {
-            usuario: credentials.username,
-            senha: credentials.password,
-            expiracao: new Date(Date.now() + 6 * 60 * 60 * 1000), // 6 horas
-            lastRenewalAt: new Date(),
-            renewalCount: (sistema.renewalCount || 0) + 1,
-            lastCheckedAt: new Date()
-          };
-          
-          await storage.updateSistema(finalSistemaId, updateData);
-          console.log('✅ Sistema local atualizado com sucesso');
           
           processedCount = 1;
           
@@ -7965,10 +7972,14 @@ Como posso ajudar você hoje?
             }
           }
           
-          console.log(`✅ Renovação de sistema ${finalSistemaId} concluída com sucesso!`);
-          console.log(`   Credencial salva com sistemaId: ${saved.sistemaId}`);
+          console.log(`✅ [task-complete] RENOVAÇÃO CONCLUÍDA [${traceId}]`);
+          console.log(`  Sistema ID: ${finalSistemaId}`);
+          console.log(`  Credencial ID: ${saved.sistemaId}`);
+          console.log(`  Duração total: ${Date.now() - parseInt(traceId.split('_')[1] || '0')}ms`);
         } catch (e) {
-          console.error(`❌ Erro ao renovar sistema ${finalSistemaId}:`, e);
+          console.error(`🔴 [task-complete] ERRO ao renovar sistema ${finalSistemaId} [${traceId}]:`, e);
+          console.error(`  Mensagem: ${e.message}`);
+          console.error(`  Stack:`, e.stack);
           errors.push({ sistemaId: finalSistemaId, error: e.message });
         }
       }

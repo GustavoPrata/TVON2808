@@ -236,51 +236,74 @@ export class AutoRenewalService {
   }
 
   async renewSystem(sistema: any) {
+    const traceId = `renewal_${sistema.id}_${Date.now()}`;
     try {
-      console.log(`🔄 Iniciando processo de renovação para sistema ${sistema.id} - ${sistema.username}`);
+      console.log(`🔄 [AutoRenewal] INICIANDO renovação - TraceId: ${traceId}`);
+      console.log(`  Sistema ID: ${sistema.id}`);
+      console.log(`  Username: ${sistema.username}`);
+      console.log(`  Expiração atual: ${sistema.expiracao}`);
+      console.log(`  Última renovação: ${sistema.lastRenewalAt || 'NUNCA'}`);
+      console.log(`  Contagem de renovações: ${sistema.renewalCount || 0}`);
 
       // 1. Criar task pendente no banco com sistemaId no metadata
+      console.log(`💾 [AutoRenewal] Criando task de renovação no banco [${traceId}]...`);
+      
+      const taskData = {
+        username: `renovacao_${Date.now()}`,
+        password: 'pending',
+        source: 'renewal',
+        status: 'pending',
+        generatedAt: new Date(),
+        sistemaId: sistema.id, // Adicionar sistemaId diretamente no registro
+        metadata: {
+          taskType: 'renewal',
+          sistemaId: sistema.id, // Garantir que sistemaId está no metadata
+          systemId: sistema.id, // Manter ambas as chaves por compatibilidade
+          originalUsername: sistema.username,
+          systemUsername: sistema.username,
+          systemExpiration: sistema.expiracao,
+          status: 'pending',
+          requestedAt: new Date().toISOString(),
+          traceId: traceId
+        }
+      };
+      
+      console.log(`🔍 [AutoRenewal] Dados da task a criar [${traceId}]:`, JSON.stringify(taskData, null, 2));
+      
       const [task] = await db
         .insert(officeCredentials)
-        .values({
-          username: `renovacao_${Date.now()}`,
-          password: 'pending',
-          source: 'renewal',
-          status: 'pending',
-          generatedAt: new Date(),
-          sistemaId: sistema.id, // Adicionar sistemaId diretamente no registro
-          metadata: {
-            taskType: 'renewal',
-            sistemaId: sistema.id, // Garantir que sistemaId está no metadata
-            systemId: sistema.id, // Manter ambas as chaves por compatibilidade
-            originalUsername: sistema.username,
-            systemUsername: sistema.username,
-            systemExpiration: sistema.expiracao,
-            status: 'pending',
-            requestedAt: new Date().toISOString()
-          }
-        })
+        .values(taskData)
         .returning();
 
-      console.log(`📝 Task de renovação criada:`, {
-        taskId: task.id,
-        sistemaId: sistema.id,
-        username: sistema.username,
-        metadata: task.metadata
-      });
+      console.log(`✅ [AutoRenewal] Task criada com sucesso [${traceId}]:`);
+      console.log(`  Task ID: ${task.id}`);
+      console.log(`  Sistema ID: ${task.sistemaId}`);
+      console.log(`  Username da task: ${task.username}`);
+      console.log(`  Metadata:`, JSON.stringify(task.metadata, null, 2));
 
       // 2. Marcar sistema como em renovação no banco
-      await db
+      console.log(`📊 [AutoRenewal] Atualizando sistema no banco [${traceId}]...`);
+      
+      const updateResult = await db
         .update(sistemasTable)
         .set({
           updatedAt: new Date(),
           lastRenewalAt: new Date(),
           renewalCount: sql`COALESCE(renewal_count, 0) + 1`
         })
-        .where(eq(sistemasTable.id, sistema.id));
+        .where(eq(sistemasTable.id, sistema.id))
+        .returning();
 
-      console.log(`📊 Sistema ${sistema.id} marcado como renovado no banco`);
-      console.log(`✅ Task de renovação para sistema ${sistema.id} - ${sistema.username} criada e aguardando processamento pela extensão`);
+      if (updateResult && updateResult.length > 0) {
+        console.log(`✅ [AutoRenewal] Sistema atualizado no banco [${traceId}]:`);
+        console.log(`  LastRenewalAt atualizado para: ${updateResult[0].lastRenewalAt}`);
+        console.log(`  RenewalCount atualizado para: ${updateResult[0].renewalCount}`);
+      } else {
+        console.warn(`⚠️ [AutoRenewal] Sistema não retornou dados após update [${traceId}]`);
+      }
+      
+      console.log(`📝 [AutoRenewal] Task ${task.id} criada e aguardando extensão [${traceId}]`);
+      console.log(`🎯 [AutoRenewal] A extensão deverá processar a task e chamar updateSistemaRenewal`);
       
       // Atualizar status na fila
       const queueItem = this.renewalQueue.get(sistema.id);
@@ -296,7 +319,11 @@ export class AutoRenewalService {
       }, 5 * 60 * 1000);
 
     } catch (error) {
-      console.error(`❌ Erro ao criar task de renovação para sistema ${sistema.id}:`, error);
+      console.error(`🔴 [AutoRenewal] ERRO ao criar task de renovação [${traceId}]:`, error);
+      console.error(`  Sistema ID: ${sistema.id}`);
+      console.error(`  Mensagem: ${error.message}`);
+      console.error(`  Stack:`, error.stack);
+      
       // Remover flag de renovação em caso de erro
       this.isRenewing.delete(sistema.id);
       throw error; // Re-throw para que o erro seja tratado no nível superior
