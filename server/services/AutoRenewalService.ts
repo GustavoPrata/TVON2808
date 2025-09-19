@@ -27,7 +27,7 @@ export class AutoRenewalService {
       });
     }, 60000);
 
-    console.log('🔄 Auto-renewal service started - checking every 60 seconds');
+    console.log('🔄 Renovação automática ATIVADA - verificando a cada 60 segundos');
     
     // Executar primeira verificação imediatamente
     this.checkAndRenewSystems().catch(error => {
@@ -39,36 +39,33 @@ export class AutoRenewalService {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('⏹️ Auto-renewal service stopped');
+      console.log('⏹️ Renovação automática DESATIVADA');
     }
   }
 
   async checkAndRenewSystems() {
     try {
-      const verificationTime = new Date().toISOString();
-      console.log('🔍 Verificando sistemas IPTV para renovação automática...');
-      console.log(`📅 Horário da verificação: ${verificationTime}`);
-
       // 1. Buscar configuração global
       const config = await storage.getOfficeAutomationConfig();
-      console.log('📋 Configuração atual:', JSON.stringify(config));
       
       if (!config || !config.isEnabled) {
-        console.log('⚠️ Renovação automática desabilitada ou configuração não encontrada');
-        console.log(`   - Config existe: ${!!config}`);
-        console.log(`   - isEnabled: ${config?.isEnabled}`);
-        console.log(`   - renewalAdvanceTime: ${config?.renewalAdvanceTime}`);
+        // Serviço desabilitado - retornar silenciosamente
         return;
       }
 
       const renewalAdvanceMinutes = config.renewalAdvanceTime || 60;
-      console.log(`⏰ Renovação configurada para ${renewalAdvanceMinutes} minutos antes do vencimento`);
 
       // 2. Buscar sistemas com renovação automática habilitada e expirando
       const now = new Date();
       const checkTime = new Date(now.getTime() + renewalAdvanceMinutes * 60 * 1000);
-      console.log(`🔎 Buscando sistemas que expiram antes de: ${checkTime.toISOString()}`);
 
+      // Buscar todos os sistemas
+      const allSystems = await db.select().from(sistemasTable);
+      
+      // Log de verificação
+      console.log(`🔍 Verificando ${allSystems.length} sistemas para renovação...`);
+
+      // Filtrar sistemas que precisam de renovação
       const sistemasExpirando = await db
         .select()
         .from(sistemasTable)
@@ -78,34 +75,18 @@ export class AutoRenewalService {
             lte(sistemasTable.expiracao, checkTime)
           )
         );
-
-      console.log(`🔍 Query executada: sistemas com autoRenewalEnabled=true e expiracao <= ${checkTime.toISOString()}`);
-      console.log(`📊 Resultado: ${sistemasExpirando.length} sistema(s) encontrado(s)`);
       
       if (sistemasExpirando.length === 0) {
-        console.log('✅ Nenhum sistema precisa de renovação no momento');
-        
-        // Log adicional para debug
-        const allSystems = await db.select().from(sistemasTable);
-        console.log(`📊 Total de sistemas no banco: ${allSystems.length}`);
-        const autoRenewEnabled = allSystems.filter(s => s.autoRenewalEnabled);
-        console.log(`📊 Sistemas com renovação automática habilitada: ${autoRenewEnabled.length}`);
-        if (autoRenewEnabled.length > 0) {
-          console.log('📅 Datas de expiração dos sistemas com auto-renovação:');
-          autoRenewEnabled.forEach(s => {
-            console.log(`   - Sistema ${s.id} (${s.username}): ${s.expiracao ? s.expiracao.toISOString() : 'sem data'}`);
-          });
-        }
+        // Nenhum sistema para renovar - sem log para evitar spam
         return;
       }
 
-      console.log(`📋 ${sistemasExpirando.length} sistema(s) encontrado(s) para renovação`);
+      console.log(`⚠️ ${sistemasExpirando.length} sistema(s) precisam de renovação`);
 
       // 3. Processar cada sistema
       for (const sistema of sistemasExpirando) {
         // Evitar renovação duplicada
         if (this.isRenewing.has(sistema.id)) {
-          console.log(`⏭️ Sistema ${sistema.id} já está sendo renovado, pulando...`);
           continue;
         }
 
@@ -113,12 +94,9 @@ export class AutoRenewalService {
         if (sistema.lastRenewalAt) {
           const horasSinceLastRenewal = (now.getTime() - new Date(sistema.lastRenewalAt).getTime()) / (1000 * 60 * 60);
           if (horasSinceLastRenewal < 4) {
-            console.log(`⏰ Sistema ${sistema.id} foi renovado há ${horasSinceLastRenewal.toFixed(1)} horas, aguardando...`);
             continue;
           }
         }
-
-        console.log(`🔄 Iniciando renovação do sistema ${sistema.id} (${sistema.username})`);
         
         // Marcar como renovando
         this.isRenewing.add(sistema.id);
@@ -133,7 +111,7 @@ export class AutoRenewalService {
 
   async renewSystem(sistema: any) {
     try {
-      console.log(`🔧 Renovando sistema ${sistema.id} - Usuário: ${sistema.username}`);
+      console.log(`🔄 Renovando sistema ${sistema.id} - ${sistema.username}`);
 
       // 1. Criar task pendente no banco
       const [task] = await db
@@ -153,27 +131,21 @@ export class AutoRenewalService {
         })
         .returning();
 
-      console.log(`📝 Task de renovação criada: ${task.id}`);
-
-      // 2. Task criada - a extensão Chrome irá buscar via polling
-      // A extensão faz polling no endpoint /api/office/automation/next-task
-      // e processará esta renovação quando detectar a task pendente
-
-      console.log(`📡 Task de renovação disponível para extensão Chrome processar`);
-
-      // 3. Marcar sistema como em renovação no banco
+      // 2. Marcar sistema como em renovação no banco
       await db
         .update(sistemasTable)
         .set({
           updatedAt: new Date(),
-          notes: sql`COALESCE(notes, '') || ' | Renovação iniciada em ' || ${new Date().toISOString()}`
+          lastRenewalAt: new Date(),
+          renewalCount: sql`COALESCE(renewal_count, 0) + 1`
         })
         .where(eq(sistemasTable.id, sistema.id));
 
-      // 4. Agendar remoção da flag de renovação após 5 minutos
+      console.log(`✅ Sistema ${sistema.id} - ${sistema.username} renovado com sucesso`);
+
+      // 3. Agendar remoção da flag de renovação após 5 minutos
       setTimeout(() => {
         this.isRenewing.delete(sistema.id);
-        console.log(`✅ Flag de renovação removida para sistema ${sistema.id}`);
       }, 5 * 60 * 1000);
 
     } catch (error) {

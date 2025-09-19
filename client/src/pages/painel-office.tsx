@@ -291,7 +291,7 @@ export default function PainelOffice() {
   const [systemToDelete, setSystemToDelete] = useState<string | null>(null);
   const [isGeneratingIPTV, setIsGeneratingIPTV] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [globalRenewalEnabled, setGlobalRenewalEnabled] = useState(false);
+  // Estado removido - usando automationConfig.isEnabled diretamente
   const [automationConfig, setAutomationConfig] = useState({
     isEnabled: false,
     singleGeneration: false,
@@ -722,13 +722,49 @@ export default function PainelOffice() {
           </div>
           <div className="flex items-center gap-2">
             <Button
-              variant={globalRenewalEnabled ? "destructive" : "default"}
+              variant={automationConfig.isEnabled ? "destructive" : "default"}
               size="sm"
-              onClick={() => setGlobalRenewalEnabled(!globalRenewalEnabled)}
-              className={globalRenewalEnabled ? "bg-green-600 hover:bg-green-700" : "bg-slate-600 hover:bg-slate-700"}
+              onClick={async () => {
+                setIsToggling(true);
+                try {
+                  const res = await fetch('/api/office/automation/config', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      isEnabled: !automationConfig.isEnabled,
+                      renewalAdvanceTime: automationConfig.renewalAdvanceTime
+                    })
+                  });
+                  
+                  if (res.ok) {
+                    toast({
+                      title: !automationConfig.isEnabled 
+                        ? "🔄 Renovação automática ATIVADA" 
+                        : "⏹️ Renovação automática DESATIVADA",
+                      description: !automationConfig.isEnabled 
+                        ? "O sistema renovará automaticamente os sistemas IPTV"
+                        : "A renovação automática foi desabilitada",
+                      variant: "default",
+                    });
+                    refetchConfig();
+                  }
+                } catch (error) {
+                  toast({
+                    title: "❌ Erro",
+                    description: "Falha ao alterar status da renovação automática",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsToggling(false);
+                }
+              }}
+              disabled={isToggling}
+              className={automationConfig.isEnabled ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}
               data-testid="button-global-renewal"
             >
-              {globalRenewalEnabled ? (
+              {isToggling ? (
+                <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Aguarde...</>
+              ) : automationConfig.isEnabled ? (
                 <><ToggleRight className="w-4 h-4 mr-1" /> Renovação Ativada</>
               ) : (
                 <><ToggleLeft className="w-4 h-4 mr-1" /> Renovação Desativada</>
@@ -894,134 +930,35 @@ export default function PainelOffice() {
               {/* Automation Controls - Left Column */}
               <div className="space-y-4">
                 <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                <h3 className="text-sm font-semibold text-white mb-3 flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Activity className="w-4 h-4" />
-                    Controle de Automação Profissional
-                  </span>
-                  {automationConfig.isEnabled && (
-                    <span className="flex items-center gap-1 text-green-400">
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                      <span className="text-xs">Rodando</span>
-                    </span>
-                  )}
+                <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  Configurações de Renovação Automática
                 </h3>
                 
                 <div className="space-y-4">
-                  {/* Status Row with Toggle */}
-                  <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-                    <div className="flex flex-col">
+                  
+                  {/* Status de Renovação */}
+                  <div className="p-3 bg-slate-900/50 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
                       <Label className="text-sm font-medium flex items-center gap-2">
                         {automationConfig.isEnabled ? (
                           <Wifi className="w-4 h-4 text-green-400" />
                         ) : (
-                          <WifiOff className="w-4 h-4 text-slate-400" />
+                          <WifiOff className="w-4 h-4 text-red-400" />
                         )}
-                        Status da Automação
+                        Status da Renovação Automática
                       </Label>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {automationConfig.isEnabled ? 'Automação Ativa' : 'Automação Parada'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant={automationConfig.isEnabled ? "destructive" : "default"}
-                        disabled={isToggling}
-                        onClick={async () => {
-                          if (automationConfig.isEnabled && !showStopConfirm) {
-                            setShowStopConfirm(true);
-                            return;
-                          }
-                          
-                          setIsToggling(true);
-                          const endpoint = automationConfig.isEnabled 
-                            ? '/api/office/automation/stop'
-                            : '/api/office/automation/start';
-                          
-                          try {
-                            const res = await fetch(endpoint, { method: 'POST' });
-                            if (res.ok) {
-                              refetchConfig();
-                              toast({
-                                title: automationConfig.isEnabled ? "Automação Parada" : "Automação Iniciada",
-                                description: automationConfig.isEnabled 
-                                  ? "Sistema de geração automática desativado"
-                                  : "Sistema de geração automática ativado",
-                                variant: "default",
-                              });
-                              setShowStopConfirm(false);
-                            }
-                          } finally {
-                            setIsToggling(false);
-                          }
-                        }}
-                        className={automationConfig.isEnabled 
-                          ? "bg-red-600 hover:bg-red-700" 
-                          : "bg-green-600 hover:bg-green-700"}
-                        data-testid="button-toggle-automation"
-                      >
-                        {isToggling ? (
-                          <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Processando...</>
-                        ) : automationConfig.isEnabled ? (
-                          showStopConfirm ? (
-                            <><AlertTriangle className="w-4 h-4 mr-1" /> Confirmar</>
-                          ) : (
-                            <><Pause className="w-4 h-4 mr-1" /> Parar</>
-                          )
-                        ) : (
-                          <><Play className="w-4 h-4 mr-1" /> Iniciar</>
-                        )}
-                      </Button>
-                      {showStopConfirm && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setShowStopConfirm(false)}
-                          className="text-slate-400"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
                       <Badge className={automationConfig.isEnabled 
                         ? "bg-green-500/20 text-green-400 animate-pulse" 
-                        : "bg-slate-500/20 text-slate-400"}>
-                        {automationConfig.isEnabled ? "ATIVO" : "INATIVO"}
+                        : "bg-red-500/20 text-red-400"}>
+                        {automationConfig.isEnabled ? "ATIVADA" : "DESATIVADA"}
                       </Badge>
                     </div>
-                  </div>
-                  
-                  {/* Statistics */}
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="p-2 bg-slate-900/50 rounded">
-                        <p className="text-xs text-slate-500 flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3" />
-                          Total Gerado
-                        </p>
-                        <p className="text-lg font-bold text-white">{automationConfig.totalGenerated || 0}</p>
-                      </div>
-                      <div className="p-2 bg-slate-900/50 rounded">
-                        <p className="text-xs text-slate-500 flex items-center gap-1">
-                          <Zap className="w-3 h-3" />
-                          Sessão Atual
-                        </p>
-                        <p className="text-lg font-bold text-white">{automationConfig.sessionGenerated || 0}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="p-2 bg-slate-900/50 rounded">
-                      <p className="text-xs text-slate-500 flex items-center gap-1 mb-1">
-                        <Clock className="w-3 h-3" />
-                        Última Execução
-                      </p>
-                      <p className="text-xs font-mono text-white">
-                        {automationConfig.lastRunAt 
-                          ? formatDateTimeBrasil(automationConfig.lastRunAt)
-                          : 'Nenhuma execução ainda'}
-                      </p>
-                    </div>
-                    
+                    <p className="text-xs text-slate-400">
+                      {automationConfig.isEnabled 
+                        ? "O sistema está verificando e renovando sistemas automaticamente"
+                        : "A renovação automática está desabilitada"}
+                    </p>
                   </div>
                   
                   {/* Configuration Fields */}
@@ -1071,65 +1008,6 @@ export default function PainelOffice() {
                     >
                       <CheckCircle className="w-4 h-4 mr-1" />
                       Salvar Config
-                    </Button>
-                    
-                    <Button
-                      onClick={async () => {
-                        setIsGeneratingSingle(true);
-                        try {
-                          const res = await fetch('/api/office/automation/generate-single', {
-                            method: 'POST'
-                          });
-                          
-                          if (res.ok) {
-                            toast({
-                              title: "📡 Solicitação Enviada",
-                              description: "Gerando credencial via extensão Chrome...",
-                              variant: "default",
-                            });
-                            setTimeout(() => refetchCredentials(), 3000);
-                          } else {
-                            throw new Error('Falha ao solicitar geração');
-                          }
-                        } catch (error) {
-                          toast({
-                            title: "❌ Erro",
-                            description: "Falha ao solicitar geração de credencial",
-                            variant: "destructive",
-                          });
-                        } finally {
-                          setIsGeneratingSingle(false);
-                        }
-                      }}
-                      variant="outline"
-                      size="sm"
-                      disabled={isGeneratingSingle}
-                      className="border-blue-600 text-blue-400 hover:bg-blue-600/20"
-                      data-testid="button-generate-single"
-                    >
-                      {isGeneratingSingle ? (
-                        <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Gerando...</>
-                      ) : (
-                        <><Plus className="w-4 h-4 mr-1" /> Gerar Uma</>
-                      )}
-                    </Button>
-                    
-                    <Button
-                      onClick={() => {
-                        window.open('/api/office/automation/extension.zip', '_blank');
-                        toast({
-                          title: "📥 Download Iniciado",
-                          description: "A extensão Chrome está sendo baixada",
-                          variant: "default",
-                        });
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className="border-green-600 text-green-400 hover:bg-green-600/20"
-                      data-testid="button-download-extension"
-                    >
-                      <Chrome className="w-4 h-4 mr-1" />
-                      Baixar Extensão
                     </Button>
                   </div>
                 </div>
