@@ -6910,6 +6910,82 @@ Como posso ajudar você hoje?
       });
     }
   });
+
+  // DEBUG: Rota para verificar sistemas expirados
+  app.get('/api/sistemas/debug-expired', async (req, res) => {
+    try {
+      const now = new Date();
+      const config = await storage.getOfficeAutomationConfig();
+      const renewalAdvanceMinutes = config?.renewalAdvanceTime || 60;
+      const checkTime = new Date(now.getTime() + renewalAdvanceMinutes * 60 * 1000);
+      
+      // Buscar todos os sistemas
+      const allSistemas = await storage.getSistemas();
+      
+      // Filtrar sistemas ativos
+      const activeSistemas = allSistemas.filter(s => s.status === 'active');
+      
+      // Filtrar sistemas com auto renewal habilitado
+      const autoRenewalSistemas = activeSistemas.filter(s => s.autoRenewalEnabled);
+      
+      // Verificar expiração
+      const sistemasExpirados = autoRenewalSistemas.filter(sistema => {
+        if (!sistema.expiracao) return false;
+        const expiracaoDate = new Date(sistema.expiracao);
+        return expiracaoDate <= checkTime;
+      });
+
+      // Verificar já renovados recentemente
+      const sistemasNaoRenovados = sistemasExpirados.filter(sistema => {
+        if (!sistema.lastRenewalAt) return true;
+        const horasSinceLastRenewal = (now.getTime() - new Date(sistema.lastRenewalAt).getTime()) / (1000 * 60 * 60);
+        return horasSinceLastRenewal >= 4;
+      });
+
+      const debugInfo = {
+        now: now.toISOString(),
+        checkTime: checkTime.toISOString(),
+        renewalAdvanceMinutes,
+        configEnabled: config?.isEnabled || false,
+        totalSistemas: allSistemas.length,
+        activeSistemas: activeSistemas.length,
+        autoRenewalEnabled: autoRenewalSistemas.length,
+        sistemasExpirados: sistemasExpirados.length,
+        sistemasNaoRenovados: sistemasNaoRenovados.length,
+        detalhes: {
+          todos: allSistemas.map(s => ({
+            id: s.id,
+            username: s.username,
+            status: s.status,
+            expiracao: s.expiracao,
+            autoRenewalEnabled: s.autoRenewalEnabled,
+            lastRenewalAt: s.lastRenewalAt,
+            renewalCount: s.renewalCount,
+            minutosAteExpiracao: s.expiracao ? 
+              (new Date(s.expiracao).getTime() - now.getTime()) / (1000 * 60) : null,
+            horasSinceLastRenewal: s.lastRenewalAt ? 
+              (now.getTime() - new Date(s.lastRenewalAt).getTime()) / (1000 * 60 * 60) : null
+          })),
+          expirados: sistemasExpirados.map(s => ({
+            id: s.id,
+            username: s.username,
+            expiracao: s.expiracao,
+            lastRenewalAt: s.lastRenewalAt
+          })),
+          prontos: sistemasNaoRenovados.map(s => ({
+            id: s.id,
+            username: s.username,
+            expiracao: s.expiracao
+          }))
+        }
+      };
+
+      res.json(debugInfo);
+    } catch (error) {
+      console.error('Erro ao debugar sistemas expirados:', error);
+      res.status(500).json({ error: 'Erro ao debugar sistemas' });
+    }
+  });
   
   // ========================================================================
   // ENDPOINTS PARA GERENCIAR LOGS DA EXTENSÃO
@@ -7083,6 +7159,46 @@ Como posso ajudar você hoje?
       res.status(500).json({
         success: false,
         error: 'Erro ao forçar renovação'
+      });
+    }
+  });
+
+  // POST /api/test/create-auto-renewal-system - criar sistema de teste com renovação automática
+  app.post('/api/test/create-auto-renewal-system', checkAuth, async (req, res) => {
+    try {
+      // Criar um sistema de teste com auto_renewal habilitado e data de expiração próxima
+      const now = new Date();
+      const expirationDate = new Date(now.getTime() + 5 * 60 * 1000); // Expira em 5 minutos
+      
+      const testSystem = await storage.createSistema({
+        nome: "Sistema Teste Auto-Renewal",
+        username: "teste_auto_" + Date.now(),
+        externalUserId: null,
+        externalAppName: null,
+        expiracao: expirationDate.toISOString(),
+        status: 'active',
+        plano: 'basico',
+        creditos: 100,
+        autoRenewalEnabled: true,
+        renewalAdvanceTime: 10, // Renovar com 10 minutos de antecedência
+        maxRenewals: 5
+      });
+      
+      console.log(`✅ Sistema de teste criado:`, testSystem);
+      
+      res.json({
+        success: true,
+        message: 'Sistema de teste criado com sucesso',
+        sistema: testSystem,
+        expiracaoEm: '5 minutos',
+        renovacaoAntecipada: '10 minutos (deve entrar na fila imediatamente)'
+      });
+    } catch (error) {
+      console.error('Erro ao criar sistema de teste:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao criar sistema de teste',
+        error: error instanceof Error ? error.message : 'Erro desconhecido'
       });
     }
   });

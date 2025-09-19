@@ -65,15 +65,21 @@ export class AutoRenewalService {
   async checkAndRenewSystems() {
     try {
       this.lastCheckTime = new Date();
+      console.log('\n🔍 === INICIANDO VERIFICAÇÃO DE RENOVAÇÃO AUTOMÁTICA ===');
+      console.log(`⏰ Horário da verificação: ${this.lastCheckTime.toISOString()}`);
       
       // Limpar itens antigos da fila (mais de 1 hora)
       this.cleanupQueue();
       
       // 1. Buscar configuração global
       const config = await storage.getOfficeAutomationConfig();
+      console.log(`📋 Configuração:`, {
+        isEnabled: config?.isEnabled || false,
+        renewalAdvanceTime: config?.renewalAdvanceTime || 60
+      });
       
       if (!config || !config.isEnabled) {
-        // Serviço desabilitado - retornar silenciosamente
+        console.log('⚠️ Serviço de renovação desabilitado na configuração');
         return;
       }
 
@@ -82,6 +88,8 @@ export class AutoRenewalService {
       // 2. Buscar sistemas com renovação automática habilitada
       const now = new Date();
       const checkTime = new Date(now.getTime() + renewalAdvanceMinutes * 60 * 1000);
+      console.log(`📅 Verificando sistemas que expiram até: ${checkTime.toISOString()}`);
+      console.log(`⏳ Antecedencia configurada: ${renewalAdvanceMinutes} minutos`);
 
       // Buscar todos os sistemas com renovação automática habilitada
       const sistemasAutoRenew = await db
@@ -89,13 +97,27 @@ export class AutoRenewalService {
         .from(sistemasTable)
         .where(eq(sistemasTable.autoRenewalEnabled, true));
       
+      console.log(`📋 Total de sistemas com autoRenewal habilitado: ${sistemasAutoRenew.length}`);
+      
       if (sistemasAutoRenew.length === 0) {
-        // Nenhum sistema com renovação automática - sem log para evitar spam
+        console.log('ℹ️ Nenhum sistema com renovação automática habilitada');
         return;
       }
       
       // Log de verificação
-      console.log(`🔍 Verificando ${sistemasAutoRenew.length} sistemas com renovação automática...`);
+      console.log(`🔍 Analisando ${sistemasAutoRenew.length} sistemas com renovação automática...`);
+      console.log('\n📋 Detalhes dos sistemas:');
+      sistemasAutoRenew.forEach(sistema => {
+        const expiracaoDate = sistema.expiracao ? new Date(sistema.expiracao) : null;
+        const minutosAteExpiracao = expiracaoDate ? 
+          (expiracaoDate.getTime() - now.getTime()) / (1000 * 60) : null;
+        console.log(`  • ID: ${sistema.id} | User: ${sistema.username}`);
+        console.log(`    - Expiração: ${sistema.expiracao || 'NÃO DEFINIDA'}`);
+        console.log(`    - Minutos até expirar: ${minutosAteExpiracao ? minutosAteExpiracao.toFixed(0) : 'N/A'}`);
+        console.log(`    - Status: ${sistema.status}`);
+        console.log(`    - AutoRenewal: ${sistema.autoRenewalEnabled}`);
+        console.log(`    - LastRenewal: ${sistema.lastRenewalAt || 'NUNCA'}`);
+      });
 
       // Atualizar fila com todos os sistemas elegíveis
       for (const sistema of sistemasAutoRenew) {
@@ -120,6 +142,7 @@ export class AutoRenewalService {
       }
       
       // Filtrar sistemas que precisam de renovação
+      console.log('\n🎯 Aplicando filtros de renovação...');
       const sistemasParaRenovar = sistemasAutoRenew.filter(sistema => {
         // Verificar se já está sendo renovado
         if (this.isRenewing.has(sistema.id)) {
@@ -157,10 +180,12 @@ export class AutoRenewalService {
       
       if (sistemasParaRenovar.length === 0) {
         console.log('✨ Nenhum sistema precisa de renovação no momento');
+        console.log('🔍 === FIM DA VERIFICAÇÃO DE RENOVAÇÃO AUTOMÁTICA ===\n');
         return;
       }
 
-      console.log(`🔄 ${sistemasParaRenovar.length} sistema(s) serão renovados sequencialmente`);
+      console.log(`\n✅ ${sistemasParaRenovar.length} sistema(s) prontos para renovação!`);
+      console.log(`🔄 Iniciando processo de renovação sequencial...`);
 
       // 3. Processar cada sistema SEQUENCIALMENTE (não em paralelo)
       for (const sistema of sistemasParaRenovar) {
@@ -203,8 +228,10 @@ export class AutoRenewalService {
       }
       
       console.log(`✅ Processo de renovação sequencial concluído`);
+      console.log('🔍 === FIM DA VERIFICAÇÃO DE RENOVAÇÃO AUTOMÁTICA ===\n');
     } catch (error) {
       console.error('❌ Erro ao verificar sistemas para renovação:', error);
+      console.log('🔍 === FIM DA VERIFICAÇÃO DE RENOVAÇÃO AUTOMÁTICA (COM ERRO) ===\n');
     }
   }
 
