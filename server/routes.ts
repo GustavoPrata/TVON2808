@@ -5522,7 +5522,7 @@ Como posso ajudar você hoje?
       }
       
       // Atualizar sistema com novas credenciais (expiracao de 6 horas)
-      const result = await storage.updateSistemaRenewal(sistemaId, username, password, finalTraceId);
+      const result = await storage.updateSistemaRenewal(sistemaId, username, password);
       
       // Se taskId foi fornecido, atualizar o status da task na office_credentials
       if (taskId) {
@@ -7431,19 +7431,19 @@ Como posso ajudar você hoje?
     }
   });
   
-  // POST /api/sistemas/renewal-queue/force/:id - forçar renovação de um sistema
-  app.post('/api/sistemas/renewal-queue/force/:id', checkAuth, async (req, res) => {
+  // POST /api/sistemas/renewal-queue/force/:systemId - forçar renovação de um sistema
+  app.post('/api/sistemas/renewal-queue/force/:systemId', checkAuth, async (req, res) => {
     try {
-      const sistemaId = parseInt(req.params.id);
+      const systemId = req.params.systemId;
       
-      if (isNaN(sistemaId)) {
+      if (!systemId) {
         return res.status(400).json({
           success: false,
-          error: 'ID do sistema inválido'
+          error: 'SystemID do sistema não fornecido'
         });
       }
       
-      const result = await autoRenewalService.forceRenew(sistemaId);
+      const result = await autoRenewalService.forceRenew(systemId);
       
       res.json(result);
     } catch (error) {
