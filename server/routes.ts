@@ -5158,9 +5158,9 @@ Como posso ajudar você hoje?
   // Atualizar validade de um sistema
   app.patch("/api/sistemas/:id/expiration", async (req, res) => {
     try {
-      const { expiration } = req.body;
+      const { expiracao } = req.body;
       const result = await storage.updateSistema(Number(req.params.id), {
-        expiration: new Date(expiration)
+        expiracao: new Date(expiracao)
       });
       res.json(result);
     } catch (error) {

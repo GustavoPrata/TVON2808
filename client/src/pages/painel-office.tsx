@@ -79,9 +79,11 @@ interface SortableRowProps {
   system: System;
   onEdit: (system: System) => void;
   onDelete: (system_id: string) => void;
+  refetchSystems: () => void;
 }
 
-function SortableRow({ system, onEdit, onDelete }: SortableRowProps) {
+function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowProps) {
+  const { toast } = useToast();
   const {
     attributes,
     listeners,
@@ -815,6 +817,7 @@ export default function PainelOffice() {
                             system={system}
                             onEdit={openSystemDialog}
                             onDelete={confirmDeleteSystem}
+                            refetchSystems={refetchSystems}
                           />
                         ))}
                       </TableBody>

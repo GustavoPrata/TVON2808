@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Copy, Plus, Trash2, Edit, Eye } from 'lucide-react';
+import { Copy, Plus, Trash2, Edit, Eye, Shuffle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import type { Cliente, Ponto, Pagamento } from '@/types';
@@ -30,6 +30,7 @@ const clienteSchema = z.object({
 const pontoSchema = z.object({
   aplicativo: z.enum(['ibo_pro', 'ibo_player', 'shamel']),
   dispositivo: z.enum(['smart_tv', 'tv_box', 'celular', 'notebook']),
+  sistemaId: z.number().optional(),
   usuario: z.string().min(3, 'Usuário deve ter pelo menos 3 caracteres'),
   senha: z.string().min(4, 'Senha deve ter pelo menos 4 caracteres'),
   expiracao: z.string(),
@@ -50,6 +51,7 @@ interface ClientModalProps {
 export function ClientModal({ cliente, isOpen, onClose }: ClientModalProps) {
   const [activeTab, setActiveTab] = useState('info');
   const [editingPonto, setEditingPonto] = useState<Ponto | null>(null);
+  const [isGeneratingSistema, setIsGeneratingSistema] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -97,6 +99,7 @@ export function ClientModal({ cliente, isOpen, onClose }: ClientModalProps) {
     defaultValues: {
       aplicativo: 'ibo_pro',
       dispositivo: 'smart_tv',
+      sistemaId: undefined,
       usuario: '',
       senha: '',
       expiracao: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -116,6 +119,12 @@ export function ClientModal({ cliente, isOpen, onClose }: ClientModalProps) {
     queryKey: ['/api/clientes', cliente?.id, 'pagamentos'],
     queryFn: () => api.getPagamentos(cliente!.id),
     enabled: !!cliente,
+  });
+
+  // Buscar sistemas disponíveis - usando o mesmo endpoint das outras páginas
+  const { data: sistemas, isLoading: isLoadingSistemas } = useQuery({
+    queryKey: ['/api/external-api/systems'],
+    staleTime: 30000,
   });
 
   const updateClienteMutation = useMutation({
@@ -211,6 +220,16 @@ export function ClientModal({ cliente, isOpen, onClose }: ClientModalProps) {
   };
 
   const onSubmitPonto = (data: PontoForm) => {
+    // Verificar se o sistema foi selecionado
+    if (!data.sistemaId) {
+      toast({
+        title: 'Atenção',
+        description: 'Por favor, selecione um sistema ou gere um novo',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     if (editingPonto) {
       updatePontoMutation.mutate(data);
     } else {
@@ -227,12 +246,65 @@ export function ClientModal({ cliente, isOpen, onClose }: ClientModalProps) {
     setEditingPonto(ponto);
     pontoForm.setValue('aplicativo', ponto.aplicativo);
     pontoForm.setValue('dispositivo', ponto.dispositivo);
+    pontoForm.setValue('sistemaId', ponto.sistemaId);
     pontoForm.setValue('usuario', ponto.usuario);
     pontoForm.setValue('senha', ponto.senha);
     pontoForm.setValue('expiracao', ponto.expiracao.split('T')[0]);
     pontoForm.setValue('macAddress', ponto.macAddress || '');
     pontoForm.setValue('deviceKey', ponto.deviceKey || '');
     pontoForm.setValue('descricao', ponto.descricao || '');
+  };
+
+  const handleGenerateSistema = async () => {
+    setIsGeneratingSistema(true);
+    try {
+      // Gerar credenciais aleatórias para o novo sistema
+      const randomNum = Math.floor(Math.random() * 90000) + 10000;
+      const username = `${randomNum}usuario${Math.floor(Math.random() * 100)}`;
+      const password = `${randomNum}senha${Math.floor(Math.random() * 100)}`;
+
+      // Criar novo sistema
+      const response = await fetch('/api/external-api/systems', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username,
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao criar sistema');
+      }
+
+      const newSistema = await response.json();
+      
+      // Invalidar cache de sistemas para atualizar a lista
+      await queryClient.invalidateQueries({ queryKey: ['/api/external-api/systems'] });
+      
+      // Selecionar automaticamente o novo sistema
+      if (newSistema.system_id) {
+        pontoForm.setValue('sistemaId', newSistema.system_id);
+      } else if (newSistema.localSystem?.id) {
+        pontoForm.setValue('sistemaId', newSistema.localSystem.id);
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: `Sistema ${newSistema.systemId || username} criado com sucesso!`,
+      });
+    } catch (error) {
+      console.error('Erro ao gerar sistema:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao gerar novo sistema',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingSistema(false);
+    }
   };
 
   const handleGeneratePix = () => {
@@ -416,6 +488,53 @@ export function ClientModal({ cliente, isOpen, onClose }: ClientModalProps) {
                           <SelectItem value="notebook">Notebook</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="sistemaId">Sistema</Label>
+                      <div className="flex gap-2">
+                        <Select value={pontoForm.watch('sistemaId')?.toString() || ''} onValueChange={(value) => pontoForm.setValue('sistemaId', value ? parseInt(value) : undefined)}>
+                          <SelectTrigger className="bg-dark-card border-slate-600 flex-1">
+                            <SelectValue placeholder="Selecione um sistema" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {isLoadingSistemas ? (
+                              <SelectItem value="" disabled>
+                                Carregando sistemas...
+                              </SelectItem>
+                            ) : sistemas?.length > 0 ? (
+                              sistemas.map((sistema: any) => {
+                                // A API retorna system_id para o ID do sistema
+                                const systemId = sistema.system_id || sistema.systemId || sistema.id;
+                                const username = sistema.username || `Sistema ${systemId}`;
+                                const currentPontos = sistema.current_pontos || sistema.pontosAtivos || 0;
+                                const maxPontos = sistema.max_pontos || sistema.maxPontosAtivos || 100;
+                                
+                                return (
+                                  <SelectItem key={systemId} value={systemId.toString()}>
+                                    {username} ({currentPontos}/{maxPontos} pontos)
+                                  </SelectItem>
+                                );
+                              })
+                            ) : (
+                              <SelectItem value="" disabled>
+                                Nenhum sistema disponível
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={handleGenerateSistema}
+                          disabled={isGeneratingSistema}
+                          title="Gerar novo sistema"
+                        >
+                          <Shuffle className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Selecione um sistema ou clique no botão para gerar novo</p>
                     </div>
 
                     <div>

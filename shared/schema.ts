@@ -347,7 +347,7 @@ export const sistemas = pgTable("sistemas", {
   password: text("password").notNull(),
   maxPontosAtivos: integer("max_pontos_ativos").default(100).notNull(), // Maximum active points per system
   pontosAtivos: integer("pontos_ativos").default(0).notNull(), // Current active points count
-  expiration: timestamp("expiration"), // Data de validade do sistema
+  expiracao: timestamp("expiracao"), // Data de validade do sistema
   autoRenewalEnabled: boolean("auto_renewal_enabled").notNull().default(false), // Controla renovação automática
   renewalAdvanceTime: integer("renewal_advance_time").notNull().default(60), // Tempo em minutos antes do vencimento para renovar
   lastRenewalAt: timestamp("last_renewal_at"), // Última renovação realizada
@@ -364,7 +364,7 @@ export const insertSistemaSchema = createInsertSchema(sistemas).omit({
   lastRenewalAt: true,
   renewalCount: true,
 }).extend({
-  expiration: z.coerce.date().optional().nullable(),
+  expiracao: z.coerce.date().optional().nullable(),
 });
 
 // URLs de redirecionamento

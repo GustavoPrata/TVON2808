@@ -33,7 +33,7 @@ function mapSistemaToFrontend(sistema: Sistema): any {
     renewalAdvanceTime: sistema.renewalAdvanceTime,
     lastRenewalAt: sistema.lastRenewalAt,
     renewalCount: sistema.renewalCount,
-    expiracao: sistema.expiration, // map expiration to expiracao for backward compatibility
+    expiracao: sistema.expiracao, // map expiracao to expiracao for backward compatibility
     pontosAtivos: sistema.pontosAtivos,
     maxPontosAtivos: sistema.maxPontosAtivos,
     criadoEm: sistema.criadoEm,
@@ -60,8 +60,7 @@ function mapSistemaFromFrontend(data: any): any {
     mapped.renewalCount = data.renewalCount;
   }
   if ('expiracao' in data) {
-    mapped.expiration = data.expiracao; // map expiracao to expiration for database
-    delete mapped.expiracao;
+    mapped.expiracao = data.expiracao; // keep expiracao as is for database
   }
   
   return mapped;
@@ -1194,7 +1193,7 @@ export class DatabaseStorage implements IStorage {
           systemId: apiSystem.system_id,
           username: apiSystem.username,
           password: apiSystem.password,
-          expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
+          expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
         });
       }
     }
@@ -1225,9 +1224,9 @@ export class DatabaseStorage implements IStorage {
     
     // Filtrar sistemas que estão dentro do tempo de renovação antecipada
     const filteredResult = result.filter((sistema) => {
-      if (!sistema.expiration) return false;
+      if (!sistema.expiracao) return false;
       const renewalTime = (sistema.renewalAdvanceTime || 60) * 60 * 1000; // Em milissegundos
-      const timeToExpire = sistema.expiration.getTime() - now.getTime();
+      const timeToExpire = sistema.expiracao.getTime() - now.getTime();
       return timeToExpire <= renewalTime && timeToExpire > 0;
     });
     
@@ -1241,7 +1240,7 @@ export class DatabaseStorage implements IStorage {
       .from(sistemas)
       .where(
         and(
-          lte(sistemas.expiration, now),
+          lte(sistemas.expiracao, now),
           eq(sistemas.status, 'active')
         )
       );
@@ -1256,12 +1255,12 @@ export class DatabaseStorage implements IStorage {
       .from(sistemas)
       .where(
         and(
-          gte(sistemas.expiration, now),
-          lte(sistemas.expiration, futureDate),
+          gte(sistemas.expiracao, now),
+          lte(sistemas.expiracao, futureDate),
           eq(sistemas.status, 'active')
         )
       )
-      .orderBy(asc(sistemas.expiration));
+      .orderBy(asc(sistemas.expiracao));
     return result.map(mapSistemaToFrontend);
   }
 
@@ -1271,7 +1270,7 @@ export class DatabaseStorage implements IStorage {
       .set({
         username,
         password,
-        expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Adiciona 30 dias
+        expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Adiciona 30 dias
         lastRenewalAt: new Date(),
         renewalCount: sql`${sistemas.renewalCount} + 1`,
         status: 'active',
@@ -1338,7 +1337,7 @@ export class DatabaseStorage implements IStorage {
       password: data.password,
       maxPontosAtivos: 100,
       pontosAtivos: 0,
-      expiration: expiracao,
+      expiracao: expiracao,
       autoRenewalEnabled: false,
       renewalAdvanceTime: 60,
       status: 'active'
@@ -1399,7 +1398,7 @@ export class DatabaseStorage implements IStorage {
         .set({
           username: novaCredencial.username,
           password: novaCredencial.password,
-          expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           lastRenewalAt: new Date(),
           renewalCount: sql`${sistemas.renewalCount} + 1`,
           status: 'active',
@@ -1432,12 +1431,12 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(sistemas.autoRenewalEnabled, true),
-          lte(sistemas.expiration, futureTime),
-          gte(sistemas.expiration, now),
+          lte(sistemas.expiracao, futureTime),
+          gte(sistemas.expiracao, now),
           eq(sistemas.status, 'active')
         )
       )
-      .orderBy(asc(sistemas.expiration));
+      .orderBy(asc(sistemas.expiracao));
     
     return result.map(mapSistemaToFrontend);
   }
