@@ -263,29 +263,38 @@ export function ExtensionLogsSection() {
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Função para buscar logs da extensão
+  // Função para buscar logs da extensão do backend
   const fetchLogs = async () => {
     try {
       setIsLoadingLogs(true);
       
-      // Tenta se comunicar com a extensão via Chrome runtime
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-        chrome.runtime.sendMessage(
-          'YOUR_EXTENSION_ID', // Precisa ser substituído pelo ID real da extensão
-          { type: 'getLogs', filters: { level: levelFilter === 'all' ? undefined : levelFilter } },
-          (response) => {
-            if (response && response.success) {
-              setLogs(response.logs || []);
-              filterLogs(response.logs || [], levelFilter, searchText);
-            }
-          }
-        );
+      // Busca logs do backend
+      const params = new URLSearchParams();
+      if (levelFilter !== 'all') {
+        params.append('level', levelFilter);
+      }
+      params.append('limit', '500'); // Busca até 500 logs
+      
+      const response = await fetch(`/api/extension/logs?${params}`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setLogs(data.logs || []);
+          filterLogs(data.logs || [], levelFilter, searchText);
+        }
       } else {
-        // Fallback para ambiente de desenvolvimento
-        console.log('Chrome extension API não disponível');
+        console.error('Erro ao buscar logs:', response.statusText);
       }
     } catch (error) {
       console.error('Erro ao buscar logs:', error);
+      toast({
+        title: '❌ Erro',
+        description: 'Não foi possível buscar os logs',
+        variant: 'destructive'
+      });
     } finally {
       setIsLoadingLogs(false);
     }
@@ -312,21 +321,23 @@ export function ExtensionLogsSection() {
   // Função para limpar logs
   const clearLogs = async () => {
     try {
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-        chrome.runtime.sendMessage(
-          'YOUR_EXTENSION_ID',
-          { type: 'clearLogs' },
-          (response) => {
-            if (response && response.success) {
-              setLogs([]);
-              setFilteredLogs([]);
-              toast({
-                title: '✅ Logs limpos',
-                description: 'O histórico de logs foi removido',
-              });
-            }
-          }
-        );
+      const response = await fetch('/api/extension/logs', {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setLogs([]);
+          setFilteredLogs([]);
+          toast({
+            title: '✅ Logs limpos',
+            description: `${data.count || 0} logs foram removidos`,
+          });
+        }
+      } else {
+        throw new Error('Erro ao limpar logs');
       }
     } catch (error) {
       console.error('Erro ao limpar logs:', error);
@@ -341,29 +352,26 @@ export function ExtensionLogsSection() {
   // Função para baixar logs
   const downloadLogs = async () => {
     try {
-      const response = await fetch('/api/extension/logs/export', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ logs: filteredLogs }),
-        credentials: 'include',
-      });
+      // Cria o conteúdo do arquivo
+      const content = filteredLogs.map(log => {
+        const time = format(new Date(log.timestamp), 'yyyy-MM-dd HH:mm:ss');
+        const context = log.context ? JSON.stringify(log.context) : '';
+        return `[${time}] [${log.level}] ${log.message} ${context}`;
+      }).join('\n');
       
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `extension-logs-${new Date().toISOString()}.txt`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-        
-        toast({
-          title: '✅ Logs baixados',
-          description: 'O arquivo de logs foi baixado com sucesso',
-        });
-      }
+      // Cria e baixa o arquivo
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `extension-logs-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.txt`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: '✅ Logs baixados',
+        description: `Arquivo com ${filteredLogs.length} logs foi baixado`,
+      });
     } catch (error) {
       console.error('Erro ao baixar logs:', error);
       toast({
@@ -376,9 +384,10 @@ export function ExtensionLogsSection() {
 
   // Auto-refresh
   useEffect(() => {
+    fetchLogs(); // Busca inicial
+    
     if (autoRefresh) {
-      fetchLogs();
-      const interval = setInterval(fetchLogs, 10000); // A cada 10 segundos
+      const interval = setInterval(fetchLogs, 5000); // A cada 5 segundos
       return () => clearInterval(interval);
     }
   }, [autoRefresh, levelFilter]);
