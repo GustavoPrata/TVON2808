@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { format, parseISO, differenceInDays, isValid } from 'date-fns';
@@ -302,7 +302,6 @@ export default function PainelOffice() {
   const [editingSystem, setEditingSystem] = useState<System | null>(null);
   const [showSystemDialog, setShowSystemDialog] = useState(false);
   const [systemToDelete, setSystemToDelete] = useState<string | null>(null);
-  const [iframeKey, setIframeKey] = useState(0);
   const [isGeneratingIPTV, setIsGeneratingIPTV] = useState(false);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [globalRenewalEnabled, setGlobalRenewalEnabled] = useState(false);
@@ -714,52 +713,6 @@ export default function PainelOffice() {
     deleteAllCredentialsMutation.mutate();
   };
 
-  const refreshIframe = () => {
-    setIframeKey(prev => prev + 1);
-    toast({
-      title: "Recarregado",
-      description: "O iframe foi recarregado",
-      variant: "default",
-    });
-  };
-
-  const downloadExtension = async () => {
-    try {
-      const response = await fetch('/api/office/download-extension');
-      
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'onlineoffice-chrome-extension.tar.gz';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        toast({
-          title: "Download Iniciado",
-          description: "A extensão Chrome está sendo baixada. Extraia o arquivo e siga as instruções de instalação.",
-          variant: "default",
-        });
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Erro no Download",
-          description: error.message || "Não foi possível baixar a extensão",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Erro no Download",
-        description: "Erro ao tentar baixar a extensão",
-        variant: "destructive",
-      });
-    }
-  };
-
   const totalSystems = systems.length;
   const activeSystems = systems.filter((s: System) => (s.pontosAtivos || 0) > 0).length;
   const fullSystems = systems.filter((s: System) => (s.pontosAtivos || 0) >= (s.maxPontosAtivos || 100)).length;
@@ -814,12 +767,10 @@ export default function PainelOffice() {
         </div>
       </div>
 
-      {/* Main Content - Split Layout */}
+      {/* Main Content */}
       <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-y-auto">
-        {/* Top Section - Systems and OnlineOffice */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Left Side - Systems Management */}
-          <Card className="bg-dark-card border-slate-700 flex flex-col" style={{ height: '500px' }}>
+        {/* Systems Management Table */}
+        <Card className="bg-dark-card border-slate-700 flex flex-col">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -944,62 +895,7 @@ export default function PainelOffice() {
           </CardContent>
         </Card>
 
-          {/* Right Side - OnlineOffice Iframe */}
-          <Card className="bg-dark-card border-slate-700 flex flex-col" style={{ height: '500px' }}>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <Monitor className="w-5 h-5 text-blue-400" />
-                  OnlineOffice.zip
-                </CardTitle>
-                <CardDescription className="text-xs">
-                  Interface visual para gerenciamento IPTV
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={downloadExtension}
-                  variant="ghost"
-                  size="sm"
-                  className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/20"
-                  data-testid="button-download-extension"
-                  title="Baixar extensão Chrome"
-                >
-                  <Download className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={refreshIframe}
-                  variant="ghost"
-                  size="sm"
-                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
-                  data-testid="button-refresh-iframe"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          
-          <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
-            <div className="h-full bg-black rounded-b-lg">
-              <iframe
-                key={iframeKey}
-                src="https://onlineoffice.zip/#/dashboard"
-                className="w-full h-full border-0 rounded-b-lg"
-                title="OnlineOffice IPTV"
-                data-testid="iframe-onlineoffice"
-                id="office-iframe"
-                onLoad={() => {
-                  console.log('Iframe loaded - OnlineOffice Dashboard');
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-        </div>
-
-        {/* Bottom Section - Extension Configuration */}
+        {/* Extension Configuration */}
         <Card className="bg-dark-card border-slate-700">
           <CardHeader className="pb-4">
             <div>
@@ -1454,7 +1350,7 @@ export default function PainelOffice() {
         </Card>
       </div>
 
-      {/* Custom System Modal - No overlay, allows interaction with iframe */}
+      {/* Custom System Modal */}
       {showSystemDialog && (
         <div 
           className="fixed rounded-xl shadow-2xl p-6 max-w-md bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-600/50"
