@@ -6179,19 +6179,24 @@ Como posso ajudar você hoje?
         });
       }
       
-      console.log(`📥 Credenciais recebidas da ${source || 'aplicação'}:`, { usuario, vencimento });
+      console.log(`📥 Credenciais recebidas da ${source || 'aplicação'}:`, { usuario, vencimento, taskType, systemId });
       
-      // SALVAR NO BANCO DE DADOS
-      const savedCredential = await storage.createOfficeCredentials({
-        username: usuario,
-        password: senha,
-        expiration: vencimento || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        source: source || 'chrome-extension',
-        status: 'active',
-        generatedAt: new Date().toISOString()
-      });
-      
-      console.log('✅ Credencial salva no banco com ID:', savedCredential.id);
+      // NÃO salvar em officeCredentials se for renovação, para evitar duplicação
+      let savedCredential = null;
+      if (taskType !== 'renewal') {
+        // SALVAR NO BANCO DE DADOS apenas se NÃO for renovação
+        savedCredential = await storage.createOfficeCredentials({
+          username: usuario,
+          password: senha,
+          expiration: vencimento || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          source: source || 'chrome-extension',
+          status: 'active',
+          generatedAt: new Date().toISOString()
+        });
+        console.log('✅ Credencial salva no banco com ID:', savedCredential.id);
+      } else {
+        console.log('🔄 Renovação detectada - NÃO salvando em officeCredentials para evitar duplicação');
+      }
       
       // Processar renovação automática se for o caso
       if (taskType === 'renewal' && systemId) {
@@ -6202,8 +6207,29 @@ Como posso ajudar você hoje?
           const novaExpiracao = new Date();
           novaExpiracao.setHours(novaExpiracao.getHours() + 6);
           
-          // Atualizar sistema com novas credenciais
-          await storage.updateSistemaRenewal(systemId, usuario, senha);
+          // Atualizar sistema com novas credenciais (já atualiza com +6h)
+          const sistemaAtualizado = await storage.updateSistemaRenewal(systemId, usuario, senha);
+          
+          // Chamar API externa para atualizar sistema
+          try {
+            const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
+            if (integracaoConfig?.ativo) {
+              const sistema = await storage.getSistemaById(systemId);
+              if (sistema?.systemId) {
+                const apiSystemId = parseInt(sistema.systemId.replace(/\D/g, ''));
+                if (apiSystemId) {
+                  console.log(`🌐 Atualizando sistema ${apiSystemId} na API externa`);
+                  await externalApiService.updateSystemCredential(apiSystemId, {
+                    username: usuario,
+                    password: senha
+                  });
+                  console.log(`✅ Sistema atualizado na API externa`);
+                }
+              }
+            }
+          } catch (apiError) {
+            console.error(`❌ Erro ao atualizar API externa:`, apiError);
+          }
           
           // Registrar renovação automática
           await storage.registrarRenovacaoAutomatica(systemId, {
@@ -6263,7 +6289,8 @@ Como posso ajudar você hoje?
         data: { 
           usuario, 
           vencimento,
-          id: savedCredential.id 
+          id: savedCredential?.id,
+          systemId: taskType === 'renewal' ? systemId : undefined
         }
       });
       
@@ -6383,6 +6410,117 @@ Como posso ajudar você hoje?
         success: false,
         message: "Error saving credentials",
         error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  
+  // Handle CORS preflight for automation credentials endpoint
+  app.options("/api/office/automation/credentials", (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.sendStatus(200);
+  });
+  
+  // POST /api/office/automation/credentials - Endpoint para renovação automática
+  app.post("/api/office/automation/credentials", async (req, res) => {
+    try {
+      const { username, password, sistemaId, source = "automation" } = req.body;
+      
+      // CORS headers for extension
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      
+      console.log(`🔄 [RENOVAÇÃO] Credenciais recebidas para renovação`);
+      console.log(`   Sistema ID: ${sistemaId}`);
+      console.log(`   Username: ${username}`);
+      console.log(`   Source: ${source}`);
+      
+      if (!username || !password || !sistemaId) {
+        console.error('❌ [RENOVAÇÃO] Dados incompletos');
+        return res.status(400).json({
+          success: false,
+          message: "Username, password e sistemaId são obrigatórios"
+        });
+      }
+      
+      // 1. Atualizar sistema no banco com expiração +6h
+      console.log(`📝 [RENOVAÇÃO] Atualizando sistema ${sistemaId} no banco...`);
+      const sistemaAtualizado = await storage.updateSistemaRenewal(sistemaId, username, password);
+      console.log(`✅ [RENOVAÇÃO] Sistema atualizado no banco com expiração: ${sistemaAtualizado.expiracao}`);
+      
+      // 2. Chamar API externa para atualizar sistema
+      try {
+        console.log(`🌐 [RENOVAÇÃO] Atualizando sistema na API externa...`);
+        
+        // Buscar configuração da integração para pegar API key e URL
+        const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
+        
+        if (integracaoConfig?.ativo) {
+          // Se tiver systemId da API externa, atualizar
+          const sistema = await storage.getSistemaById(sistemaId);
+          if (sistema?.systemId) {
+            // Extrair o número do systemId (ex: "sistema5" -> 5)
+            const apiSystemId = parseInt(sistema.systemId.replace(/\D/g, ''));
+            
+            if (apiSystemId) {
+              console.log(`🔄 [RENOVAÇÃO] Atualizando sistema ${apiSystemId} na API externa`);
+              await externalApiService.updateSystemCredential(apiSystemId, {
+                username,
+                password
+              });
+              console.log(`✅ [RENOVAÇÃO] Sistema atualizado na API externa`);
+            }
+          }
+        } else {
+          console.log(`⚠️ [RENOVAÇÃO] API externa não configurada ou inativa`);
+        }
+      } catch (apiError) {
+        console.error(`❌ [RENOVAÇÃO] Erro ao atualizar API externa:`, apiError);
+        // Continuar mesmo se falhar na API externa
+      }
+      
+      // 3. Registrar renovação (mas NÃO salvar em officeCredentials para evitar duplicação)
+      await storage.registrarRenovacaoAutomatica(sistemaId, {
+        username,
+        password
+      });
+      
+      // 4. Broadcast via WebSocket para atualizar interface
+      const wsMessage = JSON.stringify({
+        type: 'system_renewal_completed',
+        sistemaId,
+        username,
+        password,
+        expiracao: sistemaAtualizado.expiracao,
+        timestamp: new Date().toISOString()
+      });
+      
+      wss.clients.forEach((client: WebSocket) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(wsMessage);
+        }
+      });
+      
+      console.log(`✅ [RENOVAÇÃO] Processo completo para sistema ${sistemaId}`);
+      
+      res.json({
+        success: true,
+        message: "Sistema renovado com sucesso",
+        data: {
+          sistemaId,
+          username,
+          expiracao: sistemaAtualizado.expiracao
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ [RENOVAÇÃO] Erro ao processar renovação:', error);
+      res.status(500).json({
+        success: false,
+        message: "Erro ao processar renovação",
+        error: error instanceof Error ? error.message : "Erro desconhecido"
       });
     }
   });

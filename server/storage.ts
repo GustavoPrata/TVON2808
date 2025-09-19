@@ -1267,12 +1267,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateSistemaRenewal(id: number, username: string, password: string): Promise<Sistema> {
+    console.log(`🔄 [Storage] Atualizando sistema ${id} com novas credenciais`);
+    console.log(`   Username: ${username}`);
+    
+    // Adiciona 6 horas à expiração
+    const novaExpiracao = new Date(Date.now() + 6 * 60 * 60 * 1000); // 6 horas
+    
     const [result] = await db
       .update(sistemas)
       .set({
         username,
         password,
-        expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Adiciona 30 dias
+        expiracao: novaExpiracao,
         lastRenewalAt: new Date(),
         renewalCount: sql`${sistemas.renewalCount} + 1`,
         status: 'active',
@@ -1280,6 +1286,8 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(sistemas.id, id))
       .returning();
+      
+    console.log(`✅ [Storage] Sistema ${id} atualizado com expiração: ${novaExpiracao.toISOString()}`);
     return mapSistemaToFrontend(result);
   }
 
