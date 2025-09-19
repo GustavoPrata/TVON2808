@@ -281,6 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '/api/pix/webhook', 
       '/api/pix/debug/pagamentos-manual', 
       '/api/pix/test-webhook', 
+      '/api/test-renewal', // Rota temporária de teste
       '/api/office/save-credentials', 
       '/api/office/credentials',
       // Chrome extension automation endpoints (public for extension access)
@@ -303,6 +304,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register quick messages routes
   app.use("/api/mensagens-rapidas", quickMessagesRouter);
+  
+  // ROTA TEMPORÁRIA DE TESTE - Forçar renovação do sistema ID 24
+  app.post("/api/test-renewal", async (req, res) => {
+    try {
+      console.log('🔧 === TESTE DE RENOVAÇÃO FORÇADA INICIADO ===');
+      const sistemaId = 24; // ID fixo do sistema para teste
+      
+      // 1. Buscar o sistema
+      const sistema = await storage.getSistemaById(sistemaId);
+      if (!sistema) {
+        console.error(`❌ Sistema ID ${sistemaId} não encontrado`);
+        return res.status(404).json({ error: 'Sistema não encontrado' });
+      }
+      
+      console.log(`📋 Sistema encontrado:`, {
+        id: sistema.id,
+        username: sistema.username,
+        status: sistema.status,
+        lastRenewalAt: sistema.lastRenewalAt,
+        autoRenewalEnabled: sistema.autoRenewalEnabled,
+        expiracao: sistema.expiracao
+      });
+      
+      // 2. Resetar lastRenewalAt para uma data antiga (5 horas atrás)
+      const dataAntiga = new Date(Date.now() - 5 * 60 * 60 * 1000); // 5 horas atrás
+      console.log(`🔄 Resetando lastRenewalAt para: ${dataAntiga.toISOString()}`);
+      
+      await storage.updateSistema(sistemaId, {
+        lastRenewalAt: dataAntiga,
+        autoRenewalEnabled: true // Garantir que está habilitado
+      });
+      
+      console.log('✅ Sistema atualizado com sucesso');
+      
+      // 3. Criar a task de renovação diretamente na tabela office_credentials
+      // que é onde a extensão busca tasks de renovação
+      console.log('📝 Criando task de renovação...');
+      
+      const taskData = {
+        username: sistema.username,
+        password: sistema.password,
+        type: 'iptvtest',
+        status: 'pending',
+        sistemaId: sistemaId,
+        metadata: JSON.stringify({
+          sistemaId: sistemaId,
+          originalUsername: sistema.username,
+          originalPassword: sistema.password,
+          currentExpiration: sistema.expiracao,
+          renewalCount: sistema.renewalCount || 0,
+          forceTest: true
+        }),
+        generatedAt: new Date(),
+        expirationDate: null
+      };
+      
+      console.log('📦 Dados da task:', taskData);
+      
+      const createdTask = await storage.createOfficeCredentials(taskData);
+      
+      console.log(`✅ Task de renovação criada com ID: ${createdTask.id}`);
+      console.log('📋 Detalhes da task:', {
+        id: createdTask.id,
+        type: createdTask.type,
+        status: createdTask.status,
+        sistemaId: createdTask.sistemaId,
+        username: createdTask.username,
+        metadata: createdTask.metadata
+      });
+      
+      // 4. Retornar informações sobre a task criada
+      const response = {
+        success: true,
+        message: 'Task de renovação criada com sucesso',
+        taskId: createdTask.id,
+        sistema: {
+          id: sistema.id,
+          username: sistema.username,
+          status: sistema.status,
+          lastRenewalAt: dataAntiga.toISOString(),
+          expiracao: sistema.expiracao
+        },
+        task: {
+          id: createdTask.id,
+          type: createdTask.type,
+          status: createdTask.status,
+          sistemaId: createdTask.sistemaId,
+          metadata: createdTask.metadata,
+          generatedAt: createdTask.generatedAt
+        }
+      };
+      
+      console.log('🎉 === TESTE DE RENOVAÇÃO CONCLUÍDO COM SUCESSO ===');
+      console.log('📊 Resposta:', response);
+      
+      return res.json(response);
+      
+    } catch (error: any) {
+      console.error('❌ Erro ao forçar renovação:', error);
+      return res.status(500).json({ 
+        error: 'Erro ao criar task de renovação',
+        details: error.message 
+      });
+    }
+  });
   
   const httpServer = createServer(app);
 
