@@ -37,14 +37,23 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
     - **Expired Client Management**: Automatic detection and special menu for expired clients offering trust unlock (one-time extension), payment, or support. Includes configurable recurring notifications with intervals from 1-7 days after expiration.
     - **Pricing Structure**: Configurable monthly, quarterly, semi-annual, and annual plans with progressive discounts.
     - **OnlineOffice IPTV Automation**: Advanced humanized automation system using ghost-cursor for natural mouse movements, random delays, and anti-detection measures. Features iframe integration, automatic credential generation with human-like behavior patterns, and manual fallback option.
+    - **IPTV Auto-Renewal System**: Comprehensive automatic renewal system for IPTV services with configurable advance time (minutes before expiration), individual system toggle, automatic credential generation via Chrome extension, database field mapping (snake_case to camelCase), cron job running every 10 minutes to check for expiring systems, and complete integration with task management system. Tracks renewal count, last renewal date, and system status.
 
 ### Key Technical Decisions
 - **API Integration**: Direct integration with WhatsApp API and Woovi API.
 - **Modular Design**: Separation of concerns.
 - **Data Normalization**: Consistent phone number normalization.
 - **Error Handling**: Comprehensive error handling with user-friendly messages.
+- **Field Mapping**: Automatic mapping between database snake_case and frontend camelCase conventions.
 
 ## External Dependencies
 - **WhatsApp API**: For real-time messaging and bot interactions (via Baileys library).
 - **Woovi API**: For PIX payment generation, status updates, and webhook processing.
 - **PostgreSQL**: Relational database for persistent data storage.
+
+## Recent Updates (September 2025)
+- Implemented complete IPTV auto-renewal system with Chrome extension integration
+- Added field mapping between snake_case (database) and camelCase (frontend)
+- Fixed cron job for automatic renewal checking every 10 minutes
+- Added renewal configuration fields to sistemas table (expiracao, autoRenewalEnabled, renewalAdvanceTime, lastRenewalAt, renewalCount, status)
+- Integrated renewal task handling in Chrome extension background.js
