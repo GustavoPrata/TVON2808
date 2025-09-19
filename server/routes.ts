@@ -6561,10 +6561,7 @@ Como posso ajudar você hoje?
       
       // Verificar se já passou o intervalo configurado
       if (now.getTime() - lastRun.getTime() >= intervalMs) {
-        // IMPORTANTE: Atualizar lastRunAt IMEDIATAMENTE para evitar duplicação
-        await storage.updateOfficeAutomationConfig({ 
-          lastRunAt: now
-        });
+        // NÃO atualizar lastRunAt aqui - será atualizado quando confirmar geração
         
         return res.json({
           ...baseResponse,
@@ -6684,8 +6681,10 @@ Como posso ajudar você hoje?
         const config = await storage.getOfficeAutomationConfig();
         const newTotal = (config.totalGenerated || 0) + processedCount;
         
+        // Atualizar totalGenerated E lastRunAt (agora que confirmamos a geração)
         await storage.updateOfficeAutomationConfig({
-          totalGenerated: newTotal
+          totalGenerated: newTotal,
+          lastRunAt: new Date() // Atualizar AQUI após confirmar sucesso
         });
         
         // Log de sucesso detalhado

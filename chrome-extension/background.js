@@ -31,12 +31,12 @@ console.log('🚀 Background script iniciado (versão backend-driven)');
 function setupAlarms() {
   // Remove alarme anterior se existir
   chrome.alarms.clear('pollBackend', () => {
-    // Cria novo alarme que dispara a cada 30 segundos
+    // Cria novo alarme que dispara a cada 20 segundos (mais rápido para não perder timing)
     chrome.alarms.create('pollBackend', {
-      periodInMinutes: 0.5, // 30 segundos
+      periodInMinutes: 0.33, // 20 segundos
       delayInMinutes: 0 // Começa imediatamente
     });
-    console.log('⏰ Alarme configurado para polling automático');
+    console.log('⏰ Alarme configurado para polling automático a cada 20s');
   });
   
   // Cria alarme adicional para verificação de status
