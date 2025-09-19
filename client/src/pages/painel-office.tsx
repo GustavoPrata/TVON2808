@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Download, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
+import { format, parseISO, differenceInDays, isValid } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import {
   DndContext, 
   closestCenter,
@@ -68,11 +70,13 @@ interface System {
   maxPontosAtivos?: number;
   pontosAtivos?: number;
   expiration?: string;
+  expiracao?: string; // Campo vindo do banco local
   autoRenewalEnabled?: boolean;
   renewalAdvanceTime?: number;
   status?: string;
   lastRenewalAt?: string;
   renewalCount?: number;
+  nota?: string; // Campo opcional para descrição
 }
 
 interface SortableRowProps {
@@ -99,6 +103,38 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
     opacity: isDragging ? 0.5 : 1,
   };
 
+  // Formatar data de expiração
+  const formatExpiration = (dateStr?: string) => {
+    if (!dateStr) return null;
+    try {
+      const date = parseISO(dateStr);
+      if (!isValid(date)) return null;
+      return format(date, "dd/MM/yyyy HH:mm", { locale: ptBR });
+    } catch {
+      return null;
+    }
+  };
+
+  // Calcular status da expiração
+  const getExpirationStatus = (dateStr?: string) => {
+    if (!dateStr) return 'unknown';
+    try {
+      const date = parseISO(dateStr);
+      if (!isValid(date)) return 'unknown';
+      const diffDays = differenceInDays(date, new Date());
+      
+      if (diffDays < 0) return 'expired';
+      if (diffDays <= 3) return 'warning';
+      return 'ok';
+    } catch {
+      return 'unknown';
+    }
+  };
+
+  const expirationDate = system.expiration || system.expiracao;
+  const expirationStatus = getExpirationStatus(expirationDate);
+  const formattedExpiration = formatExpiration(expirationDate);
+
   return (
     <TableRow ref={setNodeRef} style={style} className="hover:bg-slate-800/50">
       <TableCell className="text-slate-300 w-10">
@@ -111,33 +147,88 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
           <GripVertical className="w-4 h-4" />
         </button>
       </TableCell>
-      <TableCell className="text-slate-300 font-mono">{system.system_id}</TableCell>
-      <TableCell className="text-slate-300">{system.username}</TableCell>
-      <TableCell className="text-slate-300 font-mono">{system.password}</TableCell>
-      <TableCell className="text-slate-300 text-xs">
-        {system.expiration ? (
-          <div className="flex items-center gap-1">
-            <CalendarClock className="w-3 h-3" />
-            <span className={(() => {
-              const now = new Date();
-              const exp = new Date(system.expiration);
-              const diffDays = Math.floor((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-              
-              if (diffDays < 0) return "text-red-400";
-              if (diffDays <= 3) return "text-yellow-400";
-              return "text-green-400";
-            })()}>
-              {new Date(system.expiration).toLocaleDateString('pt-BR')}
-            </span>
+      <TableCell className="text-slate-300">
+        <div className="flex items-center gap-2">
+          <Server className="w-4 h-4 text-slate-400" />
+          <div>
+            <div className="font-medium flex items-center gap-1">
+              <span>{system.username || `Sistema ${system.system_id}`}</span>
+              <Badge variant="outline" className="text-xs ml-1">ID: {system.system_id}</Badge>
+            </div>
+            {system.nota && (
+              <div className="text-xs text-slate-500">{system.nota}</div>
+            )}
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="text-slate-300">
+        <div className="flex items-center gap-1.5">
+          <Key className="w-3.5 h-3.5 text-slate-400" />
+          <span className="font-mono text-xs">{system.password}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-slate-300">
+        {formattedExpiration ? (
+          <div className="flex items-center gap-2">
+            {expirationStatus === 'expired' && (
+              <>
+                <XCircle className="w-4 h-4 text-red-400" />
+                <span className="text-red-400 text-sm font-medium">Expirado</span>
+                <span className="text-red-400 text-xs">({formattedExpiration})</span>
+              </>
+            )}
+            {expirationStatus === 'warning' && (
+              <>
+                <AlertIcon className="w-4 h-4 text-yellow-400" />
+                <span className="text-yellow-400 text-sm font-medium">Expira em breve</span>
+                <span className="text-yellow-400 text-xs">({formattedExpiration})</span>
+              </>
+            )}
+            {expirationStatus === 'ok' && (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-green-400" />
+                <span className="text-green-400 text-sm">{formattedExpiration}</span>
+              </>
+            )}
           </div>
         ) : (
-          <span className="text-slate-500">-</span>
+          <div className="flex items-center gap-2 text-slate-500">
+            <Calendar className="w-4 h-4" />
+            <span className="text-sm">Sem data definida</span>
+          </div>
         )}
       </TableCell>
-      <TableCell className="text-slate-300 text-center">
-        <span className={(system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) ? 'text-red-400' : 'text-green-400'}>
-          {system.pontosAtivos || 0} / {system.maxPontosAtivos || 100}
-        </span>
+      <TableCell className="text-center">
+        <div className="flex items-center justify-center gap-2">
+          <div className="relative">
+            <div className="flex items-center gap-1">
+              <Users className="w-4 h-4 text-slate-400" />
+              <span 
+                className={`font-medium ${
+                  (system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) 
+                    ? 'text-red-400' 
+                    : (system.pontosAtivos || 0) >= ((system.maxPontosAtivos || 100) * 0.8)
+                    ? 'text-yellow-400'
+                    : 'text-green-400'
+                }`}
+              >
+                {system.pontosAtivos || 0} / {system.maxPontosAtivos || 100}
+              </span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-1.5 mt-1">
+              <div 
+                className={`h-1.5 rounded-full transition-all ${
+                  (system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) 
+                    ? 'bg-red-500' 
+                    : (system.pontosAtivos || 0) >= ((system.maxPontosAtivos || 100) * 0.8)
+                    ? 'bg-yellow-500'
+                    : 'bg-green-500'
+                }`}
+                style={{ width: `${Math.min(100, ((system.pontosAtivos || 0) / (system.maxPontosAtivos || 100)) * 100)}%` }}
+              />
+            </div>
+          </div>
+        </div>
       </TableCell>
       <TableCell className="text-center">
         <button
@@ -801,12 +892,36 @@ export default function PainelOffice() {
                       <TableHeader>
                         <TableRow className="border-slate-700 hover:bg-transparent">
                           <TableHead className="text-slate-400 w-10"></TableHead>
-                          <TableHead className="text-slate-400">ID</TableHead>
-                          <TableHead className="text-slate-400">Usuário</TableHead>
-                          <TableHead className="text-slate-400">Senha</TableHead>
-                          <TableHead className="text-slate-400">Validade</TableHead>
-                          <TableHead className="text-slate-400 text-center">Pontos</TableHead>
-                          <TableHead className="text-slate-400 text-center">Renov.</TableHead>
+                          <TableHead className="text-slate-400">
+                            <div className="flex items-center gap-2">
+                              <Server className="w-4 h-4" />
+                              Sistema
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-slate-400">
+                            <div className="flex items-center gap-2">
+                              <Key className="w-4 h-4" />
+                              Senha
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-slate-400">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4" />
+                              Validade
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-slate-400 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <Users className="w-4 h-4" />
+                              Pontos Ativos
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-slate-400 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <RefreshCw className="w-4 h-4" />
+                              Renovação
+                            </div>
+                          </TableHead>
                           <TableHead className="text-slate-400 text-right">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
