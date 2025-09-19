@@ -37,7 +37,7 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
     - **Expired Client Management**: Automatic detection and special menu for expired clients offering trust unlock (one-time extension), payment, or support. Includes configurable recurring notifications with intervals from 1-7 days after expiration.
     - **Pricing Structure**: Configurable monthly, quarterly, semi-annual, and annual plans with progressive discounts.
     - **OnlineOffice IPTV Automation**: Advanced humanized automation system using ghost-cursor for natural mouse movements, random delays, and anti-detection measures. Features iframe integration, automatic credential generation with human-like behavior patterns, and manual fallback option.
-    - **IPTV Auto-Renewal System**: Comprehensive automatic renewal system for IPTV services with configurable advance time (minutes before expiration), individual system toggle, automatic credential generation via Chrome extension, database field mapping (snake_case to camelCase), sequential queue processing (one system at a time), and complete integration with task management system. Only processes truly expired systems or those approaching expiration with autoRenewal enabled. Tracks renewal count, last renewal date, system status, and sistemaId in generated credentials. Updates system expiration to 6 hours after renewal. Features real-time queue visualization, comprehensive logging system for Chrome extension with localStorage persistence (1000 log limit), log viewer with filtering/search/export, and endpoints for monitoring renewal queue status.
+    - **IPTV Auto-Renewal System**: Comprehensive automatic renewal system for IPTV services with configurable advance time (minutes before expiration), individual system toggle, automatic credential generation via Chrome extension, database field mapping (snake_case to camelCase), sequential queue processing (one system at a time), and complete integration with task management system. Only processes truly expired systems or those approaching expiration with autoRenewal enabled. Tracks renewal count, last renewal date, system status, and sistemaId in generated credentials. Updates system expiration to 6 hours after renewal. Chrome extension now edits system in OnlineOffice with generated credentials before reporting success. Features real-time queue visualization, comprehensive logging system for Chrome extension with localStorage persistence (1000 log limit), log viewer with filtering/search/export, and endpoints for monitoring renewal queue status.
 
 ### Key Technical Decisions
 - **API Integration**: Direct integration with WhatsApp API and Woovi API.
@@ -57,9 +57,11 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - Corrected sistemaId passing throughout renewal flow (extension -> backend -> credentials)
 - Updated system expiration to 6 hours after credential generation (instead of 30 days)
 - Added real-time renewal queue visualization in painel-office
-- Implemented comprehensive logging system for Chrome extension with localStorage persistence
+- Implemented comprehensive logging system for Chrome extension with localStorage persistence (1000 log limit)
 - Added extension log viewer with filtering, search and export capabilities
 - Created endpoints for renewal queue monitoring and extension log management
+- Fixed Chrome extension to edit system in OnlineOffice after generating credentials
+- Added editSystem() function to ensure systems are updated with new credentials
 - Fixed field mapping between snake_case (database) and camelCase (frontend)
 - Added renewal configuration fields to sistemas table (expiracao, autoRenewalEnabled, renewalAdvanceTime, lastRenewalAt, renewalCount, status)
 - Integrated renewal task handling in Chrome extension background.js
