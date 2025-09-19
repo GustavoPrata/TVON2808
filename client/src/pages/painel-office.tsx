@@ -353,6 +353,7 @@ export default function PainelOffice() {
       password: string;
       generatedAt: string;
       source: string;
+      sistemaId?: number;
     }>;
   }>({
     queryKey: ['/api/office/automation/credentials'],
@@ -1089,7 +1090,7 @@ export default function PainelOffice() {
                               </Button>
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="grid grid-cols-3 gap-2 text-xs">
                             <div>
                               <span className="text-slate-500">Usuário:</span>
                               <div className="flex items-center gap-1">
@@ -1134,6 +1135,30 @@ export default function PainelOffice() {
                                 </Button>
                               </div>
                             </div>
+                            <div>
+                              <span className="text-slate-500">Sistema:</span>
+                              <div className="flex items-center gap-1">
+                                <p className="font-mono text-white">{cred.sistemaId || 'N/A'}</p>
+                                {cred.sistemaId && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="p-0 h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(String(cred.sistemaId));
+                                      toast({
+                                        title: "✅ Copiado!",
+                                        description: `Sistema ID ${cred.sistemaId} copiado`,
+                                        duration: 2000,
+                                      });
+                                    }}
+                                    data-testid={`copy-system-${index}`}
+                                  >
+                                    <Shield className="w-3 h-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
                           </div>
                           {/* Copy All Button */}
                           <Button
@@ -1141,7 +1166,7 @@ export default function PainelOffice() {
                             variant="ghost"
                             className="w-full mt-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity h-6 bg-slate-800/50 hover:bg-slate-700/50"
                             onClick={() => {
-                              const text = `Usuário: ${cred.username}\nSenha: ${cred.password}`;
+                              const text = `Usuário: ${cred.username}\nSenha: ${cred.password}${cred.sistemaId ? `\nSistema: ${cred.sistemaId}` : ''}`;
                               navigator.clipboard.writeText(text);
                               toast({
                                 title: "✅ Credencial Copiada!",
