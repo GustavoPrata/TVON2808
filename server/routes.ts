@@ -4791,6 +4791,53 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Test endpoint for Auto-Renewal Status
+  app.get("/api/sistemas/renewal-status", async (req, res) => {
+    try {
+      const allSistemas = await storage.getSistemas();
+      const now = new Date();
+      const renewalAdvanceTime = 30 * 60 * 1000; // 30 minutos
+      
+      const status = allSistemas.map(sistema => {
+        const expiracaoDate = sistema.expiracao ? new Date(sistema.expiracao) : null;
+        const timeUntilExpiration = expiracaoDate ? expiracaoDate.getTime() - now.getTime() : null;
+        const isExpired = expiracaoDate && expiracaoDate <= now;
+        const isNearExpiration = expiracaoDate && 
+                                expiracaoDate <= new Date(now.getTime() + renewalAdvanceTime);
+        
+        return {
+          id: sistema.id,
+          nome: sistema.nome,
+          usuario: sistema.usuario,
+          expiracao: sistema.expiracao,
+          autoRenewalEnabled: sistema.autoRenewalEnabled,
+          renewalStatus: sistema.renewalStatus,
+          renewalCount: sistema.renewalCount,
+          lastRenewalAt: sistema.lastRenewalAt,
+          isExpired,
+          isNearExpiration,
+          needsRenewal: (isExpired || (isNearExpiration && sistema.autoRenewalEnabled)),
+          minutesUntilExpiration: timeUntilExpiration ? Math.floor(timeUntilExpiration / 60000) : null,
+          status: isExpired ? 'EXPIRADO' : 
+                 isNearExpiration ? 'PRÓXIMO DO VENCIMENTO' : 
+                 'ATIVO'
+        };
+      });
+      
+      const needingRenewal = status.filter(s => s.needsRenewal);
+      
+      res.json({
+        totalSistemas: allSistemas.length,
+        needingRenewal: needingRenewal.length,
+        systemsNeedingRenewal: needingRenewal,
+        allSystemsStatus: status
+      });
+    } catch (error) {
+      console.error("Erro ao verificar status de renovação:", error);
+      res.status(500).json({ error: "Erro ao verificar status de renovação" });
+    }
+  });
+
   // Check for divergences between API and database
   app.get("/api/system-divergences", async (req, res) => {
     try {
@@ -7055,14 +7102,23 @@ Como posso ajudar você hoje?
     }
     
     try {
-      const { type, credentials, error, taskId, results, summary, systemId, oldCredentials, clienteId } = req.body;
+      const { type, credentials, error, taskId, results, summary, systemId, sistemaId, oldCredentials, clienteId, metadata } = req.body;
+      
+      // Extrair sistemaId de múltiplas fontes possíveis
+      const finalSistemaId = sistemaId || systemId || 
+                            credentials?.sistemaId || 
+                            metadata?.sistemaId || 
+                            metadata?.systemId || 
+                            null;
       
       console.log('📥 Recebendo task-complete:', {
         type,
         hasCredentials: !!credentials,
         hasResults: !!results,
         resultsCount: results?.length || 0,
-        error: error || 'none'
+        error: error || 'none',
+        sistemaId: finalSistemaId,
+        metadata: metadata
       });
       
       // Atualizar status da tarefa se tiver taskId
@@ -7118,7 +7174,7 @@ Como posso ajudar você hoje?
                 const saved = await storage.createOfficeCredentials({
                   username: username,
                   password: password,
-                  sistemaId: systemId || null, // Adicionar systemId se disponível
+                  sistemaId: finalSistemaId || null, // Usar finalSistemaId extraído
                   source: 'automation',
                   status: 'active',
                   generatedAt: new Date()
@@ -7163,7 +7219,7 @@ Como posso ajudar você hoje?
             const saved = await storage.createOfficeCredentials({
               username: credentials.username,
               password: credentials.password,
-              sistemaId: systemId || null, // Adicionar systemId se disponível
+              sistemaId: finalSistemaId || null, // Usar finalSistemaId extraído
               source: 'automation',
               status: 'active',
               generatedAt: new Date()
@@ -7178,16 +7234,17 @@ Como posso ajudar você hoje?
         }
       }
       // Processar renovação de sistema IPTV
-      else if (type === 'renew_system' && credentials && systemId) {
+      else if (type === 'renew_system' && credentials && finalSistemaId) {
         console.log('🔄 Processando renovação de sistema IPTV...');
-        console.log(`   System ID: ${systemId}`);
+        console.log(`   Sistema ID: ${finalSistemaId}`);
         console.log(`   Novo usuário: ${credentials.username}`);
+        console.log(`   Metadata recebido:`, metadata);
         
         try {
           // Buscar o sistema
-          const sistema = await storage.getSistemaById(systemId);
+          const sistema = await storage.getSistemaById(finalSistemaId);
           if (!sistema) {
-            throw new Error(`Sistema ${systemId} não encontrado`);
+            throw new Error(`Sistema ${finalSistemaId} não encontrado`);
           }
           
           console.log(`📊 Sistema encontrado: ${sistema.nome}`);
@@ -7223,7 +7280,7 @@ Como posso ajudar você hoje?
             lastCheckedAt: new Date()
           };
           
-          await storage.updateSistema(systemId, updateData);
+          await storage.updateSistema(finalSistemaId, updateData);
           console.log('✅ Sistema local atualizado com sucesso');
           
           processedCount = 1;
@@ -7232,11 +7289,17 @@ Como posso ajudar você hoje?
           const saved = await storage.createOfficeCredentials({
             username: credentials.username,
             password: credentials.password,
-            sistemaId: systemId, // Adicionar systemId para renovação
+            sistemaId: finalSistemaId, // Usar finalSistemaId extraído
             source: 'renewal',
             status: 'active',
             generatedAt: new Date(),
-            observacoes: `Renovação automática do sistema ${sistema.nome}`
+            observacoes: `Renovação automática do sistema ${sistema.nome}`,
+            metadata: {
+              ...metadata,
+              sistemaId: finalSistemaId,
+              sistemaName: sistema.nome,
+              renewedAt: new Date().toISOString()
+            }
           });
           savedCredentials.push(saved);
           
@@ -7256,10 +7319,11 @@ Como posso ajudar você hoje?
             }
           }
           
-          console.log('✅ Renovação de sistema concluída com sucesso!');
+          console.log(`✅ Renovação de sistema ${finalSistemaId} concluída com sucesso!`);
+          console.log(`   Credencial salva com sistemaId: ${saved.sistemaId}`);
         } catch (e) {
-          console.error('❌ Erro ao renovar sistema:', e);
-          errors.push({ systemId, error: e.message });
+          console.error(`❌ Erro ao renovar sistema ${finalSistemaId}:`, e);
+          errors.push({ sistemaId: finalSistemaId, error: e.message });
         }
       }
       

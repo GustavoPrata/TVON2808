@@ -408,17 +408,44 @@ async function generateSingle(tabId, task) {
 
 async function renewSystem(tabId, task) {
   console.log('🔄 Renovando sistema IPTV...');
-  console.log(`   System ID: ${task.data?.systemId || 'N/A'}`);
-  console.log(`   Usuario atual: ${task.data?.currentUsername || 'N/A'}`);
+  console.log('📋 Dados completos da task:', JSON.stringify(task, null, 2));
+  
+  // Extrair sistemaId de diferentes locais possíveis
+  const sistemaId = task.sistemaId || 
+                    task.data?.sistemaId || 
+                    task.data?.systemId || 
+                    task.metadata?.sistemaId || 
+                    task.metadata?.systemId || 
+                    null;
+                     
+  const originalUsername = task.data?.originalUsername || 
+                          task.metadata?.originalUsername || 
+                          task.metadata?.systemUsername ||
+                          task.data?.currentUsername || 
+                          'N/A';
+  
+  console.log(`   Sistema ID: ${sistemaId || 'N/A'}`);
+  console.log(`   Usuario atual: ${originalUsername}`);
+  console.log(`   Task ID: ${task.id}`);
   
   try {
-    // Parse data se for string
+    // Parse data e metadata se forem strings
     let taskData = task.data;
+    let metadata = task.metadata;
+    
     if (typeof taskData === 'string') {
       try {
         taskData = JSON.parse(taskData);
       } catch (e) {
         console.error('⚠️ Erro ao fazer parse do data:', e);
+      }
+    }
+    
+    if (typeof metadata === 'string') {
+      try {
+        metadata = JSON.parse(metadata);
+      } catch (e) {
+        console.error('⚠️ Erro ao fazer parse do metadata:', e);
       }
     }
     
@@ -428,28 +455,38 @@ async function renewSystem(tabId, task) {
       console.log('✅ Nova credencial gerada para renovação!');
       console.log(`   Novo Usuario: ${response.credentials.username}`);
       console.log(`   Nova Senha: ${response.credentials.password}`);
-      console.log(`   Sistema: ${taskData?.systemId || 'desconhecido'}`);
+      console.log(`   Sistema ID: ${sistemaId || 'desconhecido'}`);
       
-      // Reporta sucesso ao backend com systemId
+      // Reporta sucesso ao backend com sistemaId garantido
       const reportSuccess = await reportTaskResult({
         taskId: task.id,
         type: 'renew_system',
-        systemId: taskData?.systemId,
+        sistemaId: sistemaId, // Usar sistemaId em vez de systemId
+        systemId: sistemaId, // Manter ambos por compatibilidade
         credentials: {
           username: response.credentials.username,
-          password: response.credentials.password
+          password: response.credentials.password,
+          sistemaId: sistemaId // Incluir também nas credenciais
         },
         oldCredentials: {
-          username: taskData?.currentUsername,
-          password: taskData?.currentPassword
+          username: originalUsername,
+          password: taskData?.currentPassword || metadata?.currentPassword || 'unknown'
         },
-        clienteId: taskData?.clienteId
+        clienteId: taskData?.clienteId || metadata?.clienteId,
+        metadata: {
+          ...metadata,
+          sistemaId: sistemaId,
+          originalUsername: originalUsername,
+          renewedAt: new Date().toISOString()
+        }
       });
       
       if (!reportSuccess) {
         console.error('⚠️ Falha ao reportar renovação ao backend!');
+        console.error('   Sistema ID não foi salvo:', sistemaId);
       } else {
         console.log('✅ Renovação reportada ao backend com sucesso');
+        console.log(`   Sistema ID ${sistemaId} renovado com sucesso`);
       }
       
     } else {
@@ -459,11 +496,21 @@ async function renewSystem(tabId, task) {
   } catch (error) {
     console.error('❌ Erro ao renovar sistema:', error.message);
     
-    // Parse data se for string
+    // Parse data e metadata se forem strings
     let taskData = task.data;
+    let metadata = task.metadata;
+    
     if (typeof taskData === 'string') {
       try {
         taskData = JSON.parse(taskData);
+      } catch (e) {
+        // Ignora erro de parse
+      }
+    }
+    
+    if (typeof metadata === 'string') {
+      try {
+        metadata = JSON.parse(metadata);
       } catch (e) {
         // Ignora erro de parse
       }
@@ -473,8 +520,14 @@ async function renewSystem(tabId, task) {
     const reportSuccess = await reportTaskResult({
       taskId: task.id,
       type: 'renew_system',
-      systemId: taskData?.systemId,
-      error: error.message
+      sistemaId: sistemaId,
+      systemId: sistemaId,
+      error: error.message,
+      metadata: {
+        ...metadata,
+        sistemaId: sistemaId,
+        failedAt: new Date().toISOString()
+      }
     });
     
     if (!reportSuccess) {
