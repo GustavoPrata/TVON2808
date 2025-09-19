@@ -363,7 +363,9 @@ export function UnifiedLogsSection() {
                           {log.level}
                         </Badge>
                         <span className="text-slate-500">
-                          {format(new Date(log.timestamp), 'HH:mm:ss.SSS')}
+                          {log.timestamp && !isNaN(new Date(log.timestamp).getTime()) 
+                            ? format(new Date(log.timestamp), 'HH:mm:ss.SSS')
+                            : 'N/A'}
                         </span>
                         <span className={`flex-1 ${getLogColor(log.level)}`}>
                           {log.message}

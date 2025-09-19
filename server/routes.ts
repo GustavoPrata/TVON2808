@@ -8156,19 +8156,21 @@ Como posso ajudar você hoje?
 
       // Formata logs para o frontend com indicação de fonte
       const formattedLogs = logs.map(log => ({
-        timestamp: log.timestamp,
-        level: log.level,
-        message: log.message,
-        context: log.context,
-        traceId: log.traceId,
+        timestamp: log.timestamp || new Date().toISOString(),
+        level: log.level || 'INFO',
+        message: log.message || '',
+        context: log.context || {},
+        traceId: log.traceId || null,
         source: log.source || 'application',
         sourceLabel: log.source === 'chrome-extension' ? '🔧 Extensão' : '🚀 Aplicação'
       }));
 
       // Ordena por timestamp decrescente (mais recente primeiro)
       formattedLogs.sort((a, b) => {
-        const dateA = new Date(a.timestamp).getTime();
-        const dateB = new Date(b.timestamp).getTime();
+        const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        if (isNaN(dateA)) return 1;
+        if (isNaN(dateB)) return -1;
         return dateB - dateA;
       });
 
