@@ -705,16 +705,7 @@ async function generateSingle(tabId, task) {
 }
 
 async function renewSystem(tabId, task) {
-  await logger.info('🔄 Renovando sistema IPTV...', { taskData: task });
-  
-  // DEBUG: Log completo da task para análise
-  await logger.info('📊 DEBUG - Task completa recebida:', {
-    taskId: task.id,
-    taskType: task.type,
-    taskData: JSON.stringify(task.data),
-    taskMetadata: JSON.stringify(task.metadata),
-    directSistemaId: task.sistemaId
-  });
+  await logger.info('🔄 Renovando sistema IPTV (somente gerando credenciais)...', { taskData: task });
   
   // Extrair sistemaId de diferentes locais possíveis
   const sistemaId = task.sistemaId || 
@@ -765,6 +756,7 @@ async function renewSystem(tabId, task) {
       }
     }
     
+    // APENAS gera as credenciais (sem editar o sistema)
     const response = await sendMessageToTab(tabId, {action: 'generateOne'});
     
     if (response && response.success && response.credentials) {
@@ -774,120 +766,22 @@ async function renewSystem(tabId, task) {
         sistemaId: sistemaId || 'desconhecido'
       });
       
-      // NOVO: Editar o sistema no OnlineOffice com as novas credenciais
-      await logger.info('📝 Iniciando edição do sistema no OnlineOffice...', { sistemaId });
-      
-      try {
-        // Primeiro garante que a aba está ativa
-        await chrome.tabs.update(tabId, { active: true });
-        await new Promise(resolve => setTimeout(resolve, 500)); // Aguarda aba ficar ativa
-        
-        // Envia comando para editar o sistema usando função com retry
-        const editResponse = await sendMessageToTab(tabId, {
-          action: 'editSystem',
-          sistemaId: sistemaId,
-          username: response.credentials.username,
-          password: response.credentials.password
-        }, 5); // Mais tentativas para edição crítica
-        
-        if (!editResponse || !editResponse.success) {
-          // Se falhou ao editar, lança erro
-          const errorMsg = editResponse?.error || 'Falha desconhecida ao editar sistema';
-          await logger.error('❌ Falha ao editar sistema no OnlineOffice', { 
-            sistemaId, 
-            error: errorMsg,
-            response: editResponse 
-          });
-          throw new Error(`Falha ao editar sistema: ${errorMsg}`);
-        }
-        
-        await logger.info('✅ Sistema editado com sucesso no OnlineOffice!', {
-          sistemaId,
-          username: response.credentials.username
-        });
-        
-      } catch (editError) {
-        // Se falhou ao editar, tenta abrir nova aba como fallback
-        await logger.error('❌ Erro ao editar sistema, tentando nova aba...', { 
-          sistemaId,
-          error: editError.message
-        });
-        
-        try {
-          // Tenta abrir nova aba se a atual falhou
-          const newTab = await chrome.tabs.create({
-            url: OFFICE_URL,
-            active: false
-          });
-          
-          // Aguarda a aba carregar
-          await logger.info('⏳ Aguardando nova aba carregar...');
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          
-          // Tenta editar na nova aba
-          const editResponseRetry = await sendMessageToTab(newTab.id, {
-            action: 'editSystem',
-            sistemaId: sistemaId,
-            username: response.credentials.username,
-            password: response.credentials.password
-          });
-          
-          if (editResponseRetry && editResponseRetry.success) {
-            await logger.info('✅ Sistema editado com sucesso na nova aba!');
-            officeTabId = newTab.id; // Atualiza ID da aba
-            // Continua com o fluxo normal após sucesso no retry
-          } else {
-            throw new Error('Falha ao editar mesmo na nova aba');
-          }
-        } catch (retryError) {
-          await logger.error('❌ Erro crítico ao editar sistema mesmo com retry', { 
-            sistemaId,
-            error: retryError.message
-          });
-        }
-        
-        // Reporta falha ao backend
-        await reportTaskResult({
-          taskId: task.id,
-          type: task.type || 'renewal', // Usar o tipo original da task
-          sistemaId: sistemaId,
-          systemId: sistemaId,
-          error: `Credenciais geradas mas falha ao editar sistema: ${editError.message}`,
-          partialSuccess: {
-            credentialsGenerated: true,
-            systemEdited: false,
-            newUsername: response.credentials.username
-          },
-          metadata: {
-            ...metadata,
-            sistemaId: sistemaId,
-            originalUsername: originalUsername,
-            failedAt: new Date().toISOString(),
-            failureReason: 'edit_system_failed'
-          }
-        });
-        
-        // Sai da função sem reportar sucesso completo
-        return;
-      }
-      
-      // Só reporta sucesso se AMBOS geraram credenciais E editaram o sistema
-      await logger.info('✅ Renovação completa: credenciais geradas E sistema editado!', { 
+      // IMPORTANTE: NÃO EDITA O SISTEMA - apenas envia as credenciais para o servidor
+      await logger.info('📤 Enviando credenciais para o servidor (sem editar sistema)...', { 
         sistemaId,
-        novoUsuario: response.credentials.username,
-        novaSenha: response.credentials.password
+        info: 'A edição do sistema será feita pela aplicação principal'
       });
       
-      // Reporta sucesso ao backend com sistemaId garantido
+      // Reporta sucesso ao backend com as credenciais geradas
       const reportSuccess = await reportTaskResult({
         taskId: task.id,
-        type: task.type || 'renewal', // Usar o tipo original da task
-        sistemaId: sistemaId, // Usar sistemaId em vez de systemId
+        type: task.type || 'renewal',
+        sistemaId: sistemaId,
         systemId: sistemaId, // Manter ambos por compatibilidade
         credentials: {
           username: response.credentials.username,
           password: response.credentials.password,
-          sistemaId: sistemaId // Incluir também nas credenciais
+          sistemaId: sistemaId
         },
         oldCredentials: {
           username: originalUsername,
@@ -899,17 +793,17 @@ async function renewSystem(tabId, task) {
           sistemaId: sistemaId,
           originalUsername: originalUsername,
           renewedAt: new Date().toISOString(),
-          systemEdited: true // Marca que o sistema foi editado
+          systemEdited: false // IMPORTANTE: Sistema NÃO foi editado pela extensão
         }
       });
       
       if (!reportSuccess) {
-        await logger.error('⚠️ Falha ao reportar renovação ao backend!', { sistemaId });
+        await logger.error('⚠️ Falha ao reportar credenciais ao backend!', { sistemaId });
       } else {
-        await logger.info('✅ Renovação completa reportada ao backend com sucesso', { 
+        await logger.info('✅ Credenciais enviadas ao backend com sucesso!', { 
           sistemaId,
           username: response.credentials.username,
-          edited: true
+          info: 'Sistema será editado pela aplicação principal'
         });
       }
       
