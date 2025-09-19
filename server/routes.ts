@@ -270,7 +270,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '/api/office/automation/report',
       '/api/office/automation/config',
       '/api/office/automation/status',
-      '/api/office/automation/credentials'
+      '/api/office/automation/credentials',
+      '/api/office/automation/extension.zip'  // Extension download endpoint (public)
       // Note: start/stop/generate-single endpoints remain protected (require authentication)
     ];
     // Use originalUrl to get the full path including /api prefix
@@ -5881,7 +5882,7 @@ Como posso ajudar você hoje?
       const archiver = (await import('archiver')).default;
       const extensionPath = path.join(process.cwd(), 'chrome-extension');
       
-      // Check if extension directory exists
+      // Check if extension directory exists BEFORE setting headers
       try {
         await fs.access(extensionPath);
       } catch {
@@ -5892,24 +5893,42 @@ Como posso ajudar você hoje?
         });
       }
 
-      // Set response headers for zip download
-      res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', 'attachment; filename="onlineoffice-chrome-extension.zip"');
-
-      // Create archive
+      // Create archive first to check for errors before sending headers
       const archive = archiver('zip', {
         zlib: { level: 9 } // Maximum compression
       });
 
-      // Handle archive errors
+      // Handle archive errors - but don't send JSON after headers are set
       archive.on('error', (err) => {
         console.error('❌ Erro ao criar arquivo ZIP:', err);
-        res.status(500).json({
-          success: false,
-          message: "Erro ao criar arquivo ZIP",
-          error: err.message
-        });
+        // If headers not sent yet, send error JSON
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            message: "Erro ao criar arquivo ZIP",
+            error: err.message
+          });
+        } else {
+          // If headers already sent, just end the response
+          res.end();
+        }
       });
+
+      // Handle warning events (non-fatal)
+      archive.on('warning', (err) => {
+        if (err.code === 'ENOENT') {
+          console.warn('⚠️ Arquivo não encontrado durante compressão:', err);
+        } else {
+          console.error('❌ Aviso do archiver:', err);
+        }
+      });
+
+      // Set response headers for zip download ONLY after archive is ready
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="onlineoffice-chrome-extension.zip"');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
 
       // Pipe archive data to the response
       archive.pipe(res);
@@ -5917,16 +5936,24 @@ Como posso ajudar você hoje?
       // Add the entire chrome-extension directory to the archive
       archive.directory(extensionPath, false);
 
-      // Finalize the archive
+      // Finalize the archive - this will trigger the stream to start
       await archive.finalize();
+      
+      console.log('✅ Extensão Chrome preparada para download com sucesso');
       
     } catch (error) {
       console.error('❌ Erro ao preparar download da extensão em ZIP:', error);
-      res.status(500).json({
-        success: false,
-        message: "Erro ao preparar download da extensão",
-        error: error instanceof Error ? error.message : "Erro desconhecido"
-      });
+      // Only send error response if headers haven't been sent yet
+      if (!res.headersSent) {
+        res.status(500).json({
+          success: false,
+          message: "Erro ao preparar download da extensão",
+          error: error instanceof Error ? error.message : "Erro desconhecido"
+        });
+      } else {
+        // If headers were already sent, we can't send JSON
+        res.end();
+      }
     }
   });
 
