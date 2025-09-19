@@ -433,7 +433,7 @@ export class AutoRenewalService {
         .update(sistemasTable)
         .set({
           updatedAt: new Date(),
-          lastRenewalAt: new Date(),
+          // REMOVED: lastRenewalAt: new Date(), // This will be updated only when task completes
           renewalCount: sql`COALESCE(renewal_count, 0) + 1`
         })
         .where(eq(sistemasTable.id, sistema.id))
@@ -441,8 +441,8 @@ export class AutoRenewalService {
 
       if (updateResult && updateResult.length > 0) {
         console.log(`✅ [AutoRenewal] Sistema atualizado no banco [${traceId}]:`);
-        console.log(`  LastRenewalAt atualizado para: ${updateResult[0].lastRenewalAt}`);
-        console.log(`  RenewalCount atualizado para: ${updateResult[0].renewalCount}`);
+        console.log(`  RenewalCount incrementado para: ${updateResult[0].renewalCount}`);
+        console.log(`  Task criada - aguardando conclusão para atualizar lastRenewalAt`);
       } else {
         console.warn(`⚠️ [AutoRenewal] Sistema não retornou dados após update [${traceId}]`);
       }
@@ -610,6 +610,25 @@ export class AutoRenewalService {
       
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
+  }
+
+  // Método para limpar o estado de renovação de um sistema
+  clearRenewalState(systemId: string) {
+    console.log(`🧹 Limpando estado de renovação para sistema ${systemId}`);
+    
+    // Remove o sistema da lista de isRenewing
+    if (this.isRenewing.has(systemId)) {
+      this.isRenewing.delete(systemId);
+      console.log(`✅ Sistema ${systemId} removido da lista isRenewing`);
+    }
+    
+    // Remove o sistema da fila de renovação
+    if (this.renewalQueue.has(systemId)) {
+      this.renewalQueue.delete(systemId);
+      console.log(`✅ Sistema ${systemId} removido da fila de renovação`);
+    }
+    
+    console.log(`✨ Estado de renovação limpo para sistema ${systemId}`);
   }
 }
 

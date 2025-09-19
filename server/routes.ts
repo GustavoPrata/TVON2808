@@ -8294,6 +8294,33 @@ Como posso ajudar você hoje?
         return res.status(400).json({ error: 'ID inválido' });
       }
       
+      // First, get the credential to check if it's a renewal task
+      const credential = await storage.getOfficeCredentialById(credentialId);
+      
+      if (credential) {
+        // Check if this is a renewal task
+        const metadata = credential.metadata as any;
+        if (credential.source === 'renewal' || metadata?.type === 'renewal' || metadata?.generateNewCredentials === true) {
+          const systemId = metadata?.systemId || credential.sistemaId;
+          
+          if (systemId) {
+            console.log(`🗑️ Deletando task de renovação para sistema ${systemId}`);
+            
+            // Clear the renewal state for this system
+            const { autoRenewalService } = await import('./services/AutoRenewalService');
+            autoRenewalService.clearRenewalState(systemId);
+            
+            // Reset lastRenewalAt to allow immediate retry
+            const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000);
+            await storage.updateSistema(systemId, {
+              lastRenewalAt: fiveHoursAgo // Reset to old date to allow retry
+            });
+            
+            console.log(`✅ Estado de renovação limpo para sistema ${systemId}`);
+          }
+        }
+      }
+      
       await storage.deleteOfficeCredential(credentialId);
       
       res.json({ success: true, message: 'Credencial removida com sucesso' });

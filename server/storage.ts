@@ -2213,6 +2213,13 @@ export class DatabaseStorage implements IStorage {
     return result[0];
   }
 
+  async getOfficeCredentialById(id: number): Promise<OfficeCredentials | undefined> {
+    const result = await db.select().from(officeCredentials)
+      .where(eq(officeCredentials.id, id))
+      .limit(1);
+    return result[0];
+  }
+
   async getOfficeCredentialsByStatus(status: string): Promise<OfficeCredentials[]> {
     return await db.select().from(officeCredentials)
       .where(eq(officeCredentials.status, status))
