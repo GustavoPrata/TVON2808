@@ -1225,9 +1225,9 @@ export class DatabaseStorage implements IStorage {
     
     // Filtrar sistemas que estão dentro do tempo de renovação antecipada
     const filteredResult = result.filter((sistema) => {
-      if (!sistema.expiracao) return false;
+      if (!sistema.expiration) return false;
       const renewalTime = (sistema.renewalAdvanceTime || 60) * 60 * 1000; // Em milissegundos
-      const timeToExpire = sistema.expiracao.getTime() - now.getTime();
+      const timeToExpire = sistema.expiration.getTime() - now.getTime();
       return timeToExpire <= renewalTime && timeToExpire > 0;
     });
     
@@ -1241,7 +1241,7 @@ export class DatabaseStorage implements IStorage {
       .from(sistemas)
       .where(
         and(
-          lte(sistemas.expiracao, now),
+          lte(sistemas.expiration, now),
           eq(sistemas.status, 'active')
         )
       );
@@ -1256,12 +1256,12 @@ export class DatabaseStorage implements IStorage {
       .from(sistemas)
       .where(
         and(
-          gte(sistemas.expiracao, now),
-          lte(sistemas.expiracao, futureDate),
+          gte(sistemas.expiration, now),
+          lte(sistemas.expiration, futureDate),
           eq(sistemas.status, 'active')
         )
       )
-      .orderBy(asc(sistemas.expiracao));
+      .orderBy(asc(sistemas.expiration));
     return result.map(mapSistemaToFrontend);
   }
 
@@ -1350,7 +1350,7 @@ export class DatabaseStorage implements IStorage {
       const integracaoConfig = await this.getIntegracaoByTipo('iptv');
       
       if (integracaoConfig?.ativo) {
-        const apiResponse = await externalApiService.createSystem({
+        const apiResponse = await externalApiService.createSystemCredential({
           system_id: systemId,
           username: data.username,
           password: data.password
@@ -1432,12 +1432,12 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(sistemas.autoRenewalEnabled, true),
-          lte(sistemas.expiracao, futureTime),
-          gte(sistemas.expiracao, now),
+          lte(sistemas.expiration, futureTime),
+          gte(sistemas.expiration, now),
           eq(sistemas.status, 'active')
         )
       )
-      .orderBy(asc(sistemas.expiracao));
+      .orderBy(asc(sistemas.expiration));
     
     return result.map(mapSistemaToFrontend);
   }
@@ -2000,11 +2000,9 @@ export class DatabaseStorage implements IStorage {
       const defaultConfig = await db.insert(officeAutomationConfig)
         .values({
           isEnabled: false,
-          baseUrl: 'https://wpp.gesapioffice.com/',
-          appId: 'aBxktpsLcxGykyZNYGGGYRRiY',
-          runInterval: 60,
-          maxConcurrentTasks: 5,
-          taskTypes: ['create_user', 'update_password', 'reset_device']
+          batchSize: 10,
+          intervalMinutes: 60,
+          singleGeneration: false
         })
         .returning();
       return defaultConfig[0];
@@ -2030,11 +2028,9 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(officeAutomationConfig)
       .values({
         isEnabled: false,
-        baseUrl: 'https://wpp.gesapioffice.com/',
-        appId: 'aBxktpsLcxGykyZNYGGGYRRiY',
-        runInterval: 60,
-        maxConcurrentTasks: 5,
-        taskTypes: ['create_user', 'update_password', 'reset_device'],
+        batchSize: 10,
+        intervalMinutes: 60,
+        singleGeneration: false,
         ...config
       } as InsertOfficeAutomationConfig)
       .returning();
@@ -2093,8 +2089,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db.insert(officeAutomationLogs)
       .values({
         taskType: taskType,
-        status: 'pending',
-        data: data ? JSON.stringify(data) : null
+        status: 'pending'
       })
       .returning();
     return result[0];
