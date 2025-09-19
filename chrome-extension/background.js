@@ -196,6 +196,7 @@ const POLLING_INTERVAL_ACTIVE = 30000; // 30 segundos quando não há tarefas
 const POLLING_INTERVAL_IDLE = 60000; // 60 segundos quando automação está desabilitada
 const POLLING_INTERVAL_FAST = 10000; // 10 segundos após processar tarefa
 const OFFICE_URL = 'https://onlineoffice.zip/iptv/index.php'; // URL específica do painel IPTV
+let officeTabId = null; // Armazena o ID da aba do OnlineOffice
 
 // ===========================================================================
 // ESTADO GLOBAL (mínimo, apenas para cache)
@@ -210,6 +211,47 @@ let lastStatus = {
 let currentPollingInterval = POLLING_INTERVAL_IDLE;
 
 // ===========================================================================
+// FUNÇÃO DE ENVIO DE MENSAGEM COM RETRY
+// ===========================================================================
+async function sendMessageToTab(tabId, message, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      // Verifica se a aba ainda existe
+      const tab = await chrome.tabs.get(tabId);
+      if (!tab) throw new Error('Tab not found');
+      
+      // Tenta ativar a aba para evitar cache
+      await chrome.tabs.update(tabId, { active: true });
+      await new Promise(resolve => setTimeout(resolve, 200)); // Pequena espera após ativar
+      
+      // Envia mensagem
+      const response = await chrome.tabs.sendMessage(tabId, message);
+      return response;
+    } catch (error) {
+      await logger.error(`Tentativa ${i + 1}/${retries} falhou:`, { error: error.message });
+      
+      if (i < retries - 1) {
+        // Se não é a última tentativa, aguarda antes de tentar novamente
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Tenta reinjetar o content script se necessário
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            files: ['content.js']
+          });
+          await logger.info('✅ Content script reinjetado com sucesso');
+        } catch (e) {
+          await logger.warn('Não foi possível reinjetar content script:', { error: e.message });
+        }
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
+// ===========================================================================
 // INICIALIZAÇÃO
 // ===========================================================================
 // Inicialização assíncrona do logger e API
@@ -218,7 +260,27 @@ let currentPollingInterval = POLLING_INTERVAL_IDLE;
   // Inicializa API_BASE dinamicamente
   API_BASE = await getApiBase();
   await logger.info(`🔗 Servidor API configurado: ${API_BASE}`);
+  
+  // Inicia heartbeat para manter conexão viva
+  setupHeartbeat();
 })();
+
+// ===========================================================================
+// HEARTBEAT PARA MANTER CONEXÃO VIVA
+// ===========================================================================
+function setupHeartbeat() {
+  setInterval(async () => {
+    if (officeTabId) {
+      try {
+        await chrome.tabs.sendMessage(officeTabId, { action: 'ping' });
+        await logger.debug('💓 Heartbeat enviado com sucesso');
+      } catch (error) {
+        await logger.warn('Conexão com aba perdida, marcando para reconexão');
+        officeTabId = null;
+      }
+    }
+  }, 30000); // A cada 30 segundos
+}
 
 // Usa Chrome Alarms API para manter a extensão sempre ativa
 async function setupAlarms() {
@@ -468,6 +530,7 @@ async function processTask(task) {
   }
   
   const tabId = tabs[0].id;
+  officeTabId = tabId; // Armazena ID da aba para heartbeat
   await logger.info(`✅ Aba encontrada`, { url: tabs[0].url });
   
   // Processa baseado no tipo de tarefa
@@ -502,8 +565,8 @@ async function generateBatch(tabId, task) {
     await logger.info(`🎯 Gerando credencial ${i + 1}/${quantity}...`);
     
     try {
-      // Envia comando para content script
-      const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
+      // Envia comando para content script usando função com retry
+      const response = await sendMessageToTab(tabId, {action: 'generateOne'});
       
       if (response && response.success && response.credentials) {
         successCount++;
@@ -591,7 +654,7 @@ async function generateSingle(tabId, task) {
   await logger.info('🎯 Gerando credencial única...');
   
   try {
-    const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
+    const response = await sendMessageToTab(tabId, {action: 'generateOne'});
     
     if (response && response.success && response.credentials) {
       await logger.info('✅ Credencial gerada com sucesso!', {
@@ -702,7 +765,7 @@ async function renewSystem(tabId, task) {
       }
     }
     
-    const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
+    const response = await sendMessageToTab(tabId, {action: 'generateOne'});
     
     if (response && response.success && response.credentials) {
       await logger.info('✅ Nova credencial gerada para renovação!', {
@@ -715,13 +778,17 @@ async function renewSystem(tabId, task) {
       await logger.info('📝 Iniciando edição do sistema no OnlineOffice...', { sistemaId });
       
       try {
-        // Envia comando para editar o sistema
-        const editResponse = await chrome.tabs.sendMessage(tabId, {
+        // Primeiro garante que a aba está ativa
+        await chrome.tabs.update(tabId, { active: true });
+        await new Promise(resolve => setTimeout(resolve, 500)); // Aguarda aba ficar ativa
+        
+        // Envia comando para editar o sistema usando função com retry
+        const editResponse = await sendMessageToTab(tabId, {
           action: 'editSystem',
           sistemaId: sistemaId,
           username: response.credentials.username,
           password: response.credentials.password
-        });
+        }, 5); // Mais tentativas para edição crítica
         
         if (!editResponse || !editResponse.success) {
           // Se falhou ao editar, lança erro
@@ -740,11 +807,44 @@ async function renewSystem(tabId, task) {
         });
         
       } catch (editError) {
-        // Se falhou ao editar, reporta erro e não continua
-        await logger.error('❌ Erro crítico ao editar sistema', { 
+        // Se falhou ao editar, tenta abrir nova aba como fallback
+        await logger.error('❌ Erro ao editar sistema, tentando nova aba...', { 
           sistemaId,
           error: editError.message
         });
+        
+        try {
+          // Tenta abrir nova aba se a atual falhou
+          const newTab = await chrome.tabs.create({
+            url: OFFICE_URL,
+            active: false
+          });
+          
+          // Aguarda a aba carregar
+          await logger.info('⏳ Aguardando nova aba carregar...');
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          
+          // Tenta editar na nova aba
+          const editResponseRetry = await sendMessageToTab(newTab.id, {
+            action: 'editSystem',
+            sistemaId: sistemaId,
+            username: response.credentials.username,
+            password: response.credentials.password
+          });
+          
+          if (editResponseRetry && editResponseRetry.success) {
+            await logger.info('✅ Sistema editado com sucesso na nova aba!');
+            officeTabId = newTab.id; // Atualiza ID da aba
+            // Continua com o fluxo normal após sucesso no retry
+          } else {
+            throw new Error('Falha ao editar mesmo na nova aba');
+          }
+        } catch (retryError) {
+          await logger.error('❌ Erro crítico ao editar sistema mesmo com retry', { 
+            sistemaId,
+            error: retryError.message
+          });
+        }
         
         // Reporta falha ao backend
         await reportTaskResult({

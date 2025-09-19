@@ -163,6 +163,13 @@ async function saveCredentialsToDatabase(username, password) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('📨 Comando recebido:', request);
   
+  // Responde ao ping para manter conexão viva
+  if (request.action === 'ping') {
+    console.log('💓 Ping recebido, respondendo pong...');
+    sendResponse({ pong: true });
+    return true;
+  }
+  
   if (request.action === 'generateOne') {
     console.log('🎯 Gerando uma credencial...');
     
