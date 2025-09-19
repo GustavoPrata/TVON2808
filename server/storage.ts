@@ -1316,21 +1316,64 @@ export class DatabaseStorage implements IStorage {
     password: string; 
     nome?: string; 
     url?: string; 
-    expiracao?: Date 
+    expiracao?: Date;
+    sistemaId?: number; // ID do sistema para atualizar (renovação) 
   }): Promise<Sistema> {
-    // Generate systemId if not provided
+    // Se sistemaId fornecido, está renovando um sistema existente
+    if (data.sistemaId) {
+      console.log(`🔄 Atualizando sistema ${data.sistemaId} com novas credenciais`);
+      
+      // Buscar o sistema existente
+      const existingSistema = await this.getSistemaById(data.sistemaId);
+      if (!existingSistema) {
+        throw new Error(`Sistema ${data.sistemaId} não encontrado`);
+      }
+      
+      // Atualizar validade para 6 horas
+      const expiracao = new Date(Date.now() + 6 * 60 * 60 * 1000);
+      
+      // Atualizar o sistema local
+      const updatedSistema = await this.updateSistema(data.sistemaId, {
+        username: data.username,
+        password: data.password,
+        expiracao: expiracao,
+        status: 'active',
+        lastRenewalAt: new Date(),
+        renewalCount: sql`COALESCE(renewal_count, 0) + 1`
+      });
+      
+      // Atualizar na API externa se configurada
+      try {
+        const { externalApiService } = await import('./services/externalApi');
+        const integracaoConfig = await this.getIntegracaoByTipo('iptv');
+        
+        if (integracaoConfig?.ativo && existingSistema.apiUserId) {
+          console.log(`🔄 Atualizando sistema na API externa (ID: ${existingSistema.apiUserId})`);
+          
+          const expTimestamp = Math.floor(expiracao.getTime() / 1000);
+          await externalApiService.updateUser(existingSistema.apiUserId, {
+            username: data.username,
+            password: data.password,
+            exp_date: expTimestamp.toString(),
+            status: 'Active'
+          });
+          
+          console.log('✅ Sistema atualizado na API externa');
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar sistema na API externa:', error);
+        // Continue mesmo se falhar na API externa
+      }
+      
+      return mapSistemaToFrontend(updatedSistema);
+    }
+    
+    // Código original para criar novo sistema
     const systemId = await this.getNextSistemaId();
-    
-    // Generate name if not provided
     const nome = data.nome || `Sistema Auto ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`;
-    
-    // Default URL (same as used in other systems)
     const url = data.url || 'https://onlineoffice.zip/iptv/';
-    
-    // Default expiration (6 hours from now)
     const expiracao = data.expiracao || new Date(Date.now() + 6 * 60 * 60 * 1000);
     
-    // Create the sistema
     const sistema = await this.createSistema({
       systemId,
       username: data.username,
