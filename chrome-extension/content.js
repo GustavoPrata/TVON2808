@@ -10,6 +10,9 @@ console.log('👋 OnlineOffice Automator carregado!');
 // IMPORTANTE: A extensão roda no OnlineOffice, mas envia dados para nosso servidor
 const API_BASE = 'https://tv-on.site';
 
+// Flag para evitar duplicação de credenciais
+let isGeneratingViaCommand = false;
+
 // ===========================================================================
 // LISTENER GLOBAL PARA FECHAR MODAIS COM ESC
 // ===========================================================================
@@ -106,6 +109,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'generateOne') {
     console.log('🎯 Gerando uma credencial...');
+    
+    // Define flag para evitar duplicação
+    isGeneratingViaCommand = true;
     
     // SEQUÊNCIA CORRETA DE CLIQUES
     setTimeout(() => {
@@ -379,6 +385,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     }
                   });
                   
+                  // Reset flag após processar
+                  setTimeout(() => {
+                    isGeneratingViaCommand = false;
+                    console.log('🔄 Flag resetada');
+                  }, 2000);
+                  
                 } else {
                   console.error('❌ Não conseguiu extrair credenciais');
                   console.log('Username:', username, 'Password:', password);
@@ -463,10 +475,15 @@ const observer = new MutationObserver((mutations) => {
           // Se encontrou credenciais, salva no banco
           if (username && password && !container.hasAttribute('data-processed')) {
             container.setAttribute('data-processed', 'true'); // Evita processar múltiplas vezes
-            console.log(`📋 Credenciais detectadas: ${username} / ${password}`);
             
-            // Salva no banco de dados
-            saveCredentialsToDatabase(username, password);
+            // Verifica se NÃO está gerando via comando para evitar duplicação
+            if (!isGeneratingViaCommand) {
+              console.log(`📋 Credenciais detectadas manualmente: ${username} / ${password}`);
+              // Salva no banco de dados
+              saveCredentialsToDatabase(username, password);
+            } else {
+              console.log(`⚠️ Credenciais detectadas mas já salvas via comando: ${username}`);
+            }
           }
         }
       });
