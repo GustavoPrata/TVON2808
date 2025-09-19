@@ -5399,47 +5399,7 @@ Como posso ajudar você hoje?
     }
   });
 
-  // Endpoint to save credentials captured by client-side automation
-  app.post("/api/office/save-credentials", async (req, res) => {
-    try {
-      const { usuario, senha, vencimento } = req.body;
-
-      // Validate required fields
-      if (!usuario || !senha) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Usuário e senha são obrigatórios' 
-        });
-      }
-
-      // Log the credentials (for monitoring)
-      console.log('📥 Credenciais IPTV recebidas do client-side:', {
-        usuario,
-        senha: senha.substring(0, 3) + '***', // Log parcial da senha por segurança
-        vencimento: vencimento || 'N/A',
-        timestamp: new Date().toISOString()
-      });
-
-      // Here you could save to database if needed
-      // For now, we just acknowledge receipt
-
-      res.json({ 
-        success: true, 
-        message: 'Credenciais salvas com sucesso',
-        data: {
-          usuario,
-          senha,
-          vencimento: vencimento || new Date(Date.now() + 6 * 60 * 60 * 1000).toLocaleString('pt-BR')
-        }
-      });
-    } catch (error) {
-      console.error('❌ Erro ao salvar credenciais:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: 'Erro ao salvar credenciais' 
-      });
-    }
-  });
+  // Endpoint duplicado removido - usando o de baixo que realmente salva no banco
 
   // OnlineOffice automation route
   app.post("/api/office/generate-iptv-test", async (req, res) => {
@@ -5705,8 +5665,19 @@ Como posso ajudar você hoje?
       
       console.log(`📥 Credenciais recebidas da ${source || 'aplicação'}:`, { usuario, vencimento });
       
-      // Here you would save to database if needed
-      // For now, just broadcast via WebSocket to update UI
+      // SALVAR NO BANCO DE DADOS
+      const savedCredential = await storage.createOfficeCredentials({
+        username: usuario,
+        password: senha,
+        expiration: vencimento || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        source: source || 'chrome-extension',
+        status: 'active',
+        generatedAt: new Date().toISOString()
+      });
+      
+      console.log('✅ Credencial salva no banco com ID:', savedCredential.id);
+      
+      // Broadcast via WebSocket to update UI in real-time
       const wsMessage = JSON.stringify({
         type: 'extension_credentials',
         usuario,
@@ -5726,7 +5697,11 @@ Como posso ajudar você hoje?
       res.json({
         success: true,
         message: "Credenciais salvas com sucesso",
-        data: { usuario, vencimento }
+        data: { 
+          usuario, 
+          vencimento,
+          id: savedCredential.id 
+        }
       });
       
     } catch (error) {
@@ -6801,7 +6776,12 @@ Como posso ajudar você hoje?
       // Retornar TODAS as credenciais, sem limite artificial
       // Se houver muitas, o frontend pode paginar
       const credentials = await storage.getOfficeCredentials(1000); // Limite alto para garantir que pegue todas
-      res.json(credentials);
+      
+      // Retornar no formato esperado pelo frontend
+      res.json({
+        success: true,
+        credentials: credentials
+      });
     } catch (error) {
       console.error('Erro ao buscar credenciais:', error);
       res.status(500).json({ error: 'Erro ao buscar credenciais' });
