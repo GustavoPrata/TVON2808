@@ -6,6 +6,7 @@ import path from "path";
 import * as cron from "node-cron";
 import { storage } from "./storage";
 import { whatsappService } from "./services/whatsapp";
+import { sql } from "drizzle-orm";
 
 const app = express();
 app.use(express.json());
@@ -47,6 +48,60 @@ app.use((req, res, next) => {
 (async () => {
   // Initialize database tables
   await initDatabase();
+  
+  // Adicionar colunas de renovação automática na tabela sistemas se não existirem
+  try {
+    const { db } = await import("./db");
+    console.log("🔧 Verificando colunas de renovação automática na tabela sistemas...");
+    
+    // Adicionar colunas que faltam usando ALTER TABLE
+    // Nota: a coluna já se chama 'expiracao' no schema, não 'expiration'
+    await db.execute(sql`
+      DO $$ 
+      BEGIN
+        -- Adicionar coluna expiracao se não existir
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                      WHERE table_name='sistemas' AND column_name='expiracao') THEN
+          ALTER TABLE sistemas ADD COLUMN expiracao TIMESTAMP;
+        END IF;
+        
+        -- Adicionar coluna auto_renewal_enabled se não existir
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                      WHERE table_name='sistemas' AND column_name='auto_renewal_enabled') THEN
+          ALTER TABLE sistemas ADD COLUMN auto_renewal_enabled BOOLEAN DEFAULT false;
+        END IF;
+        
+        -- Adicionar coluna renewal_advance_time se não existir
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                      WHERE table_name='sistemas' AND column_name='renewal_advance_time') THEN
+          ALTER TABLE sistemas ADD COLUMN renewal_advance_time INTEGER DEFAULT 60;
+        END IF;
+        
+        -- Adicionar coluna last_renewal_at se não existir
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                      WHERE table_name='sistemas' AND column_name='last_renewal_at') THEN
+          ALTER TABLE sistemas ADD COLUMN last_renewal_at TIMESTAMP;
+        END IF;
+        
+        -- Adicionar coluna renewal_count se não existir
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                      WHERE table_name='sistemas' AND column_name='renewal_count') THEN
+          ALTER TABLE sistemas ADD COLUMN renewal_count INTEGER DEFAULT 0;
+        END IF;
+        
+        -- Adicionar coluna status se não existir
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                      WHERE table_name='sistemas' AND column_name='status') THEN
+          ALTER TABLE sistemas ADD COLUMN status VARCHAR(20);
+        END IF;
+      END $$;
+    `);
+    
+    console.log("✅ Colunas de renovação automática verificadas/criadas com sucesso");
+  } catch (error) {
+    console.error("⚠️ Erro ao verificar/criar colunas de renovação automática:", error);
+    // Não falhar a aplicação, apenas registrar o erro
+  }
   
   const server = await registerRoutes(app);
   

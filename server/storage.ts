@@ -1144,7 +1144,7 @@ export class DatabaseStorage implements IStorage {
           systemId: apiSystem.system_id,
           username: apiSystem.username,
           password: apiSystem.password,
-          expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
+          expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
         });
       }
     }
@@ -1170,7 +1170,7 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(sistemas.autoRenewalEnabled, true),
           ne(sistemas.status, 'renewing'),
-          sql`${sistemas.expiration} <= ${now} + INTERVAL '1 minute' * ${sistemas.renewalAdvanceTime}`
+          sql`${sistemas.expiracao} <= ${now} + INTERVAL '1 minute' * ${sistemas.renewalAdvanceTime}`
         )
       );
     return result;
@@ -1183,7 +1183,7 @@ export class DatabaseStorage implements IStorage {
       .from(sistemas)
       .where(
         and(
-          lte(sistemas.expiration, now),
+          lte(sistemas.expiracao, now),
           eq(sistemas.status, 'active')
         )
       );
@@ -1198,12 +1198,12 @@ export class DatabaseStorage implements IStorage {
       .from(sistemas)
       .where(
         and(
-          gte(sistemas.expiration, now),
-          lte(sistemas.expiration, futureDate),
+          gte(sistemas.expiracao, now),
+          lte(sistemas.expiracao, futureDate),
           eq(sistemas.status, 'active')
         )
       )
-      .orderBy(asc(sistemas.expiration));
+      .orderBy(asc(sistemas.expiracao));
     return result;
   }
 
@@ -1213,7 +1213,7 @@ export class DatabaseStorage implements IStorage {
       .set({
         username,
         password,
-        expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Adiciona 30 dias
+        expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Adiciona 30 dias
         lastRenewalAt: new Date(),
         renewalCount: sql`${sistemas.renewalCount} + 1`,
         status: 'active',
@@ -1261,7 +1261,7 @@ export class DatabaseStorage implements IStorage {
         .set({
           username: novaCredencial.username,
           password: novaCredencial.password,
-          expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           lastRenewalAt: new Date(),
           renewalCount: sql`${sistemas.renewalCount} + 1`,
           status: 'active',
@@ -1294,12 +1294,12 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(sistemas.autoRenewalEnabled, true),
-          lte(sistemas.expiration, futureTime),
-          gte(sistemas.expiration, now),
+          lte(sistemas.expiracao, futureTime),
+          gte(sistemas.expiracao, now),
           eq(sistemas.status, 'active')
         )
       )
-      .orderBy(asc(sistemas.expiration));
+      .orderBy(asc(sistemas.expiracao));
     
     return result;
   }
