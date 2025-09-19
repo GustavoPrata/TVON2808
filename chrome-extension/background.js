@@ -402,8 +402,18 @@ async function processTask(task) {
     await generateBatch(tabId, task);
   } else if (task.type === 'generate_single') {
     await generateSingle(tabId, task);
-  } else if (task.type === 'renew_system') {
+  } else if (task.type === 'renewal' || task.type === 'renew_system') {
+    // Suporta ambos os tipos: 'renewal' (do backend) e 'renew_system' (legado)
+    await logger.info('🔄 Task de renovação detectada', { 
+      type: task.type,
+      taskId: task.id,
+      sistemaId: task.sistemaId || task.data?.sistemaId || task.metadata?.sistemaId || 'N/A',
+      metadata: task.metadata,
+      data: task.data
+    });
     await renewSystem(tabId, task);
+  } else {
+    await logger.warn('⚠️ Tipo de task desconhecido', { type: task.type, task });
   }
 }
 
@@ -561,6 +571,15 @@ async function generateSingle(tabId, task) {
 async function renewSystem(tabId, task) {
   await logger.info('🔄 Renovando sistema IPTV...', { taskData: task });
   
+  // DEBUG: Log completo da task para análise
+  await logger.info('📊 DEBUG - Task completa recebida:', {
+    taskId: task.id,
+    taskType: task.type,
+    taskData: JSON.stringify(task.data),
+    taskMetadata: JSON.stringify(task.metadata),
+    directSistemaId: task.sistemaId
+  });
+  
   // Extrair sistemaId de diferentes locais possíveis
   const sistemaId = task.sistemaId || 
                     task.data?.sistemaId || 
@@ -578,8 +597,16 @@ async function renewSystem(tabId, task) {
   await logger.info('📋 Dados da renovação', {
     sistemaId: sistemaId || 'N/A',
     usuarioAtual: originalUsername,
-    taskId: task.id
+    taskId: task.id,
+    taskType: task.type
   });
+  
+  // Validação do sistemaId
+  if (!sistemaId) {
+    await logger.error('❌ ERRO CRÍTICO: sistemaId não encontrado na task', {
+      task: JSON.stringify(task)
+    });
+  }
   
   try {
     // Parse data e metadata se forem strings
@@ -649,7 +676,7 @@ async function renewSystem(tabId, task) {
         // Reporta falha ao backend
         await reportTaskResult({
           taskId: task.id,
-          type: 'renew_system',
+          type: task.type || 'renewal', // Usar o tipo original da task
           sistemaId: sistemaId,
           systemId: sistemaId,
           error: `Credenciais geradas mas falha ao editar sistema: ${editError.message}`,
@@ -672,12 +699,16 @@ async function renewSystem(tabId, task) {
       }
       
       // Só reporta sucesso se AMBOS geraram credenciais E editaram o sistema
-      await logger.info('✅ Renovação completa: credenciais geradas E sistema editado!', { sistemaId });
+      await logger.info('✅ Renovação completa: credenciais geradas E sistema editado!', { 
+        sistemaId,
+        novoUsuario: response.credentials.username,
+        novaSenha: response.credentials.password
+      });
       
       // Reporta sucesso ao backend com sistemaId garantido
       const reportSuccess = await reportTaskResult({
         taskId: task.id,
-        type: 'renew_system',
+        type: task.type || 'renewal', // Usar o tipo original da task
         sistemaId: sistemaId, // Usar sistemaId em vez de systemId
         systemId: sistemaId, // Manter ambos por compatibilidade
         credentials: {

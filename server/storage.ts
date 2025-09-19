@@ -284,7 +284,9 @@ export interface IStorage {
   // Task Management
   createPendingTask(taskType: string, data?: any): Promise<OfficeAutomationLogs>;
   getNextPendingTask(): Promise<OfficeAutomationLogs | null>;
+  getNextPendingRenewalTask(): Promise<OfficeCredentials | null>;
   updateTaskStatus(taskId: number, status: string, result?: { username?: string; password?: string; errorMessage?: string }): Promise<OfficeAutomationLogs>;
+  updateRenewalTaskStatus(taskId: number, username: string, password: string): Promise<OfficeCredentials>;
   getOfficeAutomationTaskById(taskId: number): Promise<OfficeAutomationLogs | null>;
   
   // Office Credentials
@@ -2148,6 +2150,18 @@ export class DatabaseStorage implements IStorage {
     return result[0] || null;
   }
 
+  async getNextPendingRenewalTask(): Promise<OfficeCredentials | null> {
+    const result = await db.select()
+      .from(officeCredentials)
+      .where(and(
+        eq(officeCredentials.status, 'pending'),
+        eq(officeCredentials.source, 'renewal')
+      ))
+      .orderBy(asc(officeCredentials.generatedAt))
+      .limit(1);
+    return result[0] || null;
+  }
+
   async updateTaskStatus(taskId: number, status: string, result?: { username?: string; password?: string; errorMessage?: string }): Promise<OfficeAutomationLogs> {
     const updateData: any = {
       status
@@ -2169,6 +2183,19 @@ export class DatabaseStorage implements IStorage {
     const updated = await db.update(officeAutomationLogs)
       .set(updateData)
       .where(eq(officeAutomationLogs.id, taskId))
+      .returning();
+    return updated[0];
+  }
+
+  async updateRenewalTaskStatus(taskId: number, username: string, password: string): Promise<OfficeCredentials> {
+    const updated = await db.update(officeCredentials)
+      .set({
+        username,
+        password,
+        status: 'completed',
+        generatedAt: new Date()
+      })
+      .where(eq(officeCredentials.id, taskId))
       .returning();
     return updated[0];
   }

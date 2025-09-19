@@ -7357,6 +7357,29 @@ Como posso ajudar você hoje?
       
       // Se automação está desabilitada, NUNCA retornar tarefas automáticas
       if (!config.isEnabled) {
+        // Primeiro verifica se há task de renovação pendente
+        const pendingRenewalTask = await storage.getNextPendingRenewalTask();
+        if (pendingRenewalTask) {
+          console.log('📋 Task de renovação pendente encontrada:', {
+            taskId: pendingRenewalTask.id,
+            sistemaId: pendingRenewalTask.sistemaId,
+            metadata: pendingRenewalTask.metadata
+          });
+          
+          return res.json({
+            ...baseResponse,
+            hasTask: true,
+            task: {
+              id: pendingRenewalTask.id,
+              type: 'renewal',
+              quantity: 1,
+              sistemaId: pendingRenewalTask.sistemaId,
+              data: pendingRenewalTask.metadata || {},
+              metadata: pendingRenewalTask.metadata || {}
+            }
+          });
+        }
+        
         // Verifica se há tarefa pendente manual (single generation)
         const pendingTask = await storage.getNextPendingTask();
         if (pendingTask) {
@@ -7392,7 +7415,44 @@ Como posso ajudar você hoje?
         return res.json(baseResponse);
       }
       
-      // Automação HABILITADA - verificar intervalo
+      // Automação HABILITADA - primeiro verifica tasks de renovação
+      const pendingRenewalTask = await storage.getNextPendingRenewalTask();
+      if (pendingRenewalTask) {
+        console.log('📋 Task de renovação pendente encontrada (automação habilitada):', {
+          taskId: pendingRenewalTask.id,
+          sistemaId: pendingRenewalTask.sistemaId,
+          metadata: pendingRenewalTask.metadata
+        });
+        
+        return res.json({
+          ...baseResponse,
+          hasTask: true,
+          task: {
+            id: pendingRenewalTask.id,
+            type: 'renewal',
+            quantity: 1,
+            sistemaId: pendingRenewalTask.sistemaId,
+            data: pendingRenewalTask.metadata || {},
+            metadata: pendingRenewalTask.metadata || {}
+          }
+        });
+      }
+      
+      // Verificar tarefas pendentes normais
+      const pendingTask = await storage.getNextPendingTask();
+      if (pendingTask) {
+        return res.json({
+          ...baseResponse,
+          hasTask: true,
+          task: {
+            id: pendingTask.id,
+            type: pendingTask.taskType || 'generate_single',
+            quantity: 1
+          }
+        });
+      }
+      
+      // Verificar intervalo para geração automática em lote
       const now = new Date();
       const lastRun = config.lastRunAt ? new Date(config.lastRunAt) : new Date(0);
       const intervalMs = config.intervalMinutes * 60 * 1000;
@@ -7449,11 +7509,21 @@ Como posso ajudar você hoje?
       
       // Atualizar status da tarefa se tiver taskId
       if (taskId) {
-        await storage.updateTaskStatus(taskId, error ? 'failed' : 'completed', {
-          errorMessage: error,
-          username: credentials?.username,
-          password: credentials?.password
-        });
+        // Se for uma task de renovação, atualizar na tabela officeCredentials
+        if (type === 'renewal' || type === 'renew_system') {
+          await storage.updateRenewalTaskStatus(taskId, 
+            credentials?.username || 'error', 
+            credentials?.password || error || 'error'
+          );
+          console.log(`✅ Task de renovação ${taskId} atualizada na tabela officeCredentials`);
+        } else {
+          // Outras tasks atualizar na tabela officeAutomationLogs  
+          await storage.updateTaskStatus(taskId, error ? 'failed' : 'completed', {
+            errorMessage: error,
+            username: credentials?.username,
+            password: credentials?.password
+          });
+        }
       }
       
       if (error) {
@@ -7559,8 +7629,8 @@ Como posso ajudar você hoje?
           errors.push({ credential: credentials.username, error: e.message });
         }
       }
-      // Processar renovação de sistema IPTV
-      else if (type === 'renew_system' && credentials && finalSistemaId) {
+      // Processar renovação de sistema IPTV (suporta ambos os tipos)
+      else if ((type === 'renew_system' || type === 'renewal') && credentials && finalSistemaId) {
         console.log('🔄 Processando renovação de sistema IPTV...');
         console.log(`   Sistema ID: ${finalSistemaId}`);
         console.log(`   Novo usuário: ${credentials.username}`);
