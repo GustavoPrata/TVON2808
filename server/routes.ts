@@ -4867,6 +4867,7 @@ Como posso ajudar você hoje?
           id: localSistema?.id,
           maxPontosAtivos: localSistema?.maxPontosAtivos || 100,
           pontosAtivos: pontosCountMap.get(localSistema?.id) || 0,
+          expiracao: localSistema?.expiracao || null, // Adiciona o campo expiracao do banco local
         };
       });
 
@@ -5067,6 +5068,40 @@ Como posso ajudar você hoje?
     } catch (error) {
       console.error("Erro ao remover sistema:", error);
       res.status(500).json({ error: "Erro ao remover sistema" });
+    }
+  });
+
+  // Update system expiration date
+  app.put("/api/sistemas/:id/expiration", async (req, res) => {
+    try {
+      const sistemaId = parseInt(req.params.id);
+      const { expiracao } = req.body;
+      
+      if (!expiracao) {
+        return res.status(400).json({ error: "Data de expiração é obrigatória" });
+      }
+      
+      // Update in local database
+      const localSystem = await storage.getSistemaById(sistemaId);
+      if (!localSystem) {
+        return res.status(404).json({ error: "Sistema não encontrado" });
+      }
+      
+      const expiracaoDate = new Date(expiracao);
+      await db.update(sistemas)
+        .set({ 
+          expiracao: expiracaoDate,
+          atualizadoEm: new Date()
+        })
+        .where(eq(sistemas.id, sistemaId));
+      
+      res.json({ 
+        message: "Data de expiração atualizada com sucesso",
+        expiracao: expiracaoDate
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar expiração:", error);
+      res.status(500).json({ error: "Erro ao atualizar data de expiração" });
     }
   });
 
