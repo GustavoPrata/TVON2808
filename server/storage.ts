@@ -233,6 +233,8 @@ export interface IStorage {
   getOfficeCredentials(limit?: number): Promise<OfficeCredentials[]>;
   createOfficeCredentials(credentials: InsertOfficeCredentials): Promise<OfficeCredentials>;
   getOfficeCredentialsByStatus(status: string): Promise<OfficeCredentials[]>;
+  deleteOfficeCredential(id: number): Promise<void>;
+  deleteAllOfficeCredentials(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1750,6 +1752,14 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(officeCredentials)
       .where(eq(officeCredentials.status, status))
       .orderBy(desc(officeCredentials.generatedAt));
+  }
+
+  async deleteOfficeCredential(id: number): Promise<void> {
+    await db.delete(officeCredentials).where(eq(officeCredentials.id, id));
+  }
+
+  async deleteAllOfficeCredentials(): Promise<void> {
+    await db.delete(officeCredentials);
   }
 
   // Task Management implementation

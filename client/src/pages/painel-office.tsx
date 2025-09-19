@@ -162,6 +162,8 @@ export default function PainelOffice() {
     generatedAt: string;
     source: string;
   }>>([]);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const [credentialToDelete, setCredentialToDelete] = useState<{ id: number; username: string } | null>(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -345,6 +347,70 @@ export default function PainelOffice() {
     },
   });
 
+  // Delete credential mutation
+  const deleteCredentialMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await fetch(`/api/office/automation/credentials/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao deletar credencial');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/office/automation/credentials'] });
+      toast({
+        title: "✅ Credencial Removida",
+        description: "A credencial foi removida com sucesso",
+        variant: "default",
+      });
+      setCredentialToDelete(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "❌ Erro ao deletar",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete all credentials mutation
+  const deleteAllCredentialsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/office/automation/credentials', {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erro ao deletar todas as credenciais');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/office/automation/credentials'] });
+      toast({
+        title: "✅ Todas as Credenciais Removidas",
+        description: "Todas as credenciais foram removidas com sucesso",
+        variant: "default",
+      });
+      setShowDeleteAllDialog(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "❌ Erro ao deletar",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
@@ -460,6 +526,16 @@ export default function PainelOffice() {
       deleteSystemMutation.mutate(systemToDelete);
       setSystemToDelete(null);
     }
+  };
+
+  const handleDeleteCredential = () => {
+    if (credentialToDelete) {
+      deleteCredentialMutation.mutate(credentialToDelete.id);
+    }
+  };
+
+  const handleDeleteAllCredentials = () => {
+    deleteAllCredentialsMutation.mutate();
   };
 
   const refreshIframe = () => {
@@ -1001,15 +1077,28 @@ export default function PainelOffice() {
                       </Badge>
                     )}
                   </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => refetchCredentials()}
-                    className="text-blue-400 hover:text-blue-300"
-                    data-testid="button-refresh-credentials"
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => refetchCredentials()}
+                      className="text-blue-400 hover:text-blue-300"
+                      data-testid="button-refresh-credentials"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                    </Button>
+                    {recentCredentials.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowDeleteAllDialog(true)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                        data-testid="button-delete-all-credentials"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
                 </h3>
                 
                 {recentCredentials.length === 0 ? (
@@ -1025,9 +1114,20 @@ export default function PainelOffice() {
                             <span className="text-xs text-slate-400">
                               #{recentCredentials.length - index} • {new Date(cred.generatedAt).toLocaleString('pt-BR')}
                             </span>
-                            <Badge className="bg-green-500/20 text-green-400 text-xs">
-                              {cred.source || 'extension'}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-green-500/20 text-green-400 text-xs">
+                                {cred.source || 'extension'}
+                              </Badge>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setCredentialToDelete({ id: cred.id, username: cred.username })}
+                                className="p-0 h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                                data-testid={`button-delete-credential-${cred.id}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-xs">
                             <div>
@@ -1233,6 +1333,60 @@ export default function PainelOffice() {
               data-testid="button-confirm-delete"
             >
               Remover Sistema
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Credential Confirmation Dialog */}
+      <AlertDialog open={!!credentialToDelete} onOpenChange={() => setCredentialToDelete(null)}>
+        <AlertDialogContent className="bg-dark-card border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              Tem certeza que deseja remover a credencial de <span className="font-semibold">{credentialToDelete?.username}</span>? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className="border-slate-700"
+              data-testid="button-cancel-delete-credential"
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCredential}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="button-confirm-delete-credential"
+            >
+              Deletar Credencial
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete All Credentials Confirmation Dialog */}
+      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <AlertDialogContent className="bg-dark-card border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ Deletar Todas as Credenciais</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              <span className="text-red-400 font-semibold">Atenção!</span> Esta ação irá remover permanentemente todas as {recentCredentials.length} credenciais armazenadas. Esta operação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className="border-slate-700"
+              data-testid="button-cancel-delete-all"
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAllCredentials}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="button-confirm-delete-all"
+            >
+              Deletar Todas as Credenciais
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

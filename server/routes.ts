@@ -6821,6 +6821,36 @@ Como posso ajudar você hoje?
       res.status(500).json({ error: 'Erro ao buscar credenciais' });
     }
   });
+
+  // DELETE /api/office/automation/credentials/:id - deletar credencial específica
+  app.delete('/api/office/automation/credentials/:id', checkAuth, async (req, res) => {
+    try {
+      const credentialId = parseInt(req.params.id);
+      
+      if (isNaN(credentialId)) {
+        return res.status(400).json({ error: 'ID inválido' });
+      }
+      
+      await storage.deleteOfficeCredential(credentialId);
+      
+      res.json({ success: true, message: 'Credencial removida com sucesso' });
+    } catch (error) {
+      console.error('Erro ao deletar credencial:', error);
+      res.status(500).json({ error: 'Erro ao deletar credencial' });
+    }
+  });
+
+  // DELETE /api/office/automation/credentials - deletar todas as credenciais
+  app.delete('/api/office/automation/credentials', checkAuth, async (req, res) => {
+    try {
+      await storage.deleteAllOfficeCredentials();
+      
+      res.json({ success: true, message: 'Todas as credenciais foram removidas com sucesso' });
+    } catch (error) {
+      console.error('Erro ao deletar todas as credenciais:', error);
+      res.status(500).json({ error: 'Erro ao deletar credenciais' });
+    }
+  });
   
   // Endpoint to check API users for debugging
   app.get('/api/pontos/check-api-users', async (req, res) => {
