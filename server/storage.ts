@@ -2185,11 +2185,44 @@ export class DatabaseStorage implements IStorage {
 
   // Office Credentials implementation
   async getOfficeCredentials(limit: number = 10000): Promise<OfficeCredentials[]> {
-    // Limite alto para garantir que pegue todas as credenciais
-    // Frontend pode implementar paginação se necessário
-    return await db.select().from(officeCredentials)
+    // Buscar credenciais de renovação com sistema associado
+    const result = await db
+      .select({
+        id: officeCredentials.id,
+        username: officeCredentials.username,
+        password: officeCredentials.password,
+        sistemaId: officeCredentials.sistemaId,
+        systemId: sistemas.systemId, // SystemId do sistema para exibir no lugar do id interno
+        generatedAt: officeCredentials.generatedAt,
+        source: officeCredentials.source,
+        status: officeCredentials.status,
+        usedByPontoId: officeCredentials.usedByPontoId,
+        usedAt: officeCredentials.usedAt,
+        expiresAt: officeCredentials.expiresAt
+      })
+      .from(officeCredentials)
+      .leftJoin(sistemas, eq(officeCredentials.sistemaId, sistemas.id))
+      .where(eq(officeCredentials.source, 'renewal')) // Apenas credenciais de renovação
       .orderBy(desc(officeCredentials.generatedAt))
       .limit(limit);
+
+    // Filtrar para mostrar apenas a mais recente de cada sistema
+    const seenSystems = new Set<number>();
+    const uniqueCredentials = [];
+    
+    for (const row of result) {
+      const sistemaId = row.sistemaId;
+      if (sistemaId && !seenSystems.has(sistemaId)) {
+        seenSystems.add(sistemaId);
+        // Usar systemId ao invés do sistemaId interno para exibição
+        uniqueCredentials.push({
+          ...row,
+          sistemaId: row.systemId ? parseInt(row.systemId) : sistemaId
+        });
+      }
+    }
+
+    return uniqueCredentials as OfficeCredentials[];
   }
 
   async createOfficeCredentials(credentials: InsertOfficeCredentials): Promise<OfficeCredentials> {
