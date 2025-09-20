@@ -361,19 +361,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: sistema.id,
         systemId: sistema.systemId,
         username: sistema.username,
-        status: sistema.status,
-        lastRenewalAt: sistema.lastRenewalAt,
-        autoRenewalEnabled: sistema.autoRenewalEnabled,
         expiracao: sistema.expiracao
       });
       
-      // 2. Resetar lastRenewalAt para 5 horas atrás
-      const dataAntiga = new Date(Date.now() - 5 * 60 * 60 * 1000); // 5 horas atrás
-      console.log(`🔄 Resetando lastRenewalAt de ${sistema.lastRenewalAt} para ${dataAntiga.toISOString()}`);
+      // 2. Limpar o estado para forçar nova verificação
+      console.log(`🔄 Resetando estado do sistema para nova verificação`);
       
       await storage.updateSistema(sistemaId, {
-        lastRenewalAt: dataAntiga,
-        autoRenewalEnabled: true // Garantir que renovação automática está habilitada
+        atualizadoEm: new Date()
       });
       
       // 3. Limpar o estado de in-memory no AutoRenewalService
@@ -388,9 +383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         detalhes: {
           sistemaId: sistemaId,
           systemId: sistema.systemId,
-          username: sistema.username,
-          lastRenewalAtAnterior: sistema.lastRenewalAt,
-          lastRenewalAtNovo: dataAntiga.toISOString()
+          username: sistema.username
         }
       });
       
@@ -411,9 +404,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: sistema.id,
           systemId: sistema.systemId,
           username: sistema.username,
-          status: sistema.status,
-          lastRenewalAtAnterior: sistema.lastRenewalAt,
-          lastRenewalAtNovo: dataAntiga.toISOString(),
           expiracao: sistema.expiracao
         },
         inMemoryStateCleared: true,
@@ -451,19 +441,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`📋 Sistema encontrado:`, {
         id: sistema.id,
         username: sistema.username,
-        status: sistema.status,
-        lastRenewalAt: sistema.lastRenewalAt,
-        autoRenewalEnabled: sistema.autoRenewalEnabled,
         expiracao: sistema.expiracao
       });
       
-      // 2. Resetar lastRenewalAt para uma data antiga (5 horas atrás)
-      const dataAntiga = new Date(Date.now() - 5 * 60 * 60 * 1000); // 5 horas atrás
-      console.log(`🔄 Resetando lastRenewalAt para: ${dataAntiga.toISOString()}`);
+      // 2. Atualizar sistema para forçar nova verificação
+      console.log(`🔄 Atualizando sistema para nova verificação`);
       
       await storage.updateSistema(sistemaId, {
-        lastRenewalAt: dataAntiga,
-        autoRenewalEnabled: true // Garantir que está habilitado
+        atualizadoEm: new Date()
       });
       
       console.log('✅ Sistema atualizado com sucesso');
@@ -483,7 +468,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           originalUsername: sistema.username,
           originalPassword: sistema.password,
           currentExpiration: sistema.expiracao,
-          renewalCount: sistema.renewalCount || 0,
           forceTest: true
         }),
         generatedAt: new Date(),
@@ -5047,13 +5031,9 @@ Como posso ajudar você hoje?
           nome: sistema.nome,
           usuario: sistema.usuario,
           expiracao: sistema.expiracao,
-          autoRenewalEnabled: sistema.autoRenewalEnabled,
-          renewalStatus: sistema.renewalStatus,
-          renewalCount: sistema.renewalCount,
-          lastRenewalAt: sistema.lastRenewalAt,
           isExpired,
           isNearExpiration,
-          needsRenewal: (isExpired || (isNearExpiration && sistema.autoRenewalEnabled)),
+          needsRenewal: (isExpired || isNearExpiration),
           minutesUntilExpiration: timeUntilExpiration ? Math.floor(timeUntilExpiration / 60000) : null,
           status: isExpired ? 'EXPIRADO' : 
                  isNearExpiration ? 'PRÓXIMO DO VENCIMENTO' : 
@@ -5444,20 +5424,7 @@ Como posso ajudar você hoje?
     }
   });
 
-  // Atualizar configuração de renovação de um sistema
-  app.patch("/api/sistemas/:id/renewal-config", async (req, res) => {
-    try {
-      const { autoRenewalEnabled, renewalAdvanceTime } = req.body;
-      const result = await storage.updateSistema(Number(req.params.id), {
-        autoRenewalEnabled,
-        renewalAdvanceTime
-      });
-      res.json(result);
-    } catch (error) {
-      console.error("Erro ao atualizar configuração de renovação:", error);
-      res.status(500).json({ error: "Erro ao atualizar configuração de renovação" });
-    }
-  });
+  // Endpoint de configuração de renovação removido - campos não mais utilizados
 
   // Atualizar validade de um sistema
   app.patch("/api/sistemas/:id/expiration", async (req, res) => {
@@ -8510,10 +8477,9 @@ Como posso ajudar você hoje?
             const { autoRenewalService } = await import('./services/AutoRenewalService');
             autoRenewalService.clearRenewalState(systemId);
             
-            // Reset lastRenewalAt to allow immediate retry
-            const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000);
+            // Force update to trigger new check
             await storage.updateSistema(systemId, {
-              lastRenewalAt: fiveHoursAgo // Reset to old date to allow retry
+              atualizadoEm: new Date()
             });
             
             console.log(`✅ Estado de renovação limpo para sistema ${systemId}`);
