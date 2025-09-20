@@ -1212,22 +1212,19 @@ export class DatabaseStorage implements IStorage {
   // Métodos para gerenciamento de validade
   async getSistemasParaRenovar(): Promise<Sistema[]> {
     // Buscar sistemas que precisam ser renovados
-    // Considera o tempo de antecedência configurado
+    // Usa configuração global de tempo de antecedência
     const now = new Date();
+    const config = await this.getOfficeAutomationConfig();
+    const renewalTime = (config?.renewalAdvanceTime || 60) * 60 * 1000; // Em milissegundos
+    
+    // Buscar TODOS os sistemas agora
     const result = await db
       .select()
-      .from(sistemas)
-      .where(
-        and(
-          eq(sistemas.autoRenewalEnabled, true),
-          ne(sistemas.status, 'renewing')
-        )
-      );
+      .from(sistemas);
     
     // Filtrar sistemas que estão dentro do tempo de renovação antecipada
     const filteredResult = result.filter((sistema) => {
       if (!sistema.expiracao) return false;
-      const renewalTime = (sistema.renewalAdvanceTime || 60) * 60 * 1000; // Em milissegundos
       const timeToExpire = sistema.expiracao.getTime() - now.getTime();
       return timeToExpire <= renewalTime && timeToExpire > 0;
     });
@@ -1241,10 +1238,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(sistemas)
       .where(
-        and(
-          lte(sistemas.expiracao, now),
-          eq(sistemas.status, 'active')
-        )
+        lte(sistemas.expiracao, now)
       );
     return result.map(mapSistemaToFrontend);
   }

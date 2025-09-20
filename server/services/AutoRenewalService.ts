@@ -21,8 +21,6 @@ interface RenewalQueueItem {
   completedAt?: Date;
   error?: string;
   expiration: string;
-  lastRenewalAt?: string | null;
-  renewalCount?: number;
 }
 
 export class AutoRenewalService {
@@ -130,18 +128,17 @@ export class AutoRenewalService {
       console.log(`📅 Verificando sistemas que expiram até: ${checkTime.toISOString()}`);
       console.log(`⏳ Antecedencia configurada: ${renewalAdvanceMinutes} minutos`);
 
-      // Buscar todos os sistemas com renovação automática habilitada
+      // Buscar TODOS os sistemas (renovação automática para todos agora)
       const sistemasAutoRenew = await db
         .select()
-        .from(sistemasTable)
-        .where(eq(sistemasTable.autoRenewalEnabled, true));
+        .from(sistemasTable);
       
-      console.log(`📋 Total de sistemas com autoRenewal habilitado: ${sistemasAutoRenew.length}`);
+      console.log(`📋 Total de sistemas encontrados: ${sistemasAutoRenew.length}`);
       
       await storage.createLog({
         nivel: 'info',
         origem: 'AutoRenewal',
-        mensagem: 'Sistemas com renovação automática verificados',
+        mensagem: 'Sistemas verificados para renovação',
         detalhes: {
           totalSistemas: sistemasAutoRenew.length,
           renewalAdvanceMinutes: renewalAdvanceMinutes
@@ -149,18 +146,18 @@ export class AutoRenewalService {
       });
       
       if (sistemasAutoRenew.length === 0) {
-        console.log('ℹ️ Nenhum sistema com renovação automática habilitada');
+        console.log('ℹ️ Nenhum sistema encontrado no banco');
         await storage.createLog({
           nivel: 'info',
           origem: 'AutoRenewal',
-          mensagem: 'Nenhum sistema com renovação automática habilitada',
+          mensagem: 'Nenhum sistema encontrado no banco',
           detalhes: null
         });
         return;
       }
       
       // Log de verificação
-      console.log(`🔍 Analisando ${sistemasAutoRenew.length} sistemas com renovação automática...`);
+      console.log(`🔍 Analisando ${sistemasAutoRenew.length} sistemas...`);
       console.log('\n📋 Detalhes dos sistemas:');
       sistemasAutoRenew.forEach(sistema => {
         const expiracaoDate = sistema.expiracao ? new Date(sistema.expiracao) : null;
@@ -169,9 +166,7 @@ export class AutoRenewalService {
         console.log(`  • ID: ${sistema.id} | SystemID: ${sistema.systemId} | User: ${sistema.username}`);
         console.log(`    - Expiração: ${sistema.expiracao || 'NÃO DEFINIDA'}`);
         console.log(`    - Minutos até expirar: ${minutosAteExpiracao ? minutosAteExpiracao.toFixed(0) : 'N/A'}`);
-        console.log(`    - Status: ${sistema.status}`);
-        console.log(`    - AutoRenewal: ${sistema.autoRenewalEnabled}`);
-        console.log(`    - LastRenewal: ${sistema.lastRenewalAt || 'NUNCA'}`);
+        console.log(`    - Pontos ativos: ${sistema.pontosAtivos}/${sistema.maxPontosAtivos}`);
       });
 
       // Atualizar fila com todos os sistemas elegíveis
@@ -187,9 +182,7 @@ export class AutoRenewalService {
             status: 'waiting',
             estimatedTime: minutosAteExpiracao > 0 ? Math.floor(minutosAteExpiracao) : 0,
             addedAt: new Date(),
-            expiration: sistema.expiracao,
-            lastRenewalAt: sistema.lastRenewalAt,
-            renewalCount: sistema.renewalCount || 0
+            expiration: sistema.expiracao
           };
           
           this.renewalQueue.set(sistema.systemId, queueItem);
@@ -210,19 +203,10 @@ export class AutoRenewalService {
         const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
         const isExpired = expiracaoDate <= now;
         
-        // SE ESTÁ VENCIDO, renovar imediatamente sem verificar última renovação
+        // SE ESTÁ VENCIDO, renovar imediatamente
         if (isExpired) {
           console.log(`🚨 Sistema ${sistema.systemId} (${sistema.username}) VENCIDO há ${Math.abs(minutosAteExpiracao).toFixed(0)} minutos - renovação IMEDIATA`);
           return true;
-        }
-        
-        // Se NÃO está vencido, aplicar a regra de aguardar 4 horas entre renovações
-        if (sistema.lastRenewalAt) {
-          const horasSinceLastRenewal = (now.getTime() - new Date(sistema.lastRenewalAt).getTime()) / (1000 * 60 * 60);
-          if (horasSinceLastRenewal < 4) {
-            console.log(`⏰ Sistema ${sistema.systemId} (${sistema.username}) foi renovado há ${horasSinceLastRenewal.toFixed(1)}h (aguardar 4h)`);
-            return false;
-          }
         }
         
         // Verificar se está próximo do vencimento (dentro do tempo configurado)
@@ -358,8 +342,6 @@ export class AutoRenewalService {
       console.log(`  Sistema SystemID: ${sistema.systemId}`);
       console.log(`  Username: ${sistema.username}`);
       console.log(`  Expiração atual: ${sistema.expiracao}`);
-      console.log(`  Última renovação: ${sistema.lastRenewalAt || 'NUNCA'}`);
-      console.log(`  Contagem de renovações: ${sistema.renewalCount || 0}`);
       
       await storage.createLog({
         nivel: 'info',
@@ -370,9 +352,7 @@ export class AutoRenewalService {
           sistemaId: sistema.id,
           systemId: sistema.systemId,
           username: sistema.username,
-          expiracaoAtual: sistema.expiracao,
-          ultimaRenovacao: sistema.lastRenewalAt || null,
-          contagemRenovacoes: sistema.renewalCount || 0
+          expiracaoAtual: sistema.expiracao
         }
       });
 
@@ -432,17 +412,15 @@ export class AutoRenewalService {
       const updateResult = await db
         .update(sistemasTable)
         .set({
-          updatedAt: new Date(),
-          // REMOVED: lastRenewalAt: new Date(), // This will be updated only when task completes
-          renewalCount: sql`COALESCE(renewal_count, 0) + 1`
+          atualizadoEm: new Date()
         })
         .where(eq(sistemasTable.id, sistema.id))
         .returning();
 
       if (updateResult && updateResult.length > 0) {
         console.log(`✅ [AutoRenewal] Sistema atualizado no banco [${traceId}]:`);
-        console.log(`  RenewalCount incrementado para: ${updateResult[0].renewalCount}`);
-        console.log(`  Task criada - aguardando conclusão para atualizar lastRenewalAt`);
+        console.log(`  Timestamp atualizado`);
+        console.log(`  Task criada - aguardando processamento pela extensão`);
       } else {
         console.warn(`⚠️ [AutoRenewal] Sistema não retornou dados após update [${traceId}]`);
       }
@@ -530,10 +508,10 @@ export class AutoRenewalService {
   // Obter informações sobre sistemas programados para renovação
   async getScheduledRenewals() {
     try {
+      // Buscar TODOS os sistemas agora
       const sistemas = await db
         .select()
-        .from(sistemasTable)
-        .where(eq(sistemasTable.autoRenewalEnabled, true));
+        .from(sistemasTable);
       
       const now = new Date();
       
@@ -547,11 +525,7 @@ export class AutoRenewalService {
           username: sistema.username,
           expiration: sistema.expiracao,
           minutesUntilExpiration: Math.floor(minutosAteExpiracao),
-          isExpired: expiracaoDate <= now,
-          lastRenewalAt: sistema.lastRenewalAt,
-          renewalCount: sistema.renewalCount || 0,
-          autoRenewalEnabled: sistema.autoRenewalEnabled,
-          renewalAdvanceTime: sistema.renewalAdvanceTime
+          isExpired: expiracaoDate <= now
         };
       }).sort((a, b) => a.minutesUntilExpiration - b.minutesUntilExpiration);
     } catch (error) {
