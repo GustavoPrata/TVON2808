@@ -5,9 +5,12 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Loader2, RefreshCw, Download, Trash2, Search, 
-  FileText, Layers, Terminal, Filter, AlertCircle, Pause, Play
+  FileText, Layers, Terminal, Filter, AlertCircle, Pause, Play,
+  ChevronLeft, ChevronRight, AlertTriangle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -33,8 +36,16 @@ export function UnifiedLogsSection() {
   const [searchText, setSearchText] = useState('');
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [logsPerPage] = useState(100);
+  const [viewMode, setViewMode] = useState<'scroll' | 'paginated'>('scroll');
   const lastFetchTime = useRef<Date | null>(null);
   const isInitialLoad = useRef(true);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const maxRetries = 3;
+  const retryDelay = 2000;
   
   // Função para fazer merge inteligente dos logs
   const mergeLogs = useCallback((newLogs: UnifiedLog[], existingLogs: UnifiedLog[]) => {
@@ -58,11 +69,24 @@ export function UnifiedLogsSection() {
       .slice(0, 1000); // Limitar a 1000 logs
   }, []);
 
-  // Função para buscar todos os logs
-  const fetchAllLogs = async () => {
+  // Função para limpar timeout de retry
+  const clearRetryTimeout = () => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+  };
+
+  // Função para buscar todos os logs com retry automático
+  const fetchAllLogs = async (isRetry = false) => {
     try {
-      if (isInitialLoad.current) {
+      if (isInitialLoad.current || isRetry) {
         setIsLoadingLogs(true);
+      }
+      
+      // Clear error on successful attempt start
+      if (isRetry) {
+        setError(null);
       }
       
       // Busca todos os logs do backend
@@ -92,25 +116,62 @@ export function UnifiedLogsSection() {
             return mergeLogs(data.logs || [], prev);
           });
           lastFetchTime.current = new Date();
+          setRetryCount(0); // Reset retry count on success
+          setError(null);
+          clearRetryTimeout();
         }
       } else {
-        console.error('Erro ao buscar logs:', response.statusText);
+        const errorMsg = response.status === 500 ? 'Erro no servidor' : 
+                         response.status === 404 ? 'Endpoint não encontrado' :
+                         `Erro HTTP ${response.status}`;
+        throw new Error(`${errorMsg}: ${response.statusText}`);
       }
     } catch (error) {
       console.error('Erro ao buscar logs:', error);
-      if (isInitialLoad.current) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao buscar logs';
+      setError(errorMessage);
+      
+      // Implement retry logic with exponential backoff
+      if (retryCount < maxRetries) {
+        const nextRetryCount = retryCount + 1;
+        setRetryCount(nextRetryCount);
+        const nextRetryIn = retryDelay * Math.pow(2, retryCount); // Exponential backoff
+        
+        if (!isRetry) {
+          toast({
+            title: '⚠️ Erro ao buscar logs',
+            description: `Tentando novamente em ${nextRetryIn / 1000}s... (Tentativa ${nextRetryCount}/${maxRetries})`,
+            variant: 'default'
+          });
+        }
+        
+        clearRetryTimeout();
+        retryTimeoutRef.current = setTimeout(() => {
+          fetchAllLogs(true);
+        }, nextRetryIn);
+      } else if (retryCount >= maxRetries && !isRetry) {
         toast({
-          title: '❌ Erro',
-          description: 'Não foi possível buscar os logs',
+          title: '❌ Erro persistente',
+          description: 'Não foi possível buscar os logs após múltiplas tentativas. Clique em "Tentar Novamente" para reiniciar.',
           variant: 'destructive'
         });
       }
     } finally {
-      if (isInitialLoad.current) {
+      if (isInitialLoad.current || isRetry) {
         setIsLoadingLogs(false);
-        isInitialLoad.current = false;
+        if (isInitialLoad.current) {
+          isInitialLoad.current = false;
+        }
       }
     }
+  };
+
+  // Função manual de retry
+  const handleManualRetry = () => {
+    setRetryCount(0);
+    setError(null);
+    clearRetryTimeout();
+    fetchAllLogs();
   };
 
   // Função para filtrar logs
@@ -229,21 +290,52 @@ export function UnifiedLogsSection() {
   useEffect(() => {
     fetchAllLogs(); // Busca inicial
     
+    let interval: NodeJS.Timeout | undefined;
     if (autoRefresh) {
-      const interval = setInterval(fetchAllLogs, 3000); // A cada 3 segundos
-      return () => clearInterval(interval);
+      interval = setInterval(() => {
+        // Only fetch if not in error state or if retry count is reset
+        if (!error || retryCount === 0) {
+          fetchAllLogs();
+        }
+      }, 3000); // A cada 3 segundos
     }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+      clearRetryTimeout();
+    };
   }, [autoRefresh, levelFilter, sourceFilter]);
 
   // Filtrar logs quando mudar o filtro ou busca
   useEffect(() => {
     filterLogs(logs, levelFilter, sourceFilter, searchText);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [logs, levelFilter, sourceFilter, searchText]);
   
-  // Atualizar filterLogs para usar logs atualizado
+  // Cleanup on unmount
   useEffect(() => {
-    filterLogs(logs, levelFilter, sourceFilter, searchText);
+    return () => clearRetryTimeout();
   }, []);
+  
+  // Pagination logic
+  const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+  const paginatedLogs = viewMode === 'paginated' 
+    ? filteredLogs.slice((currentPage - 1) * logsPerPage, currentPage * logsPerPage)
+    : filteredLogs;
+    
+  // Loading skeleton component
+  const LoadingSkeleton = () => (
+    <div className="space-y-2">
+      {[...Array(10)].map((_, i) => (
+        <div key={i} className="flex items-center gap-2 p-2">
+          <Skeleton className="w-16 h-4" />
+          <Skeleton className="w-12 h-4" />
+          <Skeleton className="w-20 h-4" />
+          <Skeleton className="flex-1 h-4" />
+        </div>
+      ))}
+    </div>
+  );
 
   const getLogColor = (level: string) => {
     switch (level) {
@@ -300,7 +392,7 @@ export function UnifiedLogsSection() {
               )}
             </Button>
             <Button
-              onClick={fetchAllLogs}
+              onClick={() => fetchAllLogs()}
               variant="outline"
               size="sm"
               className="border-slate-700"
@@ -408,16 +500,105 @@ export function UnifiedLogsSection() {
             </div>
           </div>
 
+          {/* View mode toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Modo de visualização:</span>
+              <Button
+                size="sm"
+                variant={viewMode === 'scroll' ? 'default' : 'outline'}
+                onClick={() => setViewMode('scroll')}
+                className="h-7 text-xs"
+                data-testid="button-view-scroll"
+              >
+                Rolagem
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === 'paginated' ? 'default' : 'outline'}
+                onClick={() => setViewMode('paginated')}
+                className="h-7 text-xs"
+                data-testid="button-view-paginated"
+              >
+                Paginado
+              </Button>
+            </div>
+            {viewMode === 'paginated' && filteredLogs.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="h-7 w-7 p-0"
+                  data-testid="button-page-prev"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-xs text-slate-400">
+                  {currentPage} / {totalPages}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-7 w-7 p-0"
+                  data-testid="button-page-next"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Error Alert */}
+          {error && (
+            <Alert variant="destructive" className="bg-red-950/20 border-red-900">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Erro ao carregar logs</AlertTitle>
+              <AlertDescription className="mt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">{error}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleManualRetry}
+                    className="ml-4"
+                    data-testid="button-retry-manual"
+                  >
+                    Tentar Novamente
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Área de logs */}
           <div className="bg-slate-900/50 rounded-lg p-2 border border-slate-700">
-            {isLoadingLogs ? (
-              <div className="flex items-center justify-center h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+            {isLoadingLogs && isInitialLoad.current ? (
+              <div className="h-[400px]">
+                <LoadingSkeleton />
               </div>
-            ) : filteredLogs.length > 0 ? (
+            ) : error && logs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[400px] text-center">
+                <AlertCircle className="w-12 h-12 text-red-500 mb-3" />
+                <p className="text-sm text-slate-400 mb-1">Erro ao carregar logs</p>
+                <p className="text-xs text-slate-500 mb-3">{error}</p>
+                <Button
+                  size="sm"
+                  onClick={handleManualRetry}
+                  className="mt-2"
+                  data-testid="button-retry-error"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Tentar Novamente
+                </Button>
+              </div>
+            ) : paginatedLogs.length > 0 ? (
               <ScrollArea className="h-[400px]">
                 <div className="space-y-1 font-mono text-xs">
-                  {filteredLogs.map((log, index) => {
+                  {paginatedLogs.map((log, index) => {
                     const logKey = getLogKey(log, index);
                     return (
                       <div 
@@ -458,11 +639,28 @@ export function UnifiedLogsSection() {
               </ScrollArea>
             ) : (
               <div className="flex flex-col items-center justify-center h-[400px] text-center">
-                <Terminal className="w-12 h-12 text-slate-600 mb-2" />
-                <p className="text-sm text-slate-400">Nenhum log disponível</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  {searchText ? 'Tente ajustar os filtros de busca' : 'Os logs aparecerão aqui quando houver atividade'}
+                <Terminal className="w-12 h-12 text-slate-600 mb-3" />
+                <p className="text-sm text-slate-400 mb-1">Nenhum log disponível</p>
+                <p className="text-xs text-slate-500 mb-3">
+                  {searchText ? 'Tente ajustar os filtros de busca' : 
+                   levelFilter !== 'all' || sourceFilter !== 'all' ? 'Tente remover alguns filtros' :
+                   'Os logs aparecerão aqui quando houver atividade'}
                 </p>
+                {(searchText || levelFilter !== 'all' || sourceFilter !== 'all') && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSearchText('');
+                      setLevelFilter('all');
+                      setSourceFilter('all');
+                    }}
+                    className="text-xs"
+                    data-testid="button-clear-filters"
+                  >
+                    Limpar Filtros
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -487,11 +685,21 @@ export function UnifiedLogsSection() {
                 <span>Avisos</span>
               </div>
             </div>
-            {lastFetchTime.current && (
-              <span className="text-xs text-slate-400">
-                Últ. atualização: {format(lastFetchTime.current, 'HH:mm:ss')}
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {lastFetchTime.current && (
+                <span className="text-xs text-slate-400">
+                  Últ. atualização: {format(lastFetchTime.current, 'HH:mm:ss')}
+                </span>
+              )}
+              {isLoadingLogs && !isInitialLoad.current && (
+                <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
+              )}
+              {retryCount > 0 && (
+                <Badge variant="outline" className="text-xs bg-yellow-500/10 text-yellow-400 border-yellow-500/20">
+                  Reconectando... {retryCount}/{maxRetries}
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>
