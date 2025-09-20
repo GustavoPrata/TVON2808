@@ -297,8 +297,8 @@ let API_BASE = null;
 const POLLING_INTERVAL_ACTIVE = 30000; // 30 segundos quando não há tarefas
 const POLLING_INTERVAL_IDLE = 60000; // 60 segundos quando automação está desabilitada
 const POLLING_INTERVAL_FAST = 10000; // 10 segundos após processar tarefa
-const OFFICE_URL = 'https://onlineoffice.zip/iptv/index.php'; // URL específica do painel IPTV
-let officeTabId = null; // Armazena o ID da aba do OnlineOffice
+// const OFFICE_URL = 'https://onlineoffice.zip/iptv/index.php'; // URL específica do painel IPTV - REMOVIDO
+// let officeTabId = null; // Armazena o ID da aba do OnlineOffice - REMOVIDO
 
 // ===========================================================================
 // ESTADO GLOBAL (mínimo, apenas para cache)
@@ -313,45 +313,33 @@ let lastStatus = {
 let currentPollingInterval = POLLING_INTERVAL_IDLE;
 
 // ===========================================================================
-// FUNÇÃO DE ENVIO DE MENSAGEM COM RETRY
+// FUNÇÃO DE GERAÇÃO LOCAL DE CREDENCIAIS
 // ===========================================================================
-async function sendMessageToTab(tabId, message, retries = 3) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      // Verifica se a aba ainda existe
-      const tab = await chrome.tabs.get(tabId);
-      if (!tab) throw new Error('Tab not found');
-      
-      // Tenta ativar a aba para evitar cache
-      await chrome.tabs.update(tabId, { active: true });
-      await new Promise(resolve => setTimeout(resolve, 200)); // Pequena espera após ativar
-      
-      // Envia mensagem
-      const response = await chrome.tabs.sendMessage(tabId, message);
-      return response;
-    } catch (error) {
-      await logger.error(`Tentativa ${i + 1}/${retries} falhou:`, { error: error.message });
-      
-      if (i < retries - 1) {
-        // Se não é a última tentativa, aguarda antes de tentar novamente
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Tenta reinjetar o content script se necessário
-        try {
-          await chrome.scripting.executeScript({
-            target: { tabId: tabId },
-            files: ['content.js']
-          });
-          await logger.info('✅ Content script reinjetado com sucesso');
-        } catch (e) {
-          await logger.warn('Não foi possível reinjetar content script:', { error: e.message });
-        }
-      } else {
-        throw error;
-      }
+async function generateCredentialsLocally() {
+  // Gera username com 9 dígitos
+  const username = Math.floor(Math.random() * 900000000 + 100000000).toString();
+  
+  // Gera password no formato NNNNxNNNNa (N=dígito)
+  const part1 = Math.floor(Math.random() * 9000 + 1000).toString();
+  const part2 = Math.floor(Math.random() * 9000 + 1000).toString();
+  const password = `${part1}x${part2}a`;
+  
+  await logger.info('🔑 Credenciais geradas localmente', {
+    username: username,
+    password: password
+  });
+  
+  return {
+    success: true,
+    credentials: {
+      username: username,
+      password: password
     }
-  }
+  };
 }
+
+// REMOVIDO - sendMessageToTab não é mais necessário pois não usa tabs
+// async function sendMessageToTab(tabId, message, retries = 3) { ... }
 
 // ===========================================================================
 // INICIALIZAÇÃO
@@ -363,26 +351,14 @@ async function sendMessageToTab(tabId, message, retries = 3) {
   API_BASE = await getApiBase();
   await logger.info(`🔗 Servidor API configurado: ${API_BASE}`);
   
-  // Inicia heartbeat para manter conexão viva
-  setupHeartbeat();
+  // REMOVIDO - heartbeat não é mais necessário sem tabs
+  // setupHeartbeat();
 })();
 
 // ===========================================================================
-// HEARTBEAT PARA MANTER CONEXÃO VIVA
+// HEARTBEAT REMOVIDO - Não é mais necessário sem tabs
 // ===========================================================================
-function setupHeartbeat() {
-  setInterval(async () => {
-    if (officeTabId) {
-      try {
-        await chrome.tabs.sendMessage(officeTabId, { action: 'ping' });
-        await logger.debug('💓 Heartbeat enviado com sucesso');
-      } catch (error) {
-        await logger.warn('Conexão com aba perdida, marcando para reconexão');
-        officeTabId = null;
-      }
-    }
-  }, 30000); // A cada 30 segundos
-}
+// function setupHeartbeat() { ... } - REMOVIDO
 
 // Usa Chrome Alarms API para manter a extensão sempre ativa
 async function setupAlarms() {
@@ -415,8 +391,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await logger.debug('⏰ Alarme disparado: checando tarefas...', { alarm: alarm.name });
     await checkForTasks();
   } else if (alarm.name === 'checkStatus') {
-    // Verifica se precisa abrir a aba do OnlineOffice
-    await ensureOfficeTabOpen();
+    // REMOVIDO - não precisa mais abrir aba do OnlineOffice
+    // await ensureOfficeTabOpen();
   } else if (alarm.name === 'checkRenewalTasks') {
     // Checagem específica para tarefas de renovação a cada 30 segundos
     await logger.debug('🔄 Checando tarefas de renovação...', { alarm: alarm.name });
@@ -429,7 +405,7 @@ chrome.runtime.onStartup.addListener(async () => {
   await logger.info('📦 Chrome iniciado, configurando automação...');
   await setupAlarms();
   await checkForTasks(); // Checa imediatamente
-  await ensureOfficeTabOpen(); // Garante que a aba está aberta
+  // await ensureOfficeTabOpen(); // REMOVIDO - não precisa mais abrir aba
 });
 
 // Inicia quando instalado/atualizado
@@ -445,23 +421,8 @@ chrome.runtime.onInstalled.addListener(async () => {
   await checkForTasks();
 })();
 
-// Função para garantir que a aba do OnlineOffice está aberta
-async function ensureOfficeTabOpen(forceOpen = false) {
-  // Só abre se a automação está habilitada OU se forceOpen é true (quando há task)
-  if (!lastStatus.isEnabled && !forceOpen) return;
-  
-  const tabs = await chrome.tabs.query({
-    url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
-  });
-  
-  if (tabs.length === 0) {
-    await logger.info('📂 Abrindo aba do OnlineOffice automaticamente...');
-    chrome.tabs.create({ 
-      url: OFFICE_URL,
-      active: false // Abre em background
-    });
-  }
-}
+// REMOVIDO - Não precisa mais abrir aba do OnlineOffice
+// async function ensureOfficeTabOpen(forceOpen = false) { ... }
 
 // ===========================================================================
 // POLLING DO BACKEND (Agora usando Alarms API)
@@ -540,10 +501,10 @@ async function checkForTasks() {
     await updateBadge(data.isEnabled || false);
     lastStatus.isEnabled = data.isEnabled || false;
     
-    // Se há task, SEMPRE abre a aba OnlineOffice
+    // Se há task, processa diretamente sem abrir aba
     if (data.hasTask) {
-      await logger.info('✅ TASK ENCONTRADA! Abrindo aba OnlineOffice...');
-      await ensureOfficeTabOpen(true); // força abertura quando há task
+      await logger.info('✅ TASK ENCONTRADA! Processando em background...');
+      // await ensureOfficeTabOpen(true); // REMOVIDO - não abre mais aba
     }
     
     // Ajusta intervalo de polling baseado no status
@@ -601,65 +562,26 @@ async function checkForTasks() {
 // ===========================================================================
 async function processTask(task) {
   await logger.info('========================================');
-  await logger.info('🎯 PROCESSANDO TAREFA DO BACKEND');
+  await logger.info('🎯 PROCESSANDO TAREFA DO BACKEND (MODO AUTÔNOMO)');
   await logger.info(`📦 Tipo: ${task.type}`);
   await logger.info(`🔢 Quantidade: ${task.quantity || 1}`);
   await logger.info('========================================');
   
-  // Procura aba do OnlineOffice
-  let tabs = await chrome.tabs.query({
-    url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
-  });
-  
-  // Se não encontrar, tenta abrir automaticamente
-  if (tabs.length === 0) {
-    await logger.warn('📂 Nenhuma aba OnlineOffice encontrada. Abrindo automaticamente...');
-    
-    // Cria nova aba com o OnlineOffice
-    const newTab = await chrome.tabs.create({
-      url: OFFICE_URL,
-      active: false // Abre em background
-    });
-    
-    // Aguarda a aba carregar
-    await logger.info('⏳ Aguardando aba carregar...');
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    // Procura novamente
-    tabs = await chrome.tabs.query({
-      url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
-    });
-    
-    if (tabs.length === 0) {
-      await logger.error('❌ ERRO: Não conseguiu abrir aba OnlineOffice!');
-      await reportTaskResult({
-        taskId: task.id,
-        success: false,
-        error: 'Não conseguiu abrir aba OnlineOffice'
-      });
-      return;
-    }
-  }
-  
-  const tabId = tabs[0].id;
-  officeTabId = tabId; // Armazena ID da aba para heartbeat
-  await logger.info(`✅ Aba encontrada`, { url: tabs[0].url });
-  
-  // Processa baseado no tipo de tarefa
+  // Processa diretamente sem precisar de tabs
   if (task.type === 'generate_batch') {
-    await generateBatch(tabId, task);
+    await generateBatch(null, task);
   } else if (task.type === 'generate_single') {
-    await generateSingle(tabId, task);
+    await generateSingle(null, task);
   } else if (task.type === 'renewal' || task.type === 'renew_system') {
     // Suporta ambos os tipos: 'renewal' (do backend) e 'renew_system' (legado)
-    await logger.info('🔄 Task de renovação detectada', { 
+    await logger.info('🔄 Task de renovação detectada (modo autônomo)', { 
       type: task.type,
       taskId: task.id,
       sistemaId: task.sistemaId || task.data?.sistemaId || task.metadata?.sistemaId || 'N/A',
       metadata: task.metadata,
       data: task.data
     });
-    await renewSystem(tabId, task);
+    await renewSystem(null, task);
   } else {
     await logger.warn('⚠️ Tipo de task desconhecido', { type: task.type, task });
   }
@@ -671,14 +593,14 @@ async function generateBatch(tabId, task) {
   let errorCount = 0;
   const results = [];
   
-  await logger.info(`📦 Gerando lote de ${quantity} credenciais...`);
+  await logger.info(`📦 Gerando lote de ${quantity} credenciais (modo autônomo)...`);
   
   for (let i = 0; i < quantity; i++) {
     await logger.info(`🎯 Gerando credencial ${i + 1}/${quantity}...`);
     
     try {
-      // Envia comando para content script usando função com retry
-      const response = await sendMessageToTab(tabId, {action: 'generateOne'});
+      // Gera credenciais localmente sem precisar de tab
+      const response = await generateCredentialsLocally();
       
       if (response && response.success && response.credentials) {
         successCount++;
@@ -723,11 +645,8 @@ async function generateBatch(tabId, task) {
         error: error.message
       });
       
-      // Se perdeu conexão com a aba, parar
-      if (error.message.includes('Could not establish connection')) {
-        await logger.error('🔌 Perdeu conexão com a aba. Parando lote...');
-        break;
-      }
+      // Não precisa mais verificar conexão com aba
+      // if (error.message.includes('Could not establish connection')) { ... }
     }
     
     // Aguarda entre gerações
@@ -763,10 +682,11 @@ async function generateBatch(tabId, task) {
 }
 
 async function generateSingle(tabId, task) {
-  await logger.info('🎯 Gerando credencial única...');
+  await logger.info('🎯 Gerando credencial única (modo autônomo)...');
   
   try {
-    const response = await sendMessageToTab(tabId, {action: 'generateOne'});
+    // Gera credenciais localmente sem precisar de tab
+    const response = await generateCredentialsLocally();
     
     if (response && response.success && response.credentials) {
       await logger.info('✅ Credencial gerada com sucesso!', {
@@ -817,7 +737,7 @@ async function generateSingle(tabId, task) {
 }
 
 async function renewSystem(tabId, task) {
-  await logger.info('🔄 Renovando sistema IPTV...', { taskData: task });
+  await logger.info('🔄 Renovando sistema IPTV (modo autônomo)...', { taskData: task });
   
   // Extrair sistemaId de diferentes locais possíveis
   const sistemaId = task.sistemaId || 
@@ -885,8 +805,8 @@ async function renewSystem(tabId, task) {
       }
     }
     
-    // PASSO 1: Gera as credenciais
-    const response = await sendMessageToTab(tabId, {action: 'generateOne'});
+    // PASSO 1: Gera as credenciais localmente
+    const response = await generateCredentialsLocally();
     
     if (response && response.success && response.credentials) {
       await logger.info('✅ Nova credencial gerada para renovação!', {
