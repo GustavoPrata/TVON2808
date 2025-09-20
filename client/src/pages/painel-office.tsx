@@ -328,16 +328,12 @@ export default function PainelOffice() {
     queryKey: ['/api/external-api/systems'],
   });
 
-  // Sort systems by expiration date
+  // Sort systems by system_id (numerical order)
   const systems = [...systemsRaw].sort((a, b) => {
-    if (!a.expiration && !b.expiration) return 0;
-    if (!a.expiration) return 1;
-    if (!b.expiration) return -1;
+    const idA = parseInt(a.system_id) || 0;
+    const idB = parseInt(b.system_id) || 0;
     
-    const dateA = new Date(a.expiration).getTime();
-    const dateB = new Date(b.expiration).getTime();
-    
-    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    return sortOrder === 'asc' ? idA - idB : idB - idA;
   });
 
   // Fetch automation config from backend
@@ -814,7 +810,7 @@ export default function PainelOffice() {
                   variant="ghost"
                   size="sm"
                   className="text-slate-400 hover:text-slate-300"
-                  title={`Ordenar por vencimento (${sortOrder === 'asc' ? 'crescente' : 'decrescente'})`}
+                  title={`Ordenar por ID do sistema (${sortOrder === 'asc' ? 'crescente' : 'decrescente'})`}
                   data-testid="button-sort-expiration"
                 >
                   <ArrowUpDown className="w-4 h-4" />
