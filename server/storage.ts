@@ -2178,11 +2178,32 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(officeCredentials.generatedAt))
       .limit(limit);
 
-    // Filtrar para mostrar apenas a mais recente de cada sistema
+    // Função para validar credenciais
+    const isValidCredential = (username: string, password: string): boolean => {
+      // Username deve ter pelo menos 3 caracteres e ser composto por alfanuméricos
+      // Password deve ter pelo menos 3 caracteres
+      // Não deve conter "SENHA:", "VENCIMENTO:" ou outros valores inválidos
+      if (!username || !password) return false;
+      if (username.length < 3 || password.length < 3) return false;
+      if (username.includes(':') || password.includes(':')) return false;
+      if (username === 'SENHA' || username === 'VENCIMENTO' || 
+          password === 'SENHA' || password === 'VENCIMENTO') return false;
+      // Username deve ser composto por dígitos e letras
+      if (!/^[a-zA-Z0-9]+$/.test(username)) return false;
+      return true;
+    };
+
+    // Filtrar para mostrar apenas a mais recente de cada sistema e validar credenciais
     const seenSystems = new Set<number>();
     const uniqueCredentials = [];
     
     for (const row of result) {
+      // Validar credenciais antes de adicionar
+      if (!isValidCredential(row.username, row.password)) {
+        console.warn(`🚫 Credencial inválida detectada e ignorada: username="${row.username}", password="${row.password}"`);
+        continue;
+      }
+
       const sistemaId = row.sistemaId;
       if (sistemaId && !seenSystems.has(sistemaId)) {
         seenSystems.add(sistemaId);

@@ -6347,6 +6347,28 @@ Como posso ajudar você hoje?
           message: "Usuário e senha são obrigatórios"
         });
       }
+
+      // Validação adicional para evitar credenciais malformadas
+      const isValidCredential = (username: string, password: string): boolean => {
+        if (!username || !password) return false;
+        if (username.length < 3 || password.length < 3) return false;
+        if (username.includes(':') || password.includes(':')) return false;
+        if (username === 'SENHA' || username === 'VENCIMENTO' || 
+            password === 'SENHA' || password === 'VENCIMENTO') return false;
+        if (username.startsWith('SENHA') || username.startsWith('VENCIMENTO') ||
+            password.startsWith('SENHA') || password.startsWith('VENCIMENTO')) return false;
+        // Username deve ser composto por dígitos e letras
+        if (!/^[a-zA-Z0-9]+$/.test(username)) return false;
+        return true;
+      };
+
+      if (!isValidCredential(usuario, senha)) {
+        console.error(`🚫 Credencial malformada rejeitada: usuario="${usuario}", senha="${senha}"`);
+        return res.status(400).json({
+          success: false,
+          message: "Credenciais inválidas - formato incorreto"
+        });
+      }
       
       console.log(`📥 Credenciais recebidas da ${source || 'aplicação'}:`, { usuario, vencimento, taskType, systemId });
       
