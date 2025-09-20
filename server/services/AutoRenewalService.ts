@@ -169,23 +169,33 @@ export class AutoRenewalService {
         console.log(`    - Pontos ativos: ${sistema.pontosAtivos}/${sistema.maxPontosAtivos}`);
       });
 
-      // Atualizar fila com todos os sistemas elegíveis
+      // Atualizar fila APENAS com sistemas vencidos ou próximos do vencimento
       for (const sistema of sistemasAutoRenew) {
         const expiracaoDate = new Date(sistema.expiracao);
         const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
+        const isExpired = expiracaoDate <= now;
         
-        // Adicionar ou atualizar na fila se não estiver processando
-        if (!this.renewalQueue.has(sistema.systemId) || this.renewalQueue.get(sistema.systemId)?.status === 'completed' || this.renewalQueue.get(sistema.systemId)?.status === 'error') {
-          const queueItem: RenewalQueueItem = {
-            sistemaId: sistema.systemId,
-            username: sistema.username,
-            status: 'waiting',
-            estimatedTime: minutosAteExpiracao > 0 ? Math.floor(minutosAteExpiracao) : 0,
-            addedAt: new Date(),
-            expiration: sistema.expiracao
-          };
-          
-          this.renewalQueue.set(sistema.systemId, queueItem);
+        // APENAS adicionar se está vencido ou próximo do vencimento
+        if (isExpired || minutosAteExpiracao <= renewalAdvanceMinutes) {
+          // Adicionar ou atualizar na fila se não estiver processando
+          if (!this.renewalQueue.has(sistema.systemId) || this.renewalQueue.get(sistema.systemId)?.status === 'completed' || this.renewalQueue.get(sistema.systemId)?.status === 'error') {
+            const queueItem: RenewalQueueItem = {
+              sistemaId: sistema.systemId,
+              username: sistema.username,
+              status: 'waiting',
+              estimatedTime: minutosAteExpiracao > 0 ? Math.floor(minutosAteExpiracao) : 0,
+              addedAt: new Date(),
+              expiration: sistema.expiracao
+            };
+            
+            this.renewalQueue.set(sistema.systemId, queueItem);
+            
+            if (isExpired) {
+              console.log(`🚨 Sistema ${sistema.systemId} adicionado à fila - VENCIDO há ${Math.abs(minutosAteExpiracao).toFixed(0)} minutos`);
+            } else {
+              console.log(`⚠️ Sistema ${sistema.systemId} adicionado à fila - ${minutosAteExpiracao.toFixed(0)}min até vencer`);
+            }
+          }
         }
       }
       
@@ -483,6 +493,11 @@ export class AutoRenewalService {
   // Obter status da fila de renovação
   getRenewalQueue() {
     const queue = Array.from(this.renewalQueue.values())
+      .map(item => ({
+        ...item,
+        sistemaName: item.sistemaId, // Adicionar sistemaName com o valor do systemId
+        sistemaId: item.sistemaId // Manter sistemaId como está (é o systemId real)
+      }))
       .sort((a, b) => {
         // Priorizar por status: processing > waiting > completed/error
         const statusOrder = { processing: 0, waiting: 1, completed: 2, error: 3 };
