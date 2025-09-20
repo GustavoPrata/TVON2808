@@ -13,7 +13,6 @@ export function setWebSocketServer(wss: any) {
 // Interfaces para a fila de renovação
 interface RenewalQueueItem {
   sistemaId: string; // systemId é string, não number
-  username: string;
   status: 'waiting' | 'processing' | 'completed' | 'error';
   estimatedTime?: number; // Minutos até renovação
   addedAt: Date;
@@ -187,7 +186,6 @@ export class AutoRenewalService {
           if (!this.renewalQueue.has(sistema.systemId) || this.renewalQueue.get(sistema.systemId)?.status === 'completed' || this.renewalQueue.get(sistema.systemId)?.status === 'error') {
             const queueItem: RenewalQueueItem = {
               sistemaId: sistema.systemId,
-              username: sistema.username,
               status: 'waiting',
               estimatedTime: minutosAteExpiracao > 0 ? Math.floor(minutosAteExpiracao) : 0,
               addedAt: new Date(),
@@ -532,7 +530,6 @@ export class AutoRenewalService {
         return {
           sistemaId: sistema.id,
           systemId: sistema.systemId,
-          username: sistema.username,
           expiration: sistema.expiracao,
           minutesUntilExpiration: Math.floor(minutosAteExpiracao),
           isExpired: expiracaoDate <= now

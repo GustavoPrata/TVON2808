@@ -19,7 +19,6 @@ import { ptBR } from 'date-fns/locale';
 interface RenewalQueueItem {
   sistemaId: number;
   sistemaName: string;
-  username: string;
   status: 'waiting' | 'processing' | 'completed' | 'error';
   estimatedTime?: Date;
   error?: string;
@@ -241,7 +240,7 @@ export function RenewalQueueSection() {
                               {item.sistemaName}
                             </p>
                             <p className="text-xs text-slate-400">
-                              {item.username}
+                              Sistema ID: {item.sistemaId}
                             </p>
                           </div>
                         </div>
