@@ -7854,8 +7854,115 @@ Como posso ajudar você hoje?
       let errors = [];
       
       // IMPORTANTE: Processar APENAS UM caminho por vez para evitar duplicação
-      // Prioridade: results (lote) > credentials (único)
-      if (results && Array.isArray(results) && results.length > 0) {
+      // Prioridade: renewal > results (lote) > credentials (único)
+      
+      // PRIMEIRO: Verificar se é uma renovação de sistema
+      if ((type === 'renewal' || type === 'renew_system') && credentials && credentials.username && credentials.password) {
+        console.log(`🔄 [task-complete] PROCESSANDO RENOVAÇÃO - TraceId: ${traceId}`);
+        console.log(`  Sistema ID: ${finalSistemaId}`);
+        console.log(`  Novo usuário: ${credentials.username}`);
+        console.log(`  Nova senha: ***`);
+        console.log(`  Metadata:`, metadata);
+        
+        try {
+          // Se temos um sistemaId, processar renovação
+          if (finalSistemaId) {
+            // Buscar o sistema ANTES da atualização
+            console.log(`🔍 [task-complete] Buscando sistema ${finalSistemaId} ANTES da atualização... [${traceId}]`);
+            const sistema = await storage.getSistemaById(finalSistemaId);
+            if (!sistema) {
+              console.error(`🔴 [task-complete] Sistema ${finalSistemaId} não encontrado! [${traceId}]`);
+              throw new Error(`Sistema ${finalSistemaId} não encontrado`);
+            }
+            
+            console.log(`📊 [task-complete] Estado ANTES da atualização [${traceId}]:`);
+            console.log(`  Nome: ${sistema.nome}`);
+            console.log(`  SystemId: ${sistema.systemId}`);
+            console.log(`  Usuário atual: ${sistema.username || sistema.usuario}`);
+            console.log(`  Expiração atual: ${sistema.expiracao}`);
+            
+            // PASSO 1: Atualizar no banco local (username, password, expiração 6h)
+            console.log(`💾 [task-complete] Atualizando banco local com novas credenciais... [${traceId}]`);
+            const sistemaAtualizado = await storage.updateSistemaRenewal(
+              sistema.systemId, // usar systemId do sistema encontrado, não o ID interno
+              credentials.username,
+              credentials.password
+            );
+            
+            if (sistemaAtualizado) {
+              console.log(`✅ [task-complete] Sistema atualizado no banco local [${traceId}]`);
+              console.log(`  Novo usuário: ${sistemaAtualizado.username}`);
+              console.log(`  Nova expiração: ${sistemaAtualizado.expiracao} (6 horas a partir de agora)`);
+              
+              // PASSO 2: Tentar atualizar API externa (não crítico se falhar)
+              try {
+                const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
+                if (integracaoConfig?.ativo && sistema.systemId) {
+                  const apiSystemId = parseInt(sistema.systemId);
+                  console.log(`🌐 [task-complete] Atualizando sistema ${apiSystemId} na API externa... [${traceId}]`);
+                  
+                  // Chamar API externa para atualizar credenciais (sem expiração)
+                  const apiResponse = await externalApiService.updateSystemCredential(
+                    apiSystemId, // A API espera número
+                    {
+                      username: credentials.username,
+                      password: credentials.password
+                      // NÃO enviar expiração - mantemos local apenas
+                    }
+                  );
+                  
+                  console.log(`✅ [task-complete] API externa atualizada com sucesso [${traceId}]`);
+                  console.log(`  Resposta da API:`, apiResponse);
+                }
+              } catch (apiError) {
+                console.error(`⚠️ [task-complete] Erro ao atualizar API externa [${traceId}]:`, apiError);
+                console.error(`  Continuando mesmo com erro da API...`);
+                // Não falhar todo o processo se a API externa estiver com problema
+              }
+            } else {
+              console.error(`❌ [task-complete] updateSistemaRenewal retornou null [${traceId}]`);
+            }
+            
+            processedCount = 1;
+            
+            // Salvar credencial no histórico
+            const saved = await storage.createOfficeCredentials({
+              username: credentials.username,
+              password: credentials.password,
+              sistemaId: finalSistemaId,
+              source: 'renewal',
+              status: 'active',
+              generatedAt: new Date(),
+              metadata: {
+                ...metadata,
+                sistemaId: finalSistemaId,
+                renewedAt: new Date().toISOString()
+              }
+            });
+            savedCredentials.push(saved);
+            
+            console.log(`✅ [task-complete] Renovação completa para sistema ${finalSistemaId} [${traceId}]`);
+          } else {
+            console.warn(`⚠️ [task-complete] Renovação sem sistemaId, salvando apenas credenciais [${traceId}]`);
+            // Salvar apenas credenciais se não tiver sistemaId
+            const saved = await storage.createOfficeCredentials({
+              username: credentials.username,
+              password: credentials.password,
+              sistemaId: null,
+              source: 'renewal',
+              status: 'active',
+              generatedAt: new Date()
+            });
+            savedCredentials.push(saved);
+            processedCount = 1;
+          }
+        } catch (error) {
+          console.error(`❌ [task-complete] Erro ao processar renovação:`, error);
+          errors.push({ systemId: finalSistemaId, error: error.message });
+        }
+      }
+      // SEGUNDO: Se não é renovação, processar lote de credenciais
+      else if (results && Array.isArray(results) && results.length > 0) {
         // Processar resultados em lote (generate_batch)
         console.log(`📦 Processando lote de ${results.length} credenciais`);
         
@@ -7944,116 +8051,6 @@ Como posso ajudar você hoje?
         } catch (e) {
           console.error('❌ Erro ao salvar credencial única:', e);
           errors.push({ credential: credentials.username, error: e.message });
-        }
-      }
-      // Processar renovação de sistema IPTV (suporta ambos os tipos)
-      else if ((type === 'renew_system' || type === 'renewal') && credentials && finalSistemaId) {
-        console.log(`🔄 [task-complete] PROCESSANDO RENOVAÇÃO - TraceId: ${traceId}`);
-        console.log(`  Sistema ID: ${finalSistemaId}`);
-        console.log(`  Novo usuário: ${credentials.username}`);
-        console.log(`  Nova senha: ***`);
-        console.log(`  Metadata:`, metadata);
-        
-        try {
-          // Buscar o sistema ANTES da atualização
-          console.log(`🔍 [task-complete] Buscando sistema ${finalSistemaId} ANTES da atualização... [${traceId}]`);
-          const sistema = await storage.getSistemaById(finalSistemaId);
-          if (!sistema) {
-            console.error(`🔴 [task-complete] Sistema ${finalSistemaId} não encontrado! [${traceId}]`);
-            throw new Error(`Sistema ${finalSistemaId} não encontrado`);
-          }
-          
-          console.log(`📊 [task-complete] Estado ANTES da atualização [${traceId}]:`);
-          console.log(`  Nome: ${sistema.nome}`);
-          console.log(`  SystemId: ${sistema.systemId}`);
-          console.log(`  Usuário atual: ${sistema.username || sistema.usuario}`);
-          console.log(`  Expiração atual: ${sistema.expiracao}`);
-          
-          // PASSO 1: Atualizar no banco local (username, password, expiração 6h)
-          console.log(`💾 [task-complete] Atualizando banco local... [${traceId}]`);
-          const sistemaAtualizado = await storage.updateSistemaRenewal(
-            sistema.systemId, // usar systemId do sistema encontrado, não o ID interno
-            credentials.username,
-            credentials.password
-          );
-          
-          if (sistemaAtualizado) {
-            console.log(`✅ [task-complete] Sistema atualizado no banco local [${traceId}]:`);
-            console.log(`  Nova expiração: ${sistemaAtualizado.expiracao}`);
-            
-            // PASSO 2: Atualizar na API externa (apenas username e password)
-            try {
-              console.log(`🌐 [task-complete] Atualizando na API externa... [${traceId}]`);
-              console.log(`  SystemId: ${sistema.systemId}`);
-              console.log(`  Username: ${credentials.username}`);
-              console.log(`  Password: ***`);
-              
-              // Chamar API externa para atualizar credenciais (sem expiração)
-              const apiResponse = await externalApiService.updateSystemCredential(
-                parseInt(sistema.systemId), // A API espera número
-                {
-                  username: credentials.username,
-                  password: credentials.password
-                  // NÃO enviar expiração - mantemos local apenas
-                }
-              );
-              
-              console.log(`✅ [task-complete] API externa atualizada com sucesso [${traceId}]`);
-              console.log(`  Resposta da API:`, apiResponse);
-            } catch (apiError) {
-              console.error(`⚠️ [task-complete] Erro ao atualizar API externa [${traceId}]:`, apiError);
-              console.error(`  Continuando mesmo com erro da API...`);
-              // Não falhar todo o processo se a API externa estiver com problema
-            }
-          } else {
-            console.error(`❌ [task-complete] updateSistemaRenewal retornou null [${traceId}]`);
-          }
-          
-          processedCount = 1;
-          
-          // Salvar credencial no histórico
-          const saved = await storage.createOfficeCredentials({
-            username: credentials.username,
-            password: credentials.password,
-            sistemaId: finalSistemaId, // Usar finalSistemaId extraído
-            source: 'renewal',
-            status: 'active',
-            generatedAt: new Date(),
-            observacoes: `Renovação automática do sistema ${sistema.nome}`,
-            metadata: {
-              ...metadata,
-              sistemaId: finalSistemaId,
-              sistemaName: sistema.nome,
-              renewedAt: new Date().toISOString()
-            }
-          });
-          savedCredentials.push(saved);
-          
-          // Enviar notificação para o cliente se houver
-          if (clienteId) {
-            const cliente = await storage.getClienteById(clienteId);
-            if (cliente && cliente.whatsapp) {
-              const message = `✅ *Sistema Renovado Automaticamente*\n\n` +
-                `Sistema: ${sistema.nome}\n` +
-                `Novo usuário: ${credentials.username}\n` +
-                `Nova senha: ${credentials.password}\n` +
-                `Validade estendida por 6 horas\n\n` +
-                `_Renovação automática realizada com sucesso._`;
-              
-              await whatsappService.sendTextMessage(cliente.whatsapp, message);
-              console.log('📱 Notificação WhatsApp enviada ao cliente');
-            }
-          }
-          
-          console.log(`✅ [task-complete] RENOVAÇÃO CONCLUÍDA [${traceId}]`);
-          console.log(`  Sistema ID: ${finalSistemaId}`);
-          console.log(`  Credencial ID: ${saved.sistemaId}`);
-          console.log(`  Duração total: ${Date.now() - parseInt(traceId.split('_')[1] || '0')}ms`);
-        } catch (e) {
-          console.error(`🔴 [task-complete] ERRO ao renovar sistema ${finalSistemaId} [${traceId}]:`, e);
-          console.error(`  Mensagem: ${e.message}`);
-          console.error(`  Stack:`, e.stack);
-          errors.push({ sistemaId: finalSistemaId, error: e.message });
         }
       }
       
