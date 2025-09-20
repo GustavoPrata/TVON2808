@@ -5099,25 +5099,10 @@ Como posso ajudar você hoje?
   });
 
   // Config TV - Systems endpoints
-  app.get("/api/external-api/systems", async (req, res) => {
+  app.get("/api/external-api/systems", checkAuth, async (req, res) => {
     try {
-      const systems = await externalApiService.getSystemCredentials();
-
-      // Sync systems from API to local database (create missing ones)
-      for (const system of systems) {
-        const localSystem = await storage.getSistemaBySystemId(system.system_id);
-        if (!localSystem) {
-          console.log(`Sistema ${system.system_id} não encontrado no banco local, criando...`);
-          await storage.createSistema({
-            systemId: system.system_id,
-            username: system.username,
-            password: system.password,
-          });
-        }
-      }
-
-      // Enrich systems with pontos counts from local database
-      const localSistemas = await db.select().from(sistemas);
+      // Buscar sistemas do banco de dados local
+      const localSistemas = await storage.getSistemas();
 
       // Get real-time pontos count for each system
       const pontosAtivosCount = await db
@@ -5134,16 +5119,18 @@ Como posso ajudar você hoje?
         pontosAtivosCount.map((p) => [p.sistemaId, Number(p.count)]),
       );
 
-      const enrichedSystems = systems.map((system: any) => {
-        const localSistema = localSistemas.find(
-          (s) => s.systemId === system.system_id,
-        );
+      // Mapear sistemas para o formato snake_case esperado pelo frontend
+      const enrichedSystems = localSistemas.map((sistema) => {
         return {
-          ...system,
-          id: localSistema?.id,
-          maxPontosAtivos: localSistema?.maxPontosAtivos || 100,
-          pontosAtivos: pontosCountMap.get(localSistema?.id) || 0,
-          expiracao: localSistema?.expiracao || null, // Adiciona o campo expiracao do banco local
+          system_id: sistema.systemId,
+          username: sistema.username,
+          password: sistema.password,
+          id: sistema.id,
+          maxPontosAtivos: sistema.maxPontosAtivos || 100,
+          pontosAtivos: pontosCountMap.get(sistema.id) || 0,
+          expiracao: sistema.expiracao ? sistema.expiracao.toISOString() : null,
+          expiration: sistema.expiracao ? sistema.expiracao.toISOString() : null, // Adiciona campo expiration também
+          nota: sistema.nota || null,
         };
       });
 
@@ -5154,7 +5141,7 @@ Como posso ajudar você hoje?
     }
   });
 
-  app.post("/api/external-api/systems", async (req, res) => {
+  app.post("/api/external-api/systems", checkAuth, async (req, res) => {
     try {
       const { system_id, username, password } = req.body;
 
@@ -5162,34 +5149,31 @@ Como posso ajudar você hoje?
 
       // If no system_id provided, generate next ID
       if (!finalSystemId) {
-        const existingSystems = await externalApiService.getSystemCredentials();
+        const existingSystems = await storage.getSistemas();
         const maxId = existingSystems.reduce((max, system) => {
-          const id = parseInt(system.system_id);
+          const id = parseInt(system.systemId);
           return id > max ? id : max;
         }, 0);
         finalSystemId = (maxId + 1).toString();
       }
 
-      // Create in external API with system_id
-      const result = await externalApiService.createSystemCredential({
-        system_id: finalSystemId,
+      // Create only in local database
+      const result = await storage.createSistema({
+        systemId: finalSystemId,
         username,
         password,
       });
 
-      // Also create in local database
-      if (result) {
-        await storage.createSistema({
-          systemId: result.system_id || finalSystemId,
-          username: result.username || username,
-          password: result.password || password,
-        });
-      }
-
-      res.json(result);
+      // Return in the format expected by frontend
+      res.json({
+        system_id: result.systemId,
+        username: result.username,
+        password: result.password,
+        id: result.id,
+      });
     } catch (error: any) {
       console.error("Erro ao criar sistema:", error);
-      console.error("Detalhes do erro:", error.response?.data || error.message);
+      console.error("Detalhes do erro:", error.message);
       res.status(500).json({
         error: "Erro ao criar sistema",
         details: error.response?.data?.error || error.message,
@@ -5197,101 +5181,46 @@ Como posso ajudar você hoje?
     }
   });
 
-  app.put("/api/external-api/systems/:id", async (req, res) => {
+  app.put("/api/external-api/systems/:id", checkAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const { system_id, username, password } = req.body;
 
-      // If system_id is being changed, we need to handle it differently
+      const localSystem = await storage.getSistemaBySystemId(id);
+      
+      if (!localSystem) {
+        return res.status(404).json({ error: "Sistema não encontrado" });
+      }
+
+      // If system_id is being changed, update systemId
       if (system_id && system_id !== id) {
-        // Create new system with new ID
-        const createResult = await externalApiService.createSystemCredential({
-          system_id,
-          username,
-          password,
+        await storage.updateSistema(localSystem.id, {
+          systemId: system_id,
+          username: username || localSystem.username,
+          password: password || localSystem.password,
         });
-
-        if (createResult) {
-          // Delete old system
-          await externalApiService.deleteSystemCredential(parseInt(id));
-
-          // Update local database
-          const localSystem = await storage.getSistemaBySystemId(id);
-          if (localSystem) {
-            await storage.updateSistema(localSystem.id, {
-              systemId: system_id,
-              username: createResult.username || username,
-              password: createResult.password || password,
-            });
-          } else {
-            // Create new system in local database if it doesn't exist
-            console.log(`Sistema ${id} não encontrado no banco local, criando com novo ID ${system_id}...`);
-            await storage.createSistema({
-              systemId: system_id,
-              username: createResult.username || username,
-              password: createResult.password || password,
-            });
-          }
-        }
-
-        res.json(createResult);
+        
+        // Return updated system in expected format
+        res.json({
+          system_id,
+          username: username || localSystem.username,
+          password: password || localSystem.password,
+          id: localSystem.id,
+        });
       } else {
         // Normal update (just username/password)
-        let result;
-        try {
-          result = await externalApiService.updateSystemCredential(
-            parseInt(id),
-            { username, password },
-          );
-        } catch (updateError: any) {
-          // If system doesn't exist in API (404), create it
-          if (updateError.status === 404 || updateError.response?.status === 404) {
-            console.log(`Sistema ${id} não encontrado na API, criando novo...`);
-            result = await externalApiService.createSystemCredential({
-              system_id: id,
-              username,
-              password,
-            });
-          } else {
-            throw updateError;
-          }
-        }
-
-        // Also update in local database
-        if (result) {
-          const localSystem = await storage.getSistemaBySystemId(id);
-          if (localSystem) {
-            // Update existing system in local database
-            console.log(`Atualizando sistema ${id} no banco local:`, { username, password });
-            await storage.updateSistema(localSystem.id, {
-              username: username || localSystem.username,
-              password: password || localSystem.password,
-            });
-            console.log(`Sistema ${id} atualizado com sucesso no banco local`);
-          } else {
-            // Create new system in local database if it doesn't exist
-            console.log(`Sistema ${id} não encontrado no banco local, criando...`);
-            await storage.createSistema({
-              systemId: id,
-              username: username,
-              password: password,
-            });
-            console.log(`Sistema ${id} criado com sucesso no banco local`);
-          }
-        } else {
-          // Even if API didn't return a result, update local database
-          console.log(`Atualizando sistema ${id} no banco local (sem resposta da API)...`);
-          const localSystem = await storage.getSistemaBySystemId(id);
-          if (localSystem) {
-            await storage.updateSistema(localSystem.id, {
-              username: username || localSystem.username,
-              password: password || localSystem.password,
-            });
-            console.log(`Sistema ${id} atualizado no banco local`);
-          }
-        }
-
-        res.json(result);
+        await storage.updateSistema(localSystem.id, {
+          username: username || localSystem.username,
+          password: password || localSystem.password,
+        });
+        
+        // Return updated system in expected format
+        res.json({
+          system_id: localSystem.systemId,
+          username: username || localSystem.username,
+          password: password || localSystem.password,
+          id: localSystem.id,
+        });
       }
     } catch (error) {
       console.error("Erro ao atualizar sistema:", error);
@@ -5299,48 +5228,19 @@ Como posso ajudar você hoje?
     }
   });
 
-  app.delete("/api/external-api/systems/:id", async (req, res) => {
+  app.delete("/api/external-api/systems/:id", checkAuth, async (req, res) => {
     try {
       const { id } = req.params;
 
-      // Delete from external API
-      await externalApiService.deleteSystemCredential(parseInt(id));
-
-      // Also delete from local database
+      // Delete from local database only
       const localSystem = await storage.getSistemaBySystemId(id);
-      if (localSystem) {
-        await storage.deleteSistema(localSystem.id);
+      if (!localSystem) {
+        return res.status(404).json({ error: "Sistema não encontrado" });
       }
 
-      // Renumber remaining systems
-      const remainingSystems = await externalApiService.getSystemCredentials();
-      const renumberedSystems = remainingSystems.map((system, index) => ({
-        ...system,
-        system_id: (index + 1).toString(),
-      }));
+      await storage.deleteSistema(localSystem.id);
 
-      // Since API always generates sequential IDs, we need to recreate all systems
-      // Clear all remaining systems first
-      for (const system of remainingSystems) {
-        await externalApiService.deleteSystemCredential(
-          parseInt(system.system_id),
-        );
-      }
-
-      // Recreate with proper sequence
-      for (let i = 0; i < renumberedSystems.length; i++) {
-        const system = renumberedSystems[i];
-        await externalApiService.createSystemCredential({
-          system_id: (i + 1).toString(), // API requires this field even though it ignores it
-          username: system.username,
-          password: system.password,
-        });
-      }
-
-      // Sync with local database
-      await storage.syncSistemasFromApi(renumberedSystems);
-
-      res.json({ message: "Sistema removido e sistemas reordenados" });
+      res.json({ message: "Sistema removido com sucesso" });
     } catch (error) {
       console.error("Erro ao remover sistema:", error);
       res.status(500).json({ error: "Erro ao remover sistema" });
@@ -5381,39 +5281,13 @@ Como posso ajudar você hoje?
     }
   });
 
-  app.post("/api/external-api/systems/reorder", async (req, res) => {
+  app.post("/api/external-api/systems/reorder", checkAuth, async (req, res) => {
     try {
       const { systems } = req.body;
 
-      // Delete all existing systems
-      const existingSystems = await externalApiService.getSystemCredentials();
-      for (const system of existingSystems) {
-        await externalApiService.deleteSystemCredential(
-          parseInt(system.system_id),
-        );
-      }
-
-      // Recreate systems in the new order
-      // The API will assign sequential IDs automatically
-      for (let i = 0; i < systems.length; i++) {
-        const system = systems[i];
-        await externalApiService.createSystemCredential({
-          system_id: (i + 1).toString(), // API requires this field even though it ignores it
-          username: system.username,
-          password: system.password,
-        });
-      }
-
-      // Get the updated systems from API
-      const updatedSystems = await externalApiService.getSystemCredentials();
-
-      // Sync with local database
-      await storage.syncSistemasFromApi(updatedSystems);
-
-      res.json({
-        message: "Sistemas reordenados com sucesso",
-        systems: updatedSystems,
-      });
+      // Just return success - reordering is handled by frontend
+      // Since we're working with local database only
+      res.json({ message: "Sistemas reordenados com sucesso", systems });
     } catch (error) {
       console.error("Erro ao reordenar sistemas:", error);
       res.status(500).json({ error: "Erro ao reordenar sistemas" });

@@ -6,6 +6,7 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 ## User Preferences
 - **UI Simplification**: Remove unnecessary buttons from chat interface (no mute notifications or contact info buttons)
 - **Modern Tab Interface**: Use elegant tabbed layouts with gradient colors and icons for menu organization (similar to bot-config page style)
+- **Data Management**: Systems data must come from local database, not external API
 
 ## System Architecture
 
@@ -28,7 +29,7 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
     - **Customer & Test Management**: Tools for client and test account management, including status tracking, duration management, streamlined workflows, and soft delete.
     - **Chat Interface**: Real-time WhatsApp chat integration with media message display, clickable phone numbers, and conversation creation upon first message. Global WebSocket connection for cross-application message processing and notifications. Conversation deduplication and mutex protection for concurrent message handling.
     - **API Configuration**: Manages external API systems and redirect URLs.
-    - **System Management**: Manages individual "pontos" (service points) for revenue tracking.
+    - **System Management**: Manages individual "pontos" (service points) for revenue tracking. Systems data now sourced from local database instead of external API.
     - **Recurring Expiration Notifications**: Configurable system for recurring notifications to expired clients, with customizable intervals (1-7 days), notification limits, and automatic tracking of sent messages.
     - **Applications Management (APPs)**: Comprehensive interface for viewing registered applications with MAC addresses, app names, expiration dates, and advanced filtering capabilities.
     - **Referral System ("Indique e Ganhe")**: Clients earn free months via phone number-based referral codes, with automatic validation, admin UI, and WhatsApp notifications.
@@ -45,6 +46,7 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **Data Normalization**: Consistent phone number normalization.
 - **Error Handling**: Comprehensive error handling with user-friendly messages.
 - **Field Mapping**: Automatic mapping between database snake_case and frontend camelCase conventions.
+- **Local Data Priority**: Systems management endpoints now fetch data from local database instead of external API for better control and consistency.
 
 ## External Dependencies
 - **WhatsApp API**: For real-time messaging and bot interactions (via Baileys library).
@@ -52,13 +54,15 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **PostgreSQL**: Relational database for persistent data storage.
 
 ## Recent Updates (September 2025)
+- **Systems Management Refactored** - Changed `/api/external-api/systems` endpoints to fetch data directly from local database instead of external API
+- **Enhanced Data Control** - All system CRUD operations (GET, POST, PUT, DELETE) now work exclusively with local database, providing full control over systems data
+- **Authentication Required** - All system management endpoints now require authentication via checkAuth middleware
 - **Bug Crítico de Renovação Corrigido** - Resolvido problema onde lastRenewalAt era atualizado prematuramente na criação de tasks, não na conclusão
 - **Endpoint de Reset de Renovação** - Criado /api/sistemas/reset-renewal/:id para resetar sistemas travados em estado de renovação
 - **Limpeza de Estado Aprimorada** - Sistema agora limpa corretamente estado in-memory quando tasks são deletadas
 - **Sistema de Logs Unificados Completo** - Implementado visualização centralizada de todos os logs (aplicação + extensão Chrome) em tempo real no painel-office
 - **Endpoints de Logs Expandidos** - Criado GET /api/all-logs para buscar logs unificados com filtros por fonte, nível e busca
 - **Melhorias na Interface de Logs** - Nova seção "Central de Logs Unificados" com estatísticas em tempo real, filtros avançados e download
-- **Sistema de Envio de Logs da Extensão** - Extensão agora envia logs automaticamente para o servidor a cada 30 segundos ou quando acumula 50 logs
 
 ## Recent Updates (September 2025 - Previous)
 - **Fixed AutoRenewalService identification issue** - Service was working correctly but needed systems with autoRenewal enabled and no recent renewals
