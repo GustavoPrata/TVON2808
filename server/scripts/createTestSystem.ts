@@ -6,28 +6,22 @@ async function createTestSystem() {
     const now = new Date();
     const expirationDate = new Date(now.getTime() + 5 * 60 * 1000); // Expira em 5 minutos
     
-    console.log("🚀 Criando sistema de teste com renovação automática...");
+    console.log("🚀 Criando sistema de teste...");
     
     const testSystem = await db.insert(sistemasTable).values({
-      nome: "Sistema Teste Auto-Renewal",
+      systemId: "test_system_" + Date.now(),
       username: "teste_auto_" + Date.now(),
-      externalUserId: null,
-      externalAppName: null, 
+      password: "test_password_" + Math.random().toString(36).substr(2, 9),
       expiracao: expirationDate, // Passar Date diretamente, não string ISO
-      status: 'active',
-      plano: 'basico',
-      creditos: 100,
-      autoRenewalEnabled: true,
-      renewalAdvanceTime: 10, // Renovar com 10 minutos de antecedência
-      maxRenewals: 5
+      maxPontosAtivos: 100,
+      pontosAtivos: 0
     }).returning();
     
     console.log("✅ Sistema de teste criado com sucesso!");
     console.log("📋 Detalhes do sistema:");
     console.log(testSystem[0]);
     console.log(`⏰ Expira em: 5 minutos (${expirationDate.toISOString()})`);
-    console.log("🔄 Deve entrar na fila de renovação imediatamente");
-    console.log("⏳ Renovação antecipada: 10 minutos");
+    console.log("🎯 Sistemas podem ser renovados automaticamente pela extensão quando expirarem");
     
     process.exit(0);
   } catch (error) {
