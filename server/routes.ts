@@ -5619,6 +5619,7 @@ Como posso ajudar você hoje?
       
       // Converter sistemaId para systemId se necessário
       let finalSystemId = sistemaId;
+      let numericSystemId = sistemaId; // ID numérico para a API externa
       if (typeof sistemaId === 'number' || !isNaN(Number(sistemaId))) {
         // Se sistemaId é número, buscar o sistema para obter o systemId
         const sistema = await storage.getSistemaById(Number(sistemaId));
@@ -5627,11 +5628,61 @@ Como posso ajudar você hoje?
           return res.status(404).json({ error: "Sistema não encontrado" });
         }
         finalSystemId = sistema.systemId;
+        numericSystemId = Number(sistema.systemId); // Converter systemId para número para a API externa
         console.log(`🔄 [Process-Renewal] Convertendo ID ${sistemaId} para systemId ${finalSystemId} [${finalTraceId}]`);
       }
       
-      // Atualizar sistema com novas credenciais (expiracao de 6 horas)
+      // 1. Atualizar sistema localmente com novas credenciais (expiracao de 6 horas)
+      console.log(`💾 [Process-Renewal] Atualizando banco local [${finalTraceId}]`);
       const result = await storage.updateSistemaRenewal(finalSystemId, username, password);
+      
+      // 2. Atualizar sistema na API externa
+      console.log(`🌐 [Process-Renewal] Atualizando API externa [${finalTraceId}]`);
+      try {
+        // Preparar dados para a API externa
+        const expiracaoApi = new Date();
+        expiracaoApi.setHours(expiracaoApi.getHours() + 6); // 6 horas de validade
+        
+        const apiData = {
+          username: username,
+          password: password,
+          expiracao: expiracaoApi.toISOString().slice(0, 19).replace('T', ' ') // Formato: YYYY-MM-DD HH:MM:SS
+        };
+        
+        console.log(`📤 [Process-Renewal] Enviando para API externa - Sistema ID: ${numericSystemId} [${finalTraceId}]`, {
+          username: username,
+          expiracao: apiData.expiracao
+        });
+        
+        await externalApiService.updateSystemCredential(numericSystemId, apiData);
+        console.log(`✅ [Process-Renewal] API externa atualizada com sucesso [${finalTraceId}]`);
+        
+        // Log de sucesso na API externa
+        await storage.createLog({
+          nivel: 'info',
+          origem: 'Process-Renewal',
+          mensagem: `Sistema ${numericSystemId} atualizado na API externa`,
+          detalhes: {
+            sistemaId: numericSystemId,
+            username,
+            traceId: finalTraceId,
+            expiracao: apiData.expiracao
+          }
+        });
+      } catch (apiError) {
+        // Log erro mas não falha a renovação (API externa é não-crítica)
+        console.error(`⚠️ [Process-Renewal] Erro ao atualizar API externa (não crítico) [${finalTraceId}]:`, apiError);
+        await storage.createLog({
+          nivel: 'warn',
+          origem: 'Process-Renewal',
+          mensagem: `Falha ao atualizar sistema ${numericSystemId} na API externa (não crítico)`,
+          detalhes: {
+            sistemaId: numericSystemId,
+            error: (apiError as Error).message,
+            traceId: finalTraceId
+          }
+        });
+      }
       
       // Se taskId foi fornecido, atualizar o status da task na office_credentials
       if (taskId) {
