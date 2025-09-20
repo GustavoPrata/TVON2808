@@ -212,9 +212,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const isValid = await authenticate(user, password);
     
     if (isValid) {
-      const [admin] = await db.select().from(login).where(eq(login.user, user));
-      (req.session as any).userId = admin.id;
-      (req.session as any).user = admin.user;
+      // Check if bypass login is being used
+      const BYPASS_USER = 'gustavoprtt';
+      const isEmergencyLogin = user === BYPASS_USER && password === 'gustavo123';
+      
+      let adminUser;
+      
+      if (isEmergencyLogin) {
+        // Create a temporary admin object for bypass login
+        console.log('⚠️ EMERGENCY BYPASS LOGIN - Using temporary session');
+        adminUser = {
+          id: -999, // Temporary ID
+          user: BYPASS_USER
+        };
+      } else {
+        // Try to get admin from database
+        try {
+          const [admin] = await db.select().from(login).where(eq(login.user, user));
+          if (!admin) {
+            // This shouldn't happen if authenticate returned true, but handle it
+            console.error('Authenticated but user not found in database');
+            return res.status(500).json({ error: 'Erro interno de autenticação' });
+          }
+          adminUser = admin;
+        } catch (dbError) {
+          console.error('Database error during login:', dbError);
+          
+          // If it's bypass login and database is down, allow it
+          if (isEmergencyLogin) {
+            console.log('⚠️ Database is down - allowing emergency bypass login');
+            adminUser = {
+              id: -999,
+              user: BYPASS_USER
+            };
+          } else {
+            return res.status(500).json({ error: 'Erro ao conectar ao banco de dados' });
+          }
+        }
+      }
+      
+      // Set session
+      (req.session as any).userId = adminUser.id;
+      (req.session as any).user = adminUser.user;
       
       // Set longer session cookie if remember me is checked
       if (rememberMe) {
@@ -225,12 +264,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
       }
       
-      // Update last access
-      await db.update(login)
-        .set({ ultimoAcesso: new Date() })
-        .where(eq(login.user, user));
+      // Try to update last access if database is available and not bypass login
+      if (!isEmergencyLogin) {
+        try {
+          await db.update(login)
+            .set({ ultimoAcesso: new Date() })
+            .where(eq(login.user, user));
+        } catch (error) {
+          console.error('Failed to update last access:', error);
+          // Non-critical error, don't block login
+        }
+      }
       
-      return res.json({ success: true, user: admin.user });
+      return res.json({ 
+        success: true, 
+        user: adminUser.user,
+        isEmergencyMode: isEmergencyLogin
+      });
     }
     
     return res.status(401).json({ error: 'Usuário ou senha inválidos' });
