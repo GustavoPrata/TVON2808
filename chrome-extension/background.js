@@ -1,6 +1,9 @@
 // OnlineOffice IPTV Automator - Background Script
 // Versão refatorada para usar backend como fonte única de verdade
 
+// Log de inicialização
+console.log('✅ Extensão iniciada em modo autônomo');
+
 // ===========================================================================
 // SISTEMA DE LOGS 
 // ===========================================================================
@@ -802,12 +805,12 @@ async function renewSystem(tabId, task) {
           
           if (!updateResponse.ok) {
             const errorText = await updateResponse.text();
-            // Se for erro de cliente (4xx), não faz sentido tentar novamente
+            // Incluir o status no erro para o retryWithBackoff detectar
             if (updateResponse.status >= 400 && updateResponse.status < 500) {
-              throw new Error(`Erro de cliente ao atualizar sistema: ${errorText}`);
+              throw new Error(`Erro ${updateResponse.status}: ${errorText}`);
             }
             // Se for erro do servidor (5xx), lança exceção para tentar novamente
-            throw new Error(`Erro do servidor ao atualizar sistema: ${errorText}`);
+            throw new Error(`Erro ${updateResponse.status}: ${errorText}`);
           }
           
           return await updateResponse.json();
@@ -928,7 +931,7 @@ async function renewSystem(tabId, task) {
 // ===========================================================================
 // FUNÇÕES DE RETRY COM BACKOFF EXPONENCIAL
 // ===========================================================================
-async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000, maxDelay = 30000) {
+async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 2000, maxDelay = 10000) {
   let lastError;
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -937,6 +940,19 @@ async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 1000, maxDela
       return await fn();
     } catch (error) {
       lastError = error;
+      
+      // Verifica se o erro é do tipo que não deve ser retentado
+      // Erros 4xx (cliente) não devem ser retentados
+      if (error.message && error.message.includes('4')) {
+        const match = error.message.match(/\b4\d{2}\b/);
+        if (match) {
+          await logger.error(`❌ Erro de cliente (${match[0]}) - não será retentado`, {
+            error: error.message,
+            attempt: attempt + 1
+          });
+          throw error; // Lança erro imediatamente para erros 4xx
+        }
+      }
       
       // Se é a última tentativa, lança o erro
       if (attempt === maxRetries - 1) {
@@ -998,16 +1014,12 @@ async function reportTaskResult(result) {
       
       if (!response.ok) {
         const errorText = await response.text();
-        // Se for erro de cliente (4xx), não faz sentido tentar novamente
+        // Incluir o status no erro para o retryWithBackoff detectar
         if (response.status >= 400 && response.status < 500) {
-          await logger.error('❌ Erro de cliente ao reportar resultado', { 
-            status: response.status,
-            response: errorText 
-          });
-          return false;
+          throw new Error(`Erro ${response.status}: ${errorText}`);
         }
         // Se for erro do servidor (5xx), lança exceção para tentar novamente
-        throw new Error(`Erro do servidor: ${response.status} - ${errorText}`);
+        throw new Error(`Erro ${response.status}: ${errorText}`);
       }
       
       const data = await response.json();
