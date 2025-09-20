@@ -65,6 +65,9 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **Melhorias na Interface de Logs** - Nova seção "Central de Logs Unificados" com estatísticas em tempo real, filtros avançados e download
 - **Processamento de Renovação Reorganizado** - Corrigida a ordem de prioridade no endpoint `/api/office/automation/task-complete` para processar renovações antes de credenciais normais
 - **Fluxo de Renovação Completo** - Renovações agora atualizam corretamente username, password e expiração (6h) no banco local, além de atualizar API externa apenas com credenciais
+- **Processamento Manual de Renovação** - Criado endpoint `/api/sistemas/process-renewal/:credentialId` para processar manualmente credenciais de renovação pendentes
+- **Storage Methods Enhanced** - Added `getOfficeCredentialById` and `updateOfficeCredential` methods for better credential management
+- **Public Access for Renewal** - Temporarily added `/api/sistemas/process-renewal` to public paths to allow Chrome extension to process renewals
 
 ## Recent Updates (September 2025 - Previous)
 - **Fixed AutoRenewalService identification issue** - Service was working correctly but needed systems with autoRenewal enabled and no recent renewals

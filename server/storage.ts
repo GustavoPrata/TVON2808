@@ -2328,6 +2328,22 @@ export class DatabaseStorage implements IStorage {
     
     return results.length > 0 ? results[0] : null;
   }
+
+  async getOfficeCredentialById(id: number): Promise<OfficeCredentials | null> {
+    const results = await db.select()
+      .from(officeCredentials)
+      .where(eq(officeCredentials.id, id))
+      .limit(1);
+    return results.length > 0 ? results[0] : null;
+  }
+
+  async updateOfficeCredential(id: number, data: Partial<OfficeCredentials>): Promise<OfficeCredentials> {
+    const updated = await db.update(officeCredentials)
+      .set(data)
+      .where(eq(officeCredentials.id, id))
+      .returning();
+    return updated[0];
+  }
 }
 
 export const storage = new DatabaseStorage();

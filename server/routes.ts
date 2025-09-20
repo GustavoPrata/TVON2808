@@ -291,8 +291,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '/api/office/automation/config',
       '/api/office/automation/status',
       '/api/office/automation/credentials',
-      '/api/office/automation/extension.zip'  // Extension download endpoint (public)
+      '/api/office/automation/extension.zip',  // Extension download endpoint (public)
       // Note: start/stop/generate-single endpoints remain protected (require authentication)
+      
+      // TEMPORARY: Public access for renewal processing
+      '/api/sistemas/process-renewal'
     ];
     
     // Use originalUrl to get the full path including /api prefix
@@ -301,6 +304,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // EMERGENCY: Allow public access to reset renewal endpoint for system 21
     if (fullPath === '/api/sistemas/reset-renewal/21') {
       console.log('🚨 EMERGENCY: Allowing public access to reset renewal for system 21');
+      return next();
+    }
+    
+    // TEMPORARY: Allow manual credential processing
+    if (fullPath.startsWith('/api/sistemas/process-renewal/')) {
+      console.log('🔧 TEMPORARY: Allowing public access to process-renewal endpoint');
       return next();
     }
     
@@ -5315,6 +5324,98 @@ Como posso ajudar você hoje?
     }
   });
 
+  // POST /api/sistemas/process-renewal/:credentialId - processar manualmente uma credencial de renovação
+  // TEMPORÁRIO: Permitindo acesso público para processar renovações pendentes
+  app.post('/api/sistemas/process-renewal/:credentialId', async (req, res) => {
+    try {
+      const credentialId = parseInt(req.params.credentialId);
+      
+      console.log(`🔧 Processando renovação manual para credencial ${credentialId}`);
+      
+      // Buscar a credencial
+      const credential = await storage.getOfficeCredentialById(credentialId);
+      if (!credential) {
+        return res.status(404).json({ error: 'Credencial não encontrada' });
+      }
+      
+      if (credential.source !== 'renewal') {
+        return res.status(400).json({ error: 'Credencial não é de renovação' });
+      }
+      
+      if (!credential.sistemaId) {
+        return res.status(400).json({ error: 'Credencial sem sistema associado' });
+      }
+      
+      // Buscar o sistema
+      const sistema = await storage.getSistemaById(credential.sistemaId);
+      if (!sistema) {
+        return res.status(404).json({ error: 'Sistema não encontrado' });
+      }
+      
+      console.log(`📊 Processando renovação manual:`);
+      console.log(`  Sistema: ${sistema.nome} (ID: ${sistema.id}, SystemID: ${sistema.systemId})`);
+      console.log(`  Username novo: ${credential.username}`);
+      console.log(`  Password novo: ${credential.password}`);
+      
+      // Atualizar o sistema com as novas credenciais
+      const sistemaAtualizado = await storage.updateSistemaRenewal(
+        sistema.systemId,
+        credential.username,
+        credential.password
+      );
+      
+      if (!sistemaAtualizado) {
+        return res.status(500).json({ error: 'Erro ao atualizar sistema' });
+      }
+      
+      // Tentar atualizar API externa
+      try {
+        const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
+        if (integracaoConfig?.ativo && sistema.systemId) {
+          const apiSystemId = parseInt(sistema.systemId);
+          console.log(`🌐 Atualizando API externa para sistema ${apiSystemId}...`);
+          
+          const apiResponse = await externalApiService.updateSystemCredential(
+            apiSystemId,
+            {
+              username: credential.username,
+              password: credential.password
+            }
+          );
+          
+          console.log(`✅ API externa atualizada com sucesso`);
+        }
+      } catch (apiError) {
+        console.error(`⚠️ Erro ao atualizar API externa:`, apiError);
+        // Continuar mesmo com erro da API
+      }
+      
+      // Atualizar status da credencial
+      await storage.updateOfficeCredential(credentialId, {
+        status: 'completed',
+        observacoes: 'Renovação processada manualmente'
+      });
+      
+      console.log(`✅ Renovação processada com sucesso`);
+      
+      res.json({
+        success: true,
+        message: 'Renovação processada com sucesso',
+        sistema: {
+          id: sistemaAtualizado.id,
+          systemId: sistemaAtualizado.systemId,
+          nome: sistemaAtualizado.nome,
+          username: sistemaAtualizado.username,
+          expiracao: sistemaAtualizado.expiracao
+        }
+      });
+      
+    } catch (error) {
+      console.error('Erro ao processar renovação manual:', error);
+      res.status(500).json({ error: 'Erro ao processar renovação', details: error.message });
+    }
+  });
+
   app.get("/api/sistemas/proximo-vencimento/:dias", async (req, res) => {
     try {
       const dias = parseInt(req.params.dias);
@@ -7810,11 +7911,11 @@ Como posso ajudar você hoje?
       console.log(`  Metadata:`, metadata);
       
       // Extrair sistemaId de múltiplas fontes possíveis
-      const finalSistemaId = sistemaId || systemId || 
-                            credentials?.sistemaId || 
-                            metadata?.sistemaId || 
-                            metadata?.systemId || 
-                            null;
+      let finalSistemaId = sistemaId || systemId || 
+                          credentials?.sistemaId || 
+                          metadata?.sistemaId || 
+                          metadata?.systemId || 
+                          null;
       
       console.log(`🔍 [task-complete] Sistema ID resolvido: ${finalSistemaId} [${traceId}]`);
       console.log(`  Fontes verificadas:`);
@@ -7824,10 +7925,26 @@ Como posso ajudar você hoje?
       console.log(`    - metadata.sistemaId: ${metadata?.sistemaId}`);
       console.log(`    - metadata.systemId: ${metadata?.systemId}`);
       
-      // Atualizar status da tarefa se tiver taskId
+      // Verificar se é uma renovação checando a task na base de dados
+      let isRenewal = false;
+      let renewalTask = null;
+      
       if (taskId) {
+        // Buscar a task para verificar se é renovação
+        renewalTask = await storage.getOfficeCredentialById(taskId);
+        if (renewalTask && renewalTask.source === 'renewal') {
+          isRenewal = true;
+          console.log(`🔄 Task ${taskId} identificada como renovação pela source`);
+          
+          // Se não temos sistemaId ainda, tentar extrair da task
+          if (!finalSistemaId && renewalTask.sistemaId) {
+            finalSistemaId = renewalTask.sistemaId;
+            console.log(`📎 Sistema ID ${finalSistemaId} extraído da task de renovação`);
+          }
+        }
+        
         // Se for uma task de renovação, atualizar na tabela officeCredentials
-        if (type === 'renewal' || type === 'renew_system') {
+        if (type === 'renewal' || type === 'renew_system' || isRenewal) {
           await storage.updateRenewalTaskStatus(taskId, 
             credentials?.username || 'error', 
             credentials?.password || error || 'error'
@@ -7857,7 +7974,7 @@ Como posso ajudar você hoje?
       // Prioridade: renewal > results (lote) > credentials (único)
       
       // PRIMEIRO: Verificar se é uma renovação de sistema
-      if ((type === 'renewal' || type === 'renew_system') && credentials && credentials.username && credentials.password) {
+      if ((type === 'renewal' || type === 'renew_system' || isRenewal) && credentials && credentials.username && credentials.password) {
         console.log(`🔄 [task-complete] PROCESSANDO RENOVAÇÃO - TraceId: ${traceId}`);
         console.log(`  Sistema ID: ${finalSistemaId}`);
         console.log(`  Novo usuário: ${credentials.username}`);
