@@ -534,6 +534,59 @@ export class AutoRenewalService {
     }
   }
 
+  // Método para limpar a fila de renovação
+  async clearQueue() {
+    try {
+      // Contar apenas itens que podem ser removidos (não em processamento)
+      let itemsRemoved = 0;
+      const itemsToRemove: string[] = [];
+      
+      // Identificar itens que podem ser removidos (waiting, completed, error)
+      for (const [sistemaId, item] of this.renewalQueue.entries()) {
+        if (item.status !== 'processing') {
+          itemsToRemove.push(sistemaId);
+          itemsRemoved++;
+        }
+      }
+      
+      // Remover apenas itens não em processamento
+      for (const sistemaId of itemsToRemove) {
+        this.renewalQueue.delete(sistemaId);
+      }
+      
+      // NÃO limpar isRenewing - isso evita renovações duplicadas
+      // Os sistemas em processamento devem continuar protegidos
+      
+      console.log(`🗑️ Fila de renovação limpa - ${itemsRemoved} itens removidos`);
+      
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'AutoRenewal',
+        mensagem: 'Fila de renovação limpa',
+        detalhes: {
+          itemsRemoved: itemsRemoved,
+          itemsPreserved: this.renewalQueue.size
+        }
+      });
+      
+      return {
+        success: true,
+        itemsRemoved: itemsRemoved,
+        message: `Fila limpa com sucesso - ${itemsRemoved} itens removidos`
+      };
+    } catch (error) {
+      console.error('❌ Erro ao limpar fila de renovação:', error);
+      await storage.createLog({
+        nivel: 'error',
+        origem: 'AutoRenewal',
+        mensagem: 'Erro ao limpar fila de renovação',
+        detalhes: { error: error instanceof Error ? error.message : String(error) }
+      });
+      
+      throw error;
+    }
+  }
+
   // Método para forçar renovação de um sistema específico
   async forceRenew(systemId: string) {
     try {

@@ -7572,6 +7572,26 @@ Como posso ajudar você hoje?
     }
   });
 
+  // DELETE /api/sistemas/renewal-queue/clear - limpar toda a fila de renovação
+  app.delete('/api/sistemas/renewal-queue/clear', checkAuth, async (req, res) => {
+    try {
+      const result = await autoRenewalService.clearQueue();
+      
+      console.log('🗑️ Fila de renovação limpa:', result);
+      
+      res.json({
+        success: true,
+        ...result
+      });
+    } catch (error) {
+      console.error('Erro ao limpar fila de renovação:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao limpar fila de renovação'
+      });
+    }
+  });
+
   // POST /api/test/create-auto-renewal-system - criar sistema de teste com renovação automática
   app.post('/api/test/create-auto-renewal-system', checkAuth, async (req, res) => {
     try {

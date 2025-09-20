@@ -69,6 +69,32 @@ export function RenewalQueueSection() {
     },
   });
 
+  // Mutation para limpar fila
+  const clearQueueMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/sistemas/renewal-queue/clear', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Erro ao limpar fila');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: '🗑️ Fila limpa',
+        description: data.message || 'Todos os itens foram removidos da fila',
+      });
+      refetch();
+    },
+    onError: () => {
+      toast({
+        title: '❌ Erro',
+        description: 'Não foi possível limpar a fila',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'waiting':
@@ -127,6 +153,20 @@ export function RenewalQueueSection() {
               data-testid="button-refresh-queue"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button
+              onClick={() => {
+                if (confirm('Tem certeza que deseja limpar toda a fila? Isso irá remover todos os itens pendentes.')) {
+                  clearQueueMutation.mutate();
+                }
+              }}
+              variant="outline"
+              size="sm"
+              className="border-slate-700 text-red-400 hover:text-red-300"
+              disabled={clearQueueMutation.isPending || !queueData?.queue?.length}
+              data-testid="button-clear-queue"
+            >
+              <Trash2 className="w-4 h-4" />
             </Button>
           </div>
         </div>
