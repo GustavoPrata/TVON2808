@@ -105,20 +105,46 @@ export function UnifiedLogsSection() {
       
       if (response.ok) {
         const data = await response.json();
+        console.log('[UnifiedLogs] Dados recebidos:', {
+          success: data.success,
+          logsCount: (data.logs || []).length,
+          isInitialLoad: isInitialLoad.current
+        });
+        
         if (data.success) {
+          const newLogs = data.logs || [];
+          
           setLogs(prev => {
-            // Se é a primeira vez ou se os logs foram limpos
-            if (isInitialLoad.current || prev.length === 0 || (data.logs || []).length === 0) {
+            // Se é a primeira vez carregando ou logs foram limpos
+            if (isInitialLoad.current || prev.length === 0) {
+              console.log('[UnifiedLogs] Primeira carga ou logs limpos, substituindo todos os logs');
               isInitialLoad.current = false;
-              return data.logs || [];
+              return newLogs;
             }
+            
+            // Se não há novos logs, manter os existentes
+            if (newLogs.length === 0) {
+              console.log('[UnifiedLogs] Sem novos logs, mantendo existentes');
+              return prev;
+            }
+            
             // Fazer merge inteligente
-            return mergeLogs(data.logs || [], prev);
+            console.log('[UnifiedLogs] Fazendo merge inteligente de logs');
+            const mergedLogs = mergeLogs(newLogs, prev);
+            console.log('[UnifiedLogs] Resultado do merge:', {
+              previousCount: prev.length,
+              newCount: newLogs.length,
+              mergedCount: mergedLogs.length
+            });
+            return mergedLogs;
           });
+          
           lastFetchTime.current = new Date();
           setRetryCount(0); // Reset retry count on success
           setError(null);
           clearRetryTimeout();
+        } else {
+          console.log('[UnifiedLogs] Resposta sem sucesso:', data);
         }
       } else {
         const errorMsg = response.status === 500 ? 'Erro no servidor' : 
@@ -157,11 +183,9 @@ export function UnifiedLogsSection() {
         });
       }
     } finally {
-      if (isInitialLoad.current || isRetry) {
-        setIsLoadingLogs(false);
-        if (isInitialLoad.current) {
-          isInitialLoad.current = false;
-        }
+      setIsLoadingLogs(false);
+      if (isInitialLoad.current) {
+        isInitialLoad.current = false;
       }
     }
   };
@@ -288,6 +312,11 @@ export function UnifiedLogsSection() {
 
   // Auto-refresh
   useEffect(() => {
+    console.log('[UnifiedLogs] Iniciando busca de logs, filtros:', {
+      levelFilter,
+      sourceFilter,
+      autoRefresh
+    });
     fetchAllLogs(); // Busca inicial
     
     let interval: NodeJS.Timeout | undefined;
@@ -308,6 +337,12 @@ export function UnifiedLogsSection() {
 
   // Filtrar logs quando mudar o filtro ou busca
   useEffect(() => {
+    console.log('[UnifiedLogs] Aplicando filtros:', {
+      totalLogs: logs.length,
+      levelFilter,
+      sourceFilter,
+      searchText
+    });
     filterLogs(logs, levelFilter, sourceFilter, searchText);
     setCurrentPage(1); // Reset to first page when filters change
   }, [logs, levelFilter, sourceFilter, searchText]);
@@ -576,7 +611,7 @@ export function UnifiedLogsSection() {
 
           {/* Área de logs */}
           <div className="bg-slate-900/50 rounded-lg p-2 border border-slate-700">
-            {isLoadingLogs && isInitialLoad.current ? (
+            {isLoadingLogs ? (
               <div className="h-[400px]">
                 <LoadingSkeleton />
               </div>
@@ -691,7 +726,7 @@ export function UnifiedLogsSection() {
                   Últ. atualização: {format(lastFetchTime.current, 'HH:mm:ss')}
                 </span>
               )}
-              {isLoadingLogs && !isInitialLoad.current && (
+              {isLoadingLogs && (
                 <Loader2 className="w-3 h-3 animate-spin text-indigo-400" />
               )}
               {retryCount > 0 && (

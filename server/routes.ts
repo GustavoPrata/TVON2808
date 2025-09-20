@@ -8372,7 +8372,7 @@ Como posso ajudar você hoje?
   });
 
   // GET /api/all-logs - busca TODOS os logs (aplicação + extensão)
-  app.get('/api/all-logs', async (req, res) => {
+  app.get('/api/all-logs', checkAuth, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 500;
       const level = req.query.level as string;
