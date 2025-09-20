@@ -1236,8 +1236,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           gte(sistemas.expiracao, now),
-          lte(sistemas.expiracao, futureDate),
-          eq(sistemas.status, 'active')
+          lte(sistemas.expiracao, futureDate)
         )
       )
       .orderBy(asc(sistemas.expiracao));
@@ -2322,13 +2321,6 @@ export class DatabaseStorage implements IStorage {
     return results.length > 0 ? results[0] : null;
   }
 
-  async getOfficeCredentialById(id: number): Promise<OfficeCredentials | null> {
-    const results = await db.select()
-      .from(officeCredentials)
-      .where(eq(officeCredentials.id, id))
-      .limit(1);
-    return results.length > 0 ? results[0] : null;
-  }
 
   async updateOfficeCredential(id: number, data: Partial<OfficeCredentials>): Promise<OfficeCredentials> {
     const updated = await db.update(officeCredentials)
