@@ -171,6 +171,12 @@ export class AutoRenewalService {
 
       // Atualizar fila APENAS com sistemas vencidos ou próximos do vencimento
       for (const sistema of sistemasAutoRenew) {
+        // Pular sistemas sem data de expiração
+        if (!sistema.expiracao) {
+          console.log(`⚠️ Sistema ${sistema.systemId} sem data de expiração definida`);
+          continue;
+        }
+        
         const expiracaoDate = new Date(sistema.expiracao);
         const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
         const isExpired = expiracaoDate <= now;
@@ -185,7 +191,7 @@ export class AutoRenewalService {
               status: 'waiting',
               estimatedTime: minutosAteExpiracao > 0 ? Math.floor(minutosAteExpiracao) : 0,
               addedAt: new Date(),
-              expiration: sistema.expiracao
+              expiration: sistema.expiracao ? new Date(sistema.expiracao).toISOString() : ''
             };
             
             this.renewalQueue.set(sistema.systemId, queueItem);
@@ -209,6 +215,9 @@ export class AutoRenewalService {
         }
 
         // Verificar se está vencido ou próximo do vencimento
+        if (!sistema.expiracao) {
+          return false; // Pular sistemas sem data de expiração
+        }
         const expiracaoDate = new Date(sistema.expiracao);
         const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
         const isExpired = expiracaoDate <= now;
@@ -375,20 +384,7 @@ export class AutoRenewalService {
         source: 'renewal',
         status: 'pending',
         generatedAt: new Date(),
-        sistemaId: sistema.id, // Adicionar sistemaId diretamente no registro
-        metadata: {
-          taskType: 'renewal',
-          sistemaId: sistema.id, // FK para a tabela sistemas (inteiro)
-          systemId: sistema.systemId, // ID real do sistema (string)
-          system_id: sistema.systemId, // ID real do sistema com underscore (string)
-          originalUsername: sistema.username,
-          systemUsername: sistema.username,
-          systemExpiration: sistema.expiracao,
-          status: 'pending',
-          requestedAt: new Date().toISOString(),
-          traceId: traceId,
-          generateNewCredentials: true // Flag explícita para gerar novas credenciais
-        }
+        sistemaId: sistema.id // Adicionar sistemaId diretamente no registro
       };
       
       console.log(`🔍 [AutoRenewal] Dados da task a criar [${traceId}]:`, JSON.stringify(taskData, null, 2));
@@ -402,7 +398,6 @@ export class AutoRenewalService {
       console.log(`  Task ID: ${task.id}`);
       console.log(`  Sistema ID: ${task.sistemaId}`);
       console.log(`  Username da task: ${task.username}`);
-      console.log(`  Metadata:`, JSON.stringify(task.metadata, null, 2));
       
       await storage.createLog({
         nivel: 'info',
