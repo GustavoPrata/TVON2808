@@ -201,6 +201,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendFile(filePath);
   });
   
+  // Serve autonomous chrome extension zip file  
+  app.get("/extension-autonoma-final.zip", (req, res) => {
+    const filePath = path.join(process.cwd(), "extension-autonoma-final.zip");
+    
+    // Check if file exists
+    if (!fsSync.existsSync(filePath)) {
+      return res.status(404).json({ error: "Autonomous extension file not found" });
+    }
+    
+    // Set proper headers for ZIP file
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="extension-autonoma-final.zip"');
+    
+    // Send the file
+    res.sendFile(filePath);
+  });
+  
   // Authentication routes (before checkAuth middleware)
   app.post("/api/login", async (req, res) => {
     const { user, password, rememberMe } = req.body;
