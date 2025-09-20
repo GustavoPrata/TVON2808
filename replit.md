@@ -63,6 +63,8 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **Sistema de Logs Unificados Completo** - Implementado visualização centralizada de todos os logs (aplicação + extensão Chrome) em tempo real no painel-office
 - **Endpoints de Logs Expandidos** - Criado GET /api/all-logs para buscar logs unificados com filtros por fonte, nível e busca
 - **Melhorias na Interface de Logs** - Nova seção "Central de Logs Unificados" com estatísticas em tempo real, filtros avançados e download
+- **Processamento de Renovação Reorganizado** - Corrigida a ordem de prioridade no endpoint `/api/office/automation/task-complete` para processar renovações antes de credenciais normais
+- **Fluxo de Renovação Completo** - Renovações agora atualizam corretamente username, password e expiração (6h) no banco local, além de atualizar API externa apenas com credenciais
 
 ## Recent Updates (September 2025 - Previous)
 - **Fixed AutoRenewalService identification issue** - Service was working correctly but needed systems with autoRenewal enabled and no recent renewals
