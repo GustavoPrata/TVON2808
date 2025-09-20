@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Lock, User, Eye, EyeOff, Tv } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 
 export default function Login() {
@@ -61,10 +61,11 @@ export default function Login() {
           description: "Login realizado com sucesso!",
         });
         
+        // Invalidate auth query to force refetch
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/status"] });
+        
         // Navigate without page reload
-        setTimeout(() => {
-          setLocation("/");
-        }, 500);
+        setLocation("/");
       }
     } catch (error: any) {
       toast({
@@ -103,9 +104,10 @@ export default function Login() {
             description: "Login automático realizado!",
           });
           
-          setTimeout(() => {
-            setLocation("/");
-          }, 500);
+          // Invalidate auth query to force refetch
+          await queryClient.invalidateQueries({ queryKey: ["/api/auth/status"] });
+          
+          setLocation("/");
         }
       } catch (error: any) {
         toast({
