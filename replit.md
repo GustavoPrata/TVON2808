@@ -68,6 +68,10 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **Processamento Manual de Renovação** - Criado endpoint `/api/sistemas/process-renewal/:credentialId` para processar manualmente credenciais de renovação pendentes
 - **Storage Methods Enhanced** - Added `getOfficeCredentialById` and `updateOfficeCredential` methods for better credential management
 - **Public Access for Renewal** - Temporarily added `/api/sistemas/process-renewal` to public paths to allow Chrome extension to process renewals
+- **Chrome Extension Fully Autonomous** - Modified extension to work 100% in background without opening tabs or requiring user interaction
+- **Local Credential Generation** - Extension now generates credentials locally without depending on OnlineOffice website
+- **Enhanced Security** - Credentials masked in all logs, preventing exposure of sensitive data
+- **Smart Retry System** - Implemented exponential backoff for network failures (2s initial, max 10s, 3 attempts)
 
 ## Recent Updates (September 2025 - Previous)
 - **Fixed AutoRenewalService identification issue** - Service was working correctly but needed systems with autoRenewal enabled and no recent renewals
