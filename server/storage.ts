@@ -29,10 +29,6 @@ function mapSistemaToFrontend(sistema: Sistema): any {
   
   return {
     ...sistema,
-    autoRenewalEnabled: sistema.autoRenewalEnabled,
-    renewalAdvanceTime: sistema.renewalAdvanceTime,
-    lastRenewalAt: sistema.lastRenewalAt,
-    renewalCount: sistema.renewalCount,
     expiracao: sistema.expiracao, // map expiracao to expiracao for backward compatibility
     pontosAtivos: sistema.pontosAtivos,
     maxPontosAtivos: sistema.maxPontosAtivos,
@@ -47,18 +43,6 @@ function mapSistemaFromFrontend(data: any): any {
   // Map camelCase from frontend to snake_case for database
   const mapped: any = { ...data };
   
-  if ('autoRenewalEnabled' in data) {
-    mapped.autoRenewalEnabled = data.autoRenewalEnabled;
-  }
-  if ('renewalAdvanceTime' in data) {
-    mapped.renewalAdvanceTime = data.renewalAdvanceTime;
-  }
-  if ('lastRenewalAt' in data) {
-    mapped.lastRenewalAt = data.lastRenewalAt;
-  }
-  if ('renewalCount' in data) {
-    mapped.renewalCount = data.renewalCount;
-  }
   if ('expiracao' in data) {
     mapped.expiracao = data.expiracao; // keep expiracao as is for database
   }
@@ -1399,15 +1383,12 @@ export class DatabaseStorage implements IStorage {
       // Atualizar validade para 6 horas
       const expiracao = new Date(Date.now() + 6 * 60 * 60 * 1000);
       
-      // Atualizar o sistema local - usando update direto para incluir lastRenewalAt
+      // Atualizar o sistema local
       const result = await db.update(sistemas)
         .set({
           username: data.username,
           password: data.password,
           expiracao: expiracao,
-          status: 'active',
-          lastRenewalAt: new Date(),
-          renewalCount: sql`COALESCE(renewal_count, 0) + 1`,
           atualizadoEm: new Date()
         })
         .where(eq(sistemas.id, data.sistemaId))
@@ -1456,10 +1437,7 @@ export class DatabaseStorage implements IStorage {
       password: data.password,
       maxPontosAtivos: 100,
       pontosAtivos: 0,
-      expiracao: expiracao,
-      autoRenewalEnabled: false,
-      renewalAdvanceTime: 60,
-      status: 'active'
+      expiracao: expiracao
     });
     
     // Try to create in external API if available
@@ -1494,7 +1472,6 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(sistemas)
       .set({
-        status: 'failed',
         atualizadoEm: new Date()
       })
       .where(eq(sistemas.id, id));
@@ -1518,9 +1495,6 @@ export class DatabaseStorage implements IStorage {
           username: novaCredencial.username,
           password: novaCredencial.password,
           expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          lastRenewalAt: new Date(),
-          renewalCount: sql`${sistemas.renewalCount} + 1`,
-          status: 'active',
           atualizadoEm: new Date()
         })
         .where(eq(sistemas.id, sistemaId));
@@ -1549,10 +1523,8 @@ export class DatabaseStorage implements IStorage {
       .from(sistemas)
       .where(
         and(
-          eq(sistemas.autoRenewalEnabled, true),
           lte(sistemas.expiracao, futureTime),
-          gte(sistemas.expiracao, now),
-          eq(sistemas.status, 'active')
+          gte(sistemas.expiracao, now)
         )
       )
       .orderBy(asc(sistemas.expiracao));
