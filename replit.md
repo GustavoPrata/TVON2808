@@ -72,6 +72,9 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **Local Credential Generation** - Extension now generates credentials locally without depending on OnlineOffice website
 - **Enhanced Security** - Credentials masked in all logs, preventing exposure of sensitive data
 - **Smart Retry System** - Implemented exponential backoff for network failures (2s initial, max 10s, 3 attempts)
+- **Credential Security Improvements** - Renewal queue no longer displays usernames or passwords, only system IDs for identification
+- **Credential Validation System** - Added validation to reject malformed credentials (minimum 3 chars, alphanumeric only, no special strings)
+- **Database Cleanup** - Removed malformed credentials from database and prevented future insertion of invalid data
 
 ## Recent Updates (September 2025 - Previous)
 - **Fixed AutoRenewalService identification issue** - Service was working correctly but needed systems with autoRenewal enabled and no recent renewals
