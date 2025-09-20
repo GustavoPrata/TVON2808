@@ -1283,9 +1283,6 @@ export class DatabaseStorage implements IStorage {
       console.log(`🔍 [Storage] Estado ANTES da atualização [${traceId}]:`);
       console.log(`   - Username atual: ${sistemaBefore.username}`);
       console.log(`   - Expiração atual: ${sistemaBefore.expiracao}`);
-      console.log(`   - LastRenewal: ${sistemaBefore.lastRenewalAt}`);
-      console.log(`   - RenewalCount: ${sistemaBefore.renewalCount}`);
-      console.log(`   - Status: ${sistemaBefore.status}`);
     } else {
       console.log(`⚠️ [Storage] Sistema ${systemId} não encontrado! [${traceId}]`);
       throw new Error(`Sistema ${systemId} não encontrado`);
@@ -1310,9 +1307,6 @@ export class DatabaseStorage implements IStorage {
           username,
           password,
           expiracao: novaExpiracao,
-          lastRenewalAt: agora,
-          renewalCount: sql`${sistemas.renewalCount} + 1`,
-          status: 'active',
           atualizadoEm: agora
         })
         .where(eq(sistemas.systemId, systemId))
@@ -1323,9 +1317,6 @@ export class DatabaseStorage implements IStorage {
         console.log(`🔍 [Storage] Estado DEPOIS da atualização:`);
         console.log(`   - Username novo: ${result.username}`);
         console.log(`   - Expiração nova: ${result.expiracao}`);
-        console.log(`   - LastRenewal novo: ${result.lastRenewalAt}`);
-        console.log(`   - RenewalCount novo: ${result.renewalCount}`);
-        console.log(`   - Status novo: ${result.status}`);
         
         // Verifica se a expiração realmente mudou
         if (sistemaBefore.expiracao && result.expiracao) {
@@ -1368,7 +1359,6 @@ export class DatabaseStorage implements IStorage {
     await db
       .update(sistemas)
       .set({
-        status: 'renewing',
         atualizadoEm: new Date()
       })
       .where(eq(sistemas.id, id));

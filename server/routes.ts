@@ -8074,23 +8074,43 @@ Como posso ajudar você hoje?
           console.log(`  SystemId: ${sistema.systemId}`);
           console.log(`  Usuário atual: ${sistema.username || sistema.usuario}`);
           console.log(`  Expiração atual: ${sistema.expiracao}`);
-          console.log(`  LastRenewal atual: ${sistema.lastRenewalAt}`);
-          console.log(`  RenewalCount atual: ${sistema.renewalCount}`);
-          console.log(`  Status atual: ${sistema.status}`);
           
-          // Usar o método updateSistemaRenewal que já tem logs detalhados
-          console.log(`💾 [task-complete] Chamando updateSistemaRenewal... [${traceId}]`);
+          // PASSO 1: Atualizar no banco local (username, password, expiração 6h)
+          console.log(`💾 [task-complete] Atualizando banco local... [${traceId}]`);
           const sistemaAtualizado = await storage.updateSistemaRenewal(
-            finalSistemaId,
+            sistema.systemId, // usar systemId do sistema encontrado, não o ID interno
             credentials.username,
             credentials.password
           );
           
           if (sistemaAtualizado) {
-            console.log(`✅ [task-complete] Sistema renovado com sucesso [${traceId}]:`);
+            console.log(`✅ [task-complete] Sistema atualizado no banco local [${traceId}]:`);
             console.log(`  Nova expiração: ${sistemaAtualizado.expiracao}`);
-            console.log(`  Novo lastRenewal: ${sistemaAtualizado.lastRenewalAt}`);
-            console.log(`  Novo renewalCount: ${sistemaAtualizado.renewalCount}`);
+            
+            // PASSO 2: Atualizar na API externa (apenas username e password)
+            try {
+              console.log(`🌐 [task-complete] Atualizando na API externa... [${traceId}]`);
+              console.log(`  SystemId: ${sistema.systemId}`);
+              console.log(`  Username: ${credentials.username}`);
+              console.log(`  Password: ***`);
+              
+              // Chamar API externa para atualizar credenciais (sem expiração)
+              const apiResponse = await externalApiService.updateSystemCredential(
+                parseInt(sistema.systemId), // A API espera número
+                {
+                  username: credentials.username,
+                  password: credentials.password
+                  // NÃO enviar expiração - mantemos local apenas
+                }
+              );
+              
+              console.log(`✅ [task-complete] API externa atualizada com sucesso [${traceId}]`);
+              console.log(`  Resposta da API:`, apiResponse);
+            } catch (apiError) {
+              console.error(`⚠️ [task-complete] Erro ao atualizar API externa [${traceId}]:`, apiError);
+              console.error(`  Continuando mesmo com erro da API...`);
+              // Não falhar todo o processo se a API externa estiver com problema
+            }
           } else {
             console.error(`❌ [task-complete] updateSistemaRenewal retornou null [${traceId}]`);
           }

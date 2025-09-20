@@ -895,40 +895,7 @@ async function renewSystem(tabId, task) {
         sistemaId: sistemaId || 'desconhecido'
       });
       
-      // PASSO 2: EDITAR O SISTEMA NO ONLINEOFFICE (CRÍTICO!)
-      await logger.info('🔄 Editando sistema no OnlineOffice...', { 
-        sistemaId,
-        username: response.credentials.username,
-        traceId: traceId
-      });
-      
-      // Aguarda um pouco antes de editar para garantir que a página está pronta
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Chama a função editSystem para atualizar as credenciais no OnlineOffice
-      const editResponse = await sendMessageToTab(tabId, {
-        action: 'editSystem',
-        systemId: sistemaId,
-        username: response.credentials.username,
-        password: response.credentials.password,
-        traceId: traceId
-      });
-      
-      if (editResponse && editResponse.success) {
-        await logger.info('✅ Sistema editado com sucesso no OnlineOffice!', {
-          sistemaId: sistemaId,
-          message: editResponse.message,
-          traceId: traceId
-        });
-      } else {
-        await logger.error('⚠️ Erro ao editar sistema no OnlineOffice', {
-          sistemaId: sistemaId,
-          error: editResponse?.error || 'Erro desconhecido',
-          traceId: traceId
-        });
-      }
-      
-      // PASSO 3: Atualizar no backend
+      // PASSO 2: Enviar credenciais para o backend (que fará a atualização)
       await logger.info('📤 Enviando credenciais para atualizar o sistema no backend...', { 
         sistemaId,
         username: response.credentials.username,
