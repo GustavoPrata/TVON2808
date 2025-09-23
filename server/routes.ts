@@ -8242,7 +8242,7 @@ Como posso ajudar você hoje?
       console.log(`  Metadata:`, metadata);
       
       // Extrair systemId de múltiplas fontes possíveis
-      let finalSistemaId = systemId || systemId || 
+      let finalSistemaId = systemId || 
                           credentials?.systemId || 
                           metadata?.systemId || 
                           metadata?.systemId || 
@@ -8277,7 +8277,7 @@ Como posso ajudar você hoje?
             // Se não temos systemId ainda, extrair da task
             if (!finalSistemaId && renewalTaskInfo.systemId) {
               finalSistemaId = renewalTaskInfo.systemId;
-              console.log(`📎 Sistema ID ${finalSistemaId} extraído da task de renovação`);
+              console.log(`📎 Sistema ID ${finalSistemaId} (tipo: ${typeof finalSistemaId}) extraído da task de renovação`);
             }
           }
         } catch (e) {
@@ -8309,10 +8309,11 @@ Como posso ajudar você hoje?
             } else {
               // Completar a task de renovação com sucesso
               console.log(`✅ [task-complete] Marcando task ${taskId} como COMPLETED`);
+              console.log(`🔍 [task-complete] Tipo de finalSistemaId: ${typeof finalSistemaId} | Valor: ${finalSistemaId}`);
               await autoRenewalService.completeTask(taskId, {
                 username: credentials.username,
                 password: credentials.password,
-                systemId: finalSistemaId,
+                systemId: finalSistemaId,  // Passando como string
                 metadata: metadata
               });
               console.log(`✅ Task de renovação ${taskId} completada via autoRenewalService`);
@@ -8345,7 +8346,7 @@ Como posso ajudar você hoje?
       // PRIMEIRO: Verificar se é uma renovação de sistema
       if ((type === 'renewal' || type === 'renew_system' || isRenewal) && processedCredentials && processedCredentials.password) {
         console.log(`🔄 [task-complete] PROCESSANDO RENOVAÇÃO - TraceId: ${traceId}`);
-        console.log(`  Sistema ID: ${finalSistemaId}`);
+        console.log(`  Sistema ID: ${finalSistemaId} (tipo: ${typeof finalSistemaId})`);
         console.log(`  Novo usuário: ${processedCredentials.username || 'AVISO: sem username'}`);        
         console.log(`  User ID (OnlineOffice): ${processedCredentials.userId || 'não informado'}`);
         console.log(`  Nova senha: ***`);

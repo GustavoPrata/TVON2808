@@ -624,8 +624,8 @@ export class AutoRenewalService {
         const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
         
         return {
-          systemId: sistema.id,
-          systemId: sistema.systemId,
+          internalId: sistema.id,  // ID interno do banco (número)
+          systemId: sistema.systemId,  // systemId externo (string)
           expiration: sistema.expiracao,
           minutesUntilExpiration: Math.floor(minutosAteExpiracao),
           isExpired: expiracaoDate <= now
@@ -666,11 +666,11 @@ export class AutoRenewalService {
   }
   
   // Método para completar uma task de renovação com sucesso
-  async completeTask(taskId: number, credentials: { username?: string, password?: string, systemId?: number, metadata?: any }) {
+  async completeTask(taskId: number, credentials: { username?: string, password?: string, systemId?: string, metadata?: any }) {
     try {
       console.log(`✅ [AutoRenewal] Completando task ${taskId}`);
       console.log(`  Username: ${credentials.username || 'não informado'}`);
-      console.log(`  SystemId: ${credentials.systemId || 'não informado'}`);
+      console.log(`  SystemId: ${credentials.systemId || 'não informado'} (tipo: ${typeof credentials.systemId})`);  // Log para confirmar tipo
       
       // Validação importante: username é obrigatório para renovação
       if (!credentials.username || !credentials.password) {
@@ -692,7 +692,8 @@ export class AutoRenewalService {
       
       // Se temos systemId, atualizar o sistema
       if (credentials.systemId) {
-        const sistema = await storage.getSistemaById(credentials.systemId);
+        console.log(`🔍 Buscando sistema por systemId string: ${credentials.systemId}`);
+        const sistema = await storage.getSistemaBySystemId(credentials.systemId);  // Usar método correto para buscar por string
         if (sistema) {
           // Atualizar credenciais do sistema
           await storage.updateSistemaRenewal(
