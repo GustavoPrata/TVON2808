@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tv, Settings, Server, Save, Plus, Pencil, Trash2, Link, Shield, CheckCircle, AlertCircle, GripVertical, Wifi, X, Key, TestTube, Users } from 'lucide-react';
+import { Tv, Settings, Server, Save, Plus, Pencil, Trash2, Link, Shield, CheckCircle, AlertCircle, GripVertical, Wifi, X, Key, TestTube, Users, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { SyncStatus } from '@/components/sync-status';
@@ -186,7 +186,7 @@ export default function ConfigTV() {
   });
 
   // Fetch systems
-  const { data: systems = [], isLoading: loadingSystems } = useQuery({
+  const { data: systems = [], isLoading: loadingSystems, refetch: refetchSystems } = useQuery({
     queryKey: ['/api/external-api/systems'],
   });
 
@@ -711,13 +711,24 @@ export default function ConfigTV() {
                     Gerencie os sistemas de acesso
                   </CardDescription>
                 </div>
-                <Button
-                  onClick={handleNewSystem}
-                  className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-xs md:text-sm"
-                >
-                  <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                  Novo Sistema
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => refetchSystems()}
+                    className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-xs md:text-sm"
+                    disabled={loadingSystems}
+                    title="Atualizar lista de sistemas"
+                    data-testid="button-refresh-systems"
+                  >
+                    <RefreshCw className={`w-3 h-3 md:w-4 md:h-4 ${loadingSystems ? 'animate-spin' : ''}`} />
+                  </Button>
+                  <Button
+                    onClick={handleNewSystem}
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-xs md:text-sm"
+                  >
+                    <Plus className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                    Novo Sistema
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
