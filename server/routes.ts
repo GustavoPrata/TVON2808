@@ -8465,8 +8465,57 @@ Como posso ajudar você hoje?
         logs = logs.filter(log => log.level === level);
       }
 
+      // Filtra logs vazios ou sem conteúdo relevante ANTES de formatar
+      const relevantLogs = logs.filter(log => {
+        // Remove logs sem mensagem ou com mensagem vazia
+        if (!log.message || log.message.trim() === '') {
+          return false;
+        }
+        
+        // Remove logs genéricos sem informação útil
+        const genericMessages = [
+          'aplicação',
+          'application',
+          'log',
+          'info',
+          'debug',
+          'trace'
+        ];
+        
+        const lowerMessage = log.message.toLowerCase().trim();
+        
+        // Se a mensagem é apenas uma palavra genérica, remove
+        if (genericMessages.includes(lowerMessage)) {
+          return false;
+        }
+        
+        // Se é DEBUG, só incluir se tiver informação substancial
+        if (log.level === 'DEBUG') {
+          // Debug logs precisam ter pelo menos 10 caracteres de conteúdo útil
+          return log.message.trim().length > 10;
+        }
+        
+        // Se é INFO, verificar se tem conteúdo significativo
+        if (log.level === 'INFO') {
+          // Info logs precisam ter mais do que apenas timestamps ou IDs
+          const hasUsefulContent = 
+            log.message.trim().length > 5 &&
+            !/^\d+$/.test(lowerMessage) && // Não é apenas números
+            !/^[\d\-:\.\s]+$/.test(lowerMessage); // Não é apenas timestamp
+          return hasUsefulContent;
+        }
+        
+        // ERROR e WARN sempre passam (se tiverem mensagem)
+        if (log.level === 'ERROR' || log.level === 'WARN') {
+          return true;
+        }
+        
+        // Por padrão, incluir se tiver conteúdo
+        return log.message.trim().length > 0;
+      });
+
       // Formata logs para o frontend com indicação de fonte
-      const formattedLogs = logs.map(log => ({
+      const formattedLogs = relevantLogs.map(log => ({
         timestamp: log.timestamp || new Date().toISOString(),
         level: log.level || 'INFO',
         message: log.message || '',

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
-  Loader2, RefreshCw, Download, Trash2, Search, 
+  Loader2, RefreshCw, Trash2, Search, 
   FileText, Layers, Terminal, Filter, AlertCircle, Pause, Play,
   ChevronLeft, ChevronRight, AlertTriangle
 } from 'lucide-react';
@@ -281,6 +281,30 @@ export function UnifiedLogsSection() {
   const filterLogs = (logsToFilter: UnifiedLog[], level: string, source: string, search: string) => {
     let filtered = [...logsToFilter];
     
+    // Filtrar logs vazios ou sem conteúdo relevante no frontend também
+    filtered = filtered.filter(log => {
+      // Remove logs sem mensagem ou com mensagem vazia
+      if (!log.message || log.message.trim() === '') {
+        return false;
+      }
+      
+      // Remove logs genéricos sem informação útil
+      const genericMessages = ['aplicação', 'application', 'log', 'info', 'debug', 'trace'];
+      const lowerMessage = log.message.toLowerCase().trim();
+      
+      // Se a mensagem é apenas uma palavra genérica, remove
+      if (genericMessages.includes(lowerMessage)) {
+        return false;
+      }
+      
+      // Se é DEBUG, só incluir se explicitamente selecionado
+      if (log.level === 'DEBUG' && level !== 'DEBUG') {
+        return false;
+      }
+      
+      return true;
+    });
+    
     if (level !== 'all') {
       filtered = filtered.filter(log => log.level === level);
     }
@@ -355,39 +379,6 @@ export function UnifiedLogsSection() {
     }
   };
 
-  // Função para baixar logs
-  const downloadLogs = async () => {
-    try {
-      // Cria o conteúdo do arquivo com separação por fonte
-      const content = filteredLogs.map(log => {
-        const time = format(new Date(log.timestamp), 'yyyy-MM-dd HH:mm:ss');
-        const context = log.context ? JSON.stringify(log.context) : '';
-        const traceId = log.traceId ? ` [Trace: ${log.traceId}]` : '';
-        return `[${time}] ${log.sourceLabel} [${log.level}] ${log.message}${traceId} ${context}`;
-      }).join('\n');
-      
-      // Cria e baixa o arquivo
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `all-logs-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.txt`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-      
-      toast({
-        title: '✅ Logs baixados',
-        description: `Arquivo com ${filteredLogs.length} logs foi baixado`,
-      });
-    } catch (error) {
-      console.error('Erro ao baixar logs:', error);
-      toast({
-        title: '❌ Erro',
-        description: 'Não foi possível baixar os logs',
-        variant: 'destructive',
-      });
-    }
-  };
 
   // Auto-refresh
   useEffect(() => {
@@ -514,15 +505,6 @@ export function UnifiedLogsSection() {
               data-testid="button-refresh-unified"
             >
               <RefreshCw className={`w-4 h-4 ${isLoadingLogs ? 'animate-spin' : ''}`} />
-            </Button>
-            <Button
-              onClick={downloadLogs}
-              variant="outline"
-              size="sm"
-              className="border-slate-700"
-              data-testid="button-download-unified"
-            >
-              <Download className="w-4 h-4" />
             </Button>
             <Button
               onClick={clearAllLogs}
