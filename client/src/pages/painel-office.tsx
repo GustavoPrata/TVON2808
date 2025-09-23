@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon, FileText, Download, Filter, Search, Trash, Eye, Info, Shuffle, Package, Network } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
+import { apiRequest, queryClient as qc } from '@/lib/queryClient';
 import { format, parseISO, differenceInDays, differenceInHours, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -326,6 +327,16 @@ export default function PainelOffice() {
   }>>([]);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [credentialToDelete, setCredentialToDelete] = useState<{ id: number; username: string } | null>(null);
+  
+  // Estados para controlar o processo de distribuição
+  const [isDistributing, setIsDistributing] = useState(false);
+  const [distributionResult, setDistributionResult] = useState<{
+    success: boolean;
+    message: string;
+    systemsCreated?: number;
+    pointsUpdated?: number;
+    errors?: string[];
+  } | null>(null);
   
   // Estados para o modal de distribuição de pontos
   const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false);
@@ -775,6 +786,109 @@ export default function PainelOffice() {
 
   const handleDeleteAllCredentials = () => {
     deleteAllCredentialsMutation.mutate();
+  };
+
+  // Function to handle distribution
+  const handleDistribute = async () => {
+    // Validate inputs first
+    if (distributionMode === 'fixed-points' && pointsPerSystem <= 0) {
+      toast({
+        title: "❌ Erro de Validação",
+        description: "Quantidade de pontos por sistema deve ser maior que zero.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Warning if too many systems will be created
+    if (distributionPreview && distributionPreview.systemsNeeded > 10) {
+      toast({
+        title: "⚠️ Muitos sistemas necessários",
+        description: `A operação criaria ${distributionPreview.systemsNeeded} novos sistemas. Por segurança, limite a criação a 10 sistemas por vez.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDistributing(true);
+    setDistributionResult(null);
+
+    try {
+      const payload = {
+        mode: distributionMode,
+        ...(distributionMode === 'fixed-points' && { pointsPerSystem })
+      };
+
+      // Use apiRequest to make the POST request
+      const response = await apiRequest('/api/sistemas/distribute', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      // Handle successful response
+      if (response.success) {
+        const { systemsCreated = 0, pointsUpdated = 0, errors = [] } = response;
+        
+        setDistributionResult({
+          success: true,
+          message: response.message || 'Distribuição concluída com sucesso',
+          systemsCreated,
+          pointsUpdated,
+          errors,
+        });
+
+        // Show success toast with details
+        toast({
+          title: "✅ Distribuição Concluída!",
+          description: (
+            <div className="space-y-1">
+              <div>📊 {pointsUpdated} pontos atualizados</div>
+              {systemsCreated > 0 && (
+                <div>🆕 {systemsCreated} sistemas criados</div>
+              )}
+              {errors.length > 0 && (
+                <div className="text-yellow-400">⚠️ {errors.length} avisos encontrados</div>
+              )}
+            </div>
+          ),
+          duration: 5000,
+        });
+
+        // Invalidate relevant queries to refresh data
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['/api/pontos'] }),
+          queryClient.invalidateQueries({ queryKey: ['/api/external-api/systems'] }),
+        ]);
+
+        // Close modal after successful distribution
+        setTimeout(() => {
+          setIsDistributionModalOpen(false);
+          setDistributionResult(null);
+        }, 1500);
+      } else {
+        // Handle error response
+        throw new Error(response.error || 'Erro ao processar distribuição');
+      }
+    } catch (error) {
+      console.error('Erro ao distribuir pontos:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido ao processar distribuição';
+      
+      setDistributionResult({
+        success: false,
+        message: errorMessage,
+      });
+
+      // Show error toast
+      toast({
+        title: "❌ Erro na Distribuição",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsDistributing(false);
+    }
   };
 
   const totalSystems = systems.length;
@@ -1696,20 +1810,22 @@ export default function PainelOffice() {
               Cancelar
             </Button>
             <Button
-              onClick={() => {
-                // TODO: Implementar chamada ao endpoint
-                toast({
-                  title: "🚧 Em Desenvolvimento",
-                  description: "O endpoint de distribuição será implementado em breve.",
-                  duration: 3000,
-                });
-              }}
-              disabled={loadingPontos || (distributionPreview?.systemsNeeded || 0) > 10}
+              onClick={handleDistribute}
+              disabled={loadingPontos || isDistributing || (distributionPreview?.systemsNeeded || 0) > 10}
               className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
               data-testid="button-apply-distribution"
             >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Aplicar Distribuição
+              {isDistributing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Aplicar Distribuição
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
