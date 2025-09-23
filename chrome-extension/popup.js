@@ -38,8 +38,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           <span class="info-icon">✨</span>
           <strong>Extensão Funcionando Automaticamente!</strong><br>
           <span style="font-size: 11px;">
-            A extensão está rodando 100% em background sem abrir páginas ou redirecionar.
-            Ela processa todas as tarefas silenciosamente sem interromper sua navegação.
+            A extensão está rodando em background e funcionará mesmo com esta janela fechada.
+            Ela verifica tarefas a cada 30 segundos e abre a aba do OnlineOffice automaticamente quando necessário.
           </span>
         </div>
         

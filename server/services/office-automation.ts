@@ -14,8 +14,6 @@ interface IPTVCredentials {
 }
 
 export class OfficeAutomation {
-  // TODO: Mover estas credenciais hardcoded para variáveis de ambiente (env vars)
-  // CRÍTICO: Credenciais expostas no código são um risco de segurança
   private username = 'gustavoprata17';
   private password = 'iptv102030';
   private baseUrl = 'https://onlineoffice.zip';

@@ -275,7 +275,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Handle CORS for extension endpoints including all office automation routes
     if (req.path === '/api/office/credentials' || 
         req.path === '/api/office/save-credentials' ||
-        req.path === '/api/office/generate-test' ||
         req.path.startsWith('/api/office/automation/')) {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -302,7 +301,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '/api/test-renewal', // Rota temporária de teste
       '/api/office/save-credentials', 
       '/api/office/credentials',
-      '/api/office/generate-test',  // Endpoint para buscar credenciais REAIS do OnlineOffice
       // Chrome extension automation endpoints (public for extension access)
       '/api/office/automation/next-task',
       '/api/office/automation/task-complete',
@@ -8529,97 +8527,6 @@ Como posso ajudar você hoje?
     } catch (error) {
       console.error('Erro ao deletar todas as credenciais:', error);
       res.status(500).json({ error: 'Erro ao deletar credenciais' });
-    }
-  });
-  
-  // POST /api/office/generate-test - Endpoint para buscar credenciais REAIS do OnlineOffice
-  // CRÍTICO: Não gera credenciais falsas, sempre busca do sistema real
-  app.post('/api/office/generate-test', async (req, res) => {
-    try {
-      // Verificar API key da extensão
-      const extensionKey = req.headers['x-extension-key'];
-      if (extensionKey !== 'chrome-extension-secret-2024') {
-        return res.status(401).json({ error: 'Não autorizado' });
-      }
-      
-      const { systemId } = req.body;
-      
-      console.log('🌐 === BUSCANDO CREDENCIAIS REAIS DO ONLINEOFFICE ===');
-      console.log(`📦 SystemId: ${systemId || 'N/A'}`);
-      
-      // Importar o serviço correto: OfficeAutomation
-      const { OfficeAutomation } = await import('./services/office-automation');
-      const officeAutomation = new OfficeAutomation();
-      
-      // Buscar credenciais REAIS do OnlineOffice
-      console.log('🔄 Iniciando busca de credenciais reais no OnlineOffice usando OfficeAutomation...');
-      
-      try {
-        // Usar o método generateIPTVTest() que já interage com o OnlineOffice real
-        const result = await officeAutomation.generateIPTVTest();
-        
-        if (!result || !result.usuario || !result.senha) {
-          throw new Error('OnlineOffice não retornou credenciais válidas');
-        }
-        
-        console.log('✅ CREDENCIAIS REAIS OBTIDAS DO ONLINEOFFICE!');
-        console.log(`👤 Username: ${result.usuario.substring(0, 3)}***`);
-        console.log(`🔑 Password: ***`);
-        
-        // Calcular data de expiração (6 horas a partir de agora)
-        const expiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000);
-        
-        // Salvar credenciais no banco com os dados corretos
-        const credential = await storage.createOfficeCredentials({
-          username: result.usuario,  // username real do OnlineOffice
-          password: result.senha,     // password real do OnlineOffice
-          sistemaId: systemId || null,  // sistemaId associado
-          expiresAt: expiresAt,        // expiração em 6 horas
-          source: 'automation'      // source conforme especificado
-        });
-        
-        // Atualizar a API externa se systemId foi fornecido
-        if (systemId) {
-          try {
-            console.log(`🔄 Atualizando API externa para sistema ${systemId}...`);
-            await externalApiService.updateUser(systemId, {
-              username: result.usuario,
-              password: result.senha
-            });
-            console.log('✅ API externa atualizada com sucesso!');
-          } catch (apiError) {
-            console.error('⚠️ Erro ao atualizar API externa (não crítico):', apiError);
-            // Não falhar se a API externa der erro, pois as credenciais já foram obtidas
-          }
-        }
-        
-        // Retornar credenciais reais para a extensão
-        res.json({
-          success: true,
-          username: result.usuario,
-          password: result.senha,
-          expiresAt: expiresAt.toISOString()
-        });
-        
-      } catch (officeError) {
-        console.error('❌ ERRO AO BUSCAR CREDENCIAIS DO ONLINEOFFICE:', officeError);
-        
-        // CRÍTICO: NÃO GERAR CREDENCIAIS FALSAS! FALHAR COMPLETAMENTE!
-        // Requisito: Se falhar ao buscar do site real, deve retornar erro 500
-        return res.status(500).json({
-          success: false,
-          error: 'Falha ao obter credenciais do OnlineOffice. Sistema não disponível.',
-          details: officeError instanceof Error ? officeError.message : String(officeError)
-        });
-      }
-      
-    } catch (error) {
-      console.error('❌ Erro crítico no endpoint generate-test:', error);
-      res.status(500).json({ 
-        success: false,
-        error: 'Erro ao processar solicitação',
-        details: error.message
-      });
     }
   });
   
