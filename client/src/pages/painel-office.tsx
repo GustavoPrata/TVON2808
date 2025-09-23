@@ -359,7 +359,7 @@ export default function PainelOffice() {
   );
 
   // Fetch pontos data para distribuição
-  const { data: pontos, isLoading: loadingPontos } = useQuery({
+  const { data: pontos = [], isLoading: loadingPontos } = useQuery<any[]>({
     queryKey: ['/api/pontos'],
     enabled: isDistributionModalOpen,
     staleTime: 5000,
@@ -820,20 +820,18 @@ export default function PainelOffice() {
       };
 
       // Use apiRequest to make the POST request
-      const response = await apiRequest('/api/sistemas/distribute', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      const res = await apiRequest('POST', '/api/sistemas/distribute', payload);
+      const response = await res.json();
 
       // Handle successful response
-      if (response.success) {
-        const { systemsCreated = 0, pointsUpdated = 0, errors = [] } = response;
+      if (response.sucesso || response.success) {
+        const { sistemasCriados = 0, pontosAtualizados = 0, errors = [] } = response;
         
         setDistributionResult({
           success: true,
           message: response.message || 'Distribuição concluída com sucesso',
-          systemsCreated,
-          pointsUpdated,
+          systemsCreated: sistemasCriados,
+          pointsUpdated: pontosAtualizados,
           errors,
         });
 
@@ -842,9 +840,9 @@ export default function PainelOffice() {
           title: "✅ Distribuição Concluída!",
           description: (
             <div className="space-y-1">
-              <div>📊 {pointsUpdated} pontos atualizados</div>
-              {systemsCreated > 0 && (
-                <div>🆕 {systemsCreated} sistemas criados</div>
+              <div>📊 {pontosAtualizados} pontos atualizados</div>
+              {sistemasCriados > 0 && (
+                <div>🆕 {sistemasCriados} sistemas criados</div>
               )}
               {errors.length > 0 && (
                 <div className="text-yellow-400">⚠️ {errors.length} avisos encontrados</div>
