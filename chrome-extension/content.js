@@ -571,8 +571,8 @@ async function editSystem(sistemaId, username, password) {
   console.log('📝 Iniciando edição do sistema', { sistemaId, username });
   
   try {
-    // Navegar para página de edição
-    const editUrl = `https://onlineoffice.zip/iptv/edit_system.php?id=${sistemaId}`;
+    // Navegar para página de edição (ajustar conforme estrutura real do OnlineOffice)
+    const editUrl = `https://onlineoffice.zip/#/sistemas/${sistemaId}/edit`;
     console.log('🔄 Navegando para:', editUrl);
     window.location.href = editUrl;
     

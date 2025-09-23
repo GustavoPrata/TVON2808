@@ -195,7 +195,7 @@ let API_BASE = null;
 const POLLING_INTERVAL_ACTIVE = 30000; // 30 segundos quando não há tarefas
 const POLLING_INTERVAL_IDLE = 60000; // 60 segundos quando automação está desabilitada
 const POLLING_INTERVAL_FAST = 10000; // 10 segundos após processar tarefa
-const OFFICE_URL = 'https://onlineoffice.zip/iptv/index.php'; // URL específica do painel IPTV
+const OFFICE_URL = 'https://onlineoffice.zip/'; // URL base do OnlineOffice
 
 // ===========================================================================
 // ESTADO GLOBAL (mínimo, apenas para cache)
@@ -304,8 +304,7 @@ async function startHeartbeat() {
 // ===========================================================================
 // Monitora mudanças de URL nas abas do OnlineOffice
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.url && tab.url && 
-      (tab.url.includes('onlineoffice.zip') || tab.url.includes('onlineoffice.zip'))) {
+  if (changeInfo.url && tab.url && tab.url.includes('onlineoffice.zip')) {
     await logger.debug(`🔄 URL mudou em aba ${tabId}: ${changeInfo.url}`);
     // Envia heartbeat quando URL muda
     await sendHeartbeat();
@@ -315,7 +314,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 // Monitora quando uma aba do OnlineOffice é ativada
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
   const tab = await chrome.tabs.get(activeInfo.tabId);
-  if (tab.url && (tab.url.includes('onlineoffice.zip') || tab.url.includes('onlineoffice.zip'))) {
+  if (tab.url && tab.url.includes('onlineoffice.zip')) {
     await logger.debug(`🔄 Aba OnlineOffice ativada: ${tab.url}`);
     // Envia heartbeat quando aba é ativada
     await sendHeartbeat();
