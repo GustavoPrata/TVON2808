@@ -1,6 +1,9 @@
 // OnlineOffice IPTV Automator - Background Script
 // Versão refatorada para usar backend como fonte única de verdade
 
+// Log de inicialização
+console.log('✅ Extensão iniciada em modo autônomo');
+
 // ===========================================================================
 // SISTEMA DE LOGS 
 // ===========================================================================
@@ -56,6 +59,9 @@ class ExtensionLogger {
     if (Object.keys(context).length > 0) {
       console.log('Context:', context);
     }
+    
+    // Adiciona log à fila para envio ao backend
+    queueLogForBackend(level, message, context);
   }
 
   // Recupera todos os logs
@@ -147,6 +153,148 @@ class ExtensionLogger {
 const logger = new ExtensionLogger();
 
 // ===========================================================================
+// SISTEMA DE ENVIO DE LOGS PARA O BACKEND
+// ===========================================================================
+let pendingLogs = [];
+let lastLogSentTime = Date.now();
+
+// Função para enviar logs acumulados para o backend
+async function sendLogsToBackend() {
+  // Não envia se não houver logs pendentes
+  if (pendingLogs.length === 0) {
+    return;
+  }
+  
+  // Copia e limpa logs pendentes
+  const logsToSend = [...pendingLogs];
+  pendingLogs = [];
+  
+  try {
+    const apiBase = API_BASE || await getApiBase();
+    const response = await fetch(`${apiBase}/api/extension/logs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Extension-Key': 'chrome-extension-secret-2024'
+      },
+      body: JSON.stringify({ logs: logsToSend })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log(`📤 ${result.count} logs enviados para o servidor`);
+      lastLogSentTime = Date.now();
+    } else {
+      // Se falhar, adiciona os logs de volta
+      pendingLogs = [...logsToSend, ...pendingLogs];
+      console.error('Erro ao enviar logs para o servidor:', response.status);
+    }
+  } catch (error) {
+    // Se falhar, adiciona os logs de volta  
+    pendingLogs = [...logsToSend, ...pendingLogs];
+    console.error('Erro ao enviar logs para o servidor:', error);
+  }
+}
+
+// Função para adicionar log à fila de envio
+function queueLogForBackend(level, message, context = {}) {
+  pendingLogs.push({
+    timestamp: new Date().toISOString(),
+    level: level,
+    message: message,
+    context: context,
+    traceId: context.traceId || null
+  });
+  
+  // Limita o tamanho da fila
+  if (pendingLogs.length > 500) {
+    pendingLogs = pendingLogs.slice(-500);
+  }
+  
+  // Se tiver muitos logs acumulados, envia imediatamente
+  if (pendingLogs.length >= 50) {
+    sendLogsToBackend();
+  }
+}
+
+// ===========================================================================
+// SISTEMA DE HEARTBEAT
+// ===========================================================================
+async function sendHeartbeat() {
+  try {
+    // Garante que API_BASE está definido
+    if (!API_BASE) {
+      API_BASE = await getApiBase();
+    }
+    
+    // Tenta obter a URL da aba ativa
+    let currentUrl = null;
+    let isOnLoginPage = false;
+    
+    try {
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (activeTab && activeTab.url) {
+        currentUrl = activeTab.url;
+        // Verifica se está na página de login
+        isOnLoginPage = currentUrl.includes('onlineoffice.zip/#/login');
+      }
+    } catch (e) {
+      // Se falhar ao obter a aba, não é crítico
+      await logger.debug('Não foi possível obter URL da aba ativa');
+    }
+    
+    // Determina status de login
+    const loggedIn = !isOnLoginPage && isLoggedIn;
+    
+    // Dados do heartbeat
+    const heartbeatData = {
+      currentUrl: currentUrl,
+      isLoggedIn: loggedIn,
+      userAgent: navigator.userAgent,
+      extensionVersion: chrome.runtime.getManifest().version,
+      metadata: {
+        isProcessingTask: isProcessingTask,
+        lastStatus: lastStatus,
+        timestamp: new Date().toISOString()
+      }
+    };
+    
+    // Envia heartbeat
+    const response = await fetch(`${API_BASE}/api/extension/heartbeat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Extension-Key': 'chrome-extension-secret-2024'
+      },
+      body: JSON.stringify(heartbeatData)
+    });
+    
+    if (response.ok) {
+      await logger.debug('💓 Heartbeat enviado com sucesso', { 
+        loggedIn: loggedIn,
+        url: currentUrl ? currentUrl.substring(0, 50) : null 
+      });
+    } else {
+      await logger.warn('⚠️ Falha ao enviar heartbeat', { status: response.status });
+    }
+  } catch (error) {
+    await logger.error('❌ Erro ao enviar heartbeat', { error: error.message });
+  }
+}
+
+// Envio periódico de logs (a cada 30 segundos)
+setInterval(async () => {
+  await sendLogsToBackend();
+}, 30000);
+
+// Envio de logs quando a extensão é descarregada
+chrome.runtime.onSuspend.addListener(async () => {
+  await sendLogsToBackend();
+});
+
+// Listener removido - não usa mais content script
+
+// ===========================================================================
 // CONFIGURAÇÃO
 // ===========================================================================
 // Função para determinar a URL do servidor dinamicamente
@@ -195,7 +343,6 @@ let API_BASE = null;
 const POLLING_INTERVAL_ACTIVE = 30000; // 30 segundos quando não há tarefas
 const POLLING_INTERVAL_IDLE = 60000; // 60 segundos quando automação está desabilitada
 const POLLING_INTERVAL_FAST = 10000; // 10 segundos após processar tarefa
-const OFFICE_URL = 'https://onlineoffice.zip/iptv/index.php'; // URL específica do painel IPTV
 
 // ===========================================================================
 // ESTADO GLOBAL (mínimo, apenas para cache)
@@ -208,6 +355,35 @@ let lastStatus = {
   lastCheck: 0
 };
 let currentPollingInterval = POLLING_INTERVAL_IDLE;
+let currentTabUrl = null; // Para rastrear URL atual
+let isLoggedIn = false; // Para rastrear status de login
+
+// ===========================================================================
+// FUNÇÃO DE GERAÇÃO LOCAL DE CREDENCIAIS
+// ===========================================================================
+async function generateCredentialsLocally() {
+  // Gera username com 9 dígitos
+  const username = Math.floor(Math.random() * 900000000 + 100000000).toString();
+  
+  // Gera password no formato NNNNxNNNNa (N=dígito)
+  const part1 = Math.floor(Math.random() * 9000 + 1000).toString();
+  const part2 = Math.floor(Math.random() * 9000 + 1000).toString();
+  const password = `${part1}x${part2}a`;
+  
+  await logger.info('🔑 Credenciais geradas localmente', {
+    username: '***',
+    password: '***'
+  });
+  
+  return {
+    success: true,
+    credentials: {
+      username: username,
+      password: password
+    }
+  };
+}
+
 
 // ===========================================================================
 // INICIALIZAÇÃO
@@ -218,7 +394,14 @@ let currentPollingInterval = POLLING_INTERVAL_IDLE;
   // Inicializa API_BASE dinamicamente
   API_BASE = await getApiBase();
   await logger.info(`🔗 Servidor API configurado: ${API_BASE}`);
+  
+  // Envia heartbeat inicial
+  setTimeout(async () => {
+    await sendHeartbeat();
+    await logger.info('💓 Heartbeat inicial enviado');
+  }, 2000);
 })();
+
 
 // Usa Chrome Alarms API para manter a extensão sempre ativa
 async function setupAlarms() {
@@ -237,6 +420,20 @@ async function setupAlarms() {
     periodInMinutes: 1, // A cada minuto
     delayInMinutes: 0
   });
+  
+  // Cria alarme específico para checagem de renovação a cada 30 segundos
+  chrome.alarms.create('checkRenewalTasks', {
+    periodInMinutes: 0.5, // 30 segundos
+    delayInMinutes: 0
+  });
+  
+  // Cria alarme para enviar heartbeat a cada 10 segundos
+  chrome.alarms.create('sendHeartbeat', {
+    periodInMinutes: 0.17, // aproximadamente 10 segundos
+    delayInMinutes: 0
+  });
+  
+  await logger.info('💓 Alarme de heartbeat configurado para cada 10s');
 }
 
 // Listener para os alarmes
@@ -245,8 +442,13 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await logger.debug('⏰ Alarme disparado: checando tarefas...', { alarm: alarm.name });
     await checkForTasks();
   } else if (alarm.name === 'checkStatus') {
-    // Verifica se precisa abrir a aba do OnlineOffice
-    await ensureOfficeTabOpen();
+  } else if (alarm.name === 'checkRenewalTasks') {
+    // Checagem específica para tarefas de renovação a cada 30 segundos
+    await logger.debug('🔄 Checando tarefas de renovação...', { alarm: alarm.name });
+    await checkForTasks();
+  } else if (alarm.name === 'sendHeartbeat') {
+    // Envia heartbeat para o servidor
+    await sendHeartbeat();
   }
 });
 
@@ -255,7 +457,6 @@ chrome.runtime.onStartup.addListener(async () => {
   await logger.info('📦 Chrome iniciado, configurando automação...');
   await setupAlarms();
   await checkForTasks(); // Checa imediatamente
-  await ensureOfficeTabOpen(); // Garante que a aba está aberta
 });
 
 // Inicia quando instalado/atualizado
@@ -271,23 +472,6 @@ chrome.runtime.onInstalled.addListener(async () => {
   await checkForTasks();
 })();
 
-// Função para garantir que a aba do OnlineOffice está aberta
-async function ensureOfficeTabOpen(forceOpen = false) {
-  // Só abre se a automação está habilitada OU se forceOpen é true (quando há task)
-  if (!lastStatus.isEnabled && !forceOpen) return;
-  
-  const tabs = await chrome.tabs.query({
-    url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
-  });
-  
-  if (tabs.length === 0) {
-    await logger.info('📂 Abrindo aba do OnlineOffice automaticamente...');
-    chrome.tabs.create({ 
-      url: OFFICE_URL,
-      active: false // Abre em background
-    });
-  }
-}
 
 // ===========================================================================
 // POLLING DO BACKEND (Agora usando Alarms API)
@@ -366,10 +550,9 @@ async function checkForTasks() {
     await updateBadge(data.isEnabled || false);
     lastStatus.isEnabled = data.isEnabled || false;
     
-    // Se há task, SEMPRE abre a aba OnlineOffice
+    // Se há task, processa diretamente sem abrir aba
     if (data.hasTask) {
-      await logger.info('✅ TASK ENCONTRADA! Abrindo aba OnlineOffice...');
-      await ensureOfficeTabOpen(true); // força abertura quando há task
+      await logger.info('✅ TASK ENCONTRADA! Processando em background...');
     }
     
     // Ajusta intervalo de polling baseado no status
@@ -427,64 +610,26 @@ async function checkForTasks() {
 // ===========================================================================
 async function processTask(task) {
   await logger.info('========================================');
-  await logger.info('🎯 PROCESSANDO TAREFA DO BACKEND');
+  await logger.info('🎯 PROCESSANDO TAREFA DO BACKEND (MODO AUTÔNOMO)');
   await logger.info(`📦 Tipo: ${task.type}`);
   await logger.info(`🔢 Quantidade: ${task.quantity || 1}`);
   await logger.info('========================================');
   
-  // Procura aba do OnlineOffice
-  let tabs = await chrome.tabs.query({
-    url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
-  });
-  
-  // Se não encontrar, tenta abrir automaticamente
-  if (tabs.length === 0) {
-    await logger.warn('📂 Nenhuma aba OnlineOffice encontrada. Abrindo automaticamente...');
-    
-    // Cria nova aba com o OnlineOffice
-    const newTab = await chrome.tabs.create({
-      url: OFFICE_URL,
-      active: false // Abre em background
-    });
-    
-    // Aguarda a aba carregar
-    await logger.info('⏳ Aguardando aba carregar...');
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    // Procura novamente
-    tabs = await chrome.tabs.query({
-      url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
-    });
-    
-    if (tabs.length === 0) {
-      await logger.error('❌ ERRO: Não conseguiu abrir aba OnlineOffice!');
-      await reportTaskResult({
-        taskId: task.id,
-        success: false,
-        error: 'Não conseguiu abrir aba OnlineOffice'
-      });
-      return;
-    }
-  }
-  
-  const tabId = tabs[0].id;
-  await logger.info(`✅ Aba encontrada`, { url: tabs[0].url });
-  
-  // Processa baseado no tipo de tarefa
+  // Processa diretamente sem precisar de tabs
   if (task.type === 'generate_batch') {
-    await generateBatch(tabId, task);
+    await generateBatch(null, task);
   } else if (task.type === 'generate_single') {
-    await generateSingle(tabId, task);
+    await generateSingle(null, task);
   } else if (task.type === 'renewal' || task.type === 'renew_system') {
     // Suporta ambos os tipos: 'renewal' (do backend) e 'renew_system' (legado)
-    await logger.info('🔄 Task de renovação detectada', { 
+    await logger.info('🔄 Task de renovação detectada (modo autônomo)', { 
       type: task.type,
       taskId: task.id,
       sistemaId: task.sistemaId || task.data?.sistemaId || task.metadata?.sistemaId || 'N/A',
       metadata: task.metadata,
       data: task.data
     });
-    await renewSystem(tabId, task);
+    await renewSystem(null, task);
   } else {
     await logger.warn('⚠️ Tipo de task desconhecido', { type: task.type, task });
   }
@@ -496,21 +641,21 @@ async function generateBatch(tabId, task) {
   let errorCount = 0;
   const results = [];
   
-  await logger.info(`📦 Gerando lote de ${quantity} credenciais...`);
+  await logger.info(`📦 Gerando lote de ${quantity} credenciais (modo autônomo)...`);
   
   for (let i = 0; i < quantity; i++) {
     await logger.info(`🎯 Gerando credencial ${i + 1}/${quantity}...`);
     
     try {
-      // Envia comando para content script
-      const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
+      // Gera credenciais localmente sem precisar de tab
+      const response = await generateCredentialsLocally();
       
       if (response && response.success && response.credentials) {
         successCount++;
         
         await logger.info(`✅ Sucesso! Credencial ${i + 1} gerada`, {
-          username: response.credentials.username,
-          password: response.credentials.password
+          username: '***',
+          password: '***'
         });
         
         results.push({
@@ -548,11 +693,6 @@ async function generateBatch(tabId, task) {
         error: error.message
       });
       
-      // Se perdeu conexão com a aba, parar
-      if (error.message.includes('Could not establish connection')) {
-        await logger.error('🔌 Perdeu conexão com a aba. Parando lote...');
-        break;
-      }
     }
     
     // Aguarda entre gerações
@@ -588,15 +728,16 @@ async function generateBatch(tabId, task) {
 }
 
 async function generateSingle(tabId, task) {
-  await logger.info('🎯 Gerando credencial única...');
+  await logger.info('🎯 Gerando credencial única (modo autônomo)...');
   
   try {
-    const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
+    // Gera credenciais localmente sem precisar de tab
+    const response = await generateCredentialsLocally();
     
     if (response && response.success && response.credentials) {
       await logger.info('✅ Credencial gerada com sucesso!', {
-        username: response.credentials.username,
-        password: response.credentials.password
+        username: '***',
+        password: '***'
       });
       
       // Reporta sucesso ao backend - IMPORTANTE: Usar formato correto
@@ -642,16 +783,7 @@ async function generateSingle(tabId, task) {
 }
 
 async function renewSystem(tabId, task) {
-  await logger.info('🔄 Renovando sistema IPTV...', { taskData: task });
-  
-  // DEBUG: Log completo da task para análise
-  await logger.info('📊 DEBUG - Task completa recebida:', {
-    taskId: task.id,
-    taskType: task.type,
-    taskData: JSON.stringify(task.data),
-    taskMetadata: JSON.stringify(task.metadata),
-    directSistemaId: task.sistemaId
-  });
+  await logger.info('🔄 Renovando sistema IPTV (modo autônomo)...', { taskData: task });
   
   // Extrair sistemaId de diferentes locais possíveis
   const sistemaId = task.sistemaId || 
@@ -659,6 +791,7 @@ async function renewSystem(tabId, task) {
                     task.data?.systemId || 
                     task.metadata?.sistemaId || 
                     task.metadata?.systemId || 
+                    task.metadata?.system_id ||
                     null;
                      
   const originalUsername = task.data?.originalUsername || 
@@ -667,18 +800,34 @@ async function renewSystem(tabId, task) {
                           task.data?.currentUsername || 
                           'N/A';
   
+  const traceId = task.metadata?.traceId || `renewal_ext_${Date.now()}`;
+  
   await logger.info('📋 Dados da renovação', {
     sistemaId: sistemaId || 'N/A',
     usuarioAtual: originalUsername,
     taskId: task.id,
-    taskType: task.type
+    taskType: task.type,
+    traceId: traceId
   });
   
   // Validação do sistemaId
   if (!sistemaId) {
     await logger.error('❌ ERRO CRÍTICO: sistemaId não encontrado na task', {
-      task: JSON.stringify(task)
+      task: JSON.stringify(task),
+      traceId: traceId
     });
+    // Reporta erro ao backend
+    await reportTaskResult({
+      taskId: task.id,
+      type: task.type || 'renewal',
+      error: 'sistemaId não encontrado na task',
+      metadata: {
+        ...task.metadata,
+        error: 'sistemaId não encontrado',
+        traceId: traceId
+      }
+    });
+    return;
   }
   
   try {
@@ -702,114 +851,116 @@ async function renewSystem(tabId, task) {
       }
     }
     
-    const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
+    // PASSO 1: Gera as credenciais localmente
+    const response = await generateCredentialsLocally();
     
     if (response && response.success && response.credentials) {
       await logger.info('✅ Nova credencial gerada para renovação!', {
-        novoUsuario: response.credentials.username,
-        novaSenha: response.credentials.password,
+        novoUsuario: '***',
+        novaSenha: '***',
         sistemaId: sistemaId || 'desconhecido'
       });
       
-      // NOVO: Editar o sistema no OnlineOffice com as novas credenciais
-      await logger.info('📝 Iniciando edição do sistema no OnlineOffice...', { sistemaId });
+      // PASSO 2: Enviar credenciais para o backend (que fará a atualização)
+      await logger.info('📤 Enviando credenciais para atualizar o sistema no backend...', { 
+        sistemaId,
+        username: '***',
+        traceId: traceId
+      });
       
+      // Chamar o endpoint para atualizar o sistema com as novas credenciais (com retry)
       try {
-        // Envia comando para editar o sistema
-        const editResponse = await chrome.tabs.sendMessage(tabId, {
-          action: 'editSystem',
-          sistemaId: sistemaId,
-          username: response.credentials.username,
-          password: response.credentials.password
-        });
-        
-        if (!editResponse || !editResponse.success) {
-          // Se falhou ao editar, lança erro
-          const errorMsg = editResponse?.error || 'Falha desconhecida ao editar sistema';
-          await logger.error('❌ Falha ao editar sistema no OnlineOffice', { 
-            sistemaId, 
-            error: errorMsg,
-            response: editResponse 
+        const updateResult = await retryWithBackoff(async () => {
+          const updateResponse = await fetch(`${API_BASE}/api/sistemas/process-renewal`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Extension-Key': 'chrome-extension-secret-2024'
+            },
+            body: JSON.stringify({
+              sistemaId: sistemaId,
+              username: response.credentials.username,
+              password: response.credentials.password,
+              taskId: task.id,
+              traceId: traceId
+            })
           });
-          throw new Error(`Falha ao editar sistema: ${errorMsg}`);
-        }
-        
-        await logger.info('✅ Sistema editado com sucesso no OnlineOffice!', {
-          sistemaId,
-          username: response.credentials.username
-        });
-        
-      } catch (editError) {
-        // Se falhou ao editar, reporta erro e não continua
-        await logger.error('❌ Erro crítico ao editar sistema', { 
-          sistemaId,
-          error: editError.message
-        });
-        
-        // Reporta falha ao backend
-        await reportTaskResult({
-          taskId: task.id,
-          type: task.type || 'renewal', // Usar o tipo original da task
+          
+          if (!updateResponse.ok) {
+            const errorText = await updateResponse.text();
+            // Incluir o status no erro para o retryWithBackoff detectar
+            if (updateResponse.status >= 400 && updateResponse.status < 500) {
+              throw new Error(`Erro ${updateResponse.status}: ${errorText}`);
+            }
+            // Se for erro do servidor (5xx), lança exceção para tentar novamente
+            throw new Error(`Erro ${updateResponse.status}: ${errorText}`);
+          }
+          
+          return await updateResponse.json();
+        }, 3, 2000, 10000); // 3 tentativas, delay inicial de 2s, máximo de 10s
+        await logger.info('✅ Sistema atualizado com sucesso!', {
           sistemaId: sistemaId,
-          systemId: sistemaId,
-          error: `Credenciais geradas mas falha ao editar sistema: ${editError.message}`,
-          partialSuccess: {
-            credentialsGenerated: true,
-            systemEdited: false,
-            newUsername: response.credentials.username
+          username: '***',
+          expiracao: updateResult.expiracao,
+          traceId: traceId
+        });
+        
+        // Reporta sucesso ao backend com as credenciais geradas
+        const reportSuccess = await reportTaskResult({
+          taskId: task.id,
+          type: task.type || 'renewal',
+          sistemaId: sistemaId,
+          systemId: sistemaId, // Manter ambos por compatibilidade
+          credentials: {
+            username: response.credentials.username,
+            password: response.credentials.password,
+            sistemaId: sistemaId
           },
           metadata: {
             ...metadata,
             sistemaId: sistemaId,
             originalUsername: originalUsername,
-            failedAt: new Date().toISOString(),
-            failureReason: 'edit_system_failed'
+            renewedAt: new Date().toISOString(),
+            systemUpdated: true,
+            traceId: traceId,
+            expiracao: updateResult.expiracao
           }
         });
         
-        // Sai da função sem reportar sucesso completo
-        return;
-      }
-      
-      // Só reporta sucesso se AMBOS geraram credenciais E editaram o sistema
-      await logger.info('✅ Renovação completa: credenciais geradas E sistema editado!', { 
-        sistemaId,
-        novoUsuario: response.credentials.username,
-        novaSenha: response.credentials.password
-      });
-      
-      // Reporta sucesso ao backend com sistemaId garantido
-      const reportSuccess = await reportTaskResult({
-        taskId: task.id,
-        type: task.type || 'renewal', // Usar o tipo original da task
-        sistemaId: sistemaId, // Usar sistemaId em vez de systemId
-        systemId: sistemaId, // Manter ambos por compatibilidade
-        credentials: {
-          username: response.credentials.username,
-          password: response.credentials.password,
-          sistemaId: sistemaId // Incluir também nas credenciais
-        },
-        oldCredentials: {
-          username: originalUsername,
-          password: taskData?.currentPassword || metadata?.currentPassword || 'unknown'
-        },
-        clienteId: taskData?.clienteId || metadata?.clienteId,
-        metadata: {
-          ...metadata,
-          sistemaId: sistemaId,
-          originalUsername: originalUsername,
-          renewedAt: new Date().toISOString(),
-          systemEdited: true // Marca que o sistema foi editado
+        if (!reportSuccess) {
+          await logger.error('⚠️ Falha ao reportar conclusão ao backend!', { sistemaId, traceId });
+        } else {
+          await logger.info('✅ Renovação completa reportada ao backend!', { 
+            sistemaId,
+            username: '***',
+            traceId: traceId
+          });
         }
-      });
-      
-      if (!reportSuccess) {
-        await logger.error('⚠️ Falha ao reportar renovação ao backend!', { sistemaId });
-      } else {
-        await logger.info('✅ Renovação completa reportada ao backend com sucesso', { 
+        
+      } catch (updateError) {
+        await logger.error('❌ Erro ao atualizar sistema no backend', {
+          error: updateError.message,
           sistemaId,
-          username: response.credentials.username,
-          edited: true
+          traceId: traceId
+        });
+        
+        // Mesmo com erro no update, reporta as credenciais geradas
+        await reportTaskResult({
+          taskId: task.id,
+          type: task.type || 'renewal',
+          sistemaId: sistemaId,
+          credentials: {
+            username: response.credentials.username,
+            password: response.credentials.password
+          },
+          error: `Credenciais geradas mas erro ao atualizar sistema: ${updateError.message}`,
+          metadata: {
+            ...metadata,
+            sistemaId: sistemaId,
+            systemUpdated: false,
+            updateError: updateError.message,
+            traceId: traceId
+          }
         });
       }
       
@@ -861,6 +1012,54 @@ async function renewSystem(tabId, task) {
 }
 
 // ===========================================================================
+// FUNÇÕES DE RETRY COM BACKOFF EXPONENCIAL
+// ===========================================================================
+async function retryWithBackoff(fn, maxRetries = 3, initialDelay = 2000, maxDelay = 10000) {
+  let lastError;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Tenta executar a função
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      
+      // Verifica se o erro é do tipo que não deve ser retentado
+      // Erros 4xx (cliente) não devem ser retentados
+      if (error.message && error.message.includes('4')) {
+        const match = error.message.match(/\b4\d{2}\b/);
+        if (match) {
+          await logger.error(`❌ Erro de cliente (${match[0]}) - não será retentado`, {
+            error: error.message,
+            attempt: attempt + 1
+          });
+          throw error; // Lança erro imediatamente para erros 4xx
+        }
+      }
+      
+      // Se é a última tentativa, lança o erro
+      if (attempt === maxRetries - 1) {
+        throw error;
+      }
+      
+      // Calcula o delay com backoff exponencial
+      const delay = Math.min(initialDelay * Math.pow(2, attempt), maxDelay);
+      
+      await logger.warn(`⏳ Tentativa ${attempt + 1}/${maxRetries} falhou, tentando novamente em ${delay}ms`, {
+        error: error.message,
+        attempt: attempt + 1,
+        nextDelay: delay
+      });
+      
+      // Aguarda antes da próxima tentativa
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw lastError;
+}
+
+// ===========================================================================
 // COMUNICAÇÃO COM BACKEND
 // ===========================================================================
 async function reportTaskResult(result) {
@@ -871,36 +1070,50 @@ async function reportTaskResult(result) {
   }
   
   await logger.info('📤 Reportando resultado ao backend', { 
-    result,
+    result: {
+      ...result,
+      // Mascara credenciais no log se existirem
+      credentials: result.credentials ? { username: '***', password: '***' } : undefined,
+      results: result.results ? result.results.map(r => ({
+        ...r,
+        username: r.username ? '***' : undefined,
+        password: r.password ? '***' : undefined
+      })) : undefined
+    },
     server: API_BASE
   });
   
   try {
-    // Usa o endpoint correto task-complete
-    const response = await fetch(`${API_BASE}/api/office/automation/task-complete`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Extension-Key': 'chrome-extension-secret-2024'
-      },
-      body: JSON.stringify(result)
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      await logger.error('❌ Erro ao reportar resultado', { 
-        status: response.status,
-        response: errorText 
+    // Usa retry com backoff exponencial
+    const success = await retryWithBackoff(async () => {
+      const response = await fetch(`${API_BASE}/api/office/automation/task-complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Extension-Key': 'chrome-extension-secret-2024'
+        },
+        body: JSON.stringify(result)
       });
-      return false;
-    } else {
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        // Incluir o status no erro para o retryWithBackoff detectar
+        if (response.status >= 400 && response.status < 500) {
+          throw new Error(`Erro ${response.status}: ${errorText}`);
+        }
+        // Se for erro do servidor (5xx), lança exceção para tentar novamente
+        throw new Error(`Erro ${response.status}: ${errorText}`);
+      }
+      
       const data = await response.json();
       await logger.info('✅ Resultado reportado com sucesso', { response: data });
       return true;
-    }
+    }, 3, 2000, 10000); // 3 tentativas, delay inicial de 2s, máximo de 10s
+    
+    return success;
     
   } catch (error) {
-    await logger.error('❌ Erro ao reportar resultado', { error: error.message });
+    await logger.error('❌ Falha ao reportar resultado após múltiplas tentativas', { error: error.message });
     return false;
   }
 }

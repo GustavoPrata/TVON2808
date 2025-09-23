@@ -54,6 +54,8 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **PostgreSQL**: Relational database for persistent data storage.
 
 ## Recent Updates (September 23, 2025)
+- **Chrome Extension Updated** - Replaced with correct extension version (extensaocerta_1758609100567.zip) for proper IPTV automation functionality
+- **UI Cleanup Completed** - Removed system count badges (total systems, active systems) from painel-office interface for cleaner design
 - **Systems API Integration Fixed** - POST, PUT and DELETE endpoints for systems now properly sync with external API when integration is active
 - **Create System Bug Fixed** - Systems are now created both locally and in external API (system_id, username, password)
 - **Update System Enhanced** - System updates now sync username and password changes to external API
