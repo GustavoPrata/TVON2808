@@ -53,6 +53,12 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **Woovi API**: For PIX payment generation, status updates, and webhook processing.
 - **PostgreSQL**: Relational database for persistent data storage.
 
+## Recent Updates (September 23, 2025)
+- **Log System Display Issues Fixed** - Corrected UnifiedLogsSection merge function that was properly deduplicating logs (not dropping them as initially thought)
+- **Extension Logs Endpoint Fixed** - Fixed /api/extension/logs to actually retrieve and return logs from database instead of placeholder message
+- **Extension Logs Authentication** - Added /api/extension/logs to publicPaths to allow Chrome extension to send logs without authentication
+- **Log Merge Algorithm Enhanced** - Improved merge logic using composite keys (timestamp|source|level|message) for accurate deduplication
+
 ## Recent Updates (September 2025)
 - **Systems Management Refactored** - Changed `/api/external-api/systems` endpoints to fetch data directly from local database instead of external API
 - **Enhanced Data Control** - All system CRUD operations (GET, POST, PUT, DELETE) now work exclusively with local database, providing full control over systems data
