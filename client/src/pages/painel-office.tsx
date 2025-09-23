@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon, FileText, Download, Filter, Search, Trash, Eye, Info } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon, FileText, Download, Filter, Search, Trash, Eye, Info, Shuffle, Package, Network } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { format, parseISO, differenceInDays, differenceInHours, isValid } from 'date-fns';
@@ -54,6 +54,16 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RenewalQueueSection } from '@/components/renewal-queue-logs';
 import { ExtensionStatusIndicator } from '@/components/extension-status-indicator';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
 
 const systemSchema = z.object({
   username: z.string().min(1, 'Usuário obrigatório'),
@@ -317,6 +327,19 @@ export default function PainelOffice() {
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [credentialToDelete, setCredentialToDelete] = useState<{ id: number; username: string } | null>(null);
   
+  // Estados para o modal de distribuição de pontos
+  const [isDistributionModalOpen, setIsDistributionModalOpen] = useState(false);
+  const [distributionMode, setDistributionMode] = useState<'one-per-point' | 'fixed-points'>('one-per-point');
+  const [pointsPerSystem, setPointsPerSystem] = useState<number>(1);
+  const [distributionPreview, setDistributionPreview] = useState<{
+    totalPoints: number;
+    pointsWithoutSystem: number;
+    systemsNeeded: number;
+    pointsPerSystemCalculated?: number;
+    currentDistribution: Array<{ systemId: number; username: string; pointCount: number }>;
+  } | null>(null);
+  const [isLoadingPoints, setIsLoadingPoints] = useState(false);
+  
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -324,6 +347,14 @@ export default function PainelOffice() {
     })
   );
 
+  // Fetch pontos data para distribuição
+  const { data: pontos, isLoading: loadingPontos } = useQuery({
+    queryKey: ['/api/pontos'],
+    enabled: isDistributionModalOpen,
+    staleTime: 5000,
+    refetchOnWindowFocus: true,
+  });
+  
   // Fetch systems
   const { data: systemsRaw = [], isLoading: loadingSystems, refetch: refetchSystems } = useQuery<System[]>({
     queryKey: ['/api/external-api/systems'],
@@ -377,6 +408,54 @@ export default function PainelOffice() {
       setRecentCredentials(credentialsData.credentials || []);
     }
   }, [credentialsData]);
+
+  // Função para calcular o preview da distribuição
+  const calculateDistributionPreview = () => {
+    if (!pontos || !systems) return;
+    
+    // Filtrar apenas pontos ativos
+    const activePontos = pontos.filter((p: any) => p.status === 'ativo');
+    const pointsWithoutSystem = activePontos.filter((p: any) => !p.sistemaId).length;
+    
+    // Calcular distribuição atual
+    const currentDist = new Map<number, number>();
+    activePontos.forEach((ponto: any) => {
+      if (ponto.sistemaId) {
+        currentDist.set(ponto.sistemaId, (currentDist.get(ponto.sistemaId) || 0) + 1);
+      }
+    });
+    
+    const currentDistribution = systems.map(system => ({
+      systemId: parseInt(system.system_id),
+      username: system.username,
+      pointCount: currentDist.get(parseInt(system.system_id)) || 0,
+    }));
+    
+    let systemsNeeded = 0;
+    if (distributionMode === 'one-per-point') {
+      // Um sistema por ponto - precisa de um sistema para cada ponto ativo
+      systemsNeeded = Math.max(0, activePontos.length - systems.length);
+    } else {
+      // Pontos fixos por sistema
+      const totalSystemsNeeded = Math.ceil(activePontos.length / pointsPerSystem);
+      systemsNeeded = Math.max(0, totalSystemsNeeded - systems.length);
+    }
+    
+    setDistributionPreview({
+      totalPoints: activePontos.length,
+      pointsWithoutSystem,
+      systemsNeeded,
+      pointsPerSystemCalculated: distributionMode === 'fixed-points' ? pointsPerSystem : 1,
+      currentDistribution,
+    });
+  };
+  
+  // Atualizar preview quando mudar configurações
+  useEffect(() => {
+    if (isDistributionModalOpen) {
+      calculateDistributionPreview();
+    }
+  }, [distributionMode, pointsPerSystem, pontos, systems, isDistributionModalOpen]);
 
   // Atualizar o timer a cada segundo
   useEffect(() => {
@@ -837,6 +916,19 @@ export default function PainelOffice() {
                 >
                   <Plus className="w-4 h-4 mr-1" />
                   Novo Sistema
+                </Button>
+                
+                <Button
+                  onClick={() => {
+                    setIsDistributionModalOpen(true);
+                    calculateDistributionPreview();
+                  }}
+                  className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white shadow-lg"
+                  size="sm"
+                  data-testid="distribute-points-button"
+                >
+                  <Shuffle className="w-4 h-4 mr-2" />
+                  Distribuir Pontos
                 </Button>
               </div>
             </div>
@@ -1402,6 +1494,226 @@ export default function PainelOffice() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal de Distribuição de Pontos */}
+      <Dialog open={isDistributionModalOpen} onOpenChange={setIsDistributionModalOpen}>
+        <DialogContent className="bg-dark-card border-slate-700 text-white max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+              <Shuffle className="w-7 h-7 text-purple-400" />
+              Distribuição de Pontos por Sistemas
+            </DialogTitle>
+            <DialogDescription className="text-slate-300 mt-2">
+              Configure como deseja distribuir os pontos entre os sistemas IPTV. 
+              Escolha entre criar um sistema para cada ponto ou definir uma quantidade fixa de pontos por sistema.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-4">
+            {/* Loading dos pontos */}
+            {loadingPontos ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+                <span className="ml-3 text-slate-400">Carregando pontos...</span>
+              </div>
+            ) : (
+              <>
+                {/* Estatísticas Gerais */}
+                {distributionPreview && (
+                  <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                    <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-blue-400" />
+                      Visão Geral
+                    </h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-slate-900/50 rounded p-3">
+                        <div className="text-3xl font-bold text-purple-400">
+                          {distributionPreview.totalPoints}
+                        </div>
+                        <div className="text-sm text-slate-400 mt-1">Total de Pontos Ativos</div>
+                      </div>
+                      <div className="bg-slate-900/50 rounded p-3">
+                        <div className="text-3xl font-bold text-yellow-400">
+                          {distributionPreview.pointsWithoutSystem}
+                        </div>
+                        <div className="text-sm text-slate-400 mt-1">Pontos sem Sistema</div>
+                      </div>
+                      <div className="bg-slate-900/50 rounded p-3">
+                        <div className="text-3xl font-bold text-green-400">
+                          {systems.length}
+                        </div>
+                        <div className="text-sm text-slate-400 mt-1">Sistemas Atuais</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <Separator className="bg-slate-700" />
+
+                {/* Opções de Distribuição */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-purple-400" />
+                    Modo de Distribuição
+                  </h3>
+                  
+                  <RadioGroup 
+                    value={distributionMode} 
+                    onValueChange={(value: 'one-per-point' | 'fixed-points') => setDistributionMode(value)}
+                  >
+                    <div className="grid gap-4">
+                      {/* Opção 1: Um Sistema por Ponto */}
+                      <label 
+                        className={`flex items-start p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          distributionMode === 'one-per-point' 
+                            ? 'border-purple-500 bg-purple-900/20' 
+                            : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
+                        }`}
+                      >
+                        <RadioGroupItem value="one-per-point" className="mt-1" />
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Package className="w-5 h-5 text-purple-400" />
+                            <span className="font-semibold text-lg">Um Sistema por Ponto</span>
+                          </div>
+                          <p className="text-slate-300 text-sm mb-3">
+                            Cada ponto terá seu próprio sistema dedicado. Ideal para gerenciamento individual e máximo controle.
+                          </p>
+                          {distributionMode === 'one-per-point' && distributionPreview && (
+                            <div className="bg-slate-900/50 rounded p-3 mt-3">
+                              <p className="text-sm">
+                                <span className="text-yellow-400 font-bold">
+                                  {distributionPreview.systemsNeeded > 0 
+                                    ? `⚠️ Serão necessários ${distributionPreview.systemsNeeded} novos sistemas` 
+                                    : '✅ Sistemas suficientes disponíveis'}
+                                </span>
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </label>
+
+                      {/* Opção 2: Pontos Fixos por Sistema */}
+                      <label 
+                        className={`flex items-start p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          distributionMode === 'fixed-points' 
+                            ? 'border-purple-500 bg-purple-900/20' 
+                            : 'border-slate-700 bg-slate-800/30 hover:border-slate-600'
+                        }`}
+                      >
+                        <RadioGroupItem value="fixed-points" className="mt-1" />
+                        <div className="ml-4 flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Network className="w-5 h-5 text-blue-400" />
+                            <span className="font-semibold text-lg">Pontos Fixos por Sistema</span>
+                          </div>
+                          <p className="text-slate-300 text-sm mb-3">
+                            Defina quantos pontos cada sistema deve gerenciar. Ideal para balanceamento de carga.
+                          </p>
+                          
+                          {distributionMode === 'fixed-points' && (
+                            <div className="space-y-3 mt-3">
+                              <div className="flex items-center gap-3">
+                                <Label htmlFor="points-per-system" className="text-sm">
+                                  Pontos por sistema:
+                                </Label>
+                                <Input
+                                  id="points-per-system"
+                                  type="number"
+                                  min="1"
+                                  max="100"
+                                  value={pointsPerSystem}
+                                  onChange={(e) => setPointsPerSystem(Math.max(1, parseInt(e.target.value) || 1))}
+                                  className="w-24 bg-slate-900 border-slate-600 text-white"
+                                  data-testid="input-points-per-system"
+                                />
+                              </div>
+                              
+                              {distributionPreview && (
+                                <div className="bg-slate-900/50 rounded p-3">
+                                  <p className="text-sm">
+                                    Com <span className="font-bold text-blue-400">{pointsPerSystem}</span> pontos por sistema, 
+                                    você precisará de <span className="font-bold text-purple-400">
+                                      {Math.ceil(distributionPreview.totalPoints / pointsPerSystem)}
+                                    </span> sistemas no total.
+                                    {distributionPreview.systemsNeeded > 0 && (
+                                      <span className="block mt-2 text-yellow-400 font-bold">
+                                        ⚠️ Serão necessários {distributionPreview.systemsNeeded} novos sistemas
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                <Separator className="bg-slate-700" />
+
+                {/* Preview da Distribuição Atual */}
+                {distributionPreview && distributionPreview.currentDistribution.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Server className="w-5 h-5 text-green-400" />
+                      Distribuição Atual dos Sistemas
+                    </h3>
+                    <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                      <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto">
+                        {distributionPreview.currentDistribution.map((dist) => (
+                          <div 
+                            key={dist.systemId} 
+                            className="flex items-center justify-between bg-slate-900/50 rounded p-2 text-sm"
+                          >
+                            <span className="flex items-center gap-2">
+                              <Server className="w-4 h-4 text-slate-400" />
+                              <span className="font-medium">Sistema {dist.systemId}</span>
+                              <span className="text-slate-500">({dist.username})</span>
+                            </span>
+                            <Badge variant="secondary" className="bg-blue-900/50 text-blue-300">
+                              {dist.pointCount} pontos
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setIsDistributionModalOpen(false)}
+              className="border-slate-700"
+              data-testid="button-cancel-distribution"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                // TODO: Implementar chamada ao endpoint
+                toast({
+                  title: "🚧 Em Desenvolvimento",
+                  description: "O endpoint de distribuição será implementado em breve.",
+                  duration: 3000,
+                });
+              }}
+              disabled={loadingPontos || (distributionPreview?.systemsNeeded || 0) > 10}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+              data-testid="button-apply-distribution"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Aplicar Distribuição
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
