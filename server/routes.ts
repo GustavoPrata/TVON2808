@@ -7979,11 +7979,38 @@ Como posso ajudar você hoje?
     try {
       const { type, credentials, error, taskId, results, summary, systemId, sistemaId, oldCredentials, clienteId, metadata } = req.body;
       
+      // VALIDAÇÃO IMPORTANTE: Separar userId de username
+      let processedCredentials = null;
+      if (credentials) {
+        // Extrair e validar campos corretamente
+        const extractedUserId = credentials.userId || credentials.user_id || null;
+        const extractedUsername = credentials.username || credentials.login || null;
+        const extractedPassword = credentials.password || credentials.pass || null;
+        
+        // VALIDAÇÃO CRÍTICA: username NUNCA pode ser numérico puro
+        if (extractedUsername && /^\d+$/.test(extractedUsername)) {
+          console.error(`⚠️ [task-complete] ATENÇÃO: Username recebido é numérico: ${extractedUsername}`);
+          // Se username é numérico, provavelmente é userId enviado incorretamente
+          processedCredentials = {
+            userId: extractedUsername, // Salvar como userId
+            username: null, // Não temos username real
+            password: extractedPassword
+          };
+        } else {
+          processedCredentials = {
+            userId: extractedUserId,
+            username: extractedUsername,
+            password: extractedPassword
+          };
+        }
+      }
+      
       // Log completo do payload recebido
       console.log(`📥 [task-complete] RECEBENDO REQUEST - TraceId: ${traceId}`);
       console.log(`  Type: ${type}`);
       console.log(`  TaskId: ${taskId}`);
-      console.log(`  Credentials:`, credentials ? { username: credentials.username, password: '***' } : null);
+      console.log(`  Credentials originais:`, credentials ? { username: credentials.username, userId: credentials.userId, password: '***' } : null);
+      console.log(`  Credentials processadas:`, processedCredentials ? { username: processedCredentials.username, userId: processedCredentials.userId, password: '***' } : null);
       console.log(`  Error: ${error || 'none'}`);
       console.log(`  Headers:`, {
         'x-extension-key': '***',
@@ -8056,12 +8083,20 @@ Como posso ajudar você hoje?
       // Prioridade: renewal > results (lote) > credentials (único)
       
       // PRIMEIRO: Verificar se é uma renovação de sistema
-      if ((type === 'renewal' || type === 'renew_system' || isRenewal) && credentials && credentials.username && credentials.password) {
+      if ((type === 'renewal' || type === 'renew_system' || isRenewal) && processedCredentials && processedCredentials.password) {
         console.log(`🔄 [task-complete] PROCESSANDO RENOVAÇÃO - TraceId: ${traceId}`);
         console.log(`  Sistema ID: ${finalSistemaId}`);
-        console.log(`  Novo usuário: ${credentials.username}`);
+        console.log(`  Novo usuário: ${processedCredentials.username || 'AVISO: sem username'}`);        
+        console.log(`  User ID (OnlineOffice): ${processedCredentials.userId || 'não informado'}`);
         console.log(`  Nova senha: ***`);
         console.log(`  Metadata:`, metadata);
+        
+        // VALIDAÇÃO: Para renovação, PRECISAMOS do username real
+        if (!processedCredentials.username) {
+          console.error(`❌ [task-complete] Erro: Renovação sem username válido! [${traceId}]`);
+          console.error(`  Recebemos apenas userId: ${processedCredentials.userId}`);
+          throw new Error('Username é obrigatório para renovação de sistema');
+        }
         
         try {
           // Se temos um sistemaId, processar renovação
@@ -8084,8 +8119,8 @@ Como posso ajudar você hoje?
             console.log(`💾 [task-complete] Atualizando banco local com novas credenciais... [${traceId}]`);
             const sistemaAtualizado = await storage.updateSistemaRenewal(
               sistema.systemId, // usar systemId do sistema encontrado, não o ID interno
-              credentials.username,
-              credentials.password
+              processedCredentials.username, // USAR USERNAME PROCESSADO
+              processedCredentials.password
             );
             
             if (sistemaAtualizado) {
@@ -8104,8 +8139,8 @@ Como posso ajudar você hoje?
                   const apiResponse = await externalApiService.updateSystemCredential(
                     apiSystemId, // A API espera número
                     {
-                      username: credentials.username,
-                      password: credentials.password
+                      username: processedCredentials.username, // USAR USERNAME PROCESSADO
+                      password: processedCredentials.password
                       // NÃO enviar expiração - mantemos local apenas
                     }
                   );
@@ -8126,8 +8161,9 @@ Como posso ajudar você hoje?
             
             // Salvar credencial no histórico
             const saved = await storage.createOfficeCredentials({
-              username: credentials.username,
-              password: credentials.password,
+              username: processedCredentials.username,
+              password: processedCredentials.password,
+              userId: processedCredentials.userId, // SALVAR userId SEPARADAMENTE
               sistemaId: finalSistemaId,
               source: 'renewal',
               status: 'active',
@@ -8145,8 +8181,9 @@ Como posso ajudar você hoje?
             console.warn(`⚠️ [task-complete] Renovação sem sistemaId, salvando apenas credenciais [${traceId}]`);
             // Salvar apenas credenciais se não tiver sistemaId
             const saved = await storage.createOfficeCredentials({
-              username: credentials.username,
-              password: credentials.password,
+              username: processedCredentials.username,
+              password: processedCredentials.password,
+              userId: processedCredentials.userId, // SALVAR userId SEPARADAMENTE
               sistemaId: null,
               source: 'renewal',
               status: 'active',
@@ -8216,28 +8253,29 @@ Como posso ajudar você hoje?
         console.log(`✅ Lote processado: ${processedCount} de ${results.length} salvas`);
       }
       // Se NÃO tem results, então processa credentials único
-      else if (credentials && credentials.username && credentials.password) {
+      else if (processedCredentials && processedCredentials.username && processedCredentials.password) {
         try {
           // Verificar se já existe uma credencial idêntica criada recentemente (últimos 5 minutos)
           const recentCredentials = await storage.getOfficeCredentials(100);
           const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
           
           const duplicate = recentCredentials.find(c => 
-            c.username === credentials.username && 
-            c.password === credentials.password &&
+            c.username === processedCredentials.username && 
+            c.password === processedCredentials.password &&
             c.source === 'automation' &&
             new Date(c.generatedAt) > fiveMinutesAgo
           );
           
           if (duplicate) {
-            console.log('⚠️ Credencial duplicada detectada, pulando salvamento:', credentials.username);
+            console.log('⚠️ Credencial duplicada detectada, pulando salvamento:', processedCredentials.username);
             savedCredentials.push(duplicate); // Usar a existente
             processedCount = 1;
           } else {
-            console.log('💾 Salvando credencial única:', credentials.username);
+            console.log('💾 Salvando credencial única:', processedCredentials.username);
             const saved = await storage.createOfficeCredentials({
-              username: credentials.username,
-              password: credentials.password,
+              username: processedCredentials.username,
+              password: processedCredentials.password,
+              userId: processedCredentials.userId, // SALVAR userId SEPARADAMENTE
               sistemaId: finalSistemaId || null, // Usar finalSistemaId extraído
               source: 'automation',
               status: 'active',

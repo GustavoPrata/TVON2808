@@ -624,6 +624,7 @@ export const officeCredentials = pgTable("office_credentials", {
   id: serial("id").primaryKey(),
   username: varchar("username", { length: 100 }).notNull(),
   password: varchar("password", { length: 100 }).notNull(),
+  userId: varchar("user_id", { length: 100 }), // ID numérico interno do OnlineOffice
   sistemaId: integer("sistema_id").references(() => sistemas.id),
   generatedAt: timestamp("generated_at").notNull().defaultNow(),
   source: varchar("source", { length: 20 }).notNull().default("manual"), // manual or automation
