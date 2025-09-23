@@ -218,6 +218,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.sendFile(filePath);
   });
   
+  // Serve status-only extension zip file
+  app.get("/extensao-status-corrigida.zip", (req, res) => {
+    const filePath = path.join(process.cwd(), "extensao-status-corrigida.zip");
+    
+    // Check if file exists
+    if (!fsSync.existsSync(filePath)) {
+      return res.status(404).json({ error: "Status extension file not found" });
+    }
+    
+    // Set proper headers for ZIP file
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="extensao-status-corrigida.zip"');
+    
+    // Send the file
+    res.sendFile(filePath);
+  });
+  
   // Authentication routes (before checkAuth middleware)
   app.post("/api/login", async (req, res) => {
     const { user, password, rememberMe } = req.body;
