@@ -827,68 +827,33 @@ async function renewSystem(tabId, task) {
         sistemaId: sistemaId || 'desconhecido'
       });
       
-      // NOVO: Editar o sistema no OnlineOffice com as novas credenciais
-      await logger.info('📝 Iniciando edição do sistema no OnlineOffice...', { sistemaId });
+      // Edição de sistema removida - não é função da extensão
+      // A extensão apenas gera credenciais. A edição é feita no aplicativo.
+      await logger.info('ℹ️ Edição automática desabilitada - credenciais geradas com sucesso', { 
+        sistemaId,
+        novoUsuario: response.credentials.username 
+      });
       
-      try {
-        // Envia comando para editar o sistema
-        const editResponse = await chrome.tabs.sendMessage(tabId, {
-          action: 'editSystem',
-          sistemaId: sistemaId,
-          username: response.credentials.username,
-          password: response.credentials.password
-        });
-        
-        if (!editResponse || !editResponse.success) {
-          // Se falhou ao editar, lança erro
-          const errorMsg = editResponse?.error || 'Falha desconhecida ao editar sistema';
-          await logger.error('❌ Falha ao editar sistema no OnlineOffice', { 
-            sistemaId, 
-            error: errorMsg,
-            response: editResponse 
-          });
-          throw new Error(`Falha ao editar sistema: ${errorMsg}`);
-        }
-        
-        await logger.info('✅ Sistema editado com sucesso no OnlineOffice!', {
-          sistemaId,
-          username: response.credentials.username
-        });
-        
-      } catch (editError) {
-        // Se falhou ao editar, reporta erro e não continua
-        await logger.error('❌ Erro crítico ao editar sistema', { 
-          sistemaId,
-          error: editError.message
-        });
-        
-        // Reporta falha ao backend
-        await reportTaskResult({
-          taskId: task.id,
-          type: task.type || 'renewal', // Usar o tipo original da task
-          sistemaId: sistemaId,
-          systemId: sistemaId,
-          error: `Credenciais geradas mas falha ao editar sistema: ${editError.message}`,
-          partialSuccess: {
-            credentialsGenerated: true,
-            systemEdited: false,
-            newUsername: response.credentials.username
-          },
-          metadata: {
-            ...metadata,
-            sistemaId: sistemaId,
+      // NÃO tenta mais editar o sistema no OnlineOffice
+      // As credenciais geradas são reportadas ao backend
+      // e a edição será feita no aplicativo
+      
+      /*
+      // Código de edição removido para evitar navegação para URLs inexistentes
+      // como https://onlineoffice.zip/#/sistemas/21/edit
+      */
+      
+      // Continua apenas com o reporte das credenciais
+      const reportMetadata = {
+        ...metadata,
+        sistemaId: sistemaId,
             originalUsername: originalUsername,
-            failedAt: new Date().toISOString(),
-            failureReason: 'edit_system_failed'
+            renewedAt: new Date().toISOString()
           }
-        });
-        
-        // Sai da função sem reportar sucesso completo
-        return;
-      }
+      };
       
-      // Só reporta sucesso se AMBOS geraram credenciais E editaram o sistema
-      await logger.info('✅ Renovação completa: credenciais geradas E sistema editado!', { 
+      // Reporta sucesso apenas com as credenciais geradas
+      await logger.info('✅ Credenciais de renovação geradas com sucesso!', { 
         sistemaId,
         novoUsuario: response.credentials.username,
         novaSenha: response.credentials.password

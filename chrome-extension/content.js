@@ -565,16 +565,21 @@ async function waitForPageLoad() {
 }
 
 // ===========================================================================
-// FUNÇÃO PARA EDITAR SISTEMA NO ONLINEOFFICE
+// FUNÇÃO PARA EDITAR SISTEMA - REMOVIDA
 // ===========================================================================
+// A extensão não deve editar sistemas no OnlineOffice.
+// Ela apenas gera credenciais. A edição é feita no aplicativo.
+/*
 async function editSystem(sistemaId, username, password) {
-  console.log('📝 Iniciando edição do sistema', { sistemaId, username });
-  
-  try {
-    // Navegar para página de edição (ajustar conforme estrutura real do OnlineOffice)
-    const editUrl = `https://onlineoffice.zip/#/sistemas/${sistemaId}/edit`;
-    console.log('🔄 Navegando para:', editUrl);
-    window.location.href = editUrl;
+  console.log('📝 Função de edição desativada - não é função da extensão');
+  return { success: false, error: 'Edição de sistemas não é suportada pela extensão' };
+}
+*/
+
+// Função stub para compatibilidade
+async function editSystem(sistemaId, username, password) {
+  console.log('⚠️ Tentativa de editar sistema ignorada - função desativada');
+  return { success: false, error: 'Função de edição desativada' };
     
     // Aguardar página carregar completamente
     await waitForPageLoad();
