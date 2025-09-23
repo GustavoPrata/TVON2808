@@ -982,7 +982,6 @@ export default function PainelOffice() {
                       onChange={(e) => setAutomationConfig(prev => ({ ...prev, renewalAdvanceTime: parseInt(e.target.value) || 60 }))}
                       placeholder="Ex: 60 = 1 hora antes"
                       className="bg-slate-800 border-slate-700"
-                      disabled={automationConfig.isEnabled}
                       data-testid="input-renewal-time"
                     />
                     <p className="text-xs text-slate-500 mt-1">0 = Desabilitado | Digite o tempo em minutos</p>
@@ -1010,7 +1009,6 @@ export default function PainelOffice() {
                       }}
                       className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                       size="sm"
-                      disabled={automationConfig.isEnabled}
                       data-testid="button-save-config"
                     >
                       <CheckCircle className="w-4 h-4 mr-1" />
