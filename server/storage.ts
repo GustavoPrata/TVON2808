@@ -2387,20 +2387,24 @@ export class DatabaseStorage implements IStorage {
   // Renewal Tasks - Persistent Queue Implementation
   async createRenewalTask(systemId: string, payload: any): Promise<number> {
     try {
-      // First check if there's already a pending task for this system
+      // First check if there's already a pending or processing task for this system
       const existing = await db
         .select()
         .from(renewalTasks)
         .where(
           and(
             eq(renewalTasks.systemId, systemId),
-            eq(renewalTasks.status, 'pending')
+            or(
+              eq(renewalTasks.status, 'pending'),
+              eq(renewalTasks.status, 'processing')
+            )
           )
         )
         .limit(1);
       
       if (existing.length > 0) {
-        // If a pending task already exists, return its ID
+        // If a pending/processing task already exists, return its ID
+        console.log(`ℹ️ Task duplicada detectada para sistema ${systemId} - retornando ID existente: ${existing[0].id} (status: ${existing[0].status})`);
         return existing[0].id;
       }
 
@@ -2416,8 +2420,31 @@ export class DatabaseStorage implements IStorage {
         })
         .returning();
       
+      console.log(`✅ Nova renewal task criada para sistema ${systemId} - ID: ${created.id}`);
       return created.id;
     } catch (error) {
+      // Se for erro de constraint unique, significa que outra thread criou a task ao mesmo tempo
+      if ((error as any)?.code === '23505') { // PostgreSQL unique violation
+        console.log(`ℹ️ Conflito de constraint detectado para sistema ${systemId} - buscando task existente...`);
+        const existing = await db
+          .select()
+          .from(renewalTasks)
+          .where(
+            and(
+              eq(renewalTasks.systemId, systemId),
+              or(
+                eq(renewalTasks.status, 'pending'),
+                eq(renewalTasks.status, 'processing')
+              )
+            )
+          )
+          .limit(1);
+        
+        if (existing.length > 0) {
+          console.log(`ℹ️ Retornando ID da task existente: ${existing[0].id}`);
+          return existing[0].id;
+        }
+      }
       console.error('Erro ao criar renewal task:', error);
       throw error;
     }

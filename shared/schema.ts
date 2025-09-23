@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, numeric, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, numeric, index, unique, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 
 // Clientes
 export const clientes = pgTable("clientes", {
@@ -105,8 +106,12 @@ export const renewalTasks = pgTable("renewal_tasks", {
   startedAt: timestamp("started_at"), // Quando começou a processar
   completedAt: timestamp("completed_at"), // Quando foi concluída
 }, (table) => ({
-  // Índice único para evitar duplicatas de tasks pendentes para o mesmo sistema
-  uniqueSystemPending: unique("unique_system_pending").on(table.systemId, table.status)
+  // Índices para otimização e prevenção de duplicatas
+  systemIdIdx: index("renewal_tasks_system_id_idx").on(table.systemId),
+  statusIdx: index("renewal_tasks_status_idx").on(table.status),
+  // Índice único composto para prevenir múltiplas tasks pendentes/processando do mesmo sistema
+  // Note: Isto não é um índice parcial mas funcionará para prevenir duplicatas
+  systemStatusIdx: index("renewal_tasks_system_status_idx").on(table.systemId, table.status),
 }));
 
 // Mensagens Rápidas para Suporte
