@@ -4,7 +4,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/sidebar";
-import { Header } from "@/components/layout/header";
 import { MobileHeader } from "@/components/layout/mobile-header";
 import { MobileSidebar } from "@/components/layout/mobile-sidebar";
 import { useMobileMenu } from "@/hooks/useMobileMenu";
@@ -110,9 +109,6 @@ function AuthProtectedApp() {
             
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Desktop Header */}
-              {!isMobile && <Header />}
-              
               {/* Content Area */}
               <main className="flex-1 overflow-auto p-3 md:p-6 bg-gradient-to-br from-slate-900 to-slate-950 pt-16 md:pt-0">
                 <Router />
