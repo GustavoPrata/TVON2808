@@ -309,6 +309,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '/api/office/automation/status',
       '/api/office/automation/credentials',
       '/api/office/automation/extension.zip',  // Extension download endpoint (public)
+      '/api/extension/logs',  // Extension logs endpoint (public for Chrome extension to send/receive logs)
       // Note: start/stop/generate-single endpoints remain protected (require authentication)
       
       // TEMPORARY: Public access for renewal processing
@@ -7433,53 +7434,13 @@ Como posso ajudar você hoje?
   // ========================================================================
   
   // GET /api/extension/logs - buscar logs da extensão
-  // Este endpoint precisa que o cliente tenha a extensão instalada
-  // A comunicação será feita via mensagem do Chrome runtime
-  app.get('/api/extension/logs', async (req, res) => {
-    try {
-      // Parâmetros de filtro opcionais
-      const { level, searchText, limit = 1000 } = req.query;
-      
-      // Como não podemos acessar a extensão diretamente do servidor,
-      // vamos retornar logs salvos no storage se implementarmos cache
-      // Por ora, instruímos o frontend a buscar diretamente da extensão
-      
-      res.json({
-        success: true,
-        message: 'Use o frontend para buscar logs da extensão via Chrome runtime',
-        filters: {
-          level,
-          searchText,
-          limit: parseInt(limit as string) || 1000
-        },
-        note: 'Logs devem ser buscados diretamente da extensão Chrome'
-      });
-    } catch (error) {
-      console.error('Erro ao buscar logs da extensão:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Erro ao buscar logs da extensão'
-      });
-    }
-  });
+  // NOTA: Este endpoint foi removido pois existe uma implementação correta mais abaixo (linha ~8342)
+  // que busca os logs do banco de dados da tabela officeAutomationLogs
+  // A implementação abaixo retorna os logs corretamente formatados para o frontend
   
   // DELETE /api/extension/logs - limpar logs da extensão
-  app.delete('/api/extension/logs', async (req, res) => {
-    try {
-      // Instrui o frontend a enviar comando para extensão
-      res.json({
-        success: true,
-        message: 'Use o frontend para limpar logs via Chrome runtime',
-        action: 'clearLogs'
-      });
-    } catch (error) {
-      console.error('Erro ao limpar logs da extensão:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Erro ao limpar logs da extensão'
-      });
-    }
-  });
+  // NOTA: Este endpoint foi removido pois existe uma implementação correta mais abaixo (linha ~8429)
+  // que deleta os logs do banco de dados da tabela officeAutomationLogs
   
   // GET /api/extension/logs/download - baixar logs como arquivo .txt
   app.get('/api/extension/logs/download', async (req, res) => {
@@ -8321,13 +8282,12 @@ Como posso ajudar você hoje?
       
       // Armazena logs no banco de dados
       for (const log of logs) {
-        await storage.addOfficeAutomationLog({
-          level: log.level || 'INFO',
-          message: log.message || '',
-          context: log.context || {},
-          source: 'chrome-extension',
-          traceId: log.traceId || null,
-          timestamp: log.timestamp || new Date().toISOString()
+        await storage.createOfficeAutomationLog({
+          taskType: 'EXTENSION_LOG',  // Default task type for extension logs
+          status: 'LOG',  // Default status for log entries
+          username: log.context?.username || null,
+          password: null,
+          errorMessage: `[${log.level}] ${log.message}`
         });
       }
 
@@ -8344,25 +8304,36 @@ Como posso ajudar você hoje?
       const limit = parseInt(req.query.limit as string) || 100;
       const level = req.query.level as string;
       
-      // Busca logs com filtro de source = 'chrome-extension'
+      // Busca logs com filtro de taskType = 'EXTENSION_LOG' (logs da extensão)
       let logs = await storage.getOfficeAutomationLogs(limit);
       
       // Filtra apenas logs da extensão
-      logs = logs.filter(log => log.source === 'chrome-extension');
+      logs = logs.filter(log => log.taskType === 'EXTENSION_LOG');
       
       // Aplica filtro de nível se fornecido
       if (level && level !== 'all') {
-        logs = logs.filter(log => log.level === level);
+        // Extract level from errorMessage format: [LEVEL] message
+        logs = logs.filter(log => {
+          const match = log.errorMessage?.match(/^\[(\w+)\]/);
+          return match && match[1] === level;
+        });
       }
 
       // Formata logs para o frontend
-      const formattedLogs = logs.map(log => ({
-        timestamp: log.timestamp,
-        level: log.level,
-        message: log.message,
-        context: log.context,
-        traceId: log.traceId
-      }));
+      const formattedLogs = logs.map(log => {
+        // Extract level and message from errorMessage format: [LEVEL] message
+        const match = log.errorMessage?.match(/^\[(\w+)\]\s*(.+)/);
+        const extractedLevel = match ? match[1] : 'INFO';
+        const extractedMessage = match ? match[2] : log.errorMessage || '';
+        
+        return {
+          timestamp: log.createdAt,
+          level: extractedLevel,
+          message: extractedMessage,
+          context: { username: log.username },
+          traceId: null
+        };
+      });
 
       res.json({ success: true, logs: formattedLogs });
     } catch (error) {
