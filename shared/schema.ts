@@ -1,7 +1,6 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, numeric, index, unique, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, numeric, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { sql } from "drizzle-orm";
 
 // Clientes
 export const clientes = pgTable("clientes", {
@@ -89,30 +88,6 @@ export const notificacoesRecorrentes = pgTable("notificacoes_recorrentes", {
   dataInicioRecorrencia: timestamp("data_inicio_recorrencia").notNull().defaultNow(),
   ativo: boolean("ativo").notNull().default(true), // Permite pausar a recorrência para um cliente específico
 });
-
-// Tabela de tasks de renovação para gerenciar fila persistente
-export const renewalTasks = pgTable("renewal_tasks", {
-  id: serial("id").primaryKey(),
-  systemId: varchar("system_id", { length: 50 }).notNull(), // String ID do sistema
-  type: varchar("type", { length: 20 }).notNull().default("renewal"), // Tipo da task
-  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, processing, completed, failed
-  priority: integer("priority").notNull().default(0), // Prioridade da task
-  retryCount: integer("retry_count").notNull().default(0), // Número de tentativas
-  maxRetries: integer("max_retries").notNull().default(3), // Máximo de tentativas
-  payload: json("payload"), // Dados da task (JSON)
-  result: json("result"), // Resultado da execução (JSON)
-  error: text("error"), // Mensagem de erro se houver
-  createdAt: timestamp("created_at").notNull().defaultNow(), // Quando foi criada
-  startedAt: timestamp("started_at"), // Quando começou a processar
-  completedAt: timestamp("completed_at"), // Quando foi concluída
-}, (table) => ({
-  // Índices para otimização e prevenção de duplicatas
-  systemIdIdx: index("renewal_tasks_system_id_idx").on(table.systemId),
-  statusIdx: index("renewal_tasks_status_idx").on(table.status),
-  // Índice único composto para prevenir múltiplas tasks pendentes/processando do mesmo sistema
-  // Note: Isto não é um índice parcial mas funcionará para prevenir duplicatas
-  systemStatusIdx: index("renewal_tasks_system_status_idx").on(table.systemId, table.status),
-}));
 
 // Mensagens Rápidas para Suporte
 export const mensagensRapidas = pgTable("mensagens_rapidas", {
@@ -629,7 +604,6 @@ export const officeCredentials = pgTable("office_credentials", {
   id: serial("id").primaryKey(),
   username: varchar("username", { length: 100 }).notNull(),
   password: varchar("password", { length: 100 }).notNull(),
-  userId: varchar("user_id", { length: 100 }), // ID numérico interno do OnlineOffice
   sistemaId: integer("sistema_id").references(() => sistemas.id),
   generatedAt: timestamp("generated_at").notNull().defaultNow(),
   source: varchar("source", { length: 20 }).notNull().default("manual"), // manual or automation
@@ -734,17 +708,3 @@ export const insertNotificacaoRecorrenteSchema = createInsertSchema(notificacoes
 
 export type NotificacaoRecorrente = typeof notificacoesRecorrentes.$inferSelect;
 export type InsertNotificacaoRecorrente = z.infer<typeof insertNotificacaoRecorrenteSchema>;
-
-// Renewal Tasks types
-export const insertRenewalTaskSchema = createInsertSchema(renewalTasks).omit({
-  id: true,
-  createdAt: true,
-  retryCount: true,
-  status: true,
-}).extend({
-  startedAt: z.coerce.date().optional().nullable(),
-  completedAt: z.coerce.date().optional().nullable(),
-});
-
-export type RenewalTask = typeof renewalTasks.$inferSelect;
-export type InsertRenewalTask = z.infer<typeof insertRenewalTaskSchema>;
