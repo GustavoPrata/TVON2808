@@ -292,29 +292,75 @@ let lastStatus = {
 let currentPollingInterval = POLLING_INTERVAL_IDLE;
 
 // ===========================================================================
-// FUNÇÃO DE GERAÇÃO LOCAL DE CREDENCIAIS
+// FUNÇÃO PARA BUSCAR CREDENCIAIS REAIS DO BACKEND
 // ===========================================================================
-async function generateCredentialsLocally() {
-  // Gera username com 9 dígitos
-  const username = Math.floor(Math.random() * 900000000 + 100000000).toString();
+async function getRealCredentials(systemId = null) {
+  // GARANTIR QUE API_BASE ESTÁ DEFINIDO
+  if (!API_BASE) {
+    API_BASE = await getApiBase();
+    await logger.info(`🔗 Servidor API configurado: ${API_BASE}`);
+  }
   
-  // Gera password no formato NNNNxNNNNa (N=dígito)
-  const part1 = Math.floor(Math.random() * 9000 + 1000).toString();
-  const part2 = Math.floor(Math.random() * 9000 + 1000).toString();
-  const password = `${part1}x${part2}a`;
-  
-  await logger.info('🔑 Credenciais geradas localmente', {
-    username: '***',
-    password: '***'
-  });
-  
-  return {
-    success: true,
-    credentials: {
-      username: username,
-      password: password
+  try {
+    await logger.info('🌐 Buscando credenciais REAIS do OnlineOffice via backend...', {
+      systemId: systemId || 'N/A',
+      endpoint: `${API_BASE}/api/office/generate-test`
+    });
+    
+    // Faz chamada ao backend para obter credenciais REAIS
+    const response = await fetch(`${API_BASE}/api/office/generate-test`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Extension-Key': 'chrome-extension-secret-2024'
+      },
+      body: JSON.stringify({
+        systemId: systemId,
+        source: 'chrome_extension'
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      await logger.error('❌ ERRO CRÍTICO: Backend falhou ao gerar credenciais', {
+        status: response.status,
+        error: errorText,
+        systemId: systemId
+      });
+      throw new Error(`Backend retornou erro ${response.status}: ${errorText}`);
     }
-  };
+    
+    const data = await response.json();
+    
+    if (!data.success || !data.credentials) {
+      await logger.error('❌ Backend retornou resposta inválida', { data });
+      throw new Error('Backend não retornou credenciais válidas');
+    }
+    
+    await logger.info('✅ Credenciais REAIS obtidas do OnlineOffice!', {
+      username: data.credentials.username ? '***' : 'missing',
+      password: data.credentials.password ? '***' : 'missing',
+      systemId: systemId
+    });
+    
+    return {
+      success: true,
+      credentials: {
+        username: data.credentials.username,
+        password: data.credentials.password
+      }
+    };
+    
+  } catch (error) {
+    await logger.error('❌ FALHA CRÍTICA ao obter credenciais do backend', {
+      error: error.message,
+      systemId: systemId,
+      stack: error.stack
+    });
+    
+    // NÃO GERA CREDENCIAIS FALSAS! FALHA COMPLETAMENTE!
+    throw error; // Re-lança o erro para falhar a operação
+  }
 }
 
 
@@ -564,8 +610,8 @@ async function generateBatch(tabId, task) {
     await logger.info(`🎯 Gerando credencial ${i + 1}/${quantity}...`);
     
     try {
-      // Gera credenciais localmente sem precisar de tab
-      const response = await generateCredentialsLocally();
+      // Busca credenciais REAIS do backend
+      const response = await getRealCredentials();
       
       if (response && response.success && response.credentials) {
         successCount++;
@@ -648,8 +694,8 @@ async function generateSingle(tabId, task) {
   await logger.info('🎯 Gerando credencial única (modo autônomo)...');
   
   try {
-    // Gera credenciais localmente sem precisar de tab
-    const response = await generateCredentialsLocally();
+    // Busca credenciais REAIS do backend
+    const response = await getRealCredentials();
     
     if (response && response.success && response.credentials) {
       await logger.info('✅ Credencial gerada com sucesso!', {
@@ -768,8 +814,8 @@ async function renewSystem(tabId, task) {
       }
     }
     
-    // PASSO 1: Gera as credenciais localmente
-    const response = await generateCredentialsLocally();
+    // PASSO 1: Busca credenciais REAIS do OnlineOffice via backend
+    const response = await getRealCredentials(sistemaId);
     
     if (response && response.success && response.credentials) {
       await logger.info('✅ Nova credencial gerada para renovação!', {
