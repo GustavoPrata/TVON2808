@@ -5505,6 +5505,306 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Distribuir pontos entre sistemas
+  app.post("/api/sistemas/distribute", checkAuth, async (req, res) => {
+    try {
+      const { mode, pointsPerSystem } = req.body;
+
+      console.log('📊 Iniciando distribuição de pontos:', { mode, pointsPerSystem });
+
+      // Validação dos parâmetros
+      if (!mode || !['one-per-point', 'fixed-points'].includes(mode)) {
+        return res.status(400).json({ 
+          error: 'Modo de distribuição inválido. Use "one-per-point" ou "fixed-points"' 
+        });
+      }
+
+      if (mode === 'fixed-points' && (!pointsPerSystem || pointsPerSystem < 1)) {
+        return res.status(400).json({ 
+          error: 'Quantidade de pontos por sistema inválida para o modo fixed-points' 
+        });
+      }
+
+      // Verificar se API externa está configurada
+      const integracaoApi = await storage.getIntegracaoByTipo('api_externa');
+      const apiEnabled = integracaoApi && integracaoApi.ativo;
+      
+      // Estatísticas para resposta
+      let sistemasCriados = 0;
+      let pontosAtualizados = 0;
+      const detalhes: any[] = [];
+
+      if (mode === 'one-per-point') {
+        // Opção 1: Um Sistema por Ponto
+        console.log('🔄 Modo: Um Sistema por Ponto');
+
+        // Buscar todos os pontos sem sistema
+        const pontosSemSistema = await storage.getPontosWithoutSistema();
+        console.log(`📍 Encontrados ${pontosSemSistema.length} pontos sem sistema`);
+
+        // Buscar todos os sistemas disponíveis
+        const sistemasDisponiveis = await storage.getSistemas();
+        const sistemasComEspaco = sistemasDisponiveis.filter(s => s.pontosAtivos < s.maxPontosAtivos);
+        
+        let sistemaAtualIndex = 0;
+
+        for (const ponto of pontosSemSistema) {
+          let sistemaId: number | null = null;
+
+          // Tentar usar um sistema existente com espaço
+          if (sistemaAtualIndex < sistemasComEspaco.length) {
+            const sistema = sistemasComEspaco[sistemaAtualIndex];
+            sistemaId = sistema.id;
+            
+            // Atualizar contador de pontos ativos do sistema
+            await storage.updateSistema(sistema.id, {
+              pontosAtivos: sistema.pontosAtivos + 1
+            });
+            
+            detalhes.push({
+              tipo: 'atribuicao',
+              pontoId: ponto.id,
+              pontoUsuario: ponto.usuario,
+              sistemaId: sistema.id,
+              sistemaUsername: sistema.username
+            });
+            
+            // Incrementar para próximo sistema
+            sistemaAtualIndex++;
+          } else if (apiEnabled) {
+            // Criar novo sistema se API externa está habilitada
+            console.log('🆕 Criando novo sistema via API externa...');
+            
+            // Gerar credenciais únicas
+            const username = `sistema_${nanoid(8)}`;
+            const password = `pass_${nanoid(12)}`;
+            
+            try {
+              // Criar sistema na API externa
+              const apiSystem = await externalApiService.createSystemCredential({
+                username,
+                password
+              });
+              
+              if (apiSystem) {
+                // Salvar sistema no banco local
+                const novoSistema = await storage.createSistema({
+                  systemId: apiSystem.system_id || apiSystem.id?.toString() || `local_${nanoid(6)}`,
+                  username,
+                  password,
+                  maxPontosAtivos: 1,
+                  pontosAtivos: 1,
+                  expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
+                });
+                
+                sistemaId = novoSistema.id;
+                sistemasCriados++;
+                
+                detalhes.push({
+                  tipo: 'criacao_sistema',
+                  sistemaId: novoSistema.id,
+                  sistemaUsername: username,
+                  pontoId: ponto.id,
+                  pontoUsuario: ponto.usuario
+                });
+              }
+            } catch (apiError) {
+              console.error('❌ Erro ao criar sistema na API externa:', apiError);
+              detalhes.push({
+                tipo: 'erro',
+                pontoId: ponto.id,
+                pontoUsuario: ponto.usuario,
+                erro: 'Falha ao criar sistema na API externa'
+              });
+            }
+          } else {
+            // API externa não está habilitada
+            detalhes.push({
+              tipo: 'nao_atribuido',
+              pontoId: ponto.id,
+              pontoUsuario: ponto.usuario,
+              motivo: 'Sem sistemas disponíveis e API externa desabilitada'
+            });
+          }
+
+          // Atribuir ponto ao sistema
+          if (sistemaId) {
+            await storage.updatePontoSistema(ponto.id, sistemaId);
+            pontosAtualizados++;
+          }
+        }
+      } else {
+        // Opção 2: Pontos Fixos por Sistema
+        console.log('🔄 Modo: Pontos Fixos por Sistema');
+        console.log(`📊 Pontos por sistema: ${pointsPerSystem}`);
+
+        // Buscar todos os pontos
+        const todosPontos = await storage.getPontos();
+        const totalPontos = todosPontos.length;
+        console.log(`📍 Total de pontos: ${totalPontos}`);
+
+        // Calcular quantos sistemas são necessários
+        const sistemasNecessarios = Math.ceil(totalPontos / pointsPerSystem);
+        console.log(`💡 Sistemas necessários: ${sistemasNecessarios}`);
+
+        // Buscar sistemas existentes
+        let sistemasExistentes = await storage.getSistemas();
+        let sistemasAtuais = sistemasExistentes.length;
+
+        // Criar novos sistemas se necessário
+        if (sistemasAtuais < sistemasNecessarios && apiEnabled) {
+          const sistemasParaCriar = sistemasNecessarios - sistemasAtuais;
+          console.log(`🆕 Criando ${sistemasParaCriar} novos sistemas...`);
+
+          for (let i = 0; i < sistemasParaCriar; i++) {
+            const username = `sistema_${nanoid(8)}`;
+            const password = `pass_${nanoid(12)}`;
+
+            try {
+              // Criar sistema na API externa
+              const apiSystem = await externalApiService.createSystemCredential({
+                username,
+                password
+              });
+
+              if (apiSystem) {
+                // Salvar sistema no banco local
+                const novoSistema = await storage.createSistema({
+                  systemId: apiSystem.system_id || apiSystem.id?.toString() || `local_${nanoid(6)}`,
+                  username,
+                  password,
+                  maxPontosAtivos: pointsPerSystem,
+                  pontosAtivos: 0,
+                  expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
+                });
+
+                sistemasCriados++;
+                detalhes.push({
+                  tipo: 'criacao_sistema',
+                  sistemaId: novoSistema.id,
+                  sistemaUsername: username,
+                  capacidade: pointsPerSystem
+                });
+              }
+            } catch (apiError) {
+              console.error('❌ Erro ao criar sistema na API externa:', apiError);
+              detalhes.push({
+                tipo: 'erro',
+                erro: 'Falha ao criar sistema na API externa'
+              });
+            }
+          }
+
+          // Recarregar lista de sistemas
+          sistemasExistentes = await storage.getSistemas();
+        }
+
+        // Limpar atribuições anteriores (redistribuir todos)
+        console.log('🧹 Limpando atribuições anteriores...');
+        const updates: Array<{pontoId: number; sistemaId: number | null}> = [];
+        
+        // Primeiro, limpar todos os pontos
+        for (const ponto of todosPontos) {
+          updates.push({ pontoId: ponto.id, sistemaId: null });
+        }
+
+        // Resetar contadores de pontos ativos dos sistemas
+        for (const sistema of sistemasExistentes) {
+          await storage.updateSistema(sistema.id, { pontosAtivos: 0 });
+        }
+
+        // Redistribuir pontos igualmente
+        console.log('📊 Redistribuindo pontos entre sistemas...');
+        let sistemaIndex = 0;
+        let pontosNoSistemaAtual = 0;
+
+        for (let i = 0; i < todosPontos.length; i++) {
+          const ponto = todosPontos[i];
+          
+          if (sistemaIndex < sistemasExistentes.length) {
+            const sistemaAtual = sistemasExistentes[sistemaIndex];
+            
+            // Atualizar atribuição do ponto
+            updates[i] = { pontoId: ponto.id, sistemaId: sistemaAtual.id };
+            
+            pontosNoSistemaAtual++;
+            pontosAtualizados++;
+            
+            // Se atingiu o limite ou é o último ponto, passar para próximo sistema
+            if (pontosNoSistemaAtual >= pointsPerSystem && sistemaIndex < sistemasExistentes.length - 1) {
+              // Atualizar contador do sistema
+              await storage.updateSistema(sistemaAtual.id, { 
+                pontosAtivos: pontosNoSistemaAtual 
+              });
+              
+              detalhes.push({
+                tipo: 'distribuicao',
+                sistemaId: sistemaAtual.id,
+                sistemaUsername: sistemaAtual.username,
+                pontosAtribuidos: pontosNoSistemaAtual
+              });
+              
+              sistemaIndex++;
+              pontosNoSistemaAtual = 0;
+            }
+          } else {
+            detalhes.push({
+              tipo: 'nao_atribuido',
+              pontoId: ponto.id,
+              pontoUsuario: ponto.usuario,
+              motivo: 'Sistemas insuficientes'
+            });
+          }
+        }
+        
+        // Atualizar último sistema se necessário
+        if (pontosNoSistemaAtual > 0 && sistemaIndex < sistemasExistentes.length) {
+          const sistemaAtual = sistemasExistentes[sistemaIndex];
+          await storage.updateSistema(sistemaAtual.id, { 
+            pontosAtivos: pontosNoSistemaAtual 
+          });
+          
+          detalhes.push({
+            tipo: 'distribuicao',
+            sistemaId: sistemaAtual.id,
+            sistemaUsername: sistemaAtual.username,
+            pontosAtribuidos: pontosNoSistemaAtual
+          });
+        }
+
+        // Aplicar todas as atualizações em lote
+        await storage.bulkUpdatePontosSistema(updates);
+      }
+
+      // Resposta detalhada
+      const resposta = {
+        sucesso: true,
+        modo: mode,
+        sistemasCriados,
+        pontosAtualizados,
+        resumo: {
+          totalPontos: await storage.getPontos().then(p => p.length),
+          totalSistemas: await storage.getSistemas().then(s => s.length),
+          apiExternaHabilitada: apiEnabled
+        },
+        detalhes
+      };
+
+      console.log('✅ Distribuição concluída:', {
+        sistemasCriados,
+        pontosAtualizados
+      });
+
+      res.json(resposta);
+    } catch (error) {
+      console.error('❌ Erro na distribuição de pontos:', error);
+      res.status(500).json({ 
+        error: 'Erro ao distribuir pontos entre sistemas',
+        detalhes: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+
   // Gerar novo sistema automaticamente
   app.post("/api/sistemas/auto-generate", async (req, res) => {
     try {

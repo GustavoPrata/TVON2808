@@ -70,6 +70,9 @@ export interface IStorage {
   createPonto(ponto: InsertPonto): Promise<Ponto>;
   updatePonto(id: number, ponto: Partial<InsertPonto>): Promise<Ponto>;
   deletePonto(id: number): Promise<void>;
+  getPontosWithoutSistema(): Promise<Ponto[]>;
+  updatePontoSistema(pontoId: number, sistemaId: number | null): Promise<Ponto>;
+  bulkUpdatePontosSistema(updates: Array<{pontoId: number; sistemaId: number | null}>): Promise<void>;
 
   // Pagamentos
   getPagamentosByClienteId(clienteId: number): Promise<Pagamento[]>;
@@ -456,6 +459,33 @@ export class DatabaseStorage implements IStorage {
 
   async deletePonto(id: number): Promise<void> {
     await db.delete(pontos).where(eq(pontos.id, id));
+  }
+
+  async getPontosWithoutSistema(): Promise<Ponto[]> {
+    const result = await db.select()
+      .from(pontos)
+      .where(sql`${pontos.sistemaId} IS NULL`)
+      .orderBy(asc(pontos.id));
+    return result;
+  }
+
+  async updatePontoSistema(pontoId: number, sistemaId: number | null): Promise<Ponto> {
+    const result = await db.update(pontos)
+      .set({ sistemaId })
+      .where(eq(pontos.id, pontoId))
+      .returning();
+    return result[0];
+  }
+
+  async bulkUpdatePontosSistema(updates: Array<{pontoId: number; sistemaId: number | null}>): Promise<void> {
+    // Use a transação para garantir atomicidade
+    await db.transaction(async (tx) => {
+      for (const update of updates) {
+        await tx.update(pontos)
+          .set({ sistemaId: update.sistemaId })
+          .where(eq(pontos.id, update.pontoId));
+      }
+    });
   }
 
   async getPagamentosByClienteId(clienteId: number): Promise<Pagamento[]> {
