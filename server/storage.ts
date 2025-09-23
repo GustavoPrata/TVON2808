@@ -2,7 +2,7 @@ import { db } from "./db";
 import { 
   clientes, pontos, pagamentos, pagamentosManual, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
-  avisosVencimento, configAvisos, anotacoes, notificacoesRecorrentes,
+  avisosVencimento, configAvisos, anotacoes, notificacoesRecorrentes, renewalTasks,
   officeAutomationConfig, officeAutomationLogs, officeCredentials, extensionStatus,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
@@ -17,6 +17,7 @@ import {
   type ConfigAvisos, type InsertConfigAvisos,
   type Anotacao, type InsertAnotacao,
   type NotificacaoRecorrente, type InsertNotificacaoRecorrente,
+  type RenewalTask, type InsertRenewalTask,
   type OfficeAutomationConfig, type InsertOfficeAutomationConfig,
   type OfficeAutomationLogs, type InsertOfficeAutomationLogs,
   type OfficeCredentials, type InsertOfficeCredentials,
@@ -273,6 +274,13 @@ export interface IStorage {
   updateTaskStatus(taskId: number, status: string, result?: { username?: string; password?: string; errorMessage?: string }): Promise<OfficeAutomationLogs>;
   updateRenewalTaskStatus(taskId: number, username: string, password: string): Promise<OfficeCredentials>;
   getOfficeAutomationTaskById(taskId: number): Promise<OfficeAutomationLogs | null>;
+  
+  // Renewal Tasks - Persistent Queue
+  createRenewalTask(systemId: string, payload: any): Promise<number>;
+  getNextPendingRenewalTaskFromQueue(): Promise<RenewalTask | null>;
+  updateRenewalTaskStatus(taskId: number, status: string, result?: any, error?: string): Promise<void>;
+  getPendingTasksCount(): Promise<number>;
+  getTasksBySystemId(systemId: string): Promise<RenewalTask[]>;
   
   // Office Credentials
   getOfficeCredentials(limit?: number): Promise<OfficeCredentials[]>;
@@ -2372,6 +2380,144 @@ export class DatabaseStorage implements IStorage {
         })
         .returning();
       return created;
+    }
+  }
+
+  // Renewal Tasks - Persistent Queue Implementation
+  async createRenewalTask(systemId: string, payload: any): Promise<number> {
+    try {
+      // First check if there's already a pending task for this system
+      const existing = await db
+        .select()
+        .from(renewalTasks)
+        .where(
+          and(
+            eq(renewalTasks.systemId, systemId),
+            eq(renewalTasks.status, 'pending')
+          )
+        )
+        .limit(1);
+      
+      if (existing.length > 0) {
+        // If a pending task already exists, return its ID
+        return existing[0].id;
+      }
+
+      // Create new renewal task
+      const [created] = await db
+        .insert(renewalTasks)
+        .values({
+          systemId,
+          type: 'renewal',
+          status: 'pending',
+          payload: payload || {},
+          createdAt: new Date(),
+        })
+        .returning();
+      
+      return created.id;
+    } catch (error) {
+      console.error('Erro ao criar renewal task:', error);
+      throw error;
+    }
+  }
+
+  async getNextPendingRenewalTaskFromQueue(): Promise<RenewalTask | null> {
+    try {
+      const [task] = await db
+        .select()
+        .from(renewalTasks)
+        .where(eq(renewalTasks.status, 'pending'))
+        .orderBy(asc(renewalTasks.priority), asc(renewalTasks.createdAt))
+        .limit(1);
+      
+      if (task) {
+        // Mark task as processing
+        await db
+          .update(renewalTasks)
+          .set({
+            status: 'processing',
+            startedAt: new Date(),
+          })
+          .where(eq(renewalTasks.id, task.id));
+        
+        // Return the task with updated status
+        return { ...task, status: 'processing', startedAt: new Date() };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Erro ao buscar próxima renewal task:', error);
+      return null;
+    }
+  }
+
+  async updateRenewalTaskStatus(taskId: number, status: string, result?: any, error?: string): Promise<void> {
+    try {
+      const updateData: any = {
+        status,
+      };
+
+      if (status === 'completed') {
+        updateData.completedAt = new Date();
+        if (result) {
+          updateData.result = result;
+        }
+      } else if (status === 'failed') {
+        updateData.completedAt = new Date();
+        if (error) {
+          updateData.error = error;
+        }
+        
+        // Increment retry count if failed
+        const [task] = await db
+          .select()
+          .from(renewalTasks)
+          .where(eq(renewalTasks.id, taskId))
+          .limit(1);
+        
+        if (task && task.retryCount < task.maxRetries) {
+          updateData.retryCount = task.retryCount + 1;
+          updateData.status = 'pending'; // Reset to pending for retry
+          updateData.startedAt = null;
+          updateData.completedAt = null;
+        }
+      }
+
+      await db
+        .update(renewalTasks)
+        .set(updateData)
+        .where(eq(renewalTasks.id, taskId));
+    } catch (error) {
+      console.error('Erro ao atualizar status da renewal task:', error);
+      throw error;
+    }
+  }
+
+  async getPendingTasksCount(): Promise<number> {
+    try {
+      const result = await db
+        .select({ count: count() })
+        .from(renewalTasks)
+        .where(eq(renewalTasks.status, 'pending'));
+      
+      return result[0]?.count || 0;
+    } catch (error) {
+      console.error('Erro ao contar renewal tasks pendentes:', error);
+      return 0;
+    }
+  }
+
+  async getTasksBySystemId(systemId: string): Promise<RenewalTask[]> {
+    try {
+      return await db
+        .select()
+        .from(renewalTasks)
+        .where(eq(renewalTasks.systemId, systemId))
+        .orderBy(desc(renewalTasks.createdAt));
+    } catch (error) {
+      console.error('Erro ao buscar tasks por systemId:', error);
+      return [];
     }
   }
 }
