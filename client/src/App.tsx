@@ -109,9 +109,15 @@ function AuthProtectedApp() {
             )}
             
             {/* Main Content */}
-            <main className="flex-1 overflow-auto p-3 md:p-6 bg-gradient-to-br from-slate-900 to-slate-950 pt-16 md:pt-0">
-              <Router />
-            </main>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Desktop Header */}
+              {!isMobile && <Header />}
+              
+              {/* Content Area */}
+              <main className="flex-1 overflow-auto p-3 md:p-6 bg-gradient-to-br from-slate-900 to-slate-950 pt-16 md:pt-0">
+                <Router />
+              </main>
+            </div>
           </div>
           <Toaster />
         </TooltipProvider>
