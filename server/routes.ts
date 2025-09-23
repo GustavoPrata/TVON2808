@@ -7387,25 +7387,39 @@ Como posso ajudar você hoje?
   // GET /api/sistemas/renewal-queue - retorna a fila de renovação em tempo real
   app.get('/api/sistemas/renewal-queue', async (req, res) => {
     try {
-      // Obter a fila de renovação atual
-      const queueStatus = autoRenewalService.getRenewalQueue();
+      const { autoRenewalService } = await import('./services/AutoRenewalService');
       
-      // Obter sistemas programados para renovação
-      const scheduledRenewals = await autoRenewalService.getScheduledRenewals();
+      // Obter tasks de renovação do banco de dados
+      const queueItems = await autoRenewalService.getQueueItems();
+      
+      // Obter status da fila
+      const queueStatus = await autoRenewalService.getQueueStatus();
+      
+      // Separar tasks por status
+      const pendingTasks = queueItems.filter(item => item.status === 'pending');
+      const processingTasks = queueItems.filter(item => item.status === 'processing');
+      const completedTasks = queueItems.filter(item => item.status === 'completed');
+      const failedTasks = queueItems.filter(item => item.status === 'failed');
+      const cancelledTasks = queueItems.filter(item => item.status === 'cancelled');
       
       res.json({
         success: true,
-        queue: queueStatus.queue,
+        tasks: queueItems, // Todas as tasks com informações detalhadas
+        stats: {
+          total: queueItems.length,
+          pending: pendingTasks.length,
+          processing: processingTasks.length,
+          completed: completedTasks.length,
+          failed: failedTasks.length,
+          cancelled: cancelledTasks.length
+        },
+        queue: {
+          pending: pendingTasks,
+          processing: processingTasks
+        },
         nextCheckTime: queueStatus.nextCheckTime,
         lastCheckTime: queueStatus.lastCheckTime,
         isRunning: queueStatus.isRunning,
-        stats: {
-          processing: queueStatus.processingCount,
-          waiting: queueStatus.waitingCount,
-          completed: queueStatus.completedCount,
-          error: queueStatus.errorCount
-        },
-        scheduledRenewals,
         currentTime: new Date()
       });
     } catch (error) {
@@ -7413,6 +7427,231 @@ Como posso ajudar você hoje?
       res.status(500).json({
         success: false,
         error: 'Erro ao buscar fila de renovação'
+      });
+    }
+  });
+
+  // POST /api/sistemas/force-renewal/:id - cria task de renovação forçada para um sistema
+  app.post('/api/sistemas/force-renewal/:id', checkAuth, async (req, res) => {
+    try {
+      const sistemId = req.params.id;
+      
+      // Buscar o sistema
+      const sistema = await storage.getSistemaById(parseInt(sistemId));
+      if (!sistema) {
+        return res.status(404).json({
+          success: false,
+          error: 'Sistema não encontrado'
+        });
+      }
+      
+      // Verificar se já existe task pendente para este sistema
+      const existingTasks = await storage.getTasksBySystemId(sistema.systemId);
+      const hasPendingTask = existingTasks.some(task => 
+        task.status === 'pending' || task.status === 'processing'
+      );
+      
+      if (hasPendingTask) {
+        return res.status(400).json({
+          success: false,
+          error: 'Já existe uma task de renovação em andamento para este sistema'
+        });
+      }
+      
+      // Criar task de renovação com prioridade alta
+      const payload = {
+        systemId: sistema.systemId,
+        username: sistema.username,
+        expiracao: sistema.expiracao,
+        pontosAtivos: sistema.pontosAtivos,
+        maxPontosAtivos: sistema.maxPontosAtivos,
+        forceRenewal: true,
+        priority: 'high' // Adicionar prioridade no payload
+      };
+      
+      const taskId = await storage.createRenewalTask(sistema.systemId, payload);
+      
+      console.log(`🚀 Task de renovação forçada criada para sistema ${sistema.systemId} (Task ID: ${taskId})`);
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'API',
+        mensagem: 'Task de renovação forçada criada',
+        detalhes: {
+          systemId: sistema.systemId,
+          taskId: taskId,
+          requestedBy: (req.session as any).user
+        }
+      });
+      
+      res.json({
+        success: true,
+        message: 'Task de renovação forçada criada com sucesso',
+        taskId: taskId
+      });
+    } catch (error) {
+      console.error('Erro ao criar task de renovação forçada:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao criar task de renovação forçada'
+      });
+    }
+  });
+
+  // DELETE /api/sistemas/renewal-task/:taskId - cancela uma task de renovação
+  app.delete('/api/sistemas/renewal-task/:taskId', checkAuth, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      
+      // Buscar a task
+      const allTasks = await storage.getAllRenewalTasks();
+      const task = allTasks.find(t => t.id === taskId);
+      
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task não encontrada'
+        });
+      }
+      
+      // Só pode cancelar tasks pendentes
+      if (task.status !== 'pending') {
+        return res.status(400).json({
+          success: false,
+          error: `Não é possível cancelar task com status '${task.status}'. Apenas tasks 'pending' podem ser canceladas.`
+        });
+      }
+      
+      // Marcar como cancelled
+      await storage.updateRenewalTaskStatus(taskId, 'cancelled', null, 'Cancelado pelo usuário');
+      
+      console.log(`🚫 Task ${taskId} cancelada pelo usuário`);
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'API',
+        mensagem: 'Task de renovação cancelada',
+        detalhes: {
+          taskId: taskId,
+          systemId: task.systemId,
+          cancelledBy: (req.session as any).user
+        }
+      });
+      
+      res.json({
+        success: true,
+        message: 'Task cancelada com sucesso'
+      });
+    } catch (error) {
+      console.error('Erro ao cancelar task:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao cancelar task'
+      });
+    }
+  });
+
+  // GET /api/sistemas/renewal-history/:systemId - histórico de renovações de um sistema
+  app.get('/api/sistemas/renewal-history/:systemId', checkAuth, async (req, res) => {
+    try {
+      const systemId = req.params.systemId;
+      
+      // Buscar todas as tasks deste sistema
+      const tasks = await storage.getTasksBySystemId(systemId);
+      
+      // Ordenar por data de criação (mais recente primeiro)
+      const sortedTasks = tasks.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+        return dateB - dateA;
+      });
+      
+      res.json({
+        success: true,
+        systemId: systemId,
+        totalTasks: tasks.length,
+        tasks: sortedTasks,
+        stats: {
+          total: tasks.length,
+          completed: tasks.filter(t => t.status === 'completed').length,
+          failed: tasks.filter(t => t.status === 'failed').length,
+          cancelled: tasks.filter(t => t.status === 'cancelled').length,
+          pending: tasks.filter(t => t.status === 'pending').length,
+          processing: tasks.filter(t => t.status === 'processing').length
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao buscar histórico de renovações:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao buscar histórico de renovações'
+      });
+    }
+  });
+
+  // POST /api/sistemas/retry-task/:taskId - retentar task falhada
+  app.post('/api/sistemas/retry-task/:taskId', checkAuth, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      
+      // Buscar a task
+      const allTasks = await storage.getAllRenewalTasks();
+      const task = allTasks.find(t => t.id === taskId);
+      
+      if (!task) {
+        return res.status(404).json({
+          success: false,
+          error: 'Task não encontrada'
+        });
+      }
+      
+      // Só pode retentar tasks falhadas
+      if (task.status !== 'failed') {
+        return res.status(400).json({
+          success: false,
+          error: `Não é possível retentar task com status '${task.status}'. Apenas tasks 'failed' podem ser retentadas.`
+        });
+      }
+      
+      // Reset status para pending e incrementar retryCount
+      const currentRetryCount = task.retryCount || 0;
+      const newRetryCount = currentRetryCount + 1;
+      
+      // Limite máximo de tentativas
+      if (newRetryCount > 5) {
+        return res.status(400).json({
+          success: false,
+          error: 'Limite máximo de tentativas (5) atingido para esta task'
+        });
+      }
+      
+      // Atualizar task para pending com novo retryCount
+      await storage.updateRenewalTaskStatus(taskId, 'pending', {
+        retryCount: newRetryCount,
+        retryReason: 'Manual retry by user'
+      });
+      
+      console.log(`🔄 Task ${taskId} marcada para retry (tentativa ${newRetryCount})`);
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'API',
+        mensagem: 'Task marcada para retry',
+        detalhes: {
+          taskId: taskId,
+          systemId: task.systemId,
+          retryCount: newRetryCount,
+          retriedBy: (req.session as any).user
+        }
+      });
+      
+      res.json({
+        success: true,
+        message: `Task marcada para retry (tentativa ${newRetryCount} de 5)`,
+        retryCount: newRetryCount
+      });
+    } catch (error) {
+      console.error('Erro ao marcar task para retry:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao marcar task para retry'
       });
     }
   });
@@ -7834,6 +8073,7 @@ Como posso ajudar você hoje?
     
     try {
       const config = await storage.getOfficeAutomationConfig();
+      const { autoRenewalService } = await import('./services/AutoRenewalService');
       
       // IMPORTANTE: Sempre incluir o status isEnabled na resposta
       const baseResponse = {
@@ -7841,31 +8081,36 @@ Como posso ajudar você hoje?
         hasTask: false
       };
       
+      // PRIMEIRO: Sempre verificar tasks de renovação persistentes (independente de config.isEnabled)
+      const nextRenewalTask = await autoRenewalService.getNextTask();
+      if (nextRenewalTask) {
+        console.log('📋 Task de renovação encontrada no banco:', {
+          taskId: nextRenewalTask.id,
+          systemId: nextRenewalTask.systemId,
+          priority: nextRenewalTask.priority,
+          status: nextRenewalTask.status,
+          payload: nextRenewalTask.payload
+        });
+        
+        // Marcar como processing
+        await storage.updateRenewalTaskStatus(nextRenewalTask.id, 'processing');
+        
+        return res.json({
+          ...baseResponse,
+          hasTask: true,
+          task: {
+            id: nextRenewalTask.id,
+            type: 'renewal',
+            quantity: 1,
+            systemId: nextRenewalTask.systemId,
+            data: nextRenewalTask.payload || {},
+            metadata: nextRenewalTask.payload || {}
+          }
+        });
+      }
+      
       // Se automação está desabilitada, NUNCA retornar tarefas automáticas
       if (!config.isEnabled) {
-        // Primeiro verifica se há task de renovação pendente
-        const pendingRenewalTask = await storage.getNextPendingRenewalTask();
-        if (pendingRenewalTask) {
-          console.log('📋 Task de renovação pendente encontrada:', {
-            taskId: pendingRenewalTask.id,
-            systemId: pendingRenewalTask.systemId,
-            metadata: pendingRenewalTask.metadata
-          });
-          
-          return res.json({
-            ...baseResponse,
-            hasTask: true,
-            task: {
-              id: pendingRenewalTask.id,
-              type: 'renewal',
-              quantity: 1,
-              systemId: pendingRenewalTask.systemId,
-              data: pendingRenewalTask.metadata || {},
-              metadata: pendingRenewalTask.metadata || {}
-            }
-          });
-        }
-        
         // Verifica se há tarefa pendente manual (single generation)
         const pendingTask = await storage.getNextPendingTask();
         if (pendingTask) {
@@ -7901,30 +8146,7 @@ Como posso ajudar você hoje?
         return res.json(baseResponse);
       }
       
-      // Automação HABILITADA - primeiro verifica tasks de renovação
-      const pendingRenewalTask = await storage.getNextPendingRenewalTask();
-      if (pendingRenewalTask) {
-        console.log('📋 Task de renovação pendente encontrada (automação habilitada):', {
-          taskId: pendingRenewalTask.id,
-          systemId: pendingRenewalTask.systemId,
-          metadata: pendingRenewalTask.metadata
-        });
-        
-        return res.json({
-          ...baseResponse,
-          hasTask: true,
-          task: {
-            id: pendingRenewalTask.id,
-            type: 'renewal',
-            quantity: 1,
-            systemId: pendingRenewalTask.systemId,
-            data: pendingRenewalTask.metadata || {},
-            metadata: pendingRenewalTask.metadata || {}
-          }
-        });
-      }
-      
-      // Verificar tarefas pendentes normais
+      // Automação HABILITADA - verificar tarefas pendentes normais
       const pendingTask = await storage.getNextPendingTask();
       if (pendingTask) {
         return res.json({
@@ -8034,33 +8256,55 @@ Como posso ajudar você hoje?
       console.log(`    - metadata.systemId: ${metadata?.systemId}`);
       console.log(`    - metadata.systemId: ${metadata?.systemId}`);
       
-      // Verificar se é uma renovação checando a task na base de dados
+      // Verificar se é uma renovação checando o tipo ou a task na base de dados
       let isRenewal = false;
-      let renewalTask = null;
+      let renewalTaskInfo = null;
+      
+      if (type === 'renewal' || type === 'renew_system') {
+        isRenewal = true;
+      }
       
       if (taskId) {
-        // Buscar a task para verificar se é renovação
-        renewalTask = await storage.getOfficeCredentialById(taskId);
-        if (renewalTask && renewalTask.source === 'renewal') {
-          isRenewal = true;
-          console.log(`🔄 Task ${taskId} identificada como renovação pela source`);
+        // Se temos taskId, buscar informações da task de renovação
+        try {
+          const allRenewalTasks = await storage.getAllRenewalTasks();
+          renewalTaskInfo = allRenewalTasks.find(t => t.id === taskId);
           
-          // Se não temos systemId ainda, tentar extrair da task
-          if (!finalSistemaId && renewalTask.systemId) {
-            finalSistemaId = renewalTask.systemId;
-            console.log(`📎 Sistema ID ${finalSistemaId} extraído da task de renovação`);
+          if (renewalTaskInfo) {
+            isRenewal = true;
+            console.log(`🔄 Task ${taskId} é uma task de renovação do banco`);
+            
+            // Se não temos systemId ainda, extrair da task
+            if (!finalSistemaId && renewalTaskInfo.systemId) {
+              finalSistemaId = renewalTaskInfo.systemId;
+              console.log(`📎 Sistema ID ${finalSistemaId} extraído da task de renovação`);
+            }
           }
+        } catch (e) {
+          console.log(`⚠️ Erro ao buscar task de renovação ${taskId}:`, e);
         }
         
-        // Se for uma task de renovação, atualizar na tabela officeCredentials
-        if (type === 'renewal' || type === 'renew_system' || isRenewal) {
-          await storage.updateRenewalTaskStatus(taskId, 
-            credentials?.username || 'error', 
-            credentials?.password || error || 'error'
-          );
-          console.log(`✅ Task de renovação ${taskId} atualizada na tabela officeCredentials`);
+        // Atualizar status da task conforme o tipo
+        if (isRenewal && renewalTaskInfo) {
+          // Para tasks de renovação do banco, usar autoRenewalService.completeTask
+          const { autoRenewalService } = await import('./services/AutoRenewalService');
+          
+          if (error) {
+            // Em caso de erro, marcar como failed
+            await storage.updateRenewalTaskStatus(taskId, 'failed', null, error);
+            console.log(`❌ Task de renovação ${taskId} marcada como falhada: ${error}`);
+          } else {
+            // Completar a task de renovação com sucesso
+            await autoRenewalService.completeTask(taskId, {
+              username: credentials?.username,
+              password: credentials?.password,
+              systemId: finalSistemaId,
+              metadata: metadata
+            });
+            console.log(`✅ Task de renovação ${taskId} completada via autoRenewalService`);
+          }
         } else {
-          // Outras tasks atualizar na tabela officeAutomationLogs  
+          // Para outras tasks (não renovação)
           await storage.updateTaskStatus(taskId, error ? 'failed' : 'completed', {
             errorMessage: error,
             username: credentials?.username,
