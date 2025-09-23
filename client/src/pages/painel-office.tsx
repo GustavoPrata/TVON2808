@@ -800,15 +800,7 @@ export default function PainelOffice() {
       return;
     }
 
-    // Warning if too many systems will be created
-    if (distributionPreview && distributionPreview.systemsNeeded > 10) {
-      toast({
-        title: "⚠️ Muitos sistemas necessários",
-        description: `A operação criaria ${distributionPreview.systemsNeeded} novos sistemas. Por segurança, limite a criação a 10 sistemas por vez.`,
-        variant: "destructive",
-      });
-      return;
-    }
+    // Sem limite - processamento por fila
 
     setIsDistributing(true);
     setDistributionResult(null);
