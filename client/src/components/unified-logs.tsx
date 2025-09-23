@@ -49,24 +49,103 @@ export function UnifiedLogsSection() {
   
   // Função para fazer merge inteligente dos logs
   const mergeLogs = useCallback((newLogs: UnifiedLog[], existingLogs: UnifiedLog[]) => {
-    const logMap = new Map<string, UnifiedLog>();
+    // Usar um Map para rastrear todos os logs únicos
+    const allLogs = new Map<string, UnifiedLog>();
+    let duplicateCount = 0;
+    let uniqueCounter = 0;
     
-    // Adicionar logs existentes ao Map
-    existingLogs.forEach(log => {
-      const key = `${log.timestamp}_${log.source}_${log.level}_${log.message}`;
-      logMap.set(key, log);
+    // Debug: Ver exemplo de logs que estão chegando
+    if (newLogs.length > 0) {
+      console.log('[UnifiedLogs] Exemplo de novo log:', {
+        timestamp: newLogs[0].timestamp,
+        source: newLogs[0].source,
+        level: newLogs[0].level,
+        message: newLogs[0].message.substring(0, 100),
+        sourceLabel: newLogs[0].sourceLabel
+      });
+    }
+    
+    // Adicionar todos os logs existentes primeiro
+    existingLogs.forEach((log, index) => {
+      // Criar chave única baseada em todos os campos relevantes
+      // Adicionar um contador único se necessário para garantir que não perdemos logs
+      const baseKey = `${log.timestamp}|${log.source}|${log.level}|${log.message}`;
+      let key = baseKey;
+      
+      // Se a chave já existe, adicionar um contador para torná-la única
+      while (allLogs.has(key)) {
+        uniqueCounter++;
+        key = `${baseKey}|${uniqueCounter}`;
+      }
+      
+      allLogs.set(key, log);
     });
     
-    // Adicionar ou atualizar com novos logs
-    newLogs.forEach(log => {
-      const key = `${log.timestamp}_${log.source}_${log.level}_${log.message}`;
-      logMap.set(key, log);
+    // Adicionar novos logs, preservando todos eles
+    newLogs.forEach((log, index) => {
+      // Criar chave base
+      const baseKey = `${log.timestamp}|${log.source}|${log.level}|${log.message}`;
+      
+      // Verificar se é uma duplicata real (exatamente o mesmo log)
+      if (allLogs.has(baseKey)) {
+        // É uma duplicata, atualizar com a versão mais recente
+        allLogs.set(baseKey, log);
+        duplicateCount++;
+      } else {
+        // Não é duplicata, adicionar como novo log
+        let key = baseKey;
+        
+        // Se por algum motivo a chave já existe (não deveria), torná-la única
+        while (allLogs.has(key)) {
+          uniqueCounter++;
+          key = `${baseKey}|${uniqueCounter}`;
+        }
+        
+        allLogs.set(key, log);
+      }
     });
     
     // Converter de volta para array e ordenar por timestamp
-    return Array.from(logMap.values())
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    const mergedLogs = Array.from(allLogs.values())
+      .sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
+        
+        // Mais recente primeiro
+        if (timeB !== timeA) {
+          return timeB - timeA;
+        }
+        
+        // Se timestamps iguais, aplicação antes de extensão
+        if (a.source !== b.source) {
+          return a.source === 'application' ? -1 : 1;
+        }
+        
+        // Se ainda iguais, ordenar por nível
+        const levelOrder: Record<string, number> = { 'ERROR': 4, 'WARN': 3, 'INFO': 2, 'DEBUG': 1 };
+        return (levelOrder[b.level] || 0) - (levelOrder[a.level] || 0);
+      })
       .slice(0, 1000); // Limitar a 1000 logs
+    
+    // Log detalhado para debug
+    console.log('[UnifiedLogs] Merge detalhado:', {
+      existingCount: existingLogs.length,
+      newCount: newLogs.length,
+      duplicatesReplacedCount: duplicateCount,
+      totalUniqueKeys: allLogs.size,
+      finalCount: mergedLogs.length,
+      droppedDueToLimit: Math.max(0, allLogs.size - 1000)
+    });
+    
+    // Se estamos perdendo muitos logs, avisar
+    if (allLogs.size > 10 && mergedLogs.length < allLogs.size / 2) {
+      console.warn('[UnifiedLogs] AVISO: Muitos logs sendo perdidos!', {
+        esperado: allLogs.size,
+        obtido: mergedLogs.length
+      });
+    }
+    
+    return mergedLogs;
   }, []);
 
   // Função para limpar timeout de retry
