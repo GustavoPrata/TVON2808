@@ -1,7 +1,6 @@
 import { Menu, X, Tv } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { ExtensionStatusIndicator } from '@/components/extension-status-indicator';
 import { useWebSocket } from '@/hooks/use-websocket';
 
 interface MobileHeaderProps {
@@ -23,8 +22,6 @@ export function MobileHeader({ isOpen, onToggle }: MobileHeaderProps) {
         </div>
         
         <div className="flex items-center gap-2">
-          <ExtensionStatusIndicator />
-          
           <Button
             onClick={onToggle}
             variant="ghost"

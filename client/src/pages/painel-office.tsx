@@ -54,6 +54,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RenewalQueueSection, ExtensionLogsSection } from '@/components/renewal-queue-logs';
 import { UnifiedLogsSection } from '@/components/unified-logs';
+import { ExtensionStatusIndicator } from '@/components/extension-status-indicator';
 
 const systemSchema = z.object({
   username: z.string().min(1, 'Usuário obrigatório'),
@@ -721,6 +722,7 @@ export default function PainelOffice() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ExtensionStatusIndicator />
             <Button
               variant={automationConfig.isEnabled ? "destructive" : "default"}
               size="sm"
