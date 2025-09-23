@@ -803,6 +803,23 @@ export default function PainelOffice() {
               <div className="flex items-center gap-2">
                 <Button
                   onClick={() => {
+                    refetchSystems();
+                    toast({
+                      title: "🔄 Atualizando Sistemas",
+                      description: "Recarregando informações dos sistemas...",
+                      duration: 2000,
+                    });
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-400 hover:text-blue-300"
+                  title="Recarregar sistemas e atualizar vencimentos"
+                  data-testid="button-refresh-systems"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => {
                     setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
                   }}
                   variant="ghost"
