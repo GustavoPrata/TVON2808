@@ -194,6 +194,7 @@ export function CreateTestDialog({ open, onOpenChange, defaultPhone, sistemaId, 
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] bg-dark-bg border-slate-700">
         <DialogHeader>
@@ -504,5 +505,6 @@ export function CreateTestDialog({ open, onOpenChange, defaultPhone, sistemaId, 
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    </>
   );
 }
