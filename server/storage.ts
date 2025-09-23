@@ -281,6 +281,7 @@ export interface IStorage {
   updateRenewalTaskStatus(taskId: number, status: string, result?: any, error?: string): Promise<void>;
   getPendingTasksCount(): Promise<number>;
   getTasksBySystemId(systemId: string): Promise<RenewalTask[]>;
+  getAllRenewalTasks(): Promise<RenewalTask[]>;
   
   // Office Credentials
   getOfficeCredentials(limit?: number): Promise<OfficeCredentials[]>;
@@ -2517,6 +2518,18 @@ export class DatabaseStorage implements IStorage {
         .orderBy(desc(renewalTasks.createdAt));
     } catch (error) {
       console.error('Erro ao buscar tasks por systemId:', error);
+      return [];
+    }
+  }
+  
+  async getAllRenewalTasks(): Promise<RenewalTask[]> {
+    try {
+      return await db
+        .select()
+        .from(renewalTasks)
+        .orderBy(asc(renewalTasks.priority), desc(renewalTasks.createdAt));
+    } catch (error) {
+      console.error('Erro ao buscar todas as renewal tasks:', error);
       return [];
     }
   }

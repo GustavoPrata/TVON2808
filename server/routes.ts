@@ -7977,7 +7977,7 @@ Como posso ajudar você hoje?
     }
     
     try {
-      const { type, credentials, error, taskId, results, summary, systemId, systemId, oldCredentials, clienteId, metadata } = req.body;
+      const { type, credentials, error, taskId, results, summary, systemId, oldCredentials, clienteId, metadata } = req.body;
       
       // VALIDAÇÃO IMPORTANTE: Separar userId de username
       let processedCredentials = null;
