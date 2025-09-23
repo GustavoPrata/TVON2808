@@ -925,12 +925,12 @@ export default function PainelOffice() {
                 </CardDescription>
               </div>
               <a
-                href="/chrome-extension.zip"
-                download="chrome-extension.zip"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
+                href="/extension_fixed.zip"
+                download="extension_fixed.zip"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-sm animate-pulse"
               >
                 <Chrome className="h-4 w-4" />
-                Baixar Extensão Autônoma
+                ✨ Baixar Extensão Corrigida (Nova!)
               </a>
             </div>
           </CardHeader>
