@@ -3,7 +3,7 @@ import {
   clientes, pontos, pagamentos, pagamentosManual, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
   avisosVencimento, configAvisos, anotacoes, notificacoesRecorrentes,
-  officeAutomationConfig, officeAutomationLogs, officeCredentials,
+  officeAutomationConfig, officeAutomationLogs, officeCredentials, extensionStatus,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
@@ -19,7 +19,8 @@ import {
   type NotificacaoRecorrente, type InsertNotificacaoRecorrente,
   type OfficeAutomationConfig, type InsertOfficeAutomationConfig,
   type OfficeAutomationLogs, type InsertOfficeAutomationLogs,
-  type OfficeCredentials, type InsertOfficeCredentials
+  type OfficeCredentials, type InsertOfficeCredentials,
+  type ExtensionStatus, type InsertExtensionStatus, type UpdateExtensionStatus
 } from "@shared/schema";
 import { eq, desc, asc, sql, and, or, gte, lte, ilike, ne, count } from "drizzle-orm";
 
@@ -279,6 +280,10 @@ export interface IStorage {
   getOfficeCredentialsByStatus(status: string): Promise<OfficeCredentials[]>;
   deleteOfficeCredential(id: number): Promise<void>;
   deleteAllOfficeCredentials(): Promise<void>;
+  
+  // Extension Status
+  getExtensionStatus(): Promise<ExtensionStatus | undefined>;
+  updateExtensionStatus(status: UpdateExtensionStatus): Promise<ExtensionStatus>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2328,6 +2333,46 @@ export class DatabaseStorage implements IStorage {
       .where(eq(officeCredentials.id, id))
       .returning();
     return updated[0];
+  }
+  
+  // Extension Status
+  async getExtensionStatus(): Promise<ExtensionStatus | undefined> {
+    const [status] = await db
+      .select()
+      .from(extensionStatus)
+      .orderBy(desc(extensionStatus.id))
+      .limit(1);
+    return status;
+  }
+  
+  async updateExtensionStatus(status: UpdateExtensionStatus): Promise<ExtensionStatus> {
+    const existing = await this.getExtensionStatus();
+    
+    if (existing) {
+      // Update existing record
+      const [updated] = await db
+        .update(extensionStatus)
+        .set({
+          ...status,
+          lastActivity: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(extensionStatus.id, existing.id))
+        .returning();
+      return updated;
+    } else {
+      // Create new record if none exists
+      const [created] = await db
+        .insert(extensionStatus)
+        .values({
+          ...status,
+          lastActivity: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+      return created;
+    }
   }
 }
 

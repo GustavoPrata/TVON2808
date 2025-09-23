@@ -613,6 +613,20 @@ export const officeCredentials = pgTable("office_credentials", {
   expiresAt: timestamp("expires_at"),
 });
 
+// Extension Status - armazena o status atual da extensão Chrome
+export const extensionStatus = pgTable("extension_status", {
+  id: serial("id").primaryKey(),
+  isActive: boolean("is_active").notNull().default(false),
+  isLoggedIn: boolean("is_logged_in").notNull().default(false),
+  currentUrl: text("current_url"),
+  lastActivity: timestamp("last_activity").notNull().defaultNow(),
+  userAgent: text("user_agent"),
+  extensionVersion: varchar("extension_version", { length: 20 }),
+  metadata: json("metadata"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Schemas para Office Automation
 export const insertOfficeAutomationConfigSchema = createInsertSchema(officeAutomationConfig).omit({
   id: true,
@@ -649,6 +663,18 @@ export type InsertOfficeExtensionConfig = z.infer<typeof insertOfficeExtensionCo
 
 export type OfficeCredentials = typeof officeCredentials.$inferSelect;
 export type InsertOfficeCredentials = z.infer<typeof insertOfficeCredentialsSchema>;
+
+// Extension Status types
+export const insertExtensionStatusSchema = createInsertSchema(extensionStatus).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastActivity: true,
+});
+
+export type ExtensionStatus = typeof extensionStatus.$inferSelect;
+export type InsertExtensionStatus = z.infer<typeof insertExtensionStatusSchema>;
+export type UpdateExtensionStatus = Partial<InsertExtensionStatus>;
 
 // Avisos de Vencimento types
 export const insertAvisoVencimentoSchema = createInsertSchema(avisosVencimento).omit({

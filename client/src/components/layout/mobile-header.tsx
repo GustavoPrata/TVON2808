@@ -1,6 +1,8 @@
 import { Menu, X, Tv } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ExtensionStatusIndicator } from '@/components/extension-status-indicator';
+import { useWebSocket } from '@/hooks/use-websocket';
 
 interface MobileHeaderProps {
   isOpen: boolean;
@@ -20,18 +22,22 @@ export function MobileHeader({ isOpen, onToggle }: MobileHeaderProps) {
           </h1>
         </div>
         
-        <Button
-          onClick={onToggle}
-          variant="ghost"
-          size="icon"
-          className="text-slate-400 hover:text-white hover:bg-slate-800"
-        >
-          {isOpen ? (
-            <X className="w-6 h-6" />
-          ) : (
-            <Menu className="w-6 h-6" />
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExtensionStatusIndicator />
+          
+          <Button
+            onClick={onToggle}
+            variant="ghost"
+            size="icon"
+            className="text-slate-400 hover:text-white hover:bg-slate-800"
+          >
+            {isOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );

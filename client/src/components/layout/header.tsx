@@ -2,6 +2,7 @@ import { useLocation } from 'wouter';
 import { Bell, Search, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWebSocket } from '@/hooks/use-websocket';
+import { ExtensionStatusIndicator } from '@/components/extension-status-indicator';
 
 const pageConfig = {
   '/': { title: 'Dashboard', subtitle: 'Visão geral do sistema' },
@@ -32,6 +33,8 @@ export function Header() {
         </div>
         
         <div className="flex items-center gap-4">
+          <ExtensionStatusIndicator />
+          
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
             <span className="text-xs text-slate-400">

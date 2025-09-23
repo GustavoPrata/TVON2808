@@ -217,6 +217,71 @@ function queueLogForBackend(level, message, context = {}) {
   }
 }
 
+// ===========================================================================
+// SISTEMA DE HEARTBEAT
+// ===========================================================================
+async function sendHeartbeat() {
+  try {
+    // Garante que API_BASE está definido
+    if (!API_BASE) {
+      API_BASE = await getApiBase();
+    }
+    
+    // Tenta obter a URL da aba ativa
+    let currentUrl = null;
+    let isOnLoginPage = false;
+    
+    try {
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (activeTab && activeTab.url) {
+        currentUrl = activeTab.url;
+        // Verifica se está na página de login
+        isOnLoginPage = currentUrl.includes('onlineoffice.zip/#/login');
+      }
+    } catch (e) {
+      // Se falhar ao obter a aba, não é crítico
+      await logger.debug('Não foi possível obter URL da aba ativa');
+    }
+    
+    // Determina status de login
+    const loggedIn = !isOnLoginPage && isLoggedIn;
+    
+    // Dados do heartbeat
+    const heartbeatData = {
+      currentUrl: currentUrl,
+      isLoggedIn: loggedIn,
+      userAgent: navigator.userAgent,
+      extensionVersion: chrome.runtime.getManifest().version,
+      metadata: {
+        isProcessingTask: isProcessingTask,
+        lastStatus: lastStatus,
+        timestamp: new Date().toISOString()
+      }
+    };
+    
+    // Envia heartbeat
+    const response = await fetch(`${API_BASE}/api/extension/heartbeat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Extension-Key': 'chrome-extension-secret-2024'
+      },
+      body: JSON.stringify(heartbeatData)
+    });
+    
+    if (response.ok) {
+      await logger.debug('💓 Heartbeat enviado com sucesso', { 
+        loggedIn: loggedIn,
+        url: currentUrl ? currentUrl.substring(0, 50) : null 
+      });
+    } else {
+      await logger.warn('⚠️ Falha ao enviar heartbeat', { status: response.status });
+    }
+  } catch (error) {
+    await logger.error('❌ Erro ao enviar heartbeat', { error: error.message });
+  }
+}
+
 // Envio periódico de logs (a cada 30 segundos)
 setInterval(async () => {
   await sendLogsToBackend();
@@ -290,6 +355,8 @@ let lastStatus = {
   lastCheck: 0
 };
 let currentPollingInterval = POLLING_INTERVAL_IDLE;
+let currentTabUrl = null; // Para rastrear URL atual
+let isLoggedIn = false; // Para rastrear status de login
 
 // ===========================================================================
 // FUNÇÃO DE GERAÇÃO LOCAL DE CREDENCIAIS
@@ -328,6 +395,11 @@ async function generateCredentialsLocally() {
   API_BASE = await getApiBase();
   await logger.info(`🔗 Servidor API configurado: ${API_BASE}`);
   
+  // Envia heartbeat inicial
+  setTimeout(async () => {
+    await sendHeartbeat();
+    await logger.info('💓 Heartbeat inicial enviado');
+  }, 2000);
 })();
 
 
@@ -354,6 +426,14 @@ async function setupAlarms() {
     periodInMinutes: 0.5, // 30 segundos
     delayInMinutes: 0
   });
+  
+  // Cria alarme para enviar heartbeat a cada 10 segundos
+  chrome.alarms.create('sendHeartbeat', {
+    periodInMinutes: 0.17, // aproximadamente 10 segundos
+    delayInMinutes: 0
+  });
+  
+  await logger.info('💓 Alarme de heartbeat configurado para cada 10s');
 }
 
 // Listener para os alarmes
@@ -366,6 +446,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     // Checagem específica para tarefas de renovação a cada 30 segundos
     await logger.debug('🔄 Checando tarefas de renovação...', { alarm: alarm.name });
     await checkForTasks();
+  } else if (alarm.name === 'sendHeartbeat') {
+    // Envia heartbeat para o servidor
+    await sendHeartbeat();
   }
 });
 

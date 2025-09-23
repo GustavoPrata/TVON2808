@@ -310,6 +310,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '/api/office/automation/credentials',
       '/api/office/automation/extension.zip',  // Extension download endpoint (public)
       '/api/extension/logs',  // Extension logs endpoint (public for Chrome extension to send/receive logs)
+      '/api/extension/heartbeat',  // Extension heartbeat endpoint (public for Chrome extension)
+      '/api/extension/status',  // Extension status endpoint (public for frontend polling)
       // Note: start/stop/generate-single endpoints remain protected (require authentication)
       
       // TEMPORARY: Public access for renewal processing
@@ -8265,6 +8267,73 @@ Como posso ajudar você hoje?
     } catch (error) {
       console.error('Erro ao buscar logs de automação:', error);
       res.status(500).json({ error: 'Erro ao buscar logs' });
+    }
+  });
+
+  // POST /api/extension/heartbeat - recebe heartbeat da extensão Chrome
+  app.post('/api/extension/heartbeat', async (req, res) => {
+    try {
+      const { currentUrl, isLoggedIn, userAgent, extensionVersion, metadata } = req.body;
+      
+      // Update extension status
+      await storage.updateExtensionStatus({
+        isActive: true,
+        isLoggedIn: isLoggedIn || false,
+        currentUrl: currentUrl || null,
+        userAgent: userAgent || null,
+        extensionVersion: extensionVersion || null,
+        metadata: metadata || null,
+      });
+      
+      res.json({ success: true, message: 'Heartbeat received' });
+    } catch (error) {
+      console.error('❌ Erro ao processar heartbeat:', error);
+      res.status(500).json({ success: false, error: 'Erro ao processar heartbeat' });
+    }
+  });
+  
+  // GET /api/extension/status - retorna status atual da extensão
+  app.get('/api/extension/status', async (req, res) => {
+    try {
+      const status = await storage.getExtensionStatus();
+      
+      if (!status) {
+        return res.json({
+          active: false,
+          loggedIn: false,
+          currentUrl: null,
+          lastSeen: null,
+        });
+      }
+      
+      // Check if extension is active (last heartbeat within 30 seconds)
+      const now = new Date();
+      const lastHeartbeat = new Date(status.lastHeartbeat);
+      const secondsSinceLastHeartbeat = Math.floor((now.getTime() - lastHeartbeat.getTime()) / 1000);
+      const isActive = secondsSinceLastHeartbeat <= 30;
+      
+      // Check if logged in based on URL
+      let isLoggedIn = status.isLoggedIn;
+      if (status.currentUrl && status.currentUrl.includes('onlineoffice.zip/#/login')) {
+        isLoggedIn = false;
+      }
+      
+      res.json({
+        active: isActive,
+        loggedIn: isLoggedIn,
+        currentUrl: status.currentUrl,
+        lastSeen: status.lastHeartbeat,
+        secondsSinceLastHeartbeat,
+        extensionVersion: status.extensionVersion,
+      });
+    } catch (error) {
+      console.error('❌ Erro ao obter status da extensão:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Erro ao obter status da extensão',
+        active: false,
+        loggedIn: false,
+      });
     }
   });
 
