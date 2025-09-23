@@ -75,6 +75,8 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **Credential Security Improvements** - Renewal queue no longer displays usernames or passwords, only system IDs for identification
 - **Credential Validation System** - Added validation to reject malformed credentials (minimum 3 chars, alphanumeric only, no special strings)
 - **Database Cleanup** - Removed malformed credentials from database and prevented future insertion of invalid data
+- **Fixed Infinite Credential Creation** - AutoRenewalService now checks for existing pending tasks before creating new ones
+- **Task Deduplication** - Only one renewal task per system is allowed to prevent duplicates (September 23, 2025)
 
 ## Recent Updates (September 2025 - Previous)
 - **Fixed AutoRenewalService identification issue** - Service was working correctly but needed systems with autoRenewal enabled and no recent renewals
