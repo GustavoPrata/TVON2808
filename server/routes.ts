@@ -5535,47 +5535,44 @@ Como posso ajudar você hoje?
       const detalhes: any[] = [];
 
       if (mode === 'one-per-point') {
-        // Opção 1: Um Sistema por Ponto
+        // Opção 1: Um Sistema por Ponto - cada ponto terá seu próprio sistema
         console.log('🔄 Modo: Um Sistema por Ponto');
 
-        // Buscar todos os pontos sem sistema
-        const pontosSemSistema = await storage.getPontosWithoutSistema();
-        console.log(`📍 Encontrados ${pontosSemSistema.length} pontos sem sistema`);
+        // Buscar TODOS os pontos ativos para redistribuir
+        const todosPontos = await storage.getPontos();
+        const pontosAtivos = todosPontos.filter(p => p.status === 'ativo');
+        console.log(`📍 Total de pontos ativos: ${pontosAtivos.length}`);
 
-        // Buscar todos os sistemas disponíveis
-        const sistemasDisponiveis = await storage.getSistemas();
-        const sistemasComEspaco = sistemasDisponiveis.filter(s => s.pontosAtivos < s.maxPontosAtivos);
+        // Buscar sistemas existentes
+        const sistemasExistentes = await storage.getSistemas();
+        console.log(`📊 Sistemas existentes: ${sistemasExistentes.length}`);
         
-        let sistemaAtualIndex = 0;
-
-        for (const ponto of pontosSemSistema) {
-          let sistemaId: number | null = null;
-
-          // Tentar usar um sistema existente com espaço
-          if (sistemaAtualIndex < sistemasComEspaco.length) {
-            const sistema = sistemasComEspaco[sistemaAtualIndex];
-            sistemaId = sistema.id;
-            
-            // Atualizar contador de pontos ativos do sistema
-            await storage.updateSistema(sistema.id, {
-              pontosAtivos: sistema.pontosAtivos + 1
-            });
-            
-            detalhes.push({
-              tipo: 'atribuicao',
-              pontoId: ponto.id,
-              pontoUsuario: ponto.usuario,
-              sistemaId: sistema.id,
-              sistemaUsername: sistema.username
-            });
-            
-            // Incrementar para próximo sistema
-            sistemaAtualIndex++;
-          } else if (apiEnabled) {
-            // Criar novo sistema se API externa está habilitada
-            console.log('🆕 Criando novo sistema via API externa...');
-            
-            // Gerar credenciais únicas
+        // Calcular quantos novos sistemas são necessários
+        const sistemasNecessarios = pontosAtivos.length;
+        const sistemasParaCriar = Math.max(0, sistemasNecessarios - sistemasExistentes.length);
+        console.log(`🆕 Sistemas necessários: ${sistemasNecessarios}, A criar: ${sistemasParaCriar}`);
+        
+        // Limitar criação a 10 sistemas por vez (segurança)
+        const maxSistemasNovos = 50; // Aumentando limite para permitir 26 novos sistemas
+        if (sistemasParaCriar > maxSistemasNovos) {
+          return res.status(400).json({
+            error: `Seriam necessários ${sistemasParaCriar} novos sistemas. Por segurança, o limite é ${maxSistemasNovos} por operação.`
+          });
+        }
+        
+        // Resetar todas as atribuições existentes
+        console.log('🔄 Resetando atribuições existentes...');
+        for (const sistema of sistemasExistentes) {
+          await storage.updateSistema(sistema.id, { pontosAtivos: 0 });
+        }
+        
+        // Criar novos sistemas se necessário
+        let sistemasList = [...sistemasExistentes];
+        
+        if (sistemasParaCriar > 0 && apiEnabled) {
+          console.log(`🆕 Criando ${sistemasParaCriar} novos sistemas...`);
+          
+          for (let i = 0; i < sistemasParaCriar; i++) {
             const username = `sistema_${nanoid(8)}`;
             const password = `pass_${nanoid(12)}`;
             
@@ -5592,47 +5589,61 @@ Como posso ajudar você hoje?
                   systemId: apiSystem.system_id || apiSystem.id?.toString() || `local_${nanoid(6)}`,
                   username,
                   password,
-                  maxPontosAtivos: 1,
-                  pontosAtivos: 1,
+                  maxPontosAtivos: 100,
+                  pontosAtivos: 0,
                   expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
                 });
                 
-                sistemaId = novoSistema.id;
+                sistemasList.push(novoSistema);
                 sistemasCriados++;
                 
                 detalhes.push({
                   tipo: 'criacao_sistema',
                   sistemaId: novoSistema.id,
-                  sistemaUsername: username,
-                  pontoId: ponto.id,
-                  pontoUsuario: ponto.usuario
+                  sistemaUsername: username
                 });
               }
             } catch (apiError) {
               console.error('❌ Erro ao criar sistema na API externa:', apiError);
               detalhes.push({
                 tipo: 'erro',
-                pontoId: ponto.id,
-                pontoUsuario: ponto.usuario,
                 erro: 'Falha ao criar sistema na API externa'
               });
             }
-          } else {
-            // API externa não está habilitada
+          }
+        } else if (sistemasParaCriar > 0 && !apiEnabled) {
+          return res.status(400).json({
+            error: `Seria necessário criar ${sistemasParaCriar} novos sistemas, mas a API externa está desabilitada.`
+          });
+        }
+        
+        // Atribuir cada ponto a um sistema dedicado
+        for (let i = 0; i < pontosAtivos.length; i++) {
+          const ponto = pontosAtivos[i];
+          
+          if (i < sistemasList.length) {
+            const sistema = sistemasList[i];
+            
+            // Atribuir ponto ao sistema
+            await storage.updatePontoSistema(ponto.id, sistema.id);
+            
+            // Atualizar contador do sistema
+            await storage.updateSistema(sistema.id, {
+              pontosAtivos: 1
+            });
+            
+            pontosAtualizados++;
+            
             detalhes.push({
-              tipo: 'nao_atribuido',
+              tipo: 'atribuicao',
               pontoId: ponto.id,
               pontoUsuario: ponto.usuario,
-              motivo: 'Sem sistemas disponíveis e API externa desabilitada'
+              sistemaId: sistema.id,
+              sistemaUsername: sistema.username
             });
           }
-
-          // Atribuir ponto ao sistema
-          if (sistemaId) {
-            await storage.updatePontoSistema(ponto.id, sistemaId);
-            pontosAtualizados++;
-          }
         }
+        
       } else {
         // Opção 2: Pontos Fixos por Sistema
         console.log('🔄 Modo: Pontos Fixos por Sistema');
