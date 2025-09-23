@@ -8275,14 +8275,29 @@ Como posso ajudar você hoje?
     try {
       const { currentUrl, isLoggedIn, userAgent, extensionVersion, metadata } = req.body;
       
-      // Update extension status
-      await storage.updateExtensionStatus({
+      console.log('📍 Heartbeat recebido:', {
+        currentUrl,
+        isLoggedIn,
+        extensionVersion,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Update extension status with lastHeartbeat timestamp
+      const updatedStatus = await storage.updateExtensionStatus({
         isActive: true,
         isLoggedIn: isLoggedIn || false,
         currentUrl: currentUrl || null,
         userAgent: userAgent || null,
         extensionVersion: extensionVersion || null,
         metadata: metadata || null,
+        lastHeartbeat: new Date(),  // Adicionar timestamp do heartbeat
+      });
+      
+      console.log('✅ Status da extensão atualizado:', {
+        id: updatedStatus.id,
+        isActive: updatedStatus.isActive,
+        isLoggedIn: updatedStatus.isLoggedIn,
+        lastHeartbeat: updatedStatus.lastHeartbeat
       });
       
       res.json({ success: true, message: 'Heartbeat received' });
@@ -8297,7 +8312,16 @@ Como posso ajudar você hoje?
     try {
       const status = await storage.getExtensionStatus();
       
-      if (!status) {
+      console.log('📊 Status da extensão no banco:', status ? {
+        id: status.id,
+        isActive: status.isActive,
+        isLoggedIn: status.isLoggedIn,
+        lastHeartbeat: status.lastHeartbeat,
+        lastActivity: status.lastActivity
+      } : 'Nenhum status encontrado');
+      
+      if (!status || !status.lastHeartbeat) {
+        console.log('⚠️ Extensão sem heartbeat registrado');
         return res.json({
           active: false,
           loggedIn: false,
@@ -8311,6 +8335,9 @@ Como posso ajudar você hoje?
       const lastHeartbeat = new Date(status.lastHeartbeat);
       const secondsSinceLastHeartbeat = Math.floor((now.getTime() - lastHeartbeat.getTime()) / 1000);
       const isActive = secondsSinceLastHeartbeat <= 30;
+      
+      console.log('🕐 Tempo desde último heartbeat:', secondsSinceLastHeartbeat, 'segundos');
+      console.log('✨ Extensão ativa?', isActive);
       
       // Check if logged in based on URL
       let isLoggedIn = status.isLoggedIn;

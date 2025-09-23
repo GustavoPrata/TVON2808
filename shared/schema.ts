@@ -620,6 +620,7 @@ export const extensionStatus = pgTable("extension_status", {
   isLoggedIn: boolean("is_logged_in").notNull().default(false),
   currentUrl: text("current_url"),
   lastActivity: timestamp("last_activity").notNull().defaultNow(),
+  lastHeartbeat: timestamp("last_heartbeat"),
   userAgent: text("user_agent"),
   extensionVersion: varchar("extension_version", { length: 20 }),
   metadata: json("metadata"),

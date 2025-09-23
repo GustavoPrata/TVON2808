@@ -92,6 +92,8 @@ export function ExtensionStatusIndicator() {
       <Tooltip>
         <TooltipTrigger asChild>
           <div
+            data-testid="extension-status-indicator"
+            aria-label={statusInfo.description}
             className={cn(
               "relative flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all duration-200",
               statusInfo.bgColor,
