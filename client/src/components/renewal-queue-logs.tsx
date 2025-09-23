@@ -17,7 +17,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface RenewalQueueItem {
-  sistemaId: number;
+  systemId: string;
   sistemaName: string;
   status: 'waiting' | 'processing' | 'completed' | 'error';
   estimatedTime?: Date;
@@ -53,8 +53,8 @@ export function RenewalQueueSection() {
 
   // Mutation para forçar renovação
   const forceRenewalMutation = useMutation({
-    mutationFn: async (sistemaId: number) => {
-      const response = await fetch(`/api/sistemas/renewal-queue/force/${sistemaId}`, {
+    mutationFn: async (systemId: string) => {
+      const response = await fetch(`/api/sistemas/renewal-queue/force/${systemId}`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -256,7 +256,7 @@ export function RenewalQueueSection() {
                 <div className="space-y-2">
                   {queueData.queue.map((item: RenewalQueueItem) => (
                     <div 
-                      key={item.sistemaId}
+                      key={item.systemId}
                       className="p-3 bg-slate-800/30 rounded-lg border border-slate-700/50 hover:border-slate-600/50 transition-colors"
                     >
                       <div className="flex items-center justify-between">
@@ -267,19 +267,19 @@ export function RenewalQueueSection() {
                               {item.sistemaName}
                             </p>
                             <p className="text-xs text-slate-400">
-                              Sistema ID: {item.sistemaId}
+                              Sistema ID: {item.systemId}
                             </p>
                           </div>
                         </div>
                         
                         {item.status === 'waiting' && (
                           <Button
-                            onClick={() => forceRenewalMutation.mutate(item.sistemaId)}
+                            onClick={() => forceRenewalMutation.mutate(item.systemId)}
                             size="sm"
                             variant="ghost"
                             className="text-blue-400 hover:text-blue-300"
                             disabled={forceRenewalMutation.isPending}
-                            data-testid={`button-force-renewal-${item.sistemaId}`}
+                            data-testid={`button-force-renewal-${item.systemId}`}
                           >
                             <Play className="w-4 h-4" />
                           </Button>

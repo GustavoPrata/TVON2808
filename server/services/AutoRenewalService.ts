@@ -12,7 +12,7 @@ export function setWebSocketServer(wss: any) {
 
 // Interfaces para a fila de renovação
 interface RenewalQueueItem {
-  sistemaId: string; // systemId é string, não number
+  systemId: string; // systemId é string, não number
   status: 'waiting' | 'processing' | 'completed' | 'error';
   estimatedTime?: Date; // Data de expiração (não mais minutos)
   addedAt: Date;
@@ -185,7 +185,7 @@ export class AutoRenewalService {
           // Adicionar ou atualizar na fila se não estiver processando
           if (!this.renewalQueue.has(sistema.systemId) || this.renewalQueue.get(sistema.systemId)?.status === 'completed' || this.renewalQueue.get(sistema.systemId)?.status === 'error') {
             const queueItem: RenewalQueueItem = {
-              sistemaId: sistema.systemId,
+              systemId: sistema.systemId,
               status: 'waiting',
               estimatedTime: sistema.expiracao ? new Date(sistema.expiracao) : undefined,
               addedAt: new Date(),
@@ -288,7 +288,7 @@ export class AutoRenewalService {
             origem: 'AutoRenewal',
             mensagem: 'Sistema renovado com sucesso',
             detalhes: {
-              sistemaId: sistema.id,
+              systemId: sistema.id,
               systemId: sistema.systemId,
               username: sistema.username
             }
@@ -305,7 +305,7 @@ export class AutoRenewalService {
             origem: 'AutoRenewal',
             mensagem: 'Erro ao renovar sistema',
             detalhes: {
-              sistemaId: sistema.id,
+              systemId: sistema.id,
               systemId: sistema.systemId,
               username: sistema.username,
               error: error instanceof Error ? error.message : String(error)
@@ -366,7 +366,7 @@ export class AutoRenewalService {
         mensagem: 'Iniciando renovação de sistema individual',
         detalhes: {
           traceId,
-          sistemaId: sistema.id,
+          systemId: sistema.id,
           systemId: sistema.systemId,
           username: sistema.username,
           expiracaoAtual: sistema.expiracao
@@ -382,7 +382,7 @@ export class AutoRenewalService {
         .where(
           and(
             eq(officeCredentials.status, 'pending'),
-            eq(officeCredentials.sistemaId, sistema.id)
+            eq(officeCredentials.systemId, sistema.id)
           )
         );
       
@@ -399,7 +399,7 @@ export class AutoRenewalService {
           mensagem: 'Task de renovação já existe para este sistema - pulando criação',
           detalhes: {
             traceId,
-            sistemaId: sistema.id,
+            systemId: sistema.id,
             systemId: sistema.systemId,
             existingTaskId: existingPendingTasks[0].id,
             existingTaskUsername: existingPendingTasks[0].username,
@@ -423,7 +423,7 @@ export class AutoRenewalService {
         return; // Retornar sem criar nova task
       }
 
-      // 2. Criar task pendente no banco com sistemaId no metadata
+      // 2. Criar task pendente no banco com systemId no metadata
       console.log(`💾 [AutoRenewal] Nenhuma task pendente encontrada - criando nova task de renovação [${traceId}]...`);
       
       const taskData = {
@@ -432,7 +432,7 @@ export class AutoRenewalService {
         source: 'renewal',
         status: 'pending',
         generatedAt: new Date(),
-        sistemaId: sistema.id // Adicionar sistemaId diretamente no registro
+        systemId: sistema.id // Adicionar systemId diretamente no registro
       };
       
       console.log(`🔍 [AutoRenewal] Dados da task a criar [${traceId}]:`, JSON.stringify(taskData, null, 2));
@@ -444,7 +444,7 @@ export class AutoRenewalService {
 
       console.log(`✅ [AutoRenewal] Task criada com sucesso [${traceId}]:`);
       console.log(`  Task ID: ${task.id}`);
-      console.log(`  Sistema ID: ${task.sistemaId}`);
+      console.log(`  Sistema ID: ${task.systemId}`);
       console.log(`  Username da task: ${task.username}`);
       
       await storage.createLog({
@@ -454,7 +454,7 @@ export class AutoRenewalService {
         detalhes: {
           traceId,
           taskId: task.id,
-          sistemaId: task.sistemaId,
+          systemId: task.systemId,
           taskUsername: task.username
         }
       });
@@ -507,7 +507,7 @@ export class AutoRenewalService {
         mensagem: 'Erro ao criar task de renovação',
         detalhes: {
           traceId,
-          sistemaId: sistema.id,
+          systemId: sistema.id,
           systemId: sistema.systemId,
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : 'N/A'
@@ -524,11 +524,11 @@ export class AutoRenewalService {
   private cleanupQueue() {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
     
-    for (const [sistemaId, item] of this.renewalQueue.entries()) {
+    for (const [systemId, item] of this.renewalQueue.entries()) {
       // Remover itens completados ou com erro há mais de 1 hora
       if ((item.status === 'completed' || item.status === 'error') && 
           item.completedAt && item.completedAt < oneHourAgo) {
-        this.renewalQueue.delete(sistemaId);
+        this.renewalQueue.delete(systemId);
       }
     }
   }
@@ -538,8 +538,8 @@ export class AutoRenewalService {
     const queue = Array.from(this.renewalQueue.values())
       .map(item => ({
         ...item,
-        sistemaName: item.sistemaId, // Adicionar sistemaName com o valor do systemId
-        sistemaId: item.sistemaId // Manter sistemaId como está (é o systemId real)
+        sistemaName: item.systemId, // Adicionar sistemaName com o valor do systemId
+        systemId: item.systemId // Manter systemId como está (é o systemId real)
       }))
       .sort((a, b) => {
         // Priorizar por status: processing > waiting > completed/error
@@ -580,7 +580,7 @@ export class AutoRenewalService {
         const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
         
         return {
-          sistemaId: sistema.id,
+          systemId: sistema.id,
           systemId: sistema.systemId,
           expiration: sistema.expiracao,
           minutesUntilExpiration: Math.floor(minutosAteExpiracao),
@@ -601,16 +601,16 @@ export class AutoRenewalService {
       const itemsToRemove: string[] = [];
       
       // Identificar itens que podem ser removidos (waiting, completed, error)
-      for (const [sistemaId, item] of this.renewalQueue.entries()) {
+      for (const [systemId, item] of this.renewalQueue.entries()) {
         if (item.status !== 'processing') {
-          itemsToRemove.push(sistemaId);
+          itemsToRemove.push(systemId);
           itemsRemoved++;
         }
       }
       
       // Remover apenas itens não em processamento
-      for (const sistemaId of itemsToRemove) {
-        this.renewalQueue.delete(sistemaId);
+      for (const systemId of itemsToRemove) {
+        this.renewalQueue.delete(systemId);
       }
       
       // NÃO limpar isRenewing - isso evita renovações duplicadas

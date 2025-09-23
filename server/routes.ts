@@ -362,18 +362,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Emergency endpoint to reset renewal state for stuck systems
   app.post("/api/sistemas/reset-renewal/:id", async (req, res) => {
     try {
-      const sistemaId = parseInt(req.params.id);
+      const systemId = parseInt(req.params.id);
       
-      if (!sistemaId || isNaN(sistemaId)) {
+      if (!systemId || isNaN(systemId)) {
         return res.status(400).json({ error: 'ID do sistema inválido' });
       }
       
-      console.log(`🔧 === RESET DE RENOVAÇÃO FORÇADO - Sistema ID ${sistemaId} ===`);
+      console.log(`🔧 === RESET DE RENOVAÇÃO FORÇADO - Sistema ID ${systemId} ===`);
       
       // 1. Buscar o sistema
-      const sistema = await storage.getSistemaById(sistemaId);
+      const sistema = await storage.getSistemaById(systemId);
       if (!sistema) {
-        console.error(`❌ Sistema ID ${sistemaId} não encontrado`);
+        console.error(`❌ Sistema ID ${systemId} não encontrado`);
         return res.status(404).json({ error: 'Sistema não encontrado' });
       }
       
@@ -387,7 +387,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 2. Limpar o estado para forçar nova verificação
       console.log(`🔄 Resetando estado do sistema para nova verificação`);
       
-      await storage.updateSistema(sistemaId, {
+      await storage.updateSistema(systemId, {
         atualizadoEm: new Date()
       });
       
@@ -399,9 +399,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.createLog({
         nivel: 'warn',
         origem: 'API',
-        mensagem: `Reset de renovação forçado para sistema ID ${sistemaId}`,
+        mensagem: `Reset de renovação forçado para sistema ID ${systemId}`,
         detalhes: {
-          sistemaId: sistemaId,
+          systemId: systemId,
           systemId: sistema.systemId,
           username: sistema.username
         }
@@ -419,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 6. Retornar informações sobre o reset
       const response = {
         success: true,
-        message: `Reset de renovação concluído para sistema ID ${sistemaId}`,
+        message: `Reset de renovação concluído para sistema ID ${systemId}`,
         sistema: {
           id: sistema.id,
           systemId: sistema.systemId,
@@ -449,12 +449,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/test-renewal", async (req, res) => {
     try {
       console.log('🔧 === TESTE DE RENOVAÇÃO FORÇADA INICIADO ===');
-      const sistemaId = 24; // ID fixo do sistema para teste
+      const systemId = 24; // ID fixo do sistema para teste
       
       // 1. Buscar o sistema
-      const sistema = await storage.getSistemaById(sistemaId);
+      const sistema = await storage.getSistemaById(systemId);
       if (!sistema) {
-        console.error(`❌ Sistema ID ${sistemaId} não encontrado`);
+        console.error(`❌ Sistema ID ${systemId} não encontrado`);
         return res.status(404).json({ error: 'Sistema não encontrado' });
       }
       
@@ -467,7 +467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 2. Atualizar sistema para forçar nova verificação
       console.log(`🔄 Atualizando sistema para nova verificação`);
       
-      await storage.updateSistema(sistemaId, {
+      await storage.updateSistema(systemId, {
         atualizadoEm: new Date()
       });
       
@@ -482,9 +482,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: sistema.password,
         type: 'iptvtest',
         status: 'pending',
-        sistemaId: sistemaId,
+        systemId: systemId,
         metadata: JSON.stringify({
-          sistemaId: sistemaId,
+          systemId: systemId,
           originalUsername: sistema.username,
           originalPassword: sistema.password,
           currentExpiration: sistema.expiracao,
@@ -503,7 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: createdTask.id,
         type: createdTask.type,
         status: createdTask.status,
-        sistemaId: createdTask.sistemaId,
+        systemId: createdTask.systemId,
         username: createdTask.username,
         metadata: createdTask.metadata
       });
@@ -524,7 +524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: createdTask.id,
           type: createdTask.type,
           status: createdTask.status,
-          sistemaId: createdTask.sistemaId,
+          systemId: createdTask.systemId,
           metadata: createdTask.metadata,
           generatedAt: createdTask.generatedAt
         }
@@ -1660,8 +1660,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Dados para criar:", createData);
 
       // Sempre sincronizar com API externa ao criar ponto
-      if (pontoData.sistemaId) {
-        const sistema = await storage.getSistemaById(pontoData.sistemaId);
+      if (pontoData.systemId) {
+        const sistema = await storage.getSistemaById(pontoData.systemId);
         const cliente = await storage.getClienteById(pontoData.clienteId);
 
         if (sistema && cliente) {
@@ -1742,8 +1742,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ponto = await storage.createPonto(createData);
 
       // Update system active points count
-      if (pontoData.sistemaId) {
-        await storage.updateSistemaActivePontos(pontoData.sistemaId);
+      if (pontoData.systemId) {
+        await storage.updateSistemaActivePontos(pontoData.systemId);
       }
 
       res.status(201).json(ponto);
@@ -1787,10 +1787,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const update of updates) {
         try {
-          const { id, sistemaId } = update;
+          const { id, systemId } = update;
           
-          if (!id || sistemaId === null || sistemaId === undefined) {
-            errors.push({ id, error: "Missing id or sistemaId" });
+          if (!id || systemId === null || systemId === undefined) {
+            errors.push({ id, error: "Missing id or systemId" });
             continue;
           }
           
@@ -1802,21 +1802,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Update the ponto
-          const updatedPonto = await storage.updatePonto(id, { sistemaId });
+          const updatedPonto = await storage.updatePonto(id, { systemId });
           
           // Update system active points count if system changed
-          if (oldPonto.sistemaId !== sistemaId) {
-            if (oldPonto.sistemaId) {
-              await storage.updateSistemaActivePontos(oldPonto.sistemaId);
+          if (oldPonto.systemId !== systemId) {
+            if (oldPonto.systemId) {
+              await storage.updateSistemaActivePontos(oldPonto.systemId);
             }
-            if (sistemaId) {
-              await storage.updateSistemaActivePontos(sistemaId);
+            if (systemId) {
+              await storage.updateSistemaActivePontos(systemId);
             }
           }
           
           // Sync with external API if needed
           if (updatedPonto.apiUserId) {
-            const sistema = await storage.getSistemaById(sistemaId);
+            const sistema = await storage.getSistemaById(systemId);
             const cliente = await storage.getClienteById(updatedPonto.clienteId);
             
             if (sistema && cliente) {
@@ -1887,8 +1887,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.aplicativo = restData.aplicativo;
       if (restData.dispositivo !== undefined)
         updateData.dispositivo = restData.dispositivo;
-      if (restData.sistemaId !== undefined)
-        updateData.sistemaId = restData.sistemaId;
+      if (restData.systemId !== undefined)
+        updateData.systemId = restData.systemId;
 
       // Adiciona valor se fornecido (garantir que seja string)
       if (valor !== undefined) {
@@ -1915,8 +1915,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // Sempre sincronizar com API externa
-      if (ponto.sistemaId && ponto.apiUserId) {
-        const sistema = await storage.getSistemaById(ponto.sistemaId);
+      if (ponto.systemId && ponto.apiUserId) {
+        const sistema = await storage.getSistemaById(ponto.systemId);
         const cliente = await storage.getClienteById(ponto.clienteId);
         if (sistema && cliente) {
           console.log("Sincronizando ponto com API externa...");
@@ -1963,12 +1963,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update system active points count if system changed
-      if (oldPonto && oldPonto.sistemaId !== ponto.sistemaId) {
-        if (oldPonto.sistemaId) {
-          await storage.updateSistemaActivePontos(oldPonto.sistemaId);
+      if (oldPonto && oldPonto.systemId !== ponto.systemId) {
+        if (oldPonto.systemId) {
+          await storage.updateSistemaActivePontos(oldPonto.systemId);
         }
-        if (ponto.sistemaId) {
-          await storage.updateSistemaActivePontos(ponto.sistemaId);
+        if (ponto.systemId) {
+          await storage.updateSistemaActivePontos(ponto.systemId);
         }
       }
 
@@ -4053,10 +4053,10 @@ Como posso ajudar você hoje?
       };
 
       // Use system from request or get the first available
-      let sistemaId = req.body.sistemaId;
+      let systemId = req.body.systemId;
       let sistema;
 
-      if (!sistemaId) {
+      if (!systemId) {
         const sistemas = await storage.getSistemas();
         if (!sistemas || sistemas.length === 0) {
           return res
@@ -4064,16 +4064,16 @@ Como posso ajudar você hoje?
             .json({ error: "Nenhum sistema disponível para criar teste" });
         }
         sistema = sistemas[0];
-        sistemaId = sistema.id;
+        systemId = sistema.id;
       } else {
         // Get the sistema to have access to systemId field
-        sistema = await storage.getSistemaById(sistemaId);
+        sistema = await storage.getSistemaById(systemId);
         if (!sistema) {
           return res.status(400).json({ error: "Sistema não encontrado" });
         }
       }
 
-      testeData.sistemaId = sistemaId;
+      testeData.systemId = systemId;
 
       // Create test in database
       const teste = await storage.createTeste(testeData);
@@ -4141,7 +4141,7 @@ Como posso ajudar você hoje?
         deviceKey,
         aplicativo,
         dispositivo,
-        sistemaId,
+        systemId,
         horasAdicionar,
         expiraEm,
       } = req.body;
@@ -4155,7 +4155,7 @@ Como posso ajudar você hoje?
       if (deviceKey !== undefined) updateData.deviceKey = deviceKey;
       if (aplicativo !== undefined) updateData.aplicativo = aplicativo;
       if (dispositivo !== undefined) updateData.dispositivo = dispositivo;
-      if (sistemaId !== undefined) updateData.sistemaId = parseInt(sistemaId);
+      if (systemId !== undefined) updateData.systemId = parseInt(systemId);
 
       // Handle direct expiration date update
       if (expiraEm !== undefined) {
@@ -4193,10 +4193,10 @@ Como posso ajudar você hoje?
       const updatedTeste = await storage.updateTeste(testeId, updateData);
 
       // Sync with external API if test has API user ID
-      if (teste.apiUserId && teste.sistemaId) {
+      if (teste.apiUserId && teste.systemId) {
         try {
           let sistema = await storage.getSistemaById(
-            updateData.sistemaId || teste.sistemaId,
+            updateData.systemId || teste.systemId,
           );
 
           if (sistema) {
@@ -4219,7 +4219,7 @@ Como posso ajudar você hoje?
             if (updateData.dispositivo !== undefined) {
               apiUpdateData.device_type = updateData.dispositivo;
             }
-            if (updateData.sistemaId !== undefined) {
+            if (updateData.systemId !== undefined) {
               apiUpdateData.system = parseInt(sistema.systemId);
             }
 
@@ -5133,16 +5133,16 @@ Como posso ajudar você hoje?
       // Get real-time pontos count for each system
       const pontosAtivosCount = await db
         .select({
-          sistemaId: pontos.sistemaId,
+          systemId: pontos.systemId,
           count: sql<number>`count(*)`,
         })
         .from(pontos)
         .where(eq(pontos.status, "ativo"))
-        .groupBy(pontos.sistemaId);
+        .groupBy(pontos.systemId);
 
       // Create a map for quick lookup
       const pontosCountMap = new Map(
-        pontosAtivosCount.map((p) => [p.sistemaId, Number(p.count)]),
+        pontosAtivosCount.map((p) => [p.systemId, Number(p.count)]),
       );
 
       // Mapear sistemas para o formato snake_case esperado pelo frontend
@@ -5321,7 +5321,7 @@ Como posso ajudar você hoje?
   // Update system expiration date
   app.put("/api/sistemas/:id/expiration", async (req, res) => {
     try {
-      const sistemaId = parseInt(req.params.id);
+      const systemId = parseInt(req.params.id);
       const { expiracao } = req.body;
       
       if (!expiracao) {
@@ -5329,7 +5329,7 @@ Como posso ajudar você hoje?
       }
       
       // Update in local database
-      const localSystem = await storage.getSistemaById(sistemaId);
+      const localSystem = await storage.getSistemaById(systemId);
       if (!localSystem) {
         return res.status(404).json({ error: "Sistema não encontrado" });
       }
@@ -5340,7 +5340,7 @@ Como posso ajudar você hoje?
           expiracao: expiracaoDate,
           atualizadoEm: new Date()
         })
-        .where(eq(sistemas.id, sistemaId));
+        .where(eq(sistemas.id, systemId));
       
       res.json({ 
         message: "Data de expiração atualizada com sucesso",
@@ -5404,12 +5404,12 @@ Como posso ajudar você hoje?
         return res.status(400).json({ error: 'Credencial não é de renovação' });
       }
       
-      if (!credential.sistemaId) {
+      if (!credential.systemId) {
         return res.status(400).json({ error: 'Credencial sem sistema associado' });
       }
       
       // Buscar o sistema
-      const sistema = await storage.getSistemaById(credential.sistemaId);
+      const sistema = await storage.getSistemaById(credential.systemId);
       if (!sistema) {
         return res.status(404).json({ error: 'Sistema não encontrado' });
       }
@@ -5509,12 +5509,12 @@ Como posso ajudar você hoje?
   app.post("/api/sistemas/auto-generate", async (req, res) => {
     try {
       console.log('🚀 Iniciando geração automática de sistema...');
-      const { sistemaId } = req.body; // Receber sistemaId se for renovação
+      const { systemId } = req.body; // Receber systemId se for renovação
       
       // 1. Criar tarefa para extensão Chrome gerar credenciais
       const task = await storage.createPendingTask('single_generation', {
         purpose: 'auto_generate_system',
-        sistemaId: sistemaId // Passar sistemaId para o metadata
+        systemId: systemId // Passar systemId para o metadata
       });
       
       console.log(`📝 Tarefa criada com ID ${task.id}`);
@@ -5588,10 +5588,10 @@ Como posso ajudar você hoje?
         password: credentials.password,
         nome: `Sistema Auto ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`,
         url: 'https://onlineoffice.zip/iptv/',
-        sistemaId: sistemaId // Passar o sistemaId se for renovação
+        systemId: systemId // Passar o systemId se for renovação
       });
       
-      console.log(`💾 Sistema ${sistemaId ? 'atualizado' : 'criado'} com ID ${sistema.id} e systemId ${sistema.systemId}`);
+      console.log(`💾 Sistema ${systemId ? 'atualizado' : 'criado'} com ID ${sistema.id} e systemId ${sistema.systemId}`);
       
       // 5. Retornar o sistema criado
       res.json({
@@ -5611,14 +5611,14 @@ Como posso ajudar você hoje?
   // Renovar sistema manualmente
   app.post("/api/sistemas/:id/renew", async (req, res) => {
     try {
-      const sistemaId = Number(req.params.id);
+      const systemId = Number(req.params.id);
       
       // Marcar como renovando
-      await storage.marcarSistemaComoRenovando(sistemaId);
+      await storage.marcarSistemaComoRenovando(systemId);
       
       // Criar tarefa para extensão
       const task = await storage.createPendingTask('renew_system', {
-        sistemaId
+        systemId
       });
       
       res.json({
@@ -5634,34 +5634,34 @@ Como posso ajudar você hoje?
   // Processar renovação automática (chamado pela extensão Chrome)
   app.post("/api/sistemas/process-renewal", async (req, res) => {
     try {
-      const { sistemaId, username, password, taskId, traceId } = req.body;
-      const finalTraceId = traceId || `renewal_${sistemaId}_${Date.now()}`;
+      const { systemId, username, password, taskId, traceId } = req.body;
+      const finalTraceId = traceId || `renewal_${systemId}_${Date.now()}`;
       
       console.log(`🔄 [Process-Renewal] Processando renovação [${finalTraceId}]`, {
-        sistemaId,
+        systemId,
         username,
         taskId,
         traceId: finalTraceId
       });
       
-      if (!sistemaId || !username || !password) {
+      if (!systemId || !username || !password) {
         console.error(`❌ [Process-Renewal] Dados incompletos [${finalTraceId}]`);
         return res.status(400).json({ error: "Dados incompletos para renovação" });
       }
       
-      // Converter sistemaId para systemId se necessário
-      let finalSystemId = sistemaId;
-      let numericSystemId = sistemaId; // ID numérico para a API externa
-      if (typeof sistemaId === 'number' || !isNaN(Number(sistemaId))) {
-        // Se sistemaId é número, buscar o sistema para obter o systemId
-        const sistema = await storage.getSistemaById(Number(sistemaId));
+      // Converter systemId para systemId se necessário
+      let finalSystemId = systemId;
+      let numericSystemId = systemId; // ID numérico para a API externa
+      if (typeof systemId === 'number' || !isNaN(Number(systemId))) {
+        // Se systemId é número, buscar o sistema para obter o systemId
+        const sistema = await storage.getSistemaById(Number(systemId));
         if (!sistema) {
-          console.error(`❌ [Process-Renewal] Sistema não encontrado: ${sistemaId} [${finalTraceId}]`);
+          console.error(`❌ [Process-Renewal] Sistema não encontrado: ${systemId} [${finalTraceId}]`);
           return res.status(404).json({ error: "Sistema não encontrado" });
         }
         finalSystemId = sistema.systemId;
         numericSystemId = Number(sistema.systemId); // Converter systemId para número para a API externa
-        console.log(`🔄 [Process-Renewal] Convertendo ID ${sistemaId} para systemId ${finalSystemId} [${finalTraceId}]`);
+        console.log(`🔄 [Process-Renewal] Convertendo ID ${systemId} para systemId ${finalSystemId} [${finalTraceId}]`);
       }
       
       // 1. Atualizar sistema localmente com novas credenciais (expiracao de 6 horas)
@@ -5695,7 +5695,7 @@ Como posso ajudar você hoje?
           origem: 'Process-Renewal',
           mensagem: `Sistema ${numericSystemId} atualizado na API externa`,
           detalhes: {
-            sistemaId: numericSystemId,
+            systemId: numericSystemId,
             username,
             traceId: finalTraceId,
             expiracao: apiData.expiracao
@@ -5709,7 +5709,7 @@ Como posso ajudar você hoje?
           origem: 'Process-Renewal',
           mensagem: `Falha ao atualizar sistema ${numericSystemId} na API externa (não crítico)`,
           detalhes: {
-            sistemaId: numericSystemId,
+            systemId: numericSystemId,
             error: (apiError as Error).message,
             traceId: finalTraceId
           }
@@ -5741,9 +5741,9 @@ Como posso ajudar você hoje?
       await storage.createLog({
         nivel: 'info',
         origem: 'Process-Renewal',
-        mensagem: `Sistema ${sistemaId} renovado com sucesso via extensão`,
+        mensagem: `Sistema ${systemId} renovado com sucesso via extensão`,
         detalhes: {
-          sistemaId,
+          systemId,
           username,
           taskId,
           traceId: finalTraceId,
@@ -6624,7 +6624,7 @@ Como posso ajudar você hoje?
         .values({
           username,
           password,
-          sistemaId: selectedSistema?.id,
+          systemId: selectedSistema?.id,
           source,
           status: "active",
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
@@ -6681,7 +6681,7 @@ Como posso ajudar você hoje?
   // POST /api/office/automation/credentials - Endpoint para renovação automática
   app.post("/api/office/automation/credentials", async (req, res) => {
     try {
-      const { username, password, sistemaId, source = "automation" } = req.body;
+      const { username, password, systemId, source = "automation" } = req.body;
       
       // CORS headers for extension
       res.setHeader('Access-Control-Allow-Origin', '*');
@@ -6689,21 +6689,21 @@ Como posso ajudar você hoje?
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
       
       console.log(`🔄 [RENOVAÇÃO] Credenciais recebidas para renovação`);
-      console.log(`   Sistema ID: ${sistemaId}`);
+      console.log(`   Sistema ID: ${systemId}`);
       console.log(`   Username: ${username}`);
       console.log(`   Source: ${source}`);
       
-      if (!username || !password || !sistemaId) {
+      if (!username || !password || !systemId) {
         console.error('❌ [RENOVAÇÃO] Dados incompletos');
         return res.status(400).json({
           success: false,
-          message: "Username, password e sistemaId são obrigatórios"
+          message: "Username, password e systemId são obrigatórios"
         });
       }
       
       // 1. Atualizar sistema no banco com expiração +6h
-      console.log(`📝 [RENOVAÇÃO] Atualizando sistema ${sistemaId} no banco...`);
-      const sistemaAtualizado = await storage.updateSistemaRenewal(sistemaId, username, password);
+      console.log(`📝 [RENOVAÇÃO] Atualizando sistema ${systemId} no banco...`);
+      const sistemaAtualizado = await storage.updateSistemaRenewal(systemId, username, password);
       console.log(`✅ [RENOVAÇÃO] Sistema atualizado no banco com expiração: ${sistemaAtualizado.expiracao}`);
       
       // 2. Chamar API externa para atualizar sistema
@@ -6715,7 +6715,7 @@ Como posso ajudar você hoje?
         
         if (integracaoConfig?.ativo) {
           // Se tiver systemId da API externa, atualizar
-          const sistema = await storage.getSistemaById(sistemaId);
+          const sistema = await storage.getSistemaById(systemId);
           if (sistema?.systemId) {
             // Extrair o número do systemId (ex: "sistema5" -> 5)
             const apiSystemId = parseInt(sistema.systemId.replace(/\D/g, ''));
@@ -6744,7 +6744,7 @@ Como posso ajudar você hoje?
       //   - Define status = 'active'
       //   - Atualiza lastRenewalAt = hora atual
       //   - Incrementa renewalCount
-      // await storage.registrarRenovacaoAutomatica(sistemaId, {
+      // await storage.registrarRenovacaoAutomatica(systemId, {
       //   username,
       //   password
       // });
@@ -6752,7 +6752,7 @@ Como posso ajudar você hoje?
       // 4. Broadcast via WebSocket para atualizar interface
       const wsMessage = JSON.stringify({
         type: 'system_renewal_completed',
-        sistemaId,
+        systemId,
         username,
         password,
         expiracao: sistemaAtualizado.expiracao,
@@ -6765,13 +6765,13 @@ Como posso ajudar você hoje?
         }
       });
       
-      console.log(`✅ [RENOVAÇÃO] Processo completo para sistema ${sistemaId}`);
+      console.log(`✅ [RENOVAÇÃO] Processo completo para sistema ${systemId}`);
       
       res.json({
         success: true,
         message: "Sistema renovado com sucesso",
         data: {
-          sistemaId,
+          systemId,
           username,
           expiracao: sistemaAtualizado.expiracao
         }
@@ -6881,14 +6881,14 @@ Como posso ajudar você hoje?
         id: officeCredentials.id,
         username: officeCredentials.username,
         password: officeCredentials.password,
-        sistemaId: officeCredentials.sistemaId,
+        systemId: officeCredentials.systemId,
         sistema: sistemas.systemId,
         generatedAt: officeCredentials.generatedAt,
         source: officeCredentials.source,
         status: officeCredentials.status
       })
       .from(officeCredentials)
-      .leftJoin(sistemas, eq(officeCredentials.sistemaId, sistemas.id))
+      .leftJoin(sistemas, eq(officeCredentials.systemId, sistemas.id))
       .orderBy(desc(officeCredentials.generatedAt))
       .limit(50);
       
@@ -6912,16 +6912,16 @@ Como posso ajudar você hoje?
       // Get real-time pontos count for each system
       const pontosAtivosCount = await db
         .select({
-          sistemaId: pontos.sistemaId,
+          systemId: pontos.systemId,
           count: sql<number>`count(*)`,
         })
         .from(pontos)
         .where(eq(pontos.status, "ativo"))
-        .groupBy(pontos.sistemaId);
+        .groupBy(pontos.systemId);
 
       // Create a map for quick lookup
       const pontosCountMap = new Map(
-        pontosAtivosCount.map((p) => [p.sistemaId, Number(p.count)]),
+        pontosAtivosCount.map((p) => [p.systemId, Number(p.count)]),
       );
 
       // Get API systems
@@ -7118,7 +7118,7 @@ Como posso ajudar você hoje?
         }
 
         const cliente = clienteMap.get(ponto.clienteId);
-        const sistema = await storage.getSistemaById(ponto.sistemaId);
+        const sistema = await storage.getSistemaById(ponto.systemId);
 
         if (!cliente) {
           console.warn(`Cliente não encontrado para ponto ${ponto.id}`);
@@ -7848,7 +7848,7 @@ Como posso ajudar você hoje?
         if (pendingRenewalTask) {
           console.log('📋 Task de renovação pendente encontrada:', {
             taskId: pendingRenewalTask.id,
-            sistemaId: pendingRenewalTask.sistemaId,
+            systemId: pendingRenewalTask.systemId,
             metadata: pendingRenewalTask.metadata
           });
           
@@ -7859,7 +7859,7 @@ Como posso ajudar você hoje?
               id: pendingRenewalTask.id,
               type: 'renewal',
               quantity: 1,
-              sistemaId: pendingRenewalTask.sistemaId,
+              systemId: pendingRenewalTask.systemId,
               data: pendingRenewalTask.metadata || {},
               metadata: pendingRenewalTask.metadata || {}
             }
@@ -7906,7 +7906,7 @@ Como posso ajudar você hoje?
       if (pendingRenewalTask) {
         console.log('📋 Task de renovação pendente encontrada (automação habilitada):', {
           taskId: pendingRenewalTask.id,
-          sistemaId: pendingRenewalTask.sistemaId,
+          systemId: pendingRenewalTask.systemId,
           metadata: pendingRenewalTask.metadata
         });
         
@@ -7917,7 +7917,7 @@ Como posso ajudar você hoje?
             id: pendingRenewalTask.id,
             type: 'renewal',
             quantity: 1,
-            sistemaId: pendingRenewalTask.sistemaId,
+            systemId: pendingRenewalTask.systemId,
             data: pendingRenewalTask.metadata || {},
             metadata: pendingRenewalTask.metadata || {}
           }
@@ -7977,7 +7977,7 @@ Como posso ajudar você hoje?
     }
     
     try {
-      const { type, credentials, error, taskId, results, summary, systemId, sistemaId, oldCredentials, clienteId, metadata } = req.body;
+      const { type, credentials, error, taskId, results, summary, systemId, systemId, oldCredentials, clienteId, metadata } = req.body;
       
       // VALIDAÇÃO IMPORTANTE: Separar userId de username
       let processedCredentials = null;
@@ -8019,19 +8019,19 @@ Como posso ajudar você hoje?
       });
       console.log(`  Metadata:`, metadata);
       
-      // Extrair sistemaId de múltiplas fontes possíveis
-      let finalSistemaId = sistemaId || systemId || 
-                          credentials?.sistemaId || 
-                          metadata?.sistemaId || 
+      // Extrair systemId de múltiplas fontes possíveis
+      let finalSistemaId = systemId || systemId || 
+                          credentials?.systemId || 
+                          metadata?.systemId || 
                           metadata?.systemId || 
                           null;
       
       console.log(`🔍 [task-complete] Sistema ID resolvido: ${finalSistemaId} [${traceId}]`);
       console.log(`  Fontes verificadas:`);
-      console.log(`    - req.body.sistemaId: ${sistemaId}`);
       console.log(`    - req.body.systemId: ${systemId}`);
-      console.log(`    - credentials.sistemaId: ${credentials?.sistemaId}`);
-      console.log(`    - metadata.sistemaId: ${metadata?.sistemaId}`);
+      console.log(`    - req.body.systemId: ${systemId}`);
+      console.log(`    - credentials.systemId: ${credentials?.systemId}`);
+      console.log(`    - metadata.systemId: ${metadata?.systemId}`);
       console.log(`    - metadata.systemId: ${metadata?.systemId}`);
       
       // Verificar se é uma renovação checando a task na base de dados
@@ -8045,9 +8045,9 @@ Como posso ajudar você hoje?
           isRenewal = true;
           console.log(`🔄 Task ${taskId} identificada como renovação pela source`);
           
-          // Se não temos sistemaId ainda, tentar extrair da task
-          if (!finalSistemaId && renewalTask.sistemaId) {
-            finalSistemaId = renewalTask.sistemaId;
+          // Se não temos systemId ainda, tentar extrair da task
+          if (!finalSistemaId && renewalTask.systemId) {
+            finalSistemaId = renewalTask.systemId;
             console.log(`📎 Sistema ID ${finalSistemaId} extraído da task de renovação`);
           }
         }
@@ -8099,7 +8099,7 @@ Como posso ajudar você hoje?
         }
         
         try {
-          // Se temos um sistemaId, processar renovação
+          // Se temos um systemId, processar renovação
           if (finalSistemaId) {
             // Buscar o sistema ANTES da atualização
             console.log(`🔍 [task-complete] Buscando sistema ${finalSistemaId} ANTES da atualização... [${traceId}]`);
@@ -8164,13 +8164,13 @@ Como posso ajudar você hoje?
               username: processedCredentials.username,
               password: processedCredentials.password,
               userId: processedCredentials.userId, // SALVAR userId SEPARADAMENTE
-              sistemaId: finalSistemaId,
+              systemId: finalSistemaId,
               source: 'renewal',
               status: 'active',
               generatedAt: new Date(),
               metadata: {
                 ...metadata,
-                sistemaId: finalSistemaId,
+                systemId: finalSistemaId,
                 renewedAt: new Date().toISOString()
               }
             });
@@ -8178,13 +8178,13 @@ Como posso ajudar você hoje?
             
             console.log(`✅ [task-complete] Renovação completa para sistema ${finalSistemaId} [${traceId}]`);
           } else {
-            console.warn(`⚠️ [task-complete] Renovação sem sistemaId, salvando apenas credenciais [${traceId}]`);
-            // Salvar apenas credenciais se não tiver sistemaId
+            console.warn(`⚠️ [task-complete] Renovação sem systemId, salvando apenas credenciais [${traceId}]`);
+            // Salvar apenas credenciais se não tiver systemId
             const saved = await storage.createOfficeCredentials({
               username: processedCredentials.username,
               password: processedCredentials.password,
               userId: processedCredentials.userId, // SALVAR userId SEPARADAMENTE
-              sistemaId: null,
+              systemId: null,
               source: 'renewal',
               status: 'active',
               generatedAt: new Date()
@@ -8230,7 +8230,7 @@ Como posso ajudar você hoje?
                 const saved = await storage.createOfficeCredentials({
                   username: username,
                   password: password,
-                  sistemaId: finalSistemaId || null, // Usar finalSistemaId extraído
+                  systemId: finalSistemaId || null, // Usar finalSistemaId extraído
                   source: 'automation',
                   status: 'active',
                   generatedAt: new Date()
@@ -8276,7 +8276,7 @@ Como posso ajudar você hoje?
               username: processedCredentials.username,
               password: processedCredentials.password,
               userId: processedCredentials.userId, // SALVAR userId SEPARADAMENTE
-              sistemaId: finalSistemaId || null, // Usar finalSistemaId extraído
+              systemId: finalSistemaId || null, // Usar finalSistemaId extraído
               source: 'automation',
               status: 'active',
               generatedAt: new Date()
@@ -8706,7 +8706,7 @@ Como posso ajudar você hoje?
         // Check if this is a renewal task
         const metadata = credential.metadata as any;
         if (credential.source === 'renewal' || metadata?.type === 'renewal' || metadata?.generateNewCredentials === true) {
-          const systemId = metadata?.systemId || credential.sistemaId;
+          const systemId = metadata?.systemId || credential.systemId;
           
           if (systemId) {
             console.log(`🗑️ Deletando task de renovação para sistema ${systemId}`);
