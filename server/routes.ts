@@ -8286,25 +8286,41 @@ Como posso ajudar você hoje?
         
         // Atualizar status da task conforme o tipo
         if (isRenewal && renewalTaskInfo) {
-          // Para tasks de renovação do banco, usar autoRenewalService.completeTask
+          // Para tasks de renovação do banco, usar autoRenewalService
           const { autoRenewalService } = await import('./services/AutoRenewalService');
+          
+          console.log(`📝 [task-complete] Atualizando status da task de renovação ${taskId}`);
+          console.log(`  É renovação: ${isRenewal}`);
+          console.log(`  Tem erro: ${error ? 'SIM' : 'NÃO'}`);
+          console.log(`  Username disponível: ${credentials?.username || 'NÃO'}`);
           
           if (error) {
             // Em caso de erro, marcar como failed
-            await storage.updateRenewalTaskStatus(taskId, 'failed', null, error);
+            console.log(`❌ [task-complete] Marcando task ${taskId} como FAILED`);
+            console.log(`  Motivo do erro: ${error}`);
+            await autoRenewalService.failTask(taskId, error);
             console.log(`❌ Task de renovação ${taskId} marcada como falhada: ${error}`);
           } else {
-            // Completar a task de renovação com sucesso
-            await autoRenewalService.completeTask(taskId, {
-              username: credentials?.username,
-              password: credentials?.password,
-              systemId: finalSistemaId,
-              metadata: metadata
-            });
-            console.log(`✅ Task de renovação ${taskId} completada via autoRenewalService`);
+            // Validar credenciais antes de completar
+            if (!credentials?.username || !credentials?.password) {
+              const errorMsg = `Credenciais incompletas - username: ${credentials?.username || 'vazio'}, password: ${credentials?.password ? '***' : 'vazio'}`;
+              console.error(`❌ [task-complete] Erro: ${errorMsg}`);
+              await autoRenewalService.failTask(taskId, errorMsg);
+            } else {
+              // Completar a task de renovação com sucesso
+              console.log(`✅ [task-complete] Marcando task ${taskId} como COMPLETED`);
+              await autoRenewalService.completeTask(taskId, {
+                username: credentials.username,
+                password: credentials.password,
+                systemId: finalSistemaId,
+                metadata: metadata
+              });
+              console.log(`✅ Task de renovação ${taskId} completada via autoRenewalService`);
+            }
           }
         } else {
           // Para outras tasks (não renovação)
+          console.log(`📝 [task-complete] Atualizando task regular ${taskId || 'sem ID'}`);
           await storage.updateTaskStatus(taskId, error ? 'failed' : 'completed', {
             errorMessage: error,
             username: credentials?.username,
@@ -8335,12 +8351,38 @@ Como posso ajudar você hoje?
         console.log(`  Nova senha: ***`);
         console.log(`  Metadata:`, metadata);
         
-        // VALIDAÇÃO: Para renovação, PRECISAMOS do username real
-        if (!processedCredentials.username) {
-          console.error(`❌ [task-complete] Erro: Renovação sem username válido! [${traceId}]`);
-          console.error(`  Recebemos apenas userId: ${processedCredentials.userId}`);
-          throw new Error('Username é obrigatório para renovação de sistema');
+        // VALIDAÇÃO CRÍTICA ANTES DE PROCESSAR: Username válido é obrigatório
+        if (!processedCredentials.username || /^\d+$/.test(processedCredentials.username)) {
+          console.error(`❌ [task-complete] ERRO CRÍTICO: Username inválido para renovação! [${traceId}]`);
+          console.error(`  Username recebido: '${processedCredentials.username || 'vazio'}'`);
+          console.error(`  UserId recebido: ${processedCredentials.userId || 'não informado'}`);
+          
+          // Se temos uma taskId de renovação, marcar como FAILED
+          if (taskId && renewalTaskInfo) {
+            const { autoRenewalService } = await import('./services/AutoRenewalService');
+            const errorMsg = `Username inválido recebido: ${processedCredentials.username || 'vazio'} (apenas userId: ${processedCredentials.userId || 'N/A'})`;
+            
+            console.log(`🔴 [task-complete] Marcando task ${taskId} como FAILED devido a username inválido`);
+            await autoRenewalService.failTask(taskId, errorMsg);
+            
+            // Retornar erro 400 (bad request) ao invés de 500
+            return res.status(400).json({
+              success: false,
+              message: 'Renovação falhou: username inválido',
+              error: errorMsg,
+              taskId: taskId
+            });
+          }
+          
+          // Se não tem taskId mas é renovação, retornar erro
+          return res.status(400).json({
+            success: false,
+            message: 'Renovação falhou: username é obrigatório e deve ser válido',
+            error: `Username inválido: ${processedCredentials.username || 'vazio'}`
+          });
         }
+        
+        console.log(`✅ [task-complete] Username válido detectado: ${processedCredentials.username}`);
         
         try {
           // Se temos um systemId, processar renovação

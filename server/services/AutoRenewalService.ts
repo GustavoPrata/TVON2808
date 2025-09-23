@@ -638,6 +638,97 @@ export class AutoRenewalService {
   }
 
 
+  // Método para marcar uma task de renovação como falhada
+  async failTask(taskId: number, errorMessage: string) {
+    try {
+      console.log(`❌ [AutoRenewal] Marcando task ${taskId} como falhada`);
+      console.log(`  Motivo: ${errorMessage}`);
+      
+      // Atualizar status da task no banco
+      await storage.updateRenewalTaskStatus(taskId, 'failed', null, errorMessage);
+      
+      // Log do erro
+      await storage.createLog({
+        nivel: 'error',
+        origem: 'AutoRenewal',
+        mensagem: 'Task de renovação falhada',
+        detalhes: {
+          taskId: taskId,
+          error: errorMessage
+        }
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error(`❌ Erro ao marcar task ${taskId} como falhada:`, error);
+      throw error;
+    }
+  }
+  
+  // Método para completar uma task de renovação com sucesso
+  async completeTask(taskId: number, credentials: { username?: string, password?: string, systemId?: number, metadata?: any }) {
+    try {
+      console.log(`✅ [AutoRenewal] Completando task ${taskId}`);
+      console.log(`  Username: ${credentials.username || 'não informado'}`);
+      console.log(`  SystemId: ${credentials.systemId || 'não informado'}`);
+      
+      // Validação importante: username é obrigatório para renovação
+      if (!credentials.username || !credentials.password) {
+        throw new Error('Username e password são obrigatórios para completar renovação');
+      }
+      
+      // Verificar se username é apenas numérico (userId)
+      if (/^\d+$/.test(credentials.username)) {
+        throw new Error(`Username inválido (apenas userId): ${credentials.username}`);
+      }
+      
+      // Atualizar status da task no banco como completed
+      await storage.updateRenewalTaskStatus(taskId, 'completed', {
+        username: credentials.username,
+        password: credentials.password,
+        systemId: credentials.systemId,
+        completedAt: new Date().toISOString()
+      });
+      
+      // Se temos systemId, atualizar o sistema
+      if (credentials.systemId) {
+        const sistema = await storage.getSistemaById(credentials.systemId);
+        if (sistema) {
+          // Atualizar credenciais do sistema
+          await storage.updateSistemaRenewal(
+            sistema.systemId,
+            credentials.username,
+            credentials.password
+          );
+          
+          console.log(`✅ Sistema ${sistema.systemId} atualizado com novas credenciais`);
+        }
+      }
+      
+      // Log de sucesso
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'AutoRenewal',
+        mensagem: 'Task de renovação completada com sucesso',
+        detalhes: {
+          taskId: taskId,
+          systemId: credentials.systemId,
+          username: credentials.username
+        }
+      });
+      
+      return { success: true };
+    } catch (error) {
+      console.error(`❌ Erro ao completar task ${taskId}:`, error);
+      
+      // Em caso de erro, marcar task como falhada
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      await this.failTask(taskId, errorMessage);
+      
+      throw error;
+    }
+  }
+
   // Método para forçar renovação de um sistema específico
   async forceRenew(systemId: string) {
     try {
@@ -688,6 +779,13 @@ export class AutoRenewalService {
       
       return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
+  }
+  
+  // Método para limpar estado de renovação de um sistema  
+  clearRenewalState(systemId: string) {
+    console.log(`🧹 Limpando estado de renovação para systemId: ${systemId}`);
+    // Este método pode ser expandido futuramente se mantivermos estado in-memory
+    // Por enquanto, apenas log para debugging
   }
 
 }
