@@ -373,8 +373,58 @@ export class AutoRenewalService {
         }
       });
 
-      // 1. Criar task pendente no banco com sistemaId no metadata
-      console.log(`💾 [AutoRenewal] Criando task de renovação no banco [${traceId}]...`);
+      // 1. Verificar se já existe uma task pendente para este sistema
+      console.log(`🔍 [AutoRenewal] Verificando se já existe task pendente para o sistema ${sistema.id} [${traceId}]...`);
+      
+      const existingPendingTasks = await db
+        .select()
+        .from(officeCredentials)
+        .where(
+          and(
+            eq(officeCredentials.status, 'pending'),
+            eq(officeCredentials.sistemaId, sistema.id)
+          )
+        );
+      
+      if (existingPendingTasks.length > 0) {
+        console.log(`⚠️ [AutoRenewal] Já existe task pendente para o sistema ${sistema.id} [${traceId}]`);
+        console.log(`  Tasks encontradas: ${existingPendingTasks.length}`);
+        console.log(`  Task ID: ${existingPendingTasks[0].id}`);
+        console.log(`  Task Username: ${existingPendingTasks[0].username}`);
+        console.log(`  Task Criada em: ${existingPendingTasks[0].generatedAt}`);
+        
+        await storage.createLog({
+          nivel: 'info',
+          origem: 'AutoRenewal',
+          mensagem: 'Task de renovação já existe para este sistema - pulando criação',
+          detalhes: {
+            traceId,
+            sistemaId: sistema.id,
+            systemId: sistema.systemId,
+            existingTaskId: existingPendingTasks[0].id,
+            existingTaskUsername: existingPendingTasks[0].username,
+            existingTasksCount: existingPendingTasks.length
+          }
+        });
+        
+        // Atualizar status na fila
+        const queueItem = this.renewalQueue.get(sistema.systemId);
+        if (queueItem) {
+          queueItem.status = 'completed';
+          queueItem.completedAt = new Date();
+        }
+        
+        // Agendar remoção da flag de renovação após 5 minutos
+        setTimeout(() => {
+          this.isRenewing.delete(sistema.systemId);
+          console.log(`🗑️ Flag de renovação removida para sistema ${sistema.systemId}`);
+        }, 5 * 60 * 1000);
+        
+        return; // Retornar sem criar nova task
+      }
+
+      // 2. Criar task pendente no banco com sistemaId no metadata
+      console.log(`💾 [AutoRenewal] Nenhuma task pendente encontrada - criando nova task de renovação [${traceId}]...`);
       
       const taskData = {
         username: `renovacao_${Date.now()}`,
@@ -409,7 +459,7 @@ export class AutoRenewalService {
         }
       });
 
-      // 2. Marcar sistema como em renovação no banco
+      // 3. Marcar sistema como em renovação no banco
       console.log(`📊 [AutoRenewal] Atualizando sistema no banco [${traceId}]...`);
       
       const updateResult = await db
