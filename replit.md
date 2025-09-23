@@ -47,6 +47,7 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **Error Handling**: Comprehensive error handling with user-friendly messages.
 - **Field Mapping**: Automatic mapping between database snake_case and frontend camelCase conventions.
 - **Local Data Priority**: Systems management endpoints now fetch data from local database instead of external API for better control and consistency.
+- **Point Distribution System**: Intelligent distribution of service points (pontos) across systems with two modes: One-system-per-point for balanced distribution and Fixed-points-per-system for grouped allocation. Features real-time preview of system requirements and automatic creation of additional systems via external API when needed.
 
 ## External Dependencies
 - **WhatsApp API**: For real-time messaging and bot interactions (via Baileys library).
@@ -54,6 +55,7 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **PostgreSQL**: Relational database for persistent data storage.
 
 ## Recent Updates (September 23, 2025)
+- **Point Distribution System Implemented** - Added complete system distribution functionality in painel-office with two distribution modes: One-system-per-point and Fixed-points-per-system. Frontend modal with real-time preview showing system requirements. Backend endpoint /api/sistemas/distribute supports both distribution modes. Automatic system creation via external API when additional systems are needed. Successfully tested: 33 points redistributed among systems
 - **Chrome Extension Updated** - Replaced with correct extension version (extensaocerta_1758609100567.zip) for proper IPTV automation functionality
 - **UI Cleanup Completed** - Removed system count badges (total systems, active systems) from painel-office interface for cleaner design
 - **Systems API Integration Fixed** - POST, PUT and DELETE endpoints for systems now properly sync with external API when integration is active
