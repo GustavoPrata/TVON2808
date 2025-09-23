@@ -35,6 +35,15 @@ interface ExtensionLog {
 
 export function RenewalQueueSection() {
   const { toast } = useToast();
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Atualizar tempo a cada segundo para mostrar contagem precisa
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
   
   // Query para buscar fila de renovação
   const { data: queueData, isLoading, refetch } = useQuery({
@@ -182,10 +191,28 @@ export function RenewalQueueSection() {
               </div>
               <p className="text-sm font-medium text-white">
                 {queueData?.nextCheckTime 
-                  ? formatDistanceToNow(new Date(queueData.nextCheckTime), { 
-                      addSuffix: true, 
-                      locale: ptBR 
-                    })
+                  ? (() => {
+                      const next = new Date(queueData.nextCheckTime);
+                      const diffInSeconds = Math.floor((next.getTime() - currentTime.getTime()) / 1000);
+                      
+                      if (diffInSeconds <= 0) {
+                        return 'Verificando agora...';
+                      } else if (diffInSeconds < 60) {
+                        return `em ${diffInSeconds} segundo${diffInSeconds !== 1 ? 's' : ''}`;
+                      } else if (diffInSeconds < 3600) {
+                        const minutes = Math.floor(diffInSeconds / 60);
+                        const seconds = diffInSeconds % 60;
+                        return seconds > 0 
+                          ? `em ${minutes}min ${seconds}s`
+                          : `em ${minutes} minuto${minutes !== 1 ? 's' : ''}`;
+                      } else {
+                        const hours = Math.floor(diffInSeconds / 3600);
+                        const minutes = Math.floor((diffInSeconds % 3600) / 60);
+                        return minutes > 0
+                          ? `em ${hours}h ${minutes}min`
+                          : `em ${hours} hora${hours !== 1 ? 's' : ''}`;
+                      }
+                    })()
                   : 'N/A'}
               </p>
             </div>
