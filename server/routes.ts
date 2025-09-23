@@ -5552,13 +5552,8 @@ Como posso ajudar você hoje?
         const sistemasParaCriar = Math.max(0, sistemasNecessarios - sistemasExistentes.length);
         console.log(`🆕 Sistemas necessários: ${sistemasNecessarios}, A criar: ${sistemasParaCriar}`);
         
-        // Limitar criação a 10 sistemas por vez (segurança)
-        const maxSistemasNovos = 50; // Aumentando limite para permitir 26 novos sistemas
-        if (sistemasParaCriar > maxSistemasNovos) {
-          return res.status(400).json({
-            error: `Seriam necessários ${sistemasParaCriar} novos sistemas. Por segurança, o limite é ${maxSistemasNovos} por operação.`
-          });
-        }
+        // Sem limite - processamento é feito por fila
+        console.log(`📊 Total de sistemas a criar: ${sistemasParaCriar}`);
         
         // Resetar todas as atribuições existentes
         console.log('🔄 Resetando atribuições existentes...');
