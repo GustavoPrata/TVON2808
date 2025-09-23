@@ -321,9 +321,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Use originalUrl to get the full path including /api prefix
     const fullPath = req.originalUrl.split('?')[0]; // Remove query params if any
     
-    // EMERGENCY: Allow public access to reset renewal endpoint for system 21
-    if (fullPath === '/api/sistemas/reset-renewal/21') {
-      console.log('🚨 EMERGENCY: Allowing public access to reset renewal for system 21');
+    // EMERGENCY: Allow public access to reset renewal endpoint for stuck systems
+    if (fullPath === '/api/sistemas/reset-renewal/21' || fullPath === '/api/sistemas/reset-renewal/25') {
+      console.log(`🚨 EMERGENCY: Allowing public access to reset renewal for ${fullPath}`);
       return next();
     }
     
