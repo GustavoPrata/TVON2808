@@ -52,8 +52,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { RenewalQueueSection, ExtensionLogsSection } from '@/components/renewal-queue-logs';
-import { UnifiedLogsSection } from '@/components/unified-logs';
+import { RenewalQueueSection } from '@/components/renewal-queue-logs';
 import { ExtensionStatusIndicator } from '@/components/extension-status-indicator';
 
 const systemSchema = z.object({
@@ -1202,12 +1201,6 @@ export default function PainelOffice() {
 
         {/* Renewal Queue Section */}
         <RenewalQueueSection />
-
-        {/* Central de Logs Unificados - TODOS OS LOGS EM UM SÓ LUGAR */}
-        <UnifiedLogsSection />
-        
-        {/* Extension Logs Section (mantido para compatibilidade) */}
-        <ExtensionLogsSection />
       </div>
 
       {/* Custom System Modal */}
