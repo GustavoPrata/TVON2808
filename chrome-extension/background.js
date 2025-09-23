@@ -847,9 +847,8 @@ async function renewSystem(tabId, task) {
       const reportMetadata = {
         ...metadata,
         sistemaId: sistemaId,
-            originalUsername: originalUsername,
-            renewedAt: new Date().toISOString()
-          }
+        originalUsername: originalUsername,
+        renewedAt: new Date().toISOString()
       };
       
       // Reporta sucesso apenas com as credenciais geradas
@@ -880,7 +879,7 @@ async function renewSystem(tabId, task) {
           sistemaId: sistemaId,
           originalUsername: originalUsername,
           renewedAt: new Date().toISOString(),
-          systemEdited: true // Marca que o sistema foi editado
+          systemEdited: false // Sistema não é editado pela extensão
         }
       });
       
