@@ -790,6 +790,39 @@ export default function PainelOffice() {
         </div>
       </div>
 
+      {/* Extension Status Legend */}
+      <div className="mb-4 bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-lg p-3 backdrop-blur-sm border border-slate-700/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="font-semibold text-slate-300">🎯 Estados do Indicador:</span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span className="text-slate-400">Verde (Ativa e Logada) - Extensão funcionando e logada no OnlineOffice</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                <span className="text-slate-400">Amarelo (Ativa mas Deslogada) - Extensão ativa mas na página de login</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                <span className="text-slate-400">Vermelho (Inativa) - Extensão não está respondendo (mais de 30s sem heartbeat)</span>
+              </div>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.open('/api/office/automation/extension.zip', '_blank')}
+            className="bg-blue-600/20 hover:bg-blue-600/30 border-blue-500/50 text-blue-400"
+            data-testid="button-download-extension"
+          >
+            <Download className="w-4 h-4 mr-1" />
+            Baixar Extensão Chrome
+          </Button>
+        </div>
+      </div>
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-y-auto">
         {/* Systems Management Table */}
