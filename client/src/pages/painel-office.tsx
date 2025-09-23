@@ -806,6 +806,20 @@ export default function PainelOffice() {
     setDistributionResult(null);
 
     try {
+      // First check authentication status
+      const authRes = await fetch('/api/auth/status', { credentials: 'include' });
+      const authData = await authRes.json();
+      
+      if (!authData.authenticated) {
+        toast({
+          title: "❌ Erro de Autenticação",
+          description: "Sua sessão expirou. Por favor, faça login novamente.",
+          variant: "destructive",
+        });
+        window.location.href = '/';
+        return;
+      }
+
       const payload = {
         mode: distributionMode,
         ...(distributionMode === 'fixed-points' && { pointsPerSystem })
