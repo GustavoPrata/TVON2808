@@ -54,6 +54,12 @@ TV ON is a comprehensive management system for TV/streaming services, focusing o
 - **PostgreSQL**: Relational database for persistent data storage.
 
 ## Recent Updates (September 23, 2025)
+- **Systems API Integration Fixed** - POST, PUT and DELETE endpoints for systems now properly sync with external API when integration is active
+- **Create System Bug Fixed** - Systems are now created both locally and in external API (system_id, username, password)
+- **Update System Enhanced** - System updates now sync username and password changes to external API
+- **Delete System Complete** - System deletion now removes from both local database and external API
+
+## Recent Updates (September 23, 2025)
 - **Chrome Extension Status Indicator** - Moved from header to Painel Office page, now displayed alongside renewal toggle button
 - **Extension Heartbeat System** - Chrome extension sends heartbeat every 30 seconds to track activity and login status
 - **Visual Status Display** - Three states: Green (Active & Logged), Yellow (Active but Logged Out), Red (Inactive)

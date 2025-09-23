@@ -5166,12 +5166,29 @@ Como posso ajudar você hoje?
         finalSystemId = (maxId + 1).toString();
       }
 
-      // Create only in local database
+      // Create in local database
       const result = await storage.createSistema({
         systemId: finalSystemId,
         username,
         password,
       });
+
+      // Try to create in external API if integration is active
+      try {
+        const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
+        if (integracaoConfig?.ativo) {
+          console.log(`🌐 Criando sistema ${finalSystemId} na API externa...`);
+          await externalApiService.createSystemCredential({
+            system_id: finalSystemId,
+            username,
+            password,
+          });
+          console.log(`✅ Sistema ${finalSystemId} criado na API externa com sucesso`);
+        }
+      } catch (apiError: any) {
+        console.warn(`⚠️ Falha ao criar sistema na API externa:`, apiError.message);
+        // Continue execution - local system was created successfully
+      }
 
       // Return in the format expected by frontend
       res.json({
@@ -5201,36 +5218,49 @@ Como posso ajudar você hoje?
         return res.status(404).json({ error: "Sistema não encontrado" });
       }
 
-      // If system_id is being changed, update systemId
+      // Determine the final values
+      const finalSystemId = system_id && system_id !== id ? system_id : localSystem.systemId;
+      const finalUsername = username || localSystem.username;
+      const finalPassword = password || localSystem.password;
+
+      // Update locally
       if (system_id && system_id !== id) {
         await storage.updateSistema(localSystem.id, {
-          systemId: system_id,
-          username: username || localSystem.username,
-          password: password || localSystem.password,
-        });
-        
-        // Return updated system in expected format
-        res.json({
-          system_id,
-          username: username || localSystem.username,
-          password: password || localSystem.password,
-          id: localSystem.id,
+          systemId: finalSystemId,
+          username: finalUsername,
+          password: finalPassword,
         });
       } else {
-        // Normal update (just username/password)
         await storage.updateSistema(localSystem.id, {
-          username: username || localSystem.username,
-          password: password || localSystem.password,
-        });
-        
-        // Return updated system in expected format
-        res.json({
-          system_id: localSystem.systemId,
-          username: username || localSystem.username,
-          password: password || localSystem.password,
-          id: localSystem.id,
+          username: finalUsername,
+          password: finalPassword,
         });
       }
+
+      // Try to update in external API if integration is active
+      try {
+        const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
+        if (integracaoConfig?.ativo) {
+          const apiSystemId = parseInt(localSystem.systemId);
+          console.log(`🌐 Atualizando sistema ${apiSystemId} na API externa...`);
+          await externalApiService.updateSystemCredential(apiSystemId, {
+            username: finalUsername,
+            password: finalPassword,
+          });
+          console.log(`✅ Sistema ${apiSystemId} atualizado na API externa com sucesso`);
+        }
+      } catch (apiError: any) {
+        console.warn(`⚠️ Falha ao atualizar sistema na API externa:`, apiError.message);
+        // Continue execution - local system was updated successfully
+      }
+
+      // Return updated system in expected format
+      res.json({
+        system_id: finalSystemId,
+        username: finalUsername,
+        password: finalPassword,
+        id: localSystem.id,
+      });
     } catch (error) {
       console.error("Erro ao atualizar sistema:", error);
       res.status(500).json({ error: "Erro ao atualizar sistema" });
@@ -5241,13 +5271,28 @@ Como posso ajudar você hoje?
     try {
       const { id } = req.params;
 
-      // Delete from local database only
+      // Find the local system
       const localSystem = await storage.getSistemaBySystemId(id);
       if (!localSystem) {
         return res.status(404).json({ error: "Sistema não encontrado" });
       }
 
+      // Delete from local database
       await storage.deleteSistema(localSystem.id);
+
+      // Try to delete from external API if integration is active
+      try {
+        const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
+        if (integracaoConfig?.ativo) {
+          const apiSystemId = parseInt(localSystem.systemId);
+          console.log(`🌐 Deletando sistema ${apiSystemId} da API externa...`);
+          await externalApiService.deleteSystemCredential(apiSystemId);
+          console.log(`✅ Sistema ${apiSystemId} deletado da API externa com sucesso`);
+        }
+      } catch (apiError: any) {
+        console.warn(`⚠️ Falha ao deletar sistema da API externa:`, apiError.message);
+        // Continue execution - local system was deleted successfully
+      }
 
       res.json({ message: "Sistema removido com sucesso" });
     } catch (error) {
