@@ -208,6 +208,82 @@ let lastStatus = {
   lastCheck: 0
 };
 let currentPollingInterval = POLLING_INTERVAL_IDLE;
+let heartbeatTimer = null;
+
+// ===========================================================================
+// SISTEMA DE HEARTBEAT
+// ===========================================================================
+async function sendHeartbeat() {
+  try {
+    // Busca todas as abas do OnlineOffice
+    const tabs = await chrome.tabs.query({
+      url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
+    });
+    
+    if (tabs.length === 0) {
+      await logger.debug('💔 Nenhuma aba OnlineOffice aberta para heartbeat');
+      return;
+    }
+    
+    // Pega a primeira aba ativa
+    const activeTab = tabs[0];
+    const currentUrl = activeTab.url || '';
+    
+    // Verifica se está logado baseado na URL
+    // Se está na página de login, está deslogado
+    // Se está em qualquer outra página do OnlineOffice, está logado
+    const isLoggedIn = currentUrl.includes('onlineoffice.zip') && !currentUrl.includes('#/login');
+    
+    await logger.debug(`💓 Enviando heartbeat - URL: ${currentUrl}, Logado: ${isLoggedIn}`);
+    
+    // Envia heartbeat para o backend
+    if (API_BASE) {
+      const response = await fetch(`${API_BASE}/api/extension/heartbeat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Extension-Key': 'tvon-extension-2024'
+        },
+        body: JSON.stringify({
+          currentUrl: currentUrl,
+          isLoggedIn: isLoggedIn,
+          userAgent: navigator.userAgent,
+          extensionVersion: chrome.runtime.getManifest().version,
+          metadata: {
+            tabId: activeTab.id,
+            windowId: activeTab.windowId
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        await logger.warn(`⚠️ Heartbeat falhou: ${response.status}`);
+      } else {
+        await logger.debug('✅ Heartbeat enviado com sucesso');
+      }
+    }
+  } catch (error) {
+    await logger.error('❌ Erro ao enviar heartbeat:', { error: error.message });
+  }
+}
+
+// Inicia o sistema de heartbeat
+async function startHeartbeat() {
+  // Para qualquer heartbeat anterior
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer);
+  }
+  
+  // Envia heartbeat imediatamente
+  await sendHeartbeat();
+  
+  // Configura heartbeat a cada 30 segundos
+  heartbeatTimer = setInterval(async () => {
+    await sendHeartbeat();
+  }, 30000);
+  
+  await logger.info('💗 Sistema de heartbeat iniciado (30s)');
+}
 
 // ===========================================================================
 // INICIALIZAÇÃO
@@ -218,7 +294,48 @@ let currentPollingInterval = POLLING_INTERVAL_IDLE;
   // Inicializa API_BASE dinamicamente
   API_BASE = await getApiBase();
   await logger.info(`🔗 Servidor API configurado: ${API_BASE}`);
+  
+  // Inicia o sistema de heartbeat
+  await startHeartbeat();
 })();
+
+// ===========================================================================
+// MONITORAMENTO DE ABAS
+// ===========================================================================
+// Monitora mudanças de URL nas abas do OnlineOffice
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.url && tab.url && 
+      (tab.url.includes('onlineoffice.zip') || tab.url.includes('onlineoffice.zip'))) {
+    await logger.debug(`🔄 URL mudou em aba ${tabId}: ${changeInfo.url}`);
+    // Envia heartbeat quando URL muda
+    await sendHeartbeat();
+  }
+});
+
+// Monitora quando uma aba do OnlineOffice é ativada
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  const tab = await chrome.tabs.get(activeInfo.tabId);
+  if (tab.url && (tab.url.includes('onlineoffice.zip') || tab.url.includes('onlineoffice.zip'))) {
+    await logger.debug(`🔄 Aba OnlineOffice ativada: ${tab.url}`);
+    // Envia heartbeat quando aba é ativada
+    await sendHeartbeat();
+  }
+});
+
+// Monitora quando uma nova janela é focada
+chrome.windows.onFocusChanged.addListener(async (windowId) => {
+  if (windowId !== chrome.windows.WINDOW_ID_NONE) {
+    const tabs = await chrome.tabs.query({ 
+      active: true, 
+      windowId: windowId,
+      url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
+    });
+    if (tabs.length > 0) {
+      await logger.debug(`🥇 Janela com OnlineOffice focada`);
+      await sendHeartbeat();
+    }
+  }
+});
 
 // Usa Chrome Alarms API para manter a extensão sempre ativa
 async function setupAlarms() {

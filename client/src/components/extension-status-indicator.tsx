@@ -35,12 +35,12 @@ export function ExtensionStatusIndicator() {
     );
   }
 
-  // Determine status state
+  // Determine status state with detailed URL checking
   const getStatusInfo = () => {
     if (!status || !status.active) {
       return {
         icon: XCircle,
-        text: "Extensão Inativa",
+        text: "Extensão Desativada",
         color: "text-red-500",
         bgColor: "bg-red-500/10",
         borderColor: "border-red-500/20",
@@ -49,7 +49,11 @@ export function ExtensionStatusIndicator() {
       };
     }
 
-    if (!status.loggedIn) {
+    // Check if URL indicates login page
+    const isOnLoginPage = status.currentUrl && status.currentUrl.includes('#/login');
+    const isOnOnlineOffice = status.currentUrl && status.currentUrl.includes('onlineoffice.zip');
+    
+    if (!status.loggedIn || isOnLoginPage) {
       return {
         icon: AlertCircle,
         text: "Extensão Ativa - Deslogada",
@@ -57,7 +61,26 @@ export function ExtensionStatusIndicator() {
         bgColor: "bg-yellow-500/10",
         borderColor: "border-yellow-500/20",
         pulseColor: "bg-yellow-500",
-        description: "Extensão ativa mas não está logada no OnlineOffice",
+        description: isOnLoginPage 
+          ? "Extensão ativa e deslogada na página https://onlineoffice.zip/#/login"
+          : "Extensão ativa mas não está logada no OnlineOffice",
+      };
+    }
+
+    // Check if logged in and on OnlineOffice pages
+    if (isOnOnlineOffice) {
+      const pageType = status.currentUrl?.includes('/#/') 
+        ? status.currentUrl.split('/#/')[1]?.split('?')[0] || 'principal'
+        : 'principal';
+      
+      return {
+        icon: CheckCircle2,
+        text: "Extensão Ativa e Logada",
+        color: "text-green-500",
+        bgColor: "bg-green-500/10",
+        borderColor: "border-green-500/20",
+        pulseColor: "bg-green-500",
+        description: `Extensão corretamente logada em https://onlineoffice.zip/#/${pageType}`,
       };
     }
 
@@ -68,7 +91,7 @@ export function ExtensionStatusIndicator() {
       bgColor: "bg-green-500/10",
       borderColor: "border-green-500/20",
       pulseColor: "bg-green-500",
-      description: "Extensão funcionando corretamente",
+      description: "Extensão funcionando corretamente no OnlineOffice",
     };
   };
 
