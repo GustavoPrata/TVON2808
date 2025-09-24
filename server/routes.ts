@@ -1683,7 +1683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             username: pontoData.usuario,
             password: pontoData.senha,
             exp_date: expDate,
-            system: parseInt(sistema.systemId),
+            system: sistema.systemId.startsWith('sistema') ? parseInt(sistema.systemId.replace('sistema', '')) : parseInt(sistema.systemId),
             status: "Active",
           };
 
@@ -1830,7 +1830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 password: updatedPonto.senha,
                 exp_date: expDate,
                 status: updatedPonto.status === "ativo" ? "Active" : "Inactive",
-                system: parseInt(sistema.systemId),
+                system: sistema.systemId.startsWith('sistema') ? parseInt(sistema.systemId.replace('sistema', '')) : parseInt(sistema.systemId),
               };
               
               try {
@@ -1934,7 +1934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             password: ponto.senha,
             exp_date: expDate,
             status: ponto.status === "ativo" ? "Active" : "Inactive",
-            system: parseInt(sistema.systemId),
+            system: sistema.systemId.startsWith('sistema') ? parseInt(sistema.systemId.replace('sistema', '')) : parseInt(sistema.systemId),
           };
 
           console.log("Atualizando usuário na API:", ponto.apiUserId, apiData);
@@ -4221,7 +4221,7 @@ Como posso ajudar você hoje?
               apiUpdateData.device_type = updateData.dispositivo;
             }
             if (updateData.sistemaId !== undefined) {
-              apiUpdateData.system = parseInt(sistema.systemId);
+              apiUpdateData.system = sistema.systemId.startsWith('sistema') ? parseInt(sistema.systemId.replace('sistema', '')) : parseInt(sistema.systemId);
             }
 
             console.log(
@@ -5259,7 +5259,7 @@ Como posso ajudar você hoje?
       try {
         const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
         if (integracaoConfig?.ativo) {
-          const apiSystemId = parseInt(localSystem.systemId);
+          const apiSystemId = localSystem.systemId.startsWith('sistema') ? parseInt(localSystem.systemId.replace('sistema', '')) : parseInt(localSystem.systemId);
           console.log(`🌐 Atualizando sistema ${apiSystemId} na API externa...`);
           await externalApiService.updateSystemCredential(apiSystemId, {
             username: finalUsername,
@@ -5302,7 +5302,7 @@ Como posso ajudar você hoje?
       try {
         const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
         if (integracaoConfig?.ativo) {
-          const apiSystemId = parseInt(localSystem.systemId);
+          const apiSystemId = localSystem.systemId.startsWith('sistema') ? parseInt(localSystem.systemId.replace('sistema', '')) : parseInt(localSystem.systemId);
           console.log(`🌐 Deletando sistema ${apiSystemId} da API externa...`);
           await externalApiService.deleteSystemCredential(apiSystemId);
           console.log(`✅ Sistema ${apiSystemId} deletado da API externa com sucesso`);
@@ -5435,7 +5435,7 @@ Como posso ajudar você hoje?
       try {
         const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
         if (integracaoConfig?.ativo && sistema.systemId) {
-          const apiSystemId = parseInt(sistema.systemId);
+          const apiSystemId = sistema.systemId.startsWith('sistema') ? parseInt(sistema.systemId.replace('sistema', '')) : parseInt(sistema.systemId);
           console.log(`🌐 Atualizando API externa para sistema ${apiSystemId}...`);
           
           const apiResponse = await externalApiService.updateSystemCredential(
@@ -6190,8 +6190,13 @@ Como posso ajudar você hoje?
           return res.status(404).json({ error: "Sistema não encontrado" });
         }
         finalSystemId = sistema.systemId;
-        numericSystemId = Number(sistema.systemId); // Converter systemId para número para a API externa
-        console.log(`🔄 [Process-Renewal] Convertendo ID ${sistemaId} para systemId ${finalSystemId} [${finalTraceId}]`);
+        // Extrair número do systemId para a API externa
+        if (sistema.systemId.startsWith('sistema')) {
+          numericSystemId = parseInt(sistema.systemId.replace('sistema', ''));
+        } else {
+          numericSystemId = parseInt(sistema.systemId);
+        }
+        console.log(`🔄 [Process-Renewal] Convertendo ID ${sistemaId} para systemId ${finalSystemId}, API ID: ${numericSystemId} [${finalTraceId}]`);
       }
       
       // 1. Atualizar sistema localmente com novas credenciais (expiracao de 6 horas)
@@ -7684,7 +7689,7 @@ Como posso ajudar você hoje?
         // Parse systemId safely
         let systemNumber = 1;
         try {
-          systemNumber = parseInt(sistema.systemId);
+          systemNumber = sistema.systemId.startsWith('sistema') ? parseInt(sistema.systemId.replace('sistema', '')) : parseInt(sistema.systemId);
           if (isNaN(systemNumber)) {
             console.warn(`SystemId inválido para sistema ${sistema.id}: ${sistema.systemId}, usando padrão 1`);
             systemNumber = 1;
@@ -8849,7 +8854,7 @@ Como posso ajudar você hoje?
               try {
                 const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
                 if (integracaoConfig?.ativo && sistema.systemId) {
-                  const apiSystemId = parseInt(sistema.systemId);
+                  const apiSystemId = sistema.systemId.startsWith('sistema') ? parseInt(sistema.systemId.replace('sistema', '')) : parseInt(sistema.systemId);
                   console.log(`🌐 [task-complete] Atualizando sistema ${apiSystemId} na API externa... [${traceId}]`);
                   
                   // Chamar API externa para atualizar credenciais (sem expiração)
@@ -8997,7 +9002,10 @@ Como posso ajudar você hoje?
               
               // Buscar próximo system_id disponível
               const sistemas = await storage.getSistemas();
-              const existingIds = sistemas.map(s => parseInt(s.systemId || '0')).filter(id => !isNaN(id));
+              const existingIds = sistemas.map(s => {
+                const sid = s.systemId || '0';
+                return sid.startsWith('sistema') ? parseInt(sid.replace('sistema', '')) : parseInt(sid);
+              }).filter(id => !isNaN(id));
               const nextSystemId = Math.max(0, ...existingIds) + 1;
               
               try {
