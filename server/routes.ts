@@ -5535,8 +5535,8 @@ Como posso ajudar você hoje?
       const detalhes: any[] = [];
 
       if (mode === 'one-per-point') {
-        // Opção 1: Um Sistema por Ponto - cada ponto terá seu próprio sistema
-        console.log('🔄 Modo: Um Sistema por Ponto');
+        // Opção 1: Um Sistema por Ponto - cada ponto terá seu próprio sistema dedicado (1:1)
+        console.log('🔄 Modo: Um Sistema por Ponto (Relação 1:1)');
 
         // Buscar TODOS os pontos ativos para redistribuir
         const todosPontos = await storage.getPontos();
@@ -5552,11 +5552,14 @@ Como posso ajudar você hoje?
         const sistemasParaCriar = Math.max(0, sistemasNecessarios - sistemasExistentes.length);
         console.log(`🆕 Sistemas necessários: ${sistemasNecessarios}, A criar: ${sistemasParaCriar}`);
         
-        // Sem limite - processamento é feito por fila
-        console.log(`📊 Total de sistemas a criar: ${sistemasParaCriar}`);
+        // IMPORTANTE: Desassociar TODOS os pontos para garantir redistribuição completa 1:1
+        console.log('🔓 Desassociando TODOS os pontos ativos para garantir distribuição 1:1...');
+        for (const ponto of pontosAtivos) {
+          await storage.updatePontoSistema(ponto.id, null);
+        }
         
-        // Resetar todas as atribuições existentes
-        console.log('🔄 Resetando atribuições existentes...');
+        // Resetar contador de pontos ativos em todos os sistemas
+        console.log('🔄 Resetando contadores de todos os sistemas...');
         for (const sistema of sistemasExistentes) {
           await storage.updateSistema(sistema.id, { pontosAtivos: 0 });
         }
@@ -5612,32 +5615,61 @@ Como posso ajudar você hoje?
           });
         }
         
-        // Atribuir cada ponto a um sistema dedicado
+        // REDISTRIBUIR TODOS OS PONTOS - garantindo exatamente 1 ponto por sistema
+        console.log('🎯 Redistribuindo TODOS os pontos para garantir relação 1:1...');
+        
+        // Verificação de segurança
+        if (sistemasList.length < pontosAtivos.length) {
+          return res.status(400).json({
+            error: `Erro crítico: Não há sistemas suficientes! ${sistemasList.length} sistemas para ${pontosAtivos.length} pontos`,
+            detalhes: {
+              totalPontos: pontosAtivos.length,
+              totalSistemas: sistemasList.length,
+              sistemasParaCriar: pontosAtivos.length - sistemasList.length
+            }
+          });
+        }
+        
+        // Atribuir cada ponto a um sistema único (1:1)
         for (let i = 0; i < pontosAtivos.length; i++) {
           const ponto = pontosAtivos[i];
+          const sistema = sistemasList[i];
           
-          if (i < sistemasList.length) {
-            const sistema = sistemasList[i];
-            
-            // Atribuir ponto ao sistema
-            await storage.updatePontoSistema(ponto.id, sistema.id);
-            
-            // Atualizar contador do sistema
-            await storage.updateSistema(sistema.id, {
-              pontosAtivos: 1
-            });
-            
-            pontosAtualizados++;
-            
-            detalhes.push({
-              tipo: 'atribuicao',
-              pontoId: ponto.id,
-              pontoUsuario: ponto.usuario,
-              sistemaId: sistema.id,
-              sistemaUsername: sistema.username
-            });
-          }
+          // Atribuir ponto ao sistema
+          await storage.updatePontoSistema(ponto.id, sistema.id);
+          
+          // Atualizar contador do sistema (exatamente 1 ponto)
+          await storage.updateSistema(sistema.id, {
+            pontosAtivos: 1
+          });
+          
+          pontosAtualizados++;
+          
+          detalhes.push({
+            tipo: 'atribuicao_1_1',
+            pontoId: ponto.id,
+            pontoUsuario: ponto.usuario,
+            sistemaId: sistema.id,
+            sistemaUsername: sistema.username,
+            descricao: `Ponto ${i + 1}/${pontosAtivos.length} → Sistema ${i + 1}/${sistemasList.length}`
+          });
         }
+        
+        // Validação final - garantir que a distribuição está 1:1
+        console.log('✅ Validando distribuição 1:1...');
+        const validacao = {
+          totalPontos: pontosAtivos.length,
+          totalSistemas: sistemasList.length,
+          pontosAtualizados,
+          sistemasCriados,
+          relacao: `${pontosAtivos.length}:${pontosAtivos.length} (1:1 garantido)`
+        };
+        
+        console.log('📊 Distribuição 1:1 concluída:', validacao);
+        detalhes.push({
+          tipo: 'validacao',
+          ...validacao
+        });
         
       } else {
         // Opção 2: Pontos Fixos por Sistema

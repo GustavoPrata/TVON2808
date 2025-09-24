@@ -1692,20 +1692,50 @@ export default function PainelOffice() {
                         <div className="ml-4 flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <Package className="w-5 h-5 text-purple-400" />
-                            <span className="font-semibold text-lg">Um Sistema por Ponto</span>
+                            <span className="font-semibold text-lg">Um Sistema por Ponto (1:1)</span>
                           </div>
                           <p className="text-slate-300 text-sm mb-3">
-                            Cada ponto terá seu próprio sistema dedicado. Ideal para gerenciamento individual e máximo controle.
+                            Cada ponto terá seu próprio sistema dedicado. Garante relação estrita 1:1.
                           </p>
                           {distributionMode === 'one-per-point' && distributionPreview && (
-                            <div className="bg-slate-900/50 rounded p-3 mt-3">
-                              <p className="text-sm">
-                                <span className="text-yellow-400 font-bold">
-                                  {distributionPreview.systemsNeeded > 0 
-                                    ? `⚠️ Serão necessários ${distributionPreview.systemsNeeded} novos sistemas` 
-                                    : '✅ Sistemas suficientes disponíveis'}
-                                </span>
+                            <div className="bg-slate-900/50 rounded p-3 mt-3 space-y-2">
+                              <p className="text-sm font-bold text-blue-400">
+                                🎯 Distribuição 1:1 Garantida
                               </p>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="text-slate-400">Pontos ativos:</span>
+                                  <span className="ml-1 font-bold text-purple-400">{distributionPreview.totalPoints}</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400">Sistemas atuais:</span>
+                                  <span className="ml-1 font-bold text-green-400">{systems.length}</span>
+                                </div>
+                              </div>
+                              
+                              {distributionPreview.systemsNeeded > 0 ? (
+                                <div className="p-2 bg-yellow-500/10 border border-yellow-500/30 rounded">
+                                  <p className="text-yellow-400 font-bold text-xs">
+                                    ⚠️ Serão criados {distributionPreview.systemsNeeded} novos sistemas
+                                  </p>
+                                  <p className="text-yellow-300 text-xs mt-1">
+                                    Após criar: {distributionPreview.totalPoints} pontos → {distributionPreview.totalPoints} sistemas
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-green-400 text-xs font-bold">
+                                  ✅ Sistemas suficientes para distribuição 1:1
+                                </p>
+                              )}
+                              
+                              <div className="p-2 bg-blue-500/10 border border-blue-500/30 rounded">
+                                <p className="text-blue-400 font-bold text-xs">
+                                  🔄 TODOS os pontos serão realocados
+                                </p>
+                                <p className="text-blue-300 text-xs mt-1">
+                                  Para garantir 1:1, todos os {distributionPreview.totalPoints} pontos serão redistribuídos
+                                </p>
+                              </div>
                             </div>
                           )}
                         </div>
