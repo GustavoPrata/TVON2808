@@ -8192,9 +8192,16 @@ Como posso ajudar você hoje?
 
   // GET /api/office/automation/next-task - extensão consulta próxima tarefa
   app.get('/api/office/automation/next-task', async (req, res) => {
-    // Verificar API key da extensão
+    // Adicionar headers anti-cache para evitar HTTP 304
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
+    // Verificar API key da extensão (aceita ambas as chaves para compatibilidade)
     const extensionKey = req.headers['x-extension-key'];
-    if (extensionKey !== 'chrome-extension-secret-2024') {
+    if (extensionKey !== 'tvon-extension-2024' && extensionKey !== 'chrome-extension-secret-2024') {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
@@ -8333,11 +8340,18 @@ Como posso ajudar você hoje?
 
   // POST /api/office/automation/task-complete - extensão reporta conclusão
   app.post('/api/office/automation/task-complete', async (req, res) => {
-    // Verificar API key da extensão
+    // Adicionar headers anti-cache para evitar HTTP 304
+    res.set({
+      'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    
+    // Verificar API key da extensão (aceita ambas as chaves para compatibilidade)
     const extensionKey = req.headers['x-extension-key'];
     const traceId = req.headers['x-trace-id'] || `task_${Date.now()}`;
     
-    if (extensionKey !== 'chrome-extension-secret-2024') {
+    if (extensionKey !== 'tvon-extension-2024' && extensionKey !== 'chrome-extension-secret-2024') {
       console.error(`🔴 [task-complete] Unauthorized - TraceId: ${traceId}`);
       return res.status(401).json({ error: 'Unauthorized' });
     }

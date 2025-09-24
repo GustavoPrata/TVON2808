@@ -242,12 +242,15 @@ async function sendHeartbeat() {
     
     // Envia heartbeat para o backend
     if (API_BASE) {
-      const response = await fetch(`${API_BASE}/api/extension/heartbeat`, {
+      const response = await fetch(`${API_BASE}/api/extension/heartbeat?ts=${Date.now()}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Extension-Key': 'tvon-extension-2024'
+          'X-Extension-Key': 'tvon-extension-2024',
+          'Cache-Control': 'no-cache, no-store, max-age=0',
+          'Pragma': 'no-cache'
         },
+        cache: 'no-store',
         body: JSON.stringify({
           currentUrl: currentUrl,
           isLoggedIn: isLoggedIn,
@@ -472,17 +475,20 @@ async function checkForTasks() {
   }
   
   try {
-    // Log detalhado da URL sendo usada
-    const fullUrl = `${API_BASE}/api/office/automation/next-task`;
+    // Log detalhado da URL sendo usada com timestamp único para evitar cache 304
+    const fullUrl = `${API_BASE}/api/office/automation/next-task?ts=${Date.now()}`;
     await logger.info(`🔍 Buscando tarefas em: ${fullUrl}`);
     
-    // Consulta próxima tarefa no backend
-    const response = await fetch(fullUrl, {
+    // Consulta próxima tarefa no backend com headers anti-cache
+    let response = await fetch(fullUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'X-Extension-Key': 'chrome-extension-secret-2024'
-      }
+        'X-Extension-Key': 'tvon-extension-2024',
+        'Cache-Control': 'no-cache, no-store, max-age=0',
+        'Pragma': 'no-cache'
+      },
+      cache: 'no-store'
     }).catch(async err => {
       await logger.error('❌ Erro na requisição:', { error: err.message });
       return null;
@@ -494,9 +500,33 @@ async function checkForTasks() {
     }
     
     if (!response.ok) {
-      await logger.error('❌ Erro ao consultar backend', { status: response.status });
-      await updateBadge(false);
-      return;
+      // Se receber 304 Not Modified, tenta novamente com novo timestamp
+      if (response.status === 304) {
+        await logger.warn('⚠️ Recebido 304 Not Modified, refazendo requisição com novo timestamp...');
+        const retryUrl = `${API_BASE}/api/office/automation/next-task?ts=${Date.now()}&force=true`;
+        const retryResponse = await fetch(retryUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Extension-Key': 'tvon-extension-2024',
+            'Cache-Control': 'no-cache, no-store, max-age=0',
+            'Pragma': 'no-cache',
+            'If-None-Match': ''
+          },
+          cache: 'no-store'
+        });
+        if (!retryResponse.ok) {
+          await logger.error('❌ Erro ao consultar backend após retry', { status: retryResponse.status });
+          await updateBadge(false);
+          return;
+        }
+        // Substitui a resposta pela retry
+        response = retryResponse;
+      } else {
+        await logger.error('❌ Erro ao consultar backend', { status: response.status });
+        await updateBadge(false);
+        return;
+      }
     }
     
     const data = await response.json();
@@ -898,16 +928,16 @@ async function renewSystem(tabId, task) {
     if (typeof taskData === 'string') {
       try {
         taskData = JSON.parse(taskData);
-      } catch (e) {
-        await logger.warn('⚠️ Erro ao fazer parse do data', { error: e.message });
+      } catch (error) {
+        await logger.warn('⚠️ Erro ao fazer parse do data', { error: error.message });
       }
     }
     
     if (typeof metadata === 'string') {
       try {
         metadata = JSON.parse(metadata);
-      } catch (e) {
-        await logger.warn('⚠️ Erro ao fazer parse do metadata', { error: e.message });
+      } catch (error) {
+        await logger.warn('⚠️ Erro ao fazer parse do metadata', { error: error.message });
       }
     }
     
@@ -1000,7 +1030,7 @@ async function renewSystem(tabId, task) {
     if (typeof taskData === 'string') {
       try {
         taskData = JSON.parse(taskData);
-      } catch (e) {
+      } catch (error) {
         // Ignora erro de parse
       }
     }
@@ -1008,7 +1038,7 @@ async function renewSystem(tabId, task) {
     if (typeof metadata === 'string') {
       try {
         metadata = JSON.parse(metadata);
-      } catch (e) {
+      } catch (error) {
         // Ignora erro de parse
       }
     }
@@ -1049,13 +1079,16 @@ async function reportTaskResult(result) {
   });
   
   try {
-    // Usa o endpoint correto task-complete
-    const response = await fetch(`${API_BASE}/api/office/automation/task-complete`, {
+    // Usa o endpoint correto task-complete com timestamp único para evitar cache
+    const response = await fetch(`${API_BASE}/api/office/automation/task-complete?ts=${Date.now()}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Extension-Key': 'chrome-extension-secret-2024'
+        'X-Extension-Key': 'tvon-extension-2024',
+        'Cache-Control': 'no-cache, no-store, max-age=0',
+        'Pragma': 'no-cache'
       },
+      cache: 'no-store',
       body: JSON.stringify(result)
     });
     
