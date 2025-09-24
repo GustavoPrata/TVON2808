@@ -318,13 +318,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '/api/test-renewal', // Rota temporária de teste
       '/api/office/save-credentials', 
       '/api/office/credentials',
-      // Chrome extension automation endpoints (public for extension access)
-      '/api/office/automation/next-task',
-      '/api/office/automation/task-complete',
-      '/api/office/automation/report',
-      '/api/office/automation/config',
-      '/api/office/automation/status',
-      '/api/office/automation/credentials',
+      // REMOVIDO POR SEGURANÇA: Endpoints de automação agora exigem X-Extension-Key
+      // Os seguintes endpoints foram removidos de publicPaths e agora validam X-Extension-Key:
+      // - /api/office/automation/next-task (retorna credenciais sensíveis)
+      // - /api/office/automation/task-complete (recebe credenciais sensíveis)
+      // - /api/office/automation/report (recebe resultados sensíveis)
+      // - /api/office/automation/config (pode expor configurações)
+      // - /api/office/automation/status (pode expor status interno)
+      // - /api/office/automation/credentials (gerencia credenciais)
       '/api/office/automation/extension.zip',  // Extension download endpoint (public)
       '/api/extension/logs',  // Extension logs endpoint (public for Chrome extension to send/receive logs)
       '/api/extension/heartbeat',  // Extension heartbeat endpoint (public for Chrome extension)
@@ -7046,13 +7047,28 @@ Como posso ajudar você hoje?
   
   // POST /api/office/automation/credentials - Endpoint para renovação automática
   app.post("/api/office/automation/credentials", async (req, res) => {
+    // Verificar API key da extensão
+    const extensionKey = req.headers['x-extension-key'];
+    if (extensionKey !== 'tvon-extension-2024' && extensionKey !== 'chrome-extension-secret-2024') {
+      // Log de segurança para tentativa de acesso não autorizado
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      const userAgent = req.headers['user-agent'] || 'Unknown';
+      console.error(`🚨 [SECURITY] Unauthorized access attempt to /api/office/automation/credentials:`, {
+        ip,
+        userAgent,
+        timestamp: new Date().toISOString(),
+        providedKey: extensionKey ? 'Invalid key provided' : 'No key provided'
+      });
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
     try {
       const { username, password, sistemaId, source = "automation" } = req.body;
       
       // CORS headers for extension
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Extension-Key');
       
       console.log(`🔄 [RENOVAÇÃO] Credenciais recebidas para renovação`);
       console.log(`   Sistema ID: ${sistemaId}`);
@@ -7722,7 +7738,9 @@ Como posso ajudar você hoje?
     }
     
     // Se tem API key, verificar se é válida
-    if (extensionKey && extensionKey !== 'chrome-extension-secret-2024') {
+    if (extensionKey && extensionKey !== 'tvon-extension-2024' && extensionKey !== 'chrome-extension-secret-2024') {
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      console.error(`🚨 [SECURITY] Invalid API key for /api/office/automation/config from IP: ${ip}`);
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
@@ -7737,6 +7755,20 @@ Como posso ajudar você hoje?
 
   // POST /api/office/automation/config - atualiza configuração
   app.post('/api/office/automation/config', async (req, res) => {
+    // Verificar API key da extensão ou autenticação de sessão
+    const extensionKey = req.headers['x-extension-key'];
+    const isAuthenticated = (req.session as any)?.user;
+    
+    if (!extensionKey && !isAuthenticated) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    if (extensionKey && extensionKey !== 'tvon-extension-2024' && extensionKey !== 'chrome-extension-secret-2024') {
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      console.error(`🚨 [SECURITY] Invalid API key for POST /api/office/automation/config from IP: ${ip}`);
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
     try {
       const config = await storage.updateOfficeAutomationConfig(req.body);
       
@@ -8145,7 +8177,9 @@ Como posso ajudar você hoje?
   app.get('/api/office/automation/status', async (req, res) => {
     // Verificar API key da extensão
     const extensionKey = req.headers['x-extension-key'];
-    if (extensionKey !== 'chrome-extension-secret-2024') {
+    if (extensionKey !== 'tvon-extension-2024' && extensionKey !== 'chrome-extension-secret-2024') {
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      console.error(`🚨 [SECURITY] Unauthorized access to /api/office/automation/status from IP: ${ip}`);
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
@@ -8202,6 +8236,34 @@ Como posso ajudar você hoje?
     // Verificar API key da extensão (aceita ambas as chaves para compatibilidade)
     const extensionKey = req.headers['x-extension-key'];
     if (extensionKey !== 'tvon-extension-2024' && extensionKey !== 'chrome-extension-secret-2024') {
+      // Log de segurança para tentativa de acesso não autorizado
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      const userAgent = req.headers['user-agent'] || 'Unknown';
+      console.error(`🚨 [SECURITY] Unauthorized access attempt to /api/office/automation/next-task:`, {
+        ip,
+        userAgent,
+        timestamp: new Date().toISOString(),
+        providedKey: extensionKey ? 'Invalid key provided' : 'No key provided',
+        headers: {
+          origin: req.headers['origin'],
+          referer: req.headers['referer']
+        }
+      });
+      
+      // Log para auditoria no banco de dados
+      await storage.createLog({
+        nivel: 'error',
+        origem: 'API-Security',
+        mensagem: 'Unauthorized access attempt to automation endpoint',
+        detalhes: {
+          endpoint: '/api/office/automation/next-task',
+          ip,
+          userAgent,
+          timestamp: new Date().toISOString(),
+          keyProvided: !!extensionKey
+        }
+      }).catch(err => console.error('Failed to log security event:', err));
+      
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
@@ -8376,7 +8438,36 @@ Como posso ajudar você hoje?
     const traceId = req.headers['x-trace-id'] || `task_${Date.now()}`;
     
     if (extensionKey !== 'tvon-extension-2024' && extensionKey !== 'chrome-extension-secret-2024') {
-      console.error(`🔴 [task-complete] Unauthorized - TraceId: ${traceId}`);
+      // Log de segurança para tentativa de acesso não autorizado
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      const userAgent = req.headers['user-agent'] || 'Unknown';
+      console.error(`🚨 [SECURITY] Unauthorized access attempt to /api/office/automation/task-complete:`, {
+        traceId,
+        ip,
+        userAgent,
+        timestamp: new Date().toISOString(),
+        providedKey: extensionKey ? 'Invalid key provided' : 'No key provided',
+        headers: {
+          origin: req.headers['origin'],
+          referer: req.headers['referer']
+        }
+      });
+      
+      // Log para auditoria no banco de dados
+      await storage.createLog({
+        nivel: 'error',
+        origem: 'API-Security',
+        mensagem: 'Unauthorized access attempt to automation endpoint',
+        detalhes: {
+          endpoint: '/api/office/automation/task-complete',
+          traceId,
+          ip,
+          userAgent,
+          timestamp: new Date().toISOString(),
+          keyProvided: !!extensionKey
+        }
+      }).catch(err => console.error('Failed to log security event:', err));
+      
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
@@ -8806,7 +8897,9 @@ Como posso ajudar você hoje?
   app.post('/api/office/automation/report', async (req, res) => {
     // Verificar API key da extensão
     const extensionKey = req.headers['x-extension-key'];
-    if (extensionKey !== 'chrome-extension-secret-2024') {
+    if (extensionKey !== 'tvon-extension-2024' && extensionKey !== 'chrome-extension-secret-2024') {
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      console.error(`🚨 [SECURITY] Unauthorized access to /api/office/automation/report from IP: ${ip}`);
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
@@ -9126,7 +9219,9 @@ Como posso ajudar você hoje?
     }
     
     // Se tem API key, verificar se é válida
-    if (extensionKey && extensionKey !== 'chrome-extension-secret-2024') {
+    if (extensionKey && extensionKey !== 'tvon-extension-2024' && extensionKey !== 'chrome-extension-secret-2024') {
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      console.error(`🚨 [SECURITY] Invalid API key for GET /api/office/automation/credentials from IP: ${ip}`);
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
