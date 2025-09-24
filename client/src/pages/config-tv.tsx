@@ -849,8 +849,19 @@ export default function ConfigTV() {
 
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Status da API</span>
-                  <Badge className={apiConfig?.ativo ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}>
-                    {apiConfig?.ativo ? 'Configurado' : 'Não configurado'}
+                  <Badge className={
+                    !apiConfig?.configuracoes?.baseUrl || !apiConfig?.configuracoes?.apiKey 
+                      ? 'bg-gray-500/20 text-gray-400'
+                      : apiConfig?.ativo 
+                        ? 'bg-green-500/20 text-green-400' 
+                        : 'bg-red-500/20 text-red-400'
+                  }>
+                    {!apiConfig?.configuracoes?.baseUrl || !apiConfig?.configuracoes?.apiKey 
+                      ? 'Não configurado'
+                      : apiConfig?.ativo 
+                        ? 'Ativo' 
+                        : 'Inativo'
+                    }
                   </Badge>
                 </div>
 
@@ -877,12 +888,12 @@ export default function ConfigTV() {
             </CardContent>
           </Card>
 
-          {apiConfig && apiConfig.ativo && (
+          {apiConfig && apiConfig.configuracoes?.baseUrl && apiConfig.configuracoes?.apiKey && (
             <Card className="bg-dark-card border-slate-600">
               <CardHeader>
                 <CardTitle className="text-white text-lg flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-400" />
-                  API Configurada
+                  <CheckCircle className={apiConfig.ativo ? "w-5 h-5 text-green-400" : "w-5 h-5 text-red-400"} />
+                  API {apiConfig.ativo ? 'Ativa' : 'Inativa'}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -894,6 +905,15 @@ export default function ConfigTV() {
                   <div className="p-3 bg-slate-800/50 rounded-lg">
                     <p className="text-xs text-slate-400 mb-1">API Key</p>
                     <p className="text-white font-mono text-sm">{'•'.repeat(apiConfig.configuracoes?.apiKey?.length || 0)}</p>
+                  </div>
+                  <div className="p-3 bg-slate-800/50 rounded-lg">
+                    <p className="text-xs text-slate-400 mb-1">Status</p>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${apiConfig.ativo ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                      <p className={`text-sm ${apiConfig.ativo ? 'text-green-400' : 'text-red-400'}`}>
+                        {apiConfig.ativo ? 'API ativa e funcionando' : 'API desativada'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
