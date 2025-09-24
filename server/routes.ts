@@ -5570,15 +5570,21 @@ Como posso ajudar você hoje?
         if (sistemasParaCriar > 0 && apiEnabled) {
           console.log(`🆕 Criando ${sistemasParaCriar} novos sistemas...`);
           
+          // Buscar todos os sistemas da API para obter o próximo ID disponível
+          const apiSystems = await externalApiService.getSystemCredentials();
+          const existingIds = apiSystems.map(s => parseInt(s.system_id || s.id || '0')).filter(id => !isNaN(id));
+          let nextSystemId = Math.max(0, ...existingIds) + 1;
+          console.log(`📊 IDs existentes na API: ${existingIds.join(', ')}, próximo ID: ${nextSystemId}`);
+          
           for (let i = 0; i < sistemasParaCriar; i++) {
-            const systemId = `sistema_${nanoid(10)}`; // Gerar system_id único
+            const systemId = nextSystemId++; // Usar ID numérico incremental
             const username = `sistema_${nanoid(8)}`;
             const password = `pass_${nanoid(12)}`;
             
             try {
               // Criar sistema na API externa
               const apiSystem = await externalApiService.createSystemCredential({
-                system_id: systemId, // Adicionar system_id obrigatório
+                system_id: systemId.toString(), // Enviar como string mas com valor numérico
                 username,
                 password
               });
@@ -5696,15 +5702,21 @@ Como posso ajudar você hoje?
           const sistemasParaCriar = sistemasNecessarios - sistemasAtuais;
           console.log(`🆕 Criando ${sistemasParaCriar} novos sistemas...`);
 
+          // Buscar todos os sistemas da API para obter o próximo ID disponível
+          const apiSystems = await externalApiService.getSystemCredentials();
+          const existingIds = apiSystems.map(s => parseInt(s.system_id || s.id || '0')).filter(id => !isNaN(id));
+          let nextSystemId = Math.max(0, ...existingIds) + 1;
+          console.log(`📊 IDs existentes na API: ${existingIds.join(', ')}, próximo ID: ${nextSystemId}`);
+          
           for (let i = 0; i < sistemasParaCriar; i++) {
-            const systemId = `sistema_${nanoid(10)}`; // Gerar system_id único
+            const systemId = nextSystemId++; // Usar ID numérico incremental
             const username = `sistema_${nanoid(8)}`;
             const password = `pass_${nanoid(12)}`;
 
             try {
               // Criar sistema na API externa
               const apiSystem = await externalApiService.createSystemCredential({
-                system_id: systemId, // Adicionar system_id obrigatório
+                system_id: systemId.toString(), // Enviar como string mas com valor numérico
                 username,
                 password
               });
