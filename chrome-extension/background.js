@@ -219,13 +219,14 @@ const PROCESSING_TIMEOUT = 5 * 60 * 1000; // 5 minutos
 // ===========================================================================
 async function sendHeartbeat() {
   try {
-    // Busca todas as abas do OnlineOffice
+    // Busca todas as abas do OnlineOffice (OPCIONAL - não é requisito)
     const tabs = await chrome.tabs.query({
       url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
     });
     
     if (tabs.length === 0) {
-      await logger.debug('💔 Nenhuma aba OnlineOffice aberta para heartbeat');
+      // Não é erro - heartbeat é opcional
+      await logger.debug('ℹ️ Nenhuma aba OnlineOffice aberta - heartbeat não enviado (opcional)');
       return;
     }
     
@@ -368,8 +369,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await logger.debug('⏰ Alarme disparado: checando tarefas...', { alarm: alarm.name });
     await checkForTasks();
   } else if (alarm.name === 'checkStatus') {
-    // Verifica se precisa abrir a aba do OnlineOffice
-    await ensureOfficeTabOpen();
+    // NÃO abre mais abas automaticamente - extensão independente
+    await logger.debug('⏰ Alarme checkStatus disparado (abertura de abas desabilitada)');
   }
 });
 
@@ -382,7 +383,7 @@ chrome.runtime.onStartup.addListener(async () => {
   await logger.info('🔄 Estado resetado no startup', { isProcessingTask: false });
   await setupAlarms();
   await checkForTasks(); // Checa imediatamente
-  await ensureOfficeTabOpen(); // Garante que a aba está aberta
+  // NÃO abre mais abas automaticamente
 });
 
 // Inicia quando instalado/atualizado
@@ -406,8 +407,14 @@ chrome.runtime.onInstalled.addListener(async () => {
   await checkForTasks();
 })();
 
-// Função para garantir que a aba do OnlineOffice está aberta
+// Função para garantir que a aba do OnlineOffice está aberta (AGORA OPCIONAL)
 async function ensureOfficeTabOpen(forceOpen = false) {
+  // DESABILITADO: Não abre mais abas automaticamente
+  // A extensão agora funciona independente de abas abertas
+  await logger.debug('🚫 ensureOfficeTabOpen chamado mas desabilitado - extensão funciona sem abas');
+  return;
+  
+  /* Código antigo comentado para referência
   // Só abre se a automação está habilitada OU se forceOpen é true (quando há task)
   if (!lastStatus.isEnabled && !forceOpen) return;
   
@@ -422,6 +429,7 @@ async function ensureOfficeTabOpen(forceOpen = false) {
       active: false // Abre em background
     });
   }
+  */
 }
 
 // ===========================================================================
@@ -543,10 +551,10 @@ async function checkForTasks() {
     await updateBadge(data.isEnabled || false);
     lastStatus.isEnabled = data.isEnabled || false;
     
-    // Se há task, SEMPRE abre a aba OnlineOffice
+    // Se há task, NÃO abre mais abas - processa diretamente
     if (data.hasTask) {
-      await logger.info('✅ TASK ENCONTRADA! Abrindo aba OnlineOffice...');
-      await ensureOfficeTabOpen(true); // força abertura quando há task
+      await logger.info('✅ TASK ENCONTRADA! Processando diretamente via API...');
+      // NÃO abre abas - a extensão agora funciona independente
     }
     
     // Ajusta intervalo de polling baseado no status
@@ -636,44 +644,41 @@ async function processTask(task) {
   }, 10 * 60 * 1000);
   
   try {
-  
-  // Procura aba do OnlineOffice
-  let tabs = await chrome.tabs.query({
-    url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
-  });
-  
-  // Se não encontrar, tenta abrir automaticamente
-  if (tabs.length === 0) {
-    await logger.warn('📂 Nenhuma aba OnlineOffice encontrada. Abrindo automaticamente...');
+    // Para tarefas de renovação, processa DIRETAMENTE via API sem precisar de abas
+    if (task.type === 'renewal' || task.type === 'renew_system') {
+      await logger.info('🔄 Task de renovação detectada - processando diretamente via API', { 
+        type: task.type,
+        taskId: task.id,
+        sistemaId: task.sistemaId || task.data?.sistemaId || task.metadata?.sistemaId || 'N/A',
+        metadata: task.metadata,
+        data: task.data
+      });
+      // Processa renovação diretamente sem precisar de abas
+      await renewSystemDirectly(task);
+      return;
+    }
     
-    // Cria nova aba com o OnlineOffice
-    const newTab = await chrome.tabs.create({
-      url: OFFICE_URL,
-      active: false // Abre em background
-    });
-    
-    // Aguarda a aba carregar
-    await logger.info('⏳ Aguardando aba carregar...');
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    // Procura novamente
-    tabs = await chrome.tabs.query({
+    // Para outras tarefas (generate_batch, generate_single), ainda usa abas se necessário
+    // Mas verifica se há abas disponíveis primeiro
+    let tabs = await chrome.tabs.query({
       url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
     });
     
     if (tabs.length === 0) {
-      await logger.error('❌ ERRO: Não conseguiu abrir aba OnlineOffice!');
+      await logger.warn('❌ Nenhuma aba OnlineOffice disponível para tarefas de geração');
+      await logger.warn('ℹ️ Para tarefas de geração, uma aba do OnlineOffice precisa estar aberta');
+      
+      // Para tarefas de geração, reporta erro se não há abas
       await reportTaskResult({
         taskId: task.id,
         success: false,
-        error: 'Não conseguiu abrir aba OnlineOffice'
+        error: 'Aba OnlineOffice necessária para tarefas de geração'
       });
       return;
     }
-  }
-  
+    
     const tabId = tabs[0].id;
-    await logger.info(`✅ Aba encontrada`, { url: tabs[0].url });
+    await logger.info(`✅ Aba encontrada para geração`, { url: tabs[0].url });
     
     // Processa baseado no tipo de tarefa
     if (task.type === 'generate_batch') {
@@ -685,16 +690,6 @@ async function processTask(task) {
         taskId: task.id
       });
       await generateSingle(tabId, task);
-    } else if (task.type === 'renewal' || task.type === 'renew_system') {
-      // Suporta ambos os tipos: 'renewal' (do backend) e 'renew_system' (legado)
-      await logger.info('🔄 Task de renovação detectada', { 
-        type: task.type,
-        taskId: task.id,
-        sistemaId: task.sistemaId || task.data?.sistemaId || task.metadata?.sistemaId || 'N/A',
-        metadata: task.metadata,
-        data: task.data
-      });
-      await renewSystem(tabId, task);
     } else {
       await logger.warn('⚠️ Tipo de task desconhecido', { type: task.type, task });
       // Reporta erro para task desconhecida
@@ -716,6 +711,176 @@ async function processTask(task) {
     // Limpa o timeout
     clearTimeout(taskTimeout);
     await logger.info('🎁 ProcessTask finalizado para task', { taskId: task?.id });
+  }
+}
+
+// ===========================================================================
+// RENOVAÇÃO DIRETA VIA API (SEM ABAS)
+// ===========================================================================
+async function renewSystemDirectly(task) {
+  await logger.info('🔄 Renovando sistema DIRETAMENTE via API...', { taskData: task });
+  
+  // Extrair sistemaId de diferentes locais possíveis
+  const sistemaId = task.sistemaId || 
+                    task.data?.sistemaId || 
+                    task.data?.systemId || 
+                    task.metadata?.sistemaId || 
+                    task.metadata?.systemId || 
+                    null;
+                     
+  const originalUsername = task.data?.originalUsername || 
+                          task.metadata?.originalUsername || 
+                          task.metadata?.systemUsername ||
+                          task.data?.currentUsername || 
+                          'N/A';
+  
+  await logger.info('📋 Dados da renovação', {
+    sistemaId: sistemaId || 'N/A',
+    usuarioAtual: originalUsername,
+    taskId: task.id,
+    taskType: task.type
+  });
+  
+  // Validação do sistemaId
+  if (!sistemaId) {
+    await logger.error('❌ ERRO CRÍTICO: sistemaId não encontrado na task', {
+      task: JSON.stringify(task)
+    });
+  }
+  
+  try {
+    // Parse data e metadata se forem strings
+    let taskData = task.data;
+    let metadata = task.metadata;
+    
+    if (typeof taskData === 'string') {
+      try {
+        taskData = JSON.parse(taskData);
+      } catch (error) {
+        await logger.warn('⚠️ Erro ao fazer parse do data', { error: error.message });
+      }
+    }
+    
+    if (typeof metadata === 'string') {
+      try {
+        metadata = JSON.parse(metadata);
+      } catch (error) {
+        await logger.warn('⚠️ Erro ao fazer parse do metadata', { error: error.message });
+      }
+    }
+    
+    // Faz chamada direta para API para gerar nova credencial
+    await logger.info('🎯 Gerando nova credencial via API...');
+    
+    // Garantir que API_BASE está definido
+    if (!API_BASE) {
+      API_BASE = await getApiBase();
+      await logger.info(`🔗 Servidor API re-configurado: ${API_BASE}`);
+    }
+    
+    // Fazer requisição para gerar nova credencial
+    const generateResponse = await fetch(`${API_BASE}/api/office/automation/generate-renewal-credential?ts=${Date.now()}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Extension-Key': 'tvon-extension-2024',
+        'Cache-Control': 'no-cache, no-store, max-age=0',
+        'Pragma': 'no-cache'
+      },
+      cache: 'no-store',
+      body: JSON.stringify({
+        taskId: task.id,
+        sistemaId: sistemaId,
+        originalUsername: originalUsername,
+        metadata: metadata
+      })
+    });
+    
+    if (!generateResponse.ok) {
+      const errorText = await generateResponse.text();
+      throw new Error(`Erro ao gerar credencial: ${errorText}`);
+    }
+    
+    const credentialData = await generateResponse.json();
+    
+    // Valida que recebeu as credenciais
+    if (!credentialData.success || !credentialData.credentials) {
+      throw new Error('API não retornou credenciais válidas');
+    }
+    
+    const newCredentials = credentialData.credentials;
+    
+    await logger.info('✅ Nova credencial gerada com sucesso via API!', {
+      novoUsuario: newCredentials.username,
+      novaSenha: newCredentials.password,
+      sistemaId: sistemaId || 'desconhecido'
+    });
+    
+    // Prepara metadata para reporte
+    const reportMetadata = {
+      ...metadata,
+      sistemaId: sistemaId,
+      originalUsername: originalUsername,
+      renewedAt: new Date().toISOString(),
+      renewedViaAPI: true // Marca que foi renovado diretamente via API
+    };
+    
+    // Reporta sucesso ao backend
+    await logger.info('✅ Credenciais de renovação geradas com sucesso!', { 
+      sistemaId,
+      novoUsuario: newCredentials.username,
+      novaSenha: newCredentials.password
+    });
+    
+    // Reporta sucesso ao backend com sistemaId garantido
+    const reportSuccess = await reportTaskResult({
+      taskId: task.id,
+      type: task.type || 'renewal',
+      sistemaId: sistemaId,
+      systemId: sistemaId, // Manter ambos por compatibilidade
+      credentials: {
+        username: newCredentials.username,
+        password: newCredentials.password,
+        sistemaId: sistemaId
+      },
+      oldCredentials: {
+        username: originalUsername,
+        password: taskData?.currentPassword || metadata?.currentPassword || 'unknown'
+      },
+      clienteId: taskData?.clienteId || metadata?.clienteId,
+      metadata: reportMetadata
+    });
+    
+    if (!reportSuccess) {
+      await logger.error('⚠️ Falha ao reportar renovação ao backend!', { sistemaId });
+    } else {
+      await logger.info('✅ Renovação completa via API reportada ao backend com sucesso', { 
+        sistemaId,
+        username: newCredentials.username
+      });
+    }
+    
+  } catch (error) {
+    await logger.error('❌ Erro ao renovar sistema via API', { error: error.message, sistemaId });
+    
+    // Reporta erro ao backend
+    const reportSuccess = await reportTaskResult({
+      taskId: task.id,
+      type: task.type || 'renewal',
+      sistemaId: sistemaId,
+      systemId: sistemaId,
+      error: error.message,
+      metadata: {
+        ...(task.metadata || {}),
+        sistemaId: sistemaId,
+        failedAt: new Date().toISOString(),
+        failureReason: error.message
+      }
+    });
+    
+    if (!reportSuccess) {
+      await logger.error('⚠️ Falha ao reportar erro de renovação ao backend!');
+    }
   }
 }
 

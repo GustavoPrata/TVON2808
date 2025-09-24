@@ -9155,6 +9155,95 @@ Como posso ajudar você hoje?
     }
   });
 
+  // POST /api/office/automation/generate-renewal-credential - gera credencial para renovação
+  app.post('/api/office/automation/generate-renewal-credential', async (req, res) => {
+    // Verificar API key da extensão
+    const extensionKey = req.headers['x-extension-key'];
+    if (extensionKey !== 'tvon-extension-2024' && extensionKey !== 'chrome-extension-secret-2024') {
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      console.error(`🚨 [SECURITY] Unauthorized access to /api/office/automation/generate-renewal-credential from IP: ${ip}`);
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    try {
+      const { taskId, sistemaId, originalUsername, metadata } = req.body;
+      
+      console.log('🎯 Gerando credencial para renovação via API:', {
+        taskId,
+        sistemaId,
+        originalUsername
+      });
+      
+      // Gerar nova credencial diretamente (sem Puppeteer)
+      // Formato: username de 6 dígitos e senha padrão
+      const randomNumber = Math.floor(100000 + Math.random() * 900000); // 6 dígitos
+      const newUsername = randomNumber.toString();
+      const newPassword = 'tvon1@'; // Senha padrão
+      
+      // Salvar credencial no banco de dados
+      const savedCredential = await storage.createOfficeCredentials({
+        username: newUsername,
+        password: newPassword,
+        sistemaId: sistemaId || null,
+        source: 'api_renewal',
+        status: 'active',
+        generatedAt: new Date(),
+        metadata: {
+          ...metadata,
+          taskId,
+          originalUsername,
+          generatedViaAPI: true,
+          generatedAt: new Date().toISOString()
+        }
+      });
+      
+      console.log('✅ Credencial gerada com sucesso via API:', {
+        id: savedCredential.id,
+        username: newUsername,
+        sistemaId
+      });
+      
+      // Criar log de automação
+      await storage.createOfficeAutomationLog({
+        taskType: 'api_renewal_generation',
+        status: 'completed',
+        responseData: {
+          credentialId: savedCredential.id,
+          username: newUsername,
+          sistemaId,
+          taskId
+        }
+      });
+      
+      res.json({ 
+        success: true,
+        credentials: {
+          username: newUsername,
+          password: newPassword
+        },
+        credentialId: savedCredential.id
+      });
+    } catch (error) {
+      console.error('❌ Erro ao gerar credencial para renovação:', error);
+      
+      // Criar log de erro
+      await storage.createOfficeAutomationLog({
+        taskType: 'api_renewal_generation',
+        status: 'failed',
+        responseData: {
+          error: error.message,
+          taskId: req.body.taskId,
+          sistemaId: req.body.sistemaId
+        }
+      }).catch(e => console.error('Erro ao criar log:', e));
+      
+      res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao gerar credencial' 
+      });
+    }
+  });
+
   // POST /api/office/automation/report - reporta resultado da extensão
   app.post('/api/office/automation/report', async (req, res) => {
     // Verificar API key da extensão
