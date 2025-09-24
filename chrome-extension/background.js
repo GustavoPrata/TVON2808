@@ -202,6 +202,7 @@ const OFFICE_URL = 'https://onlineoffice.zip/'; // URL base do OnlineOffice
 // ===========================================================================
 let pollingTimer = null;
 let isProcessingTask = false;
+let processingStartTime = null; // Para rastrear quando começou o processamento
 let lastStatus = {
   isEnabled: false,
   badge: '',
@@ -209,6 +210,9 @@ let lastStatus = {
 };
 let currentPollingInterval = POLLING_INTERVAL_IDLE;
 let heartbeatTimer = null;
+
+// Timeout de segurança para resetar isProcessingTask (5 minutos)
+const PROCESSING_TIMEOUT = 5 * 60 * 1000; // 5 minutos
 
 // ===========================================================================
 // SISTEMA DE HEARTBEAT
@@ -369,6 +373,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 // Inicia quando o Chrome abre
 chrome.runtime.onStartup.addListener(async () => {
   await logger.info('📦 Chrome iniciado, configurando automação...');
+  // Reset de segurança no startup
+  isProcessingTask = false;
+  processingStartTime = null;
+  await logger.info('🔄 Estado resetado no startup', { isProcessingTask: false });
   await setupAlarms();
   await checkForTasks(); // Checa imediatamente
   await ensureOfficeTabOpen(); // Garante que a aba está aberta
@@ -377,12 +385,20 @@ chrome.runtime.onStartup.addListener(async () => {
 // Inicia quando instalado/atualizado
 chrome.runtime.onInstalled.addListener(async () => {
   await logger.info('🔧 Extensão instalada/atualizada, configurando automação...');
+  // Reset de segurança na instalação/atualização
+  isProcessingTask = false;
+  processingStartTime = null;
+  await logger.info('🔄 Estado resetado na instalação/atualização', { isProcessingTask: false });
   await setupAlarms();
   await checkForTasks(); // Checa imediatamente
 });
 
 // Inicia verificação imediata
 (async () => {
+  // Reset de segurança no início
+  isProcessingTask = false;
+  processingStartTime = null;
+  await logger.info('🔄 Estado inicial resetado', { isProcessingTask: false });
   await setupAlarms();
   await checkForTasks();
 })();
@@ -420,9 +436,24 @@ async function updatePollingInterval(minutes) {
 }
 
 async function checkForTasks() {
+  // Verificação de timeout de segurança
+  if (isProcessingTask && processingStartTime) {
+    const processingTime = Date.now() - processingStartTime;
+    if (processingTime > PROCESSING_TIMEOUT) {
+      await logger.error('⚠️ TIMEOUT: Processamento travado há mais de 5 minutos! Resetando...', {
+        processingTime: processingTime / 1000 + ' segundos'
+      });
+      isProcessingTask = false;
+      processingStartTime = null;
+    }
+  }
+  
   // Se já está processando, pula esta checagem
   if (isProcessingTask) {
-    await logger.debug('⏳ Já processando tarefa, pulando checagem...');
+    const timeElapsed = processingStartTime ? (Date.now() - processingStartTime) / 1000 : 0;
+    await logger.debug('⏳ Já processando tarefa, pulando checagem...', {
+      tempoDecorrido: timeElapsed + ' segundos'
+    });
     return;
   }
   
@@ -512,8 +543,14 @@ async function checkForTasks() {
       taskType: data.task?.type 
     });
     
-    // Marca como processando
+    // Marca como processando e registra o tempo de início
     isProcessingTask = true;
+    processingStartTime = Date.now();
+    await logger.info('🚀 Iniciando processamento de tarefa', {
+      taskId: data.task?.id,
+      isProcessingTask: true,
+      startTime: new Date(processingStartTime).toISOString()
+    });
     
     // Processa a tarefa
     await processTask(data.task);
@@ -534,7 +571,16 @@ async function checkForTasks() {
     await logger.error('❌ Erro no polling', { error: error.message });
     await updateBadge(false);
   } finally {
+    // Sempre reseta o estado de processamento
+    if (isProcessingTask) {
+      const processingTime = processingStartTime ? (Date.now() - processingStartTime) / 1000 : 0;
+      await logger.info('✅ Finalizando processamento', {
+        tempoTotal: processingTime + ' segundos',
+        isProcessingTask: false
+      });
+    }
     isProcessingTask = false;
+    processingStartTime = null;
   }
 }
 
@@ -547,6 +593,19 @@ async function processTask(task) {
   await logger.info(`📦 Tipo: ${task.type}`);
   await logger.info(`🔢 Quantidade: ${task.quantity || 1}`);
   await logger.info('========================================');
+  
+  // Timeout de segurança para a tarefa (10 minutos)
+  const taskTimeout = setTimeout(async () => {
+    await logger.error('⚠️ TIMEOUT: Tarefa demorou mais de 10 minutos para processar!', {
+      taskId: task?.id,
+      taskType: task?.type
+    });
+    // Força reset do estado
+    isProcessingTask = false;
+    processingStartTime = null;
+  }, 10 * 60 * 1000);
+  
+  try {
   
   // Procura aba do OnlineOffice
   let tabs = await chrome.tabs.query({
@@ -583,26 +642,50 @@ async function processTask(task) {
     }
   }
   
-  const tabId = tabs[0].id;
-  await logger.info(`✅ Aba encontrada`, { url: tabs[0].url });
-  
-  // Processa baseado no tipo de tarefa
-  if (task.type === 'generate_batch') {
-    await generateBatch(tabId, task);
-  } else if (task.type === 'generate_single') {
-    await generateSingle(tabId, task);
-  } else if (task.type === 'renewal' || task.type === 'renew_system') {
-    // Suporta ambos os tipos: 'renewal' (do backend) e 'renew_system' (legado)
-    await logger.info('🔄 Task de renovação detectada', { 
-      type: task.type,
-      taskId: task.id,
-      sistemaId: task.sistemaId || task.data?.sistemaId || task.metadata?.sistemaId || 'N/A',
-      metadata: task.metadata,
-      data: task.data
+    const tabId = tabs[0].id;
+    await logger.info(`✅ Aba encontrada`, { url: tabs[0].url });
+    
+    // Processa baseado no tipo de tarefa
+    if (task.type === 'generate_batch') {
+      await generateBatch(tabId, task);
+    } else if (task.type === 'generate_single' || task.type === 'single_generation') {
+      // Suporta ambos os tipos: 'generate_single' e 'single_generation'
+      await logger.info('🎯 Task de geração única detectada', { 
+        type: task.type,
+        taskId: task.id
+      });
+      await generateSingle(tabId, task);
+    } else if (task.type === 'renewal' || task.type === 'renew_system') {
+      // Suporta ambos os tipos: 'renewal' (do backend) e 'renew_system' (legado)
+      await logger.info('🔄 Task de renovação detectada', { 
+        type: task.type,
+        taskId: task.id,
+        sistemaId: task.sistemaId || task.data?.sistemaId || task.metadata?.sistemaId || 'N/A',
+        metadata: task.metadata,
+        data: task.data
+      });
+      await renewSystem(tabId, task);
+    } else {
+      await logger.warn('⚠️ Tipo de task desconhecido', { type: task.type, task });
+      // Reporta erro para task desconhecida
+      await reportTaskResult({
+        taskId: task?.id,
+        success: false,
+        error: `Tipo de task desconhecido: ${task.type}`
+      });
+    }
+  } catch (error) {
+    await logger.error('❌ Erro em processTask', { error: error.message, stack: error.stack });
+    // Reporta erro ao backend
+    await reportTaskResult({
+      taskId: task?.id,
+      success: false,
+      error: error.message
     });
-    await renewSystem(tabId, task);
-  } else {
-    await logger.warn('⚠️ Tipo de task desconhecido', { type: task.type, task });
+  } finally {
+    // Limpa o timeout
+    clearTimeout(taskTimeout);
+    await logger.info('🎁 ProcessTask finalizado para task', { taskId: task?.id });
   }
 }
 
@@ -704,10 +787,20 @@ async function generateBatch(tabId, task) {
 }
 
 async function generateSingle(tabId, task) {
-  await logger.info('🎯 Gerando credencial única...');
+  await logger.info('🎯 Gerando credencial única...', {
+    taskId: task?.id,
+    taskType: task?.type
+  });
   
   try {
-    const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
+    // Timeout para a geração de credencial (30 segundos)
+    const response = await Promise.race([
+      chrome.tabs.sendMessage(tabId, {action: 'generateOne'}),
+      new Promise((_, reject) => setTimeout(
+        () => reject(new Error('Timeout ao gerar credencial')), 
+        30000
+      ))
+    ]);
     
     if (response && response.success && response.credentials) {
       await logger.info('✅ Credencial gerada com sucesso!', {
@@ -718,7 +811,7 @@ async function generateSingle(tabId, task) {
       // Reporta sucesso ao backend - IMPORTANTE: Usar formato correto
       const reportSuccess = await reportTaskResult({
         taskId: task.id,
-        type: 'generate_single',
+        type: task.type || 'generate_single', // Usa o tipo original da task
         credentials: {
           username: response.credentials.username,
           password: response.credentials.password
@@ -747,7 +840,7 @@ async function generateSingle(tabId, task) {
     // Reporta erro ao backend
     const reportSuccess = await reportTaskResult({
       taskId: task.id,
-      type: 'generate_single',
+      type: task.type || 'generate_single', // Usa o tipo original da task
       error: error.message
     });
     
