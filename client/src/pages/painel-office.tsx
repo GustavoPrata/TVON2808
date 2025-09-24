@@ -993,7 +993,7 @@ export default function PainelOffice() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-y-auto">
         {/* Systems Management Table */}
-        <Card className="bg-dark-card border-slate-700 flex flex-col">
+        <Card className="bg-dark-card border-slate-700 flex flex-col max-h-[80vh] overflow-hidden">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -1061,7 +1061,7 @@ export default function PainelOffice() {
             </div>
           </CardHeader>
           
-          <CardContent className="flex-1 min-h-0">
+          <CardContent className="flex-1 min-h-0 overflow-y-auto">
             {loadingSystems ? (
               <div className="flex items-center justify-center h-full">
                 <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
