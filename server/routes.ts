@@ -9155,7 +9155,7 @@ Como posso ajudar você hoje?
     }
   });
 
-  // POST /api/office/automation/generate-renewal-credential - gera credencial para renovação
+  // POST /api/office/automation/generate-renewal-credential - processa solicitação de renovação
   app.post('/api/office/automation/generate-renewal-credential', async (req, res) => {
     // Verificar API key da extensão
     const extensionKey = req.headers['x-extension-key'];
@@ -9168,67 +9168,61 @@ Como posso ajudar você hoje?
     try {
       const { taskId, sistemaId, originalUsername, metadata } = req.body;
       
-      console.log('🎯 Gerando credencial para renovação via API:', {
+      console.log('🎯 Processando solicitação de renovação:', {
         taskId,
         sistemaId,
         originalUsername
       });
       
-      // Gerar nova credencial diretamente (sem Puppeteer)
-      // Formato: username de 6 dígitos e senha padrão
-      const randomNumber = Math.floor(100000 + Math.random() * 900000); // 6 dígitos
-      const newUsername = randomNumber.toString();
-      const newPassword = 'tvon1@'; // Senha padrão
+      // IMPORTANTE: Não gerar credenciais falsas!
+      // A extensão Chrome deve criar credenciais REAIS no OnlineOffice
+      // Este endpoint apenas sinaliza que a extensão deve processar
       
-      // Salvar credencial no banco de dados
-      const savedCredential = await storage.createOfficeCredentials({
-        username: newUsername,
-        password: newPassword,
-        sistemaId: sistemaId || null,
-        source: 'api_renewal',
-        status: 'active',
-        generatedAt: new Date(),
-        metadata: {
-          ...metadata,
-          taskId,
-          originalUsername,
-          generatedViaAPI: true,
-          generatedAt: new Date().toISOString()
-        }
+      // Criar task pendente para a extensão processar
+      const pendingTask = await storage.createPendingTask('renewal_generation', {
+        taskId,
+        sistemaId,
+        originalUsername,
+        ...metadata
       });
       
-      console.log('✅ Credencial gerada com sucesso via API:', {
-        id: savedCredential.id,
-        username: newUsername,
-        sistemaId
+      console.log('📋 Task de renovação criada para processamento pela extensão:', {
+        taskId: pendingTask.id,
+        sistemaId,
+        type: 'renewal_generation'
       });
       
       // Criar log de automação
       await storage.createOfficeAutomationLog({
-        taskType: 'api_renewal_generation',
-        status: 'completed',
+        taskType: 'renewal_generation_requested',
+        status: 'pending',
         responseData: {
-          credentialId: savedCredential.id,
-          username: newUsername,
+          pendingTaskId: pendingTask.id,
           sistemaId,
-          taskId
+          taskId,
+          message: 'Aguardando extensão criar credenciais REAIS no OnlineOffice'
         }
       });
       
+      // Retornar resposta indicando que a extensão deve processar
+      // As credenciais REAIS serão retornadas via task-complete
       res.json({ 
         success: true,
-        credentials: {
-          username: newUsername,
-          password: newPassword
-        },
-        credentialId: savedCredential.id
+        status: 'processing',
+        message: 'Extensão processará e criará credenciais REAIS no OnlineOffice',
+        pendingTaskId: pendingTask.id,
+        instructions: {
+          step1: 'Extensão deve acessar OnlineOffice',
+          step2: 'Criar credencial REAL no site',
+          step3: 'Retornar via /api/office/automation/task-complete'
+        }
       });
     } catch (error) {
-      console.error('❌ Erro ao gerar credencial para renovação:', error);
+      console.error('❌ Erro ao processar solicitação de renovação:', error);
       
       // Criar log de erro
       await storage.createOfficeAutomationLog({
-        taskType: 'api_renewal_generation',
+        taskType: 'renewal_generation_requested',
         status: 'failed',
         responseData: {
           error: error.message,
@@ -9239,7 +9233,7 @@ Como posso ajudar você hoje?
       
       res.status(500).json({ 
         success: false, 
-        error: 'Erro ao gerar credencial' 
+        error: 'Erro ao processar solicitação de renovação' 
       });
     }
   });
