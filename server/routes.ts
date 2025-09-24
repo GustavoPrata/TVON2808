@@ -5578,7 +5578,7 @@ Como posso ajudar você hoje?
           
           for (let i = 0; i < sistemasParaCriar; i++) {
             try {
-              // Obter próximo System ID sequencial
+              // Obter próximo System ID sequencial (agora retorna apenas o número como string)
               const nextSystemId = await storage.getNextSistemaId();
               
               // Credenciais temporárias únicas
@@ -5607,8 +5607,8 @@ Como posso ajudar você hoje?
               // Tentar criar na API externa se estiver ativa
               if (apiEnabled) {
                 try {
-                  // Extrair número do systemId (ex: "sistema1" -> 1)
-                  const systemNumber = parseInt(nextSystemId.replace('sistema', ''));
+                  // SystemId já é numérico (ex: "7"), apenas converter para número
+                  const systemNumber = parseInt(nextSystemId);
                   const apiResult = await externalApiService.createUser({
                     username: tempUsername,
                     password: tempPassword,
@@ -5726,8 +5726,10 @@ Como posso ajudar você hoje?
             try {
               console.log(`  🌐 Atualizando API externa - Usuário ${ponto.usuario}...`);
               
-              // Extrair número do systemId (ex: "sistema1" -> 1)
-              const systemNumber = parseInt(sistema.systemId.replace('sistema', ''));
+              // SystemId já é numérico (ex: "7"), ou pode ser legado "sistema7"
+              const systemNumber = sistema.systemId.startsWith('sistema') 
+                ? parseInt(sistema.systemId.replace('sistema', ''))
+                : parseInt(sistema.systemId);
               
               // Verificar se ponto tem apiUserId e se o usuário existe
               if (ponto.apiUserId) {
@@ -7267,8 +7269,10 @@ Como posso ajudar você hoje?
           // Se tiver systemId da API externa, atualizar
           const sistema = await storage.getSistemaById(sistemaId);
           if (sistema?.systemId) {
-            // Extrair o número do systemId (ex: "sistema5" -> 5)
-            const apiSystemId = parseInt(sistema.systemId.replace(/\D/g, ''));
+            // SystemId pode ser numérico ("7") ou legado ("sistema7")
+            const apiSystemId = sistema.systemId.startsWith('sistema')
+              ? parseInt(sistema.systemId.replace(/\D/g, ''))
+              : parseInt(sistema.systemId);
             
             if (apiSystemId) {
               console.log(`🔄 [RENOVAÇÃO] Atualizando sistema ${apiSystemId} na API externa`);
