@@ -666,7 +666,50 @@ async function processTask(task) {
     });
     
     // Processa baseado no tipo de tarefa
-    if (task.type === 'generate_batch') {
+    if (task.type === 'renewal_generation') {
+      // IMPORTANTE: Task específica para gerar credenciais REAIS no OnlineOffice
+      await logger.info('🔄 Task de renewal_generation detectada - gerando credencial REAL', { 
+        taskId: task.id,
+        sistemaId: task.sistemaId || task.metadata?.sistemaId
+      });
+      
+      // Gera uma credencial REAL no OnlineOffice
+      try {
+        const response = await generateRealCredentialOnOffice();
+        
+        if (response && response.success && response.credentials) {
+          // Envia credenciais REAIS de volta ao servidor
+          await reportTaskResult({
+            taskId: task.id,
+            type: 'renewal_generation',
+            credentials: {
+              username: response.credentials.username,
+              password: response.credentials.password
+            },
+            sistemaId: task.sistemaId || task.metadata?.sistemaId,
+            metadata: {
+              generatedAt: new Date().toISOString(),
+              source: 'OnlineOffice_REAL'
+            }
+          });
+          
+          await logger.info('✅ Credencial REAL enviada ao servidor', {
+            username: response.credentials.username,
+            taskId: task.id
+          });
+        } else {
+          throw new Error('Falha ao gerar credencial REAL no OnlineOffice');
+        }
+      } catch (error) {
+        await logger.error('❌ Erro ao gerar credencial REAL', { error: error.message });
+        await reportTaskResult({
+          taskId: task.id,
+          type: 'renewal_generation',
+          success: false,
+          error: error.message
+        });
+      }
+    } else if (task.type === 'generate_batch') {
       await logger.info('📦 Task de geração em lote detectada', { 
         quantity: task.quantity || 10,
         taskId: task.id
@@ -873,38 +916,63 @@ async function renewSystemDirectly(task) {
   }
 }
 
+// Função auxiliar para criar credencial REAL no OnlineOffice
+async function generateRealCredentialOnOffice() {
+  await logger.info('🎯 Iniciando geração de credencial REAL no OnlineOffice...');
+  
+  try {
+    // Verifica se já existe uma aba do OnlineOffice
+    const tabs = await chrome.tabs.query({ url: '*://onlineoffice.zip/*' });
+    
+    let tab;
+    if (tabs.length > 0) {
+      tab = tabs[0];
+      await chrome.tabs.update(tab.id, { active: true });
+    } else {
+      // Cria nova aba no OnlineOffice
+      tab = await chrome.tabs.create({
+        url: 'https://onlineoffice.zip/#/dashboard',
+        active: true
+      });
+      
+      // Aguarda a página carregar
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+    
+    // Envia comando para o content script clicar nos botões e extrair credencial REAL
+    const response = await chrome.tabs.sendMessage(tab.id, {
+      action: 'generateOne'
+    });
+    
+    if (response && response.success && response.credentials) {
+      await logger.info('✅ Credencial REAL extraída do OnlineOffice!', {
+        username: response.credentials.username,
+        password: response.credentials.password
+      });
+      return response;
+    } else {
+      throw new Error('Falha ao extrair credencial do OnlineOffice');
+    }
+  } catch (error) {
+    await logger.error('❌ Erro ao gerar credencial REAL', { error: error.message });
+    throw error;
+  }
+}
+
 async function generateBatch(task) {
   const quantity = task.quantity || 10;
   let successCount = 0;
   let errorCount = 0;
   const results = [];
   
-  await logger.info(`📦 Gerando lote de ${quantity} credenciais...`);
+  await logger.info(`📦 Gerando lote de ${quantity} credenciais REAIS no OnlineOffice...`);
   
   for (let i = 0; i < quantity; i++) {
-    await logger.info(`🎯 Gerando credencial ${i + 1}/${quantity}...`);
+    await logger.info(`🎯 Gerando credencial REAL ${i + 1}/${quantity}...`);
     
     try {
-      // Gera credencial diretamente via API
-      const apiResponse = await fetch(`${API_BASE}/api/office/automation/generate-renewal-credential`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Extension-Key': 'tvon-extension-2024'
-        },
-        body: JSON.stringify({
-          taskId: task.id,
-          type: 'batch_generation',
-          index: i + 1,
-          total: quantity
-        })
-      });
-      
-      if (!apiResponse.ok) {
-        throw new Error(`API error: ${apiResponse.status}`);
-      }
-      
-      const response = await apiResponse.json();
+      // IMPORTANTE: Usar o OnlineOffice REAL para gerar credenciais
+      const response = await generateRealCredentialOnOffice();
       
       if (response && response.success && response.credentials) {
         successCount++;
@@ -989,25 +1057,15 @@ async function generateBatch(task) {
 }
 
 async function generateSingle(task) {
-  await logger.info('🎯 Gerando credencial única...', {
+  await logger.info('🎯 Gerando credencial única REAL no OnlineOffice...', {
     taskId: task?.id,
     taskType: task?.type
   });
   
   try {
-    // Gera credencial diretamente via API com timeout de 30 segundos
+    // IMPORTANTE: Usar o OnlineOffice REAL para gerar credencial
     const response = await Promise.race([
-      fetch(`${API_BASE}/api/office/automation/generate-renewal-credential`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Extension-Key': 'tvon-extension-2024'
-        },
-        body: JSON.stringify({
-          taskId: task.id,
-          type: task.type || 'single_generation'
-        })
-      }).then(r => r.ok ? r.json() : Promise.reject(new Error(`API error: ${r.status}`))),
+      generateRealCredentialOnOffice(),
       new Promise((_, reject) => setTimeout(
         () => reject(new Error('Timeout ao gerar credencial')), 
         30000
