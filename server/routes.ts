@@ -5571,12 +5571,14 @@ Como posso ajudar você hoje?
           console.log(`🆕 Criando ${sistemasParaCriar} novos sistemas...`);
           
           for (let i = 0; i < sistemasParaCriar; i++) {
+            const systemId = `sistema_${nanoid(10)}`; // Gerar system_id único
             const username = `sistema_${nanoid(8)}`;
             const password = `pass_${nanoid(12)}`;
             
             try {
               // Criar sistema na API externa
               const apiSystem = await externalApiService.createSystemCredential({
+                system_id: systemId, // Adicionar system_id obrigatório
                 username,
                 password
               });
@@ -5695,12 +5697,14 @@ Como posso ajudar você hoje?
           console.log(`🆕 Criando ${sistemasParaCriar} novos sistemas...`);
 
           for (let i = 0; i < sistemasParaCriar; i++) {
+            const systemId = `sistema_${nanoid(10)}`; // Gerar system_id único
             const username = `sistema_${nanoid(8)}`;
             const password = `pass_${nanoid(12)}`;
 
             try {
               // Criar sistema na API externa
               const apiSystem = await externalApiService.createSystemCredential({
+                system_id: systemId, // Adicionar system_id obrigatório
                 username,
                 password
               });
