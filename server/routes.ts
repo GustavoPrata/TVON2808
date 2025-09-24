@@ -5679,8 +5679,11 @@ Como posso ajudar você hoje?
           });
         }
         
-        // REDISTRIBUIR TODOS OS PONTOS - garantindo exatamente 1 ponto por sistema
+        // ===== VINCULAÇÃO 1:1 DE PONTOS AOS SISTEMAS =====
+        console.log('\n🔗 ===== INICIANDO VINCULAÇÃO 1:1 DE PONTOS AOS SISTEMAS =====');
         console.log('🎯 Redistribuindo TODOS os pontos para garantir relação 1:1...');
+        console.log(`📍 Pontos ativos encontrados: ${pontosAtivos.length}`);
+        console.log(`📊 Sistemas disponíveis: ${sistemasList.length}`);
         
         // Verificação de segurança
         if (sistemasList.length < pontosAtivos.length) {
@@ -5695,9 +5698,16 @@ Como posso ajudar você hoje?
         }
         
         // Atribuir cada ponto a um sistema único (1:1)
+        console.log(`\n📌 Iniciando vinculação 1:1 de ${pontosAtivos.length} pontos...`);
+        let vinculacoesComSucesso = 0;
+        let atualizacoesApiSucesso = 0;
+        let atualizacoesApiFalha = 0;
+        
         for (let i = 0; i < pontosAtivos.length; i++) {
           const ponto = pontosAtivos[i];
           const sistema = sistemasList[i];
+          
+          console.log(`\n[${i + 1}/${pontosAtivos.length}] Vinculando Ponto ${ponto.id} (${ponto.usuario}) ao Sistema ${sistema.systemId}...`);
           
           // Atribuir ponto ao sistema no banco local
           await storage.updatePontoSistema(ponto.id, sistema.id);
@@ -5708,20 +5718,63 @@ Como posso ajudar você hoje?
           });
           
           pontosAtualizados++;
+          vinculacoesComSucesso++;
+          console.log(`  ✅ Vinculação local concluída`);
           
           // Atualizar na API externa se estiver ativa
-          if (apiEnabled && ponto.apiUserId) {
+          if (apiEnabled) {
             try {
-              console.log(`🌐 Atualizando usuário ${ponto.apiUserId} na API para usar Sistema ${sistema.systemId}...`);
+              console.log(`  🌐 Atualizando API externa - Usuário ${ponto.usuario}...`);
               
-              // Atualizar o campo 'system' do usuário na API
               // Extrair número do systemId (ex: "sistema1" -> 1)
               const systemNumber = parseInt(sistema.systemId.replace('sistema', ''));
-              await externalApiService.updateUser(parseInt(ponto.apiUserId), {
-                system: systemNumber
-              });
               
-              console.log(`✅ Usuário ${ponto.usuario} (ID: ${ponto.apiUserId}) atualizado para Sistema ${sistema.systemId}`);
+              // Verificar se ponto tem apiUserId e se o usuário existe
+              if (ponto.apiUserId) {
+                const userExists = await externalApiService.getUser(parseInt(ponto.apiUserId));
+                
+                if (userExists) {
+                  // Atualizar usuário existente
+                  await externalApiService.updateUser(parseInt(ponto.apiUserId), {
+                    system: systemNumber
+                  });
+                  console.log(`    ✅ Usuário existente atualizado (ID: ${ponto.apiUserId})`);
+                } else {
+                  console.log(`    ⚠️ Usuário ID ${ponto.apiUserId} não encontrado. Criando novo...`);
+                  // Criar novo usuário
+                  const newUser = await externalApiService.createUser({
+                    username: ponto.usuario,
+                    password: ponto.senha || nanoid(8),
+                    status: 'Active',
+                    exp_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                    system: systemNumber
+                  });
+                  
+                  // Atualizar ponto com novo apiUserId
+                  if (newUser && newUser.id) {
+                    await storage.updatePonto(ponto.id, { apiUserId: newUser.id.toString() });
+                    console.log(`    ✅ Novo usuário criado na API (ID: ${newUser.id})`);
+                  }
+                }
+              } else {
+                // Ponto sem apiUserId - criar novo usuário
+                console.log(`    📝 Ponto sem apiUserId. Criando usuário na API...`);
+                const newUser = await externalApiService.createUser({
+                  username: ponto.usuario,
+                  password: ponto.senha || nanoid(8),
+                  status: 'Active',
+                  exp_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                  system: systemNumber
+                });
+                
+                // Atualizar ponto com novo apiUserId
+                if (newUser && newUser.id) {
+                  await storage.updatePonto(ponto.id, { apiUserId: newUser.id.toString() });
+                  console.log(`    ✅ Usuário criado e vinculado (ID: ${newUser.id})`);
+                }
+              }
+              
+              atualizacoesApiSucesso++;
               
               detalhes.push({
                 tipo: 'atribuicao_1_1',
@@ -5730,12 +5783,14 @@ Como posso ajudar você hoje?
                 sistemaId: sistema.id,
                 sistemaUsername: sistema.username,
                 systemId: sistema.systemId,
-                apiUserId: ponto.apiUserId,
-                apiStatus: 'atualizado',
-                descricao: `Ponto ${i + 1}/${pontosAtivos.length} → Sistema ${i + 1}/${sistemasList.length} (API atualizada)`
+                systemNumber: systemNumber,
+                apiUserId: ponto.apiUserId || 'criado',
+                apiStatus: 'sucesso',
+                descricao: `Ponto ${i + 1}/${pontosAtivos.length} → Sistema ${sistema.systemId} (API sincronizada)`
               });
             } catch (apiError) {
-              console.warn(`⚠️ Falha ao atualizar usuário ${ponto.apiUserId} na API:`, apiError);
+              console.error(`    ❌ Falha na API:`, apiError instanceof Error ? apiError.message : apiError);
+              atualizacoesApiFalha++;
               
               detalhes.push({
                 tipo: 'atribuicao_1_1',
@@ -5763,11 +5818,18 @@ Como posso ajudar você hoje?
           }
         }
         
-        // Log resumo da distribuição de pontos
-        console.log(`📊 Resumo da distribuição de pontos:`);
-        console.log(`   - Total de pontos distribuídos: ${pontosAtualizados}`);
-        console.log(`   - Relação 1:1 garantida: cada ponto tem seu sistema exclusivo`);
-        console.log(`   - API externa: ${apiEnabled ? 'ativada' : 'desativada'}`)
+        // Log resumo detalhado da distribuição
+        console.log(`\n📊 ===== RESUMO FINAL DA VINCULAÇÃO 1:1 =====`);
+        console.log(`📍 Pontos processados: ${pontosAtivos.length}`);
+        console.log(`✅ Vinculações locais com sucesso: ${vinculacoesComSucesso}`);
+        console.log(`🌐 API Externa: ${apiEnabled ? 'ATIVADA' : 'DESATIVADA'}`);
+        if (apiEnabled) {
+          console.log(`  ✅ Atualizações API com sucesso: ${atualizacoesApiSucesso}`);
+          console.log(`  ❌ Atualizações API com falha: ${atualizacoesApiFalha}`);
+        }
+        console.log(`🔗 Relação garantida: 1:1 (cada ponto tem sistema exclusivo)`);
+        console.log(`📈 Taxa de sucesso: ${((vinculacoesComSucesso / pontosAtivos.length) * 100).toFixed(1)}%`);
+        console.log(`===== FIM DA VINCULAÇÃO =====\n`)
         
         // Validação final - garantir que a distribuição está 1:1
         console.log('✅ Validando distribuição 1:1...');
@@ -8148,6 +8210,94 @@ Como posso ajudar você hoje?
     }
   });
 
+  // GET /api/test-vinculacao - testar vinculação 1:1 de pontos aos sistemas
+  app.get('/api/test-vinculacao', checkAuth, async (req, res) => {
+    try {
+      console.log('\n🧪 ===== TESTE DE VINCULAÇÃO 1:1 INICIADO =====');
+      
+      // 1. Buscar status atual
+      const todosPontos = await storage.getPontos();
+      const pontosSemSistema = await storage.getPontosWithoutSistema();
+      const todosSistemas = await storage.getSistemas();
+      
+      console.log(`📊 Status Inicial:`);
+      console.log(`   - Total de pontos: ${todosPontos.length}`);
+      console.log(`   - Pontos sem sistema: ${pontosSemSistema.length}`);
+      console.log(`   - Total de sistemas: ${todosSistemas.length}`);
+      
+      // 2. Mostrar mapeamento atual
+      const mapeamento = [];
+      for (const ponto of todosPontos) {
+        const sistema = ponto.sistemaId ? todosSistemas.find(s => s.id === ponto.sistemaId) : null;
+        mapeamento.push({
+          pontoId: ponto.id,
+          pontoUsuario: ponto.usuario,
+          sistemaId: ponto.sistemaId,
+          systemId: sistema?.systemId || 'SEM SISTEMA',
+          status: ponto.sistemaId ? '✅ Vinculado' : '❌ Não vinculado'
+        });
+      }
+      
+      // 3. Verificar integridade 1:1
+      const sistemasComPontos = new Map();
+      for (const ponto of todosPontos) {
+        if (ponto.sistemaId) {
+          if (!sistemasComPontos.has(ponto.sistemaId)) {
+            sistemasComPontos.set(ponto.sistemaId, []);
+          }
+          sistemasComPontos.get(ponto.sistemaId).push(ponto);
+        }
+      }
+      
+      const violacoes = [];
+      for (const [sistemaId, pontos] of sistemasComPontos) {
+        if (pontos.length > 1) {
+          violacoes.push({
+            sistemaId,
+            pontos: pontos.map(p => ({ id: p.id, usuario: p.usuario })),
+            quantidade: pontos.length
+          });
+        }
+      }
+      
+      console.log(`\n🔍 Análise de Integridade 1:1:`);
+      if (violacoes.length > 0) {
+        console.log(`   ⚠️ VIOLAÇÕES ENCONTRADAS: ${violacoes.length} sistemas com múltiplos pontos`);
+        violacoes.forEach(v => {
+          console.log(`      - Sistema ${v.sistemaId}: ${v.quantidade} pontos`);
+        });
+      } else {
+        console.log(`   ✅ Integridade 1:1 OK - Cada sistema tem no máximo 1 ponto`);
+      }
+      
+      console.log(`\n🧪 ===== TESTE FINALIZADO =====\n`);
+      
+      res.json({
+        sucesso: true,
+        analise: {
+          totalPontos: todosPontos.length,
+          pontosSemSistema: pontosSemSistema.length,
+          totalSistemas: todosSistemas.length,
+          pontosVinculados: todosPontos.length - pontosSemSistema.length,
+          taxaVinculacao: ((todosPontos.length - pontosSemSistema.length) / todosPontos.length * 100).toFixed(1) + '%'
+        },
+        integridade: {
+          relacao1para1: violacoes.length === 0,
+          violacoes: violacoes.length,
+          detalheViolacoes: violacoes
+        },
+        mapeamentoResumido: mapeamento.slice(0, 10), // Primeiros 10 para não sobrecarregar
+        mapeamentoCompleto: `/api/pontos` // Endpoint para ver todos
+      });
+    } catch (error) {
+      console.error('❌ Erro no teste de vinculação:', error);
+      res.status(500).json({
+        sucesso: false,
+        erro: error instanceof Error ? error.message : 'Erro desconhecido'
+      });
+    }
+  });
+  
   // POST /api/test/create-auto-renewal-system - criar sistema de teste com renovação automática
   app.post('/api/test/create-auto-renewal-system', checkAuth, async (req, res) => {
     try {
