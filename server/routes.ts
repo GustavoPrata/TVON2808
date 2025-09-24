@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import session from "express-session";
 import MemoryStore from "memorystore";
-import { storage } from "./storage";
+import { storage, normalizeSystemId } from "./storage";
 import { db } from "./db";
 import { whatsappService } from "./services/whatsapp";
 import { externalApiService } from "./services/externalApi";
@@ -8178,14 +8178,17 @@ Como posso ajudar você hoje?
   // POST /api/sistemas/renewal-queue/force/:systemId - forçar renovação de um sistema
   app.post('/api/sistemas/renewal-queue/force/:systemId', checkAuth, async (req, res) => {
     try {
-      const systemId = req.params.systemId;
+      const rawSystemId = req.params.systemId;
       
-      if (!systemId) {
+      if (!rawSystemId) {
         return res.status(400).json({
           success: false,
           error: 'SystemID do sistema não fornecido'
         });
       }
+      
+      // Normalize systemId to handle legacy "sistema" prefix
+      const systemId = normalizeSystemId(rawSystemId);
       
       const result = await autoRenewalService.forceRenew(systemId);
       

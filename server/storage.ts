@@ -24,12 +24,26 @@ import {
 } from "@shared/schema";
 import { eq, desc, asc, sql, and, or, gte, lte, ilike, ne, count } from "drizzle-orm";
 
+// Helper function to normalize system IDs (removes "sistema" prefix if present)
+export function normalizeSystemId(systemId: string | null | undefined): string | null {
+  if (!systemId) return null;
+  
+  // Remove "sistema" prefix if present, otherwise return as-is
+  if (systemId.startsWith('sistema')) {
+    return systemId.replace('sistema', '');
+  }
+  
+  return systemId;
+}
+
 // Helper functions para mapeamento snake_case <-> camelCase
 function mapSistemaToFrontend(sistema: Sistema): any {
   if (!sistema) return sistema;
   
   return {
     ...sistema,
+    // Normalize systemId to always return numeric ID only
+    systemId: normalizeSystemId(sistema.systemId),
     expiracao: sistema.expiracao, // map expiracao to expiracao for backward compatibility
     pontosAtivos: sistema.pontosAtivos,
     maxPontosAtivos: sistema.maxPontosAtivos,
@@ -1659,10 +1673,11 @@ export class DatabaseStorage implements IStorage {
 
   // Get available systems (not at max capacity)
   async getAvailableSistemas(): Promise<Sistema[]> {
-    return await db.select()
+    const result = await db.select()
       .from(sistemas)
       .where(sql`${sistemas.pontosAtivos} < ${sistemas.maxPontosAtivos}`)
       .orderBy(asc(sistemas.pontosAtivos));
+    return result.map(mapSistemaToFrontend);
   }
 
   // Redirect URLs methods
