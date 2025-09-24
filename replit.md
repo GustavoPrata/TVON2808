@@ -48,6 +48,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Field Mapping**: Automatic mapping between database snake_case and frontend camelCase.
 - **Local Data Priority**: Systems management endpoints fetch data from local database.
 - **Point Distribution System**: Intelligent distribution of service points (pontos) across systems with two modes: One-system-per-point and Fixed-points-per-system, including real-time preview and automatic system creation via external API.
+- **System ID Format**: All system IDs use numeric format only (1, 2, 3...) without prefixes. Legacy "sistema" prefixed IDs are normalized to numeric on read.
 
 ## External Dependencies
 - **WhatsApp API**: For real-time messaging and bot interactions (via Baileys library).
