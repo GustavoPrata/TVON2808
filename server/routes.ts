@@ -8601,17 +8601,101 @@ Como posso ajudar você hoje?
             processedCount = 1;
           } else {
             console.log('💾 Salvando credencial única:', credentials.username);
-            const saved = await storage.createOfficeCredentials({
-              username: credentials.username,
-              password: credentials.password,
-              sistemaId: finalSistemaId || null, // Usar finalSistemaId extraído
-              source: 'automation',
-              status: 'active',
-              generatedAt: new Date()
-            });
-            savedCredentials.push(saved);
-            processedCount = 1;
-            console.log('✅ Credencial única salva com sucesso');
+            
+            // IMPORTANTE: Se é uma tarefa de criação de sistema, criar o sistema completo!
+            if (metadata?.purpose === 'system_distribution' || 
+                metadata?.purpose === 'fixed_points_distribution' ||
+                metadata?.purpose === 'auto_generate_system') {
+              
+              console.log('🆕 Criando novo sistema com credenciais geradas...');
+              
+              // Buscar próximo system_id disponível
+              const sistemas = await storage.getSistemas();
+              const existingIds = sistemas.map(s => parseInt(s.systemId || '0')).filter(id => !isNaN(id));
+              const nextSystemId = Math.max(0, ...existingIds) + 1;
+              
+              try {
+                // 1. Criar sistema no banco local
+                const novoSistema = await storage.createSistema({
+                  systemId: nextSystemId.toString(),
+                  username: credentials.username,
+                  password: credentials.password,
+                  maxPontosAtivos: metadata?.pointsPerSystem || 100,
+                  pontosAtivos: 0,
+                  expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
+                });
+                
+                console.log(`✅ Sistema ${novoSistema.id} criado no banco local (system_id: ${novoSistema.systemId})`);
+                
+                // 2. Criar sistema na API externa se ativa
+                const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
+                if (integracaoConfig?.ativo) {
+                  console.log(`🌐 Criando sistema ${nextSystemId} na API externa...`);
+                  
+                  try {
+                    const apiSystem = await externalApiService.createSystemCredential({
+                      system_id: nextSystemId.toString(),
+                      username: credentials.username,
+                      password: credentials.password
+                    });
+                    
+                    console.log(`✅ Sistema criado na API externa:`, apiSystem);
+                  } catch (apiError) {
+                    console.error('⚠️ Erro ao criar na API externa (continuando):', apiError);
+                    // Não falhar todo o processo se a API externa tiver problema
+                  }
+                }
+                
+                // Salvar credencial com referência ao sistema criado
+                const saved = await storage.createOfficeCredentials({
+                  username: credentials.username,
+                  password: credentials.password,
+                  sistemaId: novoSistema.id, // Usar ID do sistema criado
+                  source: 'automation',
+                  status: 'active',
+                  generatedAt: new Date(),
+                  metadata: {
+                    ...metadata,
+                    systemId: novoSistema.systemId,
+                    sistemaId: novoSistema.id,
+                    createdAt: new Date().toISOString()
+                  }
+                });
+                savedCredentials.push(saved);
+                processedCount = 1;
+                
+                console.log(`✅ Sistema completo criado e credencial salva (ID: ${novoSistema.id})`);
+              } catch (error) {
+                console.error('❌ Erro ao criar sistema completo:', error);
+                
+                // Mesmo com erro, salvar credencial para não perder
+                const saved = await storage.createOfficeCredentials({
+                  username: credentials.username,
+                  password: credentials.password,
+                  sistemaId: null,
+                  source: 'automation',
+                  status: 'active',
+                  generatedAt: new Date()
+                });
+                savedCredentials.push(saved);
+                processedCount = 1;
+                
+                errors.push({ credential: credentials.username, error: error.message });
+              }
+            } else {
+              // Não é criação de sistema, apenas salvar credencial
+              const saved = await storage.createOfficeCredentials({
+                username: credentials.username,
+                password: credentials.password,
+                sistemaId: finalSistemaId || null,
+                source: 'automation',
+                status: 'active',
+                generatedAt: new Date()
+              });
+              savedCredentials.push(saved);
+              processedCount = 1;
+              console.log('✅ Credencial única salva com sucesso');
+            }
           }
         } catch (e) {
           console.error('❌ Erro ao salvar credencial única:', e);
