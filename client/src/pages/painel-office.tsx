@@ -831,7 +831,7 @@ export default function PainelOffice() {
 
       // Handle successful response
       if (response.sucesso || response.success) {
-        const { sistemasCriados = 0, pontosAtualizados = 0, errors = [] } = response;
+        const { tarefasCriadas = 0, sistemasCriados = 0, pontosAtualizados = 0, errors = [] } = response;
         
         setDistributionResult({
           success: true,
@@ -843,19 +843,28 @@ export default function PainelOffice() {
 
         // Show success toast with details
         toast({
-          title: "✅ Distribuição Concluída!",
+          title: tarefasCriadas > 0 ? "📋 Tarefas na Fila!" : "✅ Distribuição Concluída!",
           description: (
             <div className="space-y-1">
-              <div>📊 {pontosAtualizados} pontos atualizados</div>
-              {sistemasCriados > 0 && (
-                <div>🆕 {sistemasCriados} sistemas criados</div>
+              {tarefasCriadas > 0 ? (
+                <>
+                  <div>📋 {tarefasCriadas} sistemas adicionados à fila</div>
+                  <div className="text-yellow-400">⏳ A extensão Chrome está processando...</div>
+                </>
+              ) : (
+                <>
+                  <div>📊 {pontosAtualizados} pontos atualizados</div>
+                  {sistemasCriados > 0 && (
+                    <div>🆕 {sistemasCriados} sistemas criados</div>
+                  )}
+                </>
               )}
               {errors.length > 0 && (
                 <div className="text-yellow-400">⚠️ {errors.length} avisos encontrados</div>
               )}
             </div>
           ),
-          duration: 5000,
+          duration: tarefasCriadas > 0 ? 7000 : 5000,
         });
 
         // Invalidate relevant queries to refresh data

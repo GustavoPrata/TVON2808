@@ -5566,60 +5566,64 @@ Como posso ajudar você hoje?
         
         // Criar novos sistemas se necessário
         let sistemasList = [...sistemasExistentes];
+        let tarefasCriadas = 0;
         
-        if (sistemasParaCriar > 0 && apiEnabled) {
-          console.log(`🆕 Criando ${sistemasParaCriar} novos sistemas...`);
+        if (sistemasParaCriar > 0) {
+          console.log(`📋 Adicionando ${sistemasParaCriar} sistemas na fila de criação...`);
           
-          // Buscar todos os sistemas da API para obter o próximo ID disponível
-          const apiSystems = await externalApiService.getSystemCredentials();
-          const existingIds = apiSystems.map(s => parseInt(s.system_id || s.id || '0')).filter(id => !isNaN(id));
-          let nextSystemId = Math.max(0, ...existingIds) + 1;
-          console.log(`📊 IDs existentes na API: ${existingIds.join(', ')}, próximo ID: ${nextSystemId}`);
-          
+          // IMPORTANTE: Criar tarefas na fila para a extensão Chrome processar
+          // A extensão criará sistemas REAIS no OnlineOffice
           for (let i = 0; i < sistemasParaCriar; i++) {
-            const systemId = nextSystemId++; // Usar ID numérico incremental
-            const username = `sistema_${nanoid(8)}`;
-            const password = `pass_${nanoid(12)}`;
-            
             try {
-              // Criar sistema na API externa
-              const apiSystem = await externalApiService.createSystemCredential({
-                system_id: systemId.toString(), // Enviar como string mas com valor numérico
-                username,
-                password
+              // Criar tarefa pendente para a extensão
+              const task = await storage.createPendingTask('single_generation', {
+                purpose: 'system_distribution',
+                index: i + 1,
+                total: sistemasParaCriar
               });
               
-              if (apiSystem) {
-                // Salvar sistema no banco local
-                const novoSistema = await storage.createSistema({
-                  systemId: apiSystem.system_id || apiSystem.id?.toString() || `local_${nanoid(6)}`,
-                  username,
-                  password,
-                  maxPontosAtivos: 100,
-                  pontosAtivos: 0,
-                  expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
-                });
-                
-                sistemasList.push(novoSistema);
-                sistemasCriados++;
-                
-                detalhes.push({
-                  tipo: 'criacao_sistema',
-                  sistemaId: novoSistema.id,
-                  sistemaUsername: username
-                });
-              }
-            } catch (apiError) {
-              console.error('❌ Erro ao criar sistema na API externa:', apiError);
+              tarefasCriadas++;
+              console.log(`✅ Tarefa ${i + 1}/${sistemasParaCriar} adicionada à fila (ID: ${task.id})`);
+              
+              detalhes.push({
+                tipo: 'tarefa_criada',
+                taskId: task.id,
+                descricao: `Tarefa ${i + 1} de ${sistemasParaCriar} adicionada à fila`
+              });
+            } catch (error) {
+              console.error(`❌ Erro ao criar tarefa ${i + 1}:`, error);
               detalhes.push({
                 tipo: 'erro',
-                erro: 'Falha ao criar sistema na API externa'
+                erro: `Falha ao criar tarefa ${i + 1}`
               });
             }
           }
-        } else if (sistemasParaCriar > 0 && !apiEnabled) {
-          return res.status(400).json({
-            error: `Seria necessário criar ${sistemasParaCriar} novos sistemas, mas a API externa está desabilitada.`
+          
+          // Aguardar um momento para as tarefas serem processadas
+          console.log(`⏳ ${tarefasCriadas} tarefas criadas. A extensão Chrome processará a fila automaticamente...`);
+          
+          // Avisar via WebSocket para a extensão começar a processar
+          broadcastMessage('office_automation_tasks_created', {
+            count: tarefasCriadas,
+            purpose: 'system_distribution',
+            timestamp: new Date()
+          });
+          
+          // Retornar resposta informando sobre as tarefas
+          return res.json({
+            sucesso: true,
+            message: `${tarefasCriadas} sistemas foram adicionados à fila de criação. A extensão Chrome está processando...`,
+            tarefasCriadas,
+            sistemasCriados: 0, // Será atualizado conforme a extensão processar
+            pontosAtualizados: 0, // Distribuição será feita depois
+            detalhes,
+            info: {
+              totalPontos: pontosAtivos.length,
+              sistemasExistentes: sistemasExistentes.length,
+              sistemasNecessarios: pontosAtivos.length,
+              tarefasNaFila: tarefasCriadas,
+              processoAutomatico: true
+            }
           });
         }
         
@@ -5698,59 +5702,67 @@ Como posso ajudar você hoje?
         let sistemasAtuais = sistemasExistentes.length;
 
         // Criar novos sistemas se necessário
-        if (sistemasAtuais < sistemasNecessarios && apiEnabled) {
+        if (sistemasAtuais < sistemasNecessarios) {
           const sistemasParaCriar = sistemasNecessarios - sistemasAtuais;
-          console.log(`🆕 Criando ${sistemasParaCriar} novos sistemas...`);
+          console.log(`📋 Adicionando ${sistemasParaCriar} sistemas na fila de criação...`);
 
-          // Buscar todos os sistemas da API para obter o próximo ID disponível
-          const apiSystems = await externalApiService.getSystemCredentials();
-          const existingIds = apiSystems.map(s => parseInt(s.system_id || s.id || '0')).filter(id => !isNaN(id));
-          let nextSystemId = Math.max(0, ...existingIds) + 1;
-          console.log(`📊 IDs existentes na API: ${existingIds.join(', ')}, próximo ID: ${nextSystemId}`);
+          let tarefasCriadas = 0;
           
+          // IMPORTANTE: Criar tarefas na fila para a extensão Chrome processar
           for (let i = 0; i < sistemasParaCriar; i++) {
-            const systemId = nextSystemId++; // Usar ID numérico incremental
-            const username = `sistema_${nanoid(8)}`;
-            const password = `pass_${nanoid(12)}`;
-
             try {
-              // Criar sistema na API externa
-              const apiSystem = await externalApiService.createSystemCredential({
-                system_id: systemId.toString(), // Enviar como string mas com valor numérico
-                username,
-                password
+              // Criar tarefa pendente para a extensão
+              const task = await storage.createPendingTask('single_generation', {
+                purpose: 'fixed_points_distribution',
+                pointsPerSystem,
+                index: i + 1,
+                total: sistemasParaCriar
               });
-
-              if (apiSystem) {
-                // Salvar sistema no banco local
-                const novoSistema = await storage.createSistema({
-                  systemId: apiSystem.system_id || apiSystem.id?.toString() || `local_${nanoid(6)}`,
-                  username,
-                  password,
-                  maxPontosAtivos: pointsPerSystem,
-                  pontosAtivos: 0,
-                  expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 dias
-                });
-
-                sistemasCriados++;
-                detalhes.push({
-                  tipo: 'criacao_sistema',
-                  sistemaId: novoSistema.id,
-                  sistemaUsername: username,
-                  capacidade: pointsPerSystem
-                });
-              }
-            } catch (apiError) {
-              console.error('❌ Erro ao criar sistema na API externa:', apiError);
+              
+              tarefasCriadas++;
+              console.log(`✅ Tarefa ${i + 1}/${sistemasParaCriar} adicionada à fila (ID: ${task.id})`);
+              
+              detalhes.push({
+                tipo: 'tarefa_criada',
+                taskId: task.id,
+                descricao: `Tarefa ${i + 1} de ${sistemasParaCriar} adicionada à fila`
+              });
+            } catch (error) {
+              console.error(`❌ Erro ao criar tarefa ${i + 1}:`, error);
               detalhes.push({
                 tipo: 'erro',
-                erro: 'Falha ao criar sistema na API externa'
+                erro: `Falha ao criar tarefa ${i + 1}`
               });
             }
           }
 
-          // Recarregar lista de sistemas
-          sistemasExistentes = await storage.getSistemas();
+          console.log(`⏳ ${tarefasCriadas} tarefas criadas. A extensão Chrome processará a fila...`);
+          
+          // Avisar via WebSocket para a extensão começar a processar
+          broadcastMessage('office_automation_tasks_created', {
+            count: tarefasCriadas,
+            purpose: 'fixed_points_distribution',
+            pointsPerSystem,
+            timestamp: new Date()
+          });
+
+          // Retornar resposta informando sobre as tarefas
+          return res.json({
+            sucesso: true,
+            message: `${tarefasCriadas} sistemas foram adicionados à fila de criação. A extensão Chrome está processando...`,
+            tarefasCriadas,
+            sistemasCriados: 0, // Será atualizado conforme a extensão processar
+            pontosAtualizados: 0, // Distribuição será feita depois
+            detalhes,
+            info: {
+              totalPontos: todosPontos.length,
+              pontosPoSistema: pointsPerSystem,
+              sistemasNecessarios,
+              sistemasAtuais,
+              tarefasNaFila: tarefasCriadas,
+              processoAutomatico: true
+            }
+          });
         }
 
         // Limpar atribuições anteriores (redistribuir todos)
