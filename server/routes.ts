@@ -518,7 +518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: sistema.id,
           username: sistema.username,
           status: sistema.status,
-          lastRenewalAt: dataAntiga.toISOString(),
+          lastRenewalAt: sistema.atualizadoEm ? new Date(sistema.atualizadoEm).toISOString() : new Date().toISOString(),
           expiracao: sistema.expiracao
         },
         task: {
@@ -5049,8 +5049,8 @@ Como posso ajudar você hoje?
         
         return {
           id: sistema.id,
-          nome: sistema.nome,
-          usuario: sistema.usuario,
+          systemId: sistema.systemId,
+          username: sistema.username,
           expiracao: sistema.expiracao,
           isExpired,
           isNearExpiration,
@@ -5416,7 +5416,7 @@ Como posso ajudar você hoje?
       }
       
       console.log(`📊 Processando renovação manual:`);
-      console.log(`  Sistema: ${sistema.nome} (ID: ${sistema.id}, SystemID: ${sistema.systemId})`);
+      console.log(`  Sistema ID: ${sistema.id}, SystemID: ${sistema.systemId}`);
       console.log(`  Username novo: ${credential.username}`);
       console.log(`  Password novo: ${credential.password}`);
       
@@ -5467,7 +5467,6 @@ Como posso ajudar você hoje?
         sistema: {
           id: sistemaAtualizado.id,
           systemId: sistemaAtualizado.systemId,
-          nome: sistemaAtualizado.nome,
           username: sistemaAtualizado.username,
           expiracao: sistemaAtualizado.expiracao
         }
@@ -5570,61 +5569,113 @@ Como posso ajudar você hoje?
         let tarefasCriadas = 0;
         
         if (sistemasParaCriar > 0) {
-          console.log(`📋 Adicionando ${sistemasParaCriar} sistemas na fila de criação...`);
+          console.log(`🚀 Criando ${sistemasParaCriar} sistemas imediatamente com credenciais temporárias...`);
           
-          // IMPORTANTE: Criar tarefas na fila para a extensão Chrome processar
-          // A extensão criará sistemas REAIS no OnlineOffice
+          // IMPORTANTE: Criar sistemas imediatamente com credenciais temporárias
+          // A fila de renovação automática processará depois para atualizar com credenciais reais
+          const sistemasCreated = [];
+          const systemIdsCreated = [];
+          
           for (let i = 0; i < sistemasParaCriar; i++) {
             try {
-              // Criar tarefa pendente para a extensão
-              const task = await storage.createPendingTask('single_generation', {
-                purpose: 'system_distribution',
-                index: i + 1,
-                total: sistemasParaCriar
+              // Obter próximo System ID sequencial
+              const nextSystemId = await storage.getNextSistemaId();
+              
+              // Credenciais temporárias únicas
+              const tempUsername = `temp_${nextSystemId}_${Date.now()}`;
+              const tempPassword = `tmp_${nanoid(6)}`;
+              const expiracao = new Date(Date.now() - 24*60*60*1000); // Ontem (já expirado)
+              
+              console.log(`📦 Criando sistema ${i + 1}/${sistemasParaCriar} - SystemID: ${nextSystemId}`);
+              
+              // Criar sistema no banco local
+              const novoSistema = await storage.createSistema({
+                systemId: nextSystemId,
+                username: tempUsername,
+                password: tempPassword,
+                expiracao: expiracao,
+                pontosAtivos: 0,
+                maxPontosAtivos: 100
               });
               
-              tarefasCriadas++;
-              console.log(`✅ Tarefa ${i + 1}/${sistemasParaCriar} adicionada à fila (ID: ${task.id})`);
+              sistemasCreated.push(novoSistema);
+              systemIdsCreated.push(nextSystemId);
+              sistemasCriados++;
               
-              detalhes.push({
-                tipo: 'tarefa_criada',
-                taskId: task.id,
-                descricao: `Tarefa ${i + 1} de ${sistemasParaCriar} adicionada à fila`
-              });
+              console.log(`✅ Sistema criado no banco local: ID ${novoSistema.id}, SystemID: ${nextSystemId}`);
+              
+              // Tentar criar na API externa se estiver ativa
+              if (apiEnabled) {
+                try {
+                  // Extrair número do systemId (ex: "sistema1" -> 1)
+                  const systemNumber = parseInt(nextSystemId.replace('sistema', ''));
+                  const apiResult = await externalApiService.createUser({
+                    username: tempUsername,
+                    password: tempPassword,
+                    status: 'Active',
+                    system: systemNumber,
+                    exp_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0] // 30 dias no futuro
+                  });
+                  
+                  console.log(`🌐 Sistema ${nextSystemId} criado na API externa com sucesso`);
+                  
+                  detalhes.push({
+                    tipo: 'sistema_criado',
+                    sistemaId: novoSistema.id,
+                    systemId: nextSystemId,
+                    username: tempUsername,
+                    apiStatus: 'sucesso',
+                    descricao: `Sistema ${i + 1}/${sistemasParaCriar} criado com sucesso (local + API)`
+                  });
+                } catch (apiError) {
+                  console.warn(`⚠️ Falha ao criar sistema ${nextSystemId} na API externa:`, apiError);
+                  
+                  detalhes.push({
+                    tipo: 'sistema_criado',
+                    sistemaId: novoSistema.id,
+                    systemId: nextSystemId,
+                    username: tempUsername,
+                    apiStatus: 'falha',
+                    descricao: `Sistema ${i + 1}/${sistemasParaCriar} criado localmente (API falhou)`,
+                    erro: apiError instanceof Error ? apiError.message : 'Erro desconhecido'
+                  });
+                }
+              } else {
+                detalhes.push({
+                  tipo: 'sistema_criado',
+                  sistemaId: novoSistema.id,
+                  systemId: nextSystemId,
+                  username: tempUsername,
+                  apiStatus: 'desativada',
+                  descricao: `Sistema ${i + 1}/${sistemasParaCriar} criado localmente (API desativada)`
+                });
+              }
+              
+              // Adicionar à lista de sistemas existentes para distribuição
+              sistemasList.push(novoSistema);
+              
             } catch (error) {
-              console.error(`❌ Erro ao criar tarefa ${i + 1}:`, error);
+              console.error(`❌ Erro ao criar sistema ${i + 1}:`, error);
               detalhes.push({
                 tipo: 'erro',
-                erro: `Falha ao criar tarefa ${i + 1}`
+                erro: `Falha ao criar sistema ${i + 1}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`
               });
             }
           }
           
-          // Aguardar um momento para as tarefas serem processadas
-          console.log(`⏳ ${tarefasCriadas} tarefas criadas. A extensão Chrome processará a fila automaticamente...`);
+          // Log resumo da criação
+          console.log(`📊 Resumo da criação de sistemas:`);
+          console.log(`   - Sistemas criados: ${sistemasCriados}/${sistemasParaCriar}`);
+          console.log(`   - System IDs: ${systemIdsCreated.join(', ')}`);
+          console.log(`   - Credenciais temporárias: únicas para cada sistema`);
+          console.log(`   - Status: Expirado (renovação automática processará depois)`);
           
-          // Avisar via WebSocket para a extensão começar a processar
-          broadcastMessage('office_automation_tasks_created', {
-            count: tarefasCriadas,
+          // Avisar via WebSocket sobre os sistemas criados
+          broadcastMessage('sistemas_criados_temporarios', {
+            count: sistemasCriados,
+            systemIds: systemIdsCreated,
             purpose: 'system_distribution',
             timestamp: new Date()
-          });
-          
-          // Retornar resposta informando sobre as tarefas
-          return res.json({
-            sucesso: true,
-            message: `${tarefasCriadas} sistemas foram adicionados à fila de criação. A extensão Chrome está processando...`,
-            tarefasCriadas,
-            sistemasCriados: 0, // Será atualizado conforme a extensão processar
-            pontosAtualizados: 0, // Distribuição será feita depois
-            detalhes,
-            info: {
-              totalPontos: pontosAtivos.length,
-              sistemasExistentes: sistemasExistentes.length,
-              sistemasNecessarios: pontosAtivos.length,
-              tarefasNaFila: tarefasCriadas,
-              processoAutomatico: true
-            }
           });
         }
         
@@ -5648,7 +5699,7 @@ Como posso ajudar você hoje?
           const ponto = pontosAtivos[i];
           const sistema = sistemasList[i];
           
-          // Atribuir ponto ao sistema
+          // Atribuir ponto ao sistema no banco local
           await storage.updatePontoSistema(ponto.id, sistema.id);
           
           // Atualizar contador do sistema (exatamente 1 ponto)
@@ -5658,15 +5709,65 @@ Como posso ajudar você hoje?
           
           pontosAtualizados++;
           
-          detalhes.push({
-            tipo: 'atribuicao_1_1',
-            pontoId: ponto.id,
-            pontoUsuario: ponto.usuario,
-            sistemaId: sistema.id,
-            sistemaUsername: sistema.username,
-            descricao: `Ponto ${i + 1}/${pontosAtivos.length} → Sistema ${i + 1}/${sistemasList.length}`
-          });
+          // Atualizar na API externa se estiver ativa
+          if (apiEnabled && ponto.apiUserId) {
+            try {
+              console.log(`🌐 Atualizando usuário ${ponto.apiUserId} na API para usar Sistema ${sistema.systemId}...`);
+              
+              // Atualizar o campo 'system' do usuário na API
+              // Extrair número do systemId (ex: "sistema1" -> 1)
+              const systemNumber = parseInt(sistema.systemId.replace('sistema', ''));
+              await externalApiService.updateUser(parseInt(ponto.apiUserId), {
+                system: systemNumber
+              });
+              
+              console.log(`✅ Usuário ${ponto.usuario} (ID: ${ponto.apiUserId}) atualizado para Sistema ${sistema.systemId}`);
+              
+              detalhes.push({
+                tipo: 'atribuicao_1_1',
+                pontoId: ponto.id,
+                pontoUsuario: ponto.usuario,
+                sistemaId: sistema.id,
+                sistemaUsername: sistema.username,
+                systemId: sistema.systemId,
+                apiUserId: ponto.apiUserId,
+                apiStatus: 'atualizado',
+                descricao: `Ponto ${i + 1}/${pontosAtivos.length} → Sistema ${i + 1}/${sistemasList.length} (API atualizada)`
+              });
+            } catch (apiError) {
+              console.warn(`⚠️ Falha ao atualizar usuário ${ponto.apiUserId} na API:`, apiError);
+              
+              detalhes.push({
+                tipo: 'atribuicao_1_1',
+                pontoId: ponto.id,
+                pontoUsuario: ponto.usuario,
+                sistemaId: sistema.id,
+                sistemaUsername: sistema.username,
+                systemId: sistema.systemId,
+                apiStatus: 'erro',
+                apiError: apiError instanceof Error ? apiError.message : 'Erro desconhecido',
+                descricao: `Ponto ${i + 1}/${pontosAtivos.length} → Sistema ${i + 1}/${sistemasList.length} (API falhou)`
+              });
+            }
+          } else {
+            detalhes.push({
+              tipo: 'atribuicao_1_1',
+              pontoId: ponto.id,
+              pontoUsuario: ponto.usuario,
+              sistemaId: sistema.id,
+              sistemaUsername: sistema.username,
+              systemId: sistema.systemId,
+              apiStatus: apiEnabled ? 'sem_api_user_id' : 'api_desativada',
+              descricao: `Ponto ${i + 1}/${pontosAtivos.length} → Sistema ${i + 1}/${sistemasList.length} (local apenas)`
+            });
+          }
         }
+        
+        // Log resumo da distribuição de pontos
+        console.log(`📊 Resumo da distribuição de pontos:`);
+        console.log(`   - Total de pontos distribuídos: ${pontosAtualizados}`);
+        console.log(`   - Relação 1:1 garantida: cada ponto tem seu sistema exclusivo`);
+        console.log(`   - API externa: ${apiEnabled ? 'ativada' : 'desativada'}`)
         
         // Validação final - garantir que a distribuição está 1:1
         console.log('✅ Validando distribuição 1:1...');
@@ -8576,9 +8677,9 @@ Como posso ajudar você hoje?
             }
             
             console.log(`📊 [task-complete] Estado ANTES da atualização [${traceId}]:`);
-            console.log(`  Nome: ${sistema.nome}`);
+            console.log(`  Sistema ID: ${sistema.id}`);
             console.log(`  SystemId: ${sistema.systemId}`);
-            console.log(`  Usuário atual: ${sistema.username || sistema.usuario}`);
+            console.log(`  Usuário atual: ${sistema.username}`);
             console.log(`  Expiração atual: ${sistema.expiracao}`);
             
             // PASSO 1: Atualizar no banco local (username, password, expiração 6h)
