@@ -193,7 +193,21 @@ export const api = {
     return response.json();
   },
 
-  syncSystems: async (): Promise<{ message: string; synced: number; local: number }> => {
+  syncSystems: async (): Promise<{ 
+    message: string; 
+    created: number; 
+    updated: number; 
+    deleted: number; 
+    errors: string[];
+    detalhes?: {
+      created: string;
+      updated: string;
+      deleted: string;
+      errors?: string[];
+    };
+    synced?: number; // legacy field
+    local?: number; // legacy field
+  }> => {
     const response = await apiRequest('POST', '/api/sync/systems');
     return response.json();
   },

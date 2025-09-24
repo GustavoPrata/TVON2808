@@ -6493,19 +6493,20 @@ Como posso ajudar você hoje?
 
   app.post("/api/sync/systems", async (req, res) => {
     try {
-      // Get systems from external API
-      const apiSystems = await externalApiService.getSystemCredentials();
-
-      // Sync with local database
-      await storage.syncSistemasFromApi(apiSystems);
-
-      // Get updated local systems
-      const localSystems = await storage.getSistemas();
+      // Sincronizar do banco local PARA a API (não o contrário)
+      console.log("🔄 Iniciando sincronização: Banco Local → API Externa");
+      
+      const result = await storage.syncSistemasToApi(externalApiService);
 
       res.json({
-        message: "Sistemas sincronizados",
-        synced: apiSystems.length,
-        local: localSystems.length,
+        message: "Sistemas sincronizados com a API",
+        ...result,
+        detalhes: {
+          created: `${result.created} sistemas criados na API`,
+          updated: `${result.updated} sistemas atualizados na API`,
+          deleted: `${result.deleted} sistemas removidos da API`,
+          errors: result.errors.length > 0 ? result.errors : undefined
+        }
       });
     } catch (error) {
       console.error("Erro ao sincronizar sistemas:", error);

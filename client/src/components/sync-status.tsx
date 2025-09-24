@@ -69,8 +69,10 @@ export function SyncStatus() {
     onMutate: () => setSyncingType('systems'),
     onSuccess: (data) => {
       toast({
-        title: 'Sistemas sincronizados',
-        description: `${data.synced} sistemas sincronizados com sucesso`,
+        title: 'Sistemas enviados para API',
+        description: data.detalhes ? 
+          `${data.created} criados, ${data.updated} atualizados, ${data.deleted} removidos` :
+          'Sistemas sincronizados com sucesso',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/sync/status'] });
       queryClient.invalidateQueries({ queryKey: ['/api/sync/details'] });
@@ -427,7 +429,7 @@ export function SyncStatus() {
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 text-yellow-400" />
                   <p className="text-yellow-400 text-sm">
-                    Existem divergências entre o banco local e a API
+                    Existem divergências - clique para enviar dados locais para a API
                   </p>
                 </div>
                 <Button
@@ -437,7 +439,7 @@ export function SyncStatus() {
                   className="bg-yellow-500 hover:bg-yellow-600"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  Sincronizar Agora
+                  Enviar para API
                 </Button>
               </div>
             )}
@@ -517,7 +519,7 @@ export function SyncStatus() {
                   className="bg-yellow-500 hover:bg-yellow-600"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
-                  Sincronizar Agora
+                  Enviar para API
                 </Button>
               </div>
             )}

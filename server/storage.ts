@@ -176,6 +176,12 @@ export interface IStorage {
   updateSistema(id: number, sistema: Partial<InsertSistema>): Promise<Sistema>;
   deleteSistema(id: number): Promise<void>;
   syncSistemasFromApi(apiSystems: Array<{system_id: string; username: string; password: string}>): Promise<void>;
+  syncSistemasToApi(externalApiService: any): Promise<{
+    created: number;
+    updated: number;
+    deleted: number;
+    errors: string[];
+  }>;
   // Métodos para gerenciamento de validade
   getSistemasParaRenovar(): Promise<Sistema[]>;
   getSistemasVencidos(): Promise<Sistema[]>;
@@ -1285,6 +1291,100 @@ export class DatabaseStorage implements IStorage {
           await this.deleteSistema(existing.id);
         }
       }
+    }
+  }
+
+  // Novo método para sincronizar do banco local para a API
+  async syncSistemasToApi(externalApiService: any): Promise<{
+    created: number;
+    updated: number;
+    deleted: number;
+    errors: string[];
+  }> {
+    const errors: string[] = [];
+    let created = 0;
+    let updated = 0;
+    let deleted = 0;
+
+    try {
+      // 1. Buscar sistemas locais
+      const localSystems = await this.getSistemas();
+      console.log(`📊 Sincronizando ${localSystems.length} sistemas locais para a API...`);
+
+      // 2. Buscar sistemas da API
+      const apiSystems = await externalApiService.getSystemCredentials();
+      const apiSystemsMap = new Map<string, {system_id: string; username: string; password: string}>(
+        apiSystems.map((s: any) => [s.system_id, s])
+      );
+
+      // 3. Para cada sistema local, criar ou atualizar na API
+      for (const localSystem of localSystems) {
+        const apiSystem = apiSystemsMap.get(localSystem.systemId);
+        
+        try {
+          if (!apiSystem) {
+            // Sistema não existe na API - criar
+            console.log(`➕ Criando sistema ${localSystem.systemId} na API...`);
+            await externalApiService.createSystemCredential({
+              system_id: localSystem.systemId,
+              username: localSystem.username,
+              password: localSystem.password
+            });
+            created++;
+          } else {
+            // Sistema existe - verificar se precisa atualizar
+            if (apiSystem.username !== localSystem.username || apiSystem.password !== localSystem.password) {
+              console.log(`🔄 Atualizando sistema ${localSystem.systemId} na API...`);
+              // API espera o ID numérico do sistema
+              const numericId = parseInt(localSystem.systemId);
+              if (!isNaN(numericId)) {
+                await externalApiService.updateSystemCredential(numericId, {
+                  username: localSystem.username,
+                  password: localSystem.password
+                });
+                updated++;
+              } else {
+                errors.push(`Sistema ${localSystem.systemId} tem ID inválido`);
+              }
+            }
+          }
+        } catch (error) {
+          const errorMsg = `Erro ao sincronizar sistema ${localSystem.systemId}: ${error}`;
+          console.error(errorMsg);
+          errors.push(errorMsg);
+        }
+      }
+
+      // 4. Deletar da API sistemas que não existem localmente
+      const localSystemIds = new Set(localSystems.map(s => s.systemId));
+      for (const apiSystem of apiSystems) {
+        if (!localSystemIds.has(apiSystem.system_id)) {
+          try {
+            console.log(`🗑️ Deletando sistema ${apiSystem.system_id} da API (não existe localmente)...`);
+            const numericId = parseInt(apiSystem.system_id);
+            if (!isNaN(numericId)) {
+              await externalApiService.deleteSystemCredential(numericId);
+              deleted++;
+            }
+          } catch (error) {
+            const errorMsg = `Erro ao deletar sistema ${apiSystem.system_id} da API: ${error}`;
+            console.error(errorMsg);
+            errors.push(errorMsg);
+          }
+        }
+      }
+
+      console.log(`✅ Sincronização concluída: ${created} criados, ${updated} atualizados, ${deleted} deletados`);
+      if (errors.length > 0) {
+        console.log(`⚠️ ${errors.length} erros durante sincronização`);
+      }
+
+      return { created, updated, deleted, errors };
+    } catch (error) {
+      const errorMsg = `Erro geral na sincronização: ${error}`;
+      console.error(errorMsg);
+      errors.push(errorMsg);
+      return { created, updated, deleted, errors };
     }
   }
 

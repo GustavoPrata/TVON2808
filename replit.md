@@ -8,6 +8,9 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Modern Tab Interface**: Use elegant tabbed layouts with gradient colors and icons for menu organization (similar to bot-config page style)
 - **Data Management**: Systems data must come from local database, not external API
 
+## Recent Changes
+- **24/09/2025**: Reversed synchronization direction - now pushes local database data TO the external API instead of pulling from it. The `/api/sync/systems` endpoint now sends local systems to the API, creating/updating/deleting as needed to make the API match the local database state.
+
 ## System Architecture
 
 ### Frontend
