@@ -9000,13 +9000,8 @@ Como posso ajudar você hoje?
               
               console.log('🆕 Criando novo sistema com credenciais geradas...');
               
-              // Buscar próximo system_id disponível
-              const sistemas = await storage.getSistemas();
-              const existingIds = sistemas.map(s => {
-                const sid = s.systemId || '0';
-                return sid.startsWith('sistema') ? parseInt(sid.replace('sistema', '')) : parseInt(sid);
-              }).filter(id => !isNaN(id));
-              const nextSystemId = Math.max(0, ...existingIds) + 1;
+              // Buscar próximo system_id disponível (preenchendo lacunas)
+              const nextSystemId = await storage.getNextAvailableSistemaId();
               
               try {
                 // 1. Criar sistema no banco local

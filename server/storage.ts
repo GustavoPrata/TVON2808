@@ -1191,6 +1191,37 @@ export class DatabaseStorage implements IStorage {
     await db.delete(sistemas).where(eq(sistemas.id, id));
   }
 
+  // Get next available system ID (fills gaps in the sequence)
+  async getNextAvailableSistemaId(): Promise<number> {
+    const existingSistemas = await this.getSistemas();
+    
+    // Extract numeric IDs from systemId (handle both "1" and "sistema1" formats)
+    const numericIds = existingSistemas.map(s => {
+      const sid = s.systemId || '';
+      if (sid.startsWith('sistema')) {
+        return parseInt(sid.replace('sistema', ''));
+      }
+      return parseInt(sid);
+    }).filter(id => !isNaN(id)).sort((a, b) => a - b);
+
+    // If no systems exist, start with 1
+    if (numericIds.length === 0) {
+      return 1;
+    }
+
+    // Find the first gap in the sequence
+    for (let i = 0; i < numericIds.length; i++) {
+      const expectedId = i + 1;
+      if (numericIds[i] !== expectedId) {
+        // Found a gap, return the missing number
+        return expectedId;
+      }
+    }
+
+    // No gaps found, return the next number after the highest
+    return numericIds[numericIds.length - 1] + 1;
+  }
+
   async syncSistemasFromApi(apiSystems: Array<{system_id: string; username: string; password: string}>): Promise<void> {
     // Get existing systems
     const existingSystems = await this.getSistemas();
