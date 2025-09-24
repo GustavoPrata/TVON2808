@@ -8219,24 +8219,36 @@ Como posso ajudar você hoje?
         // Primeiro verifica se há task de renovação pendente
         const pendingRenewalTask = await storage.getNextPendingRenewalTask();
         if (pendingRenewalTask) {
-          console.log('📋 Task de renovação pendente encontrada:', {
-            taskId: pendingRenewalTask.id,
-            sistemaId: pendingRenewalTask.sistemaId,
-            metadata: pendingRenewalTask.metadata
-          });
-          
-          return res.json({
-            ...baseResponse,
-            hasTask: true,
-            task: {
-              id: pendingRenewalTask.id,
-              type: 'renewal',
-              quantity: 1,
+          // IMPORTANTE: Apenas processar tarefas com credenciais completas
+          if (!pendingRenewalTask.username || !pendingRenewalTask.password) {
+            console.warn('⚠️ Task de renovação sem credenciais completas, pulando:', {
+              taskId: pendingRenewalTask.id,
+              hasUsername: !!pendingRenewalTask.username,
+              hasPassword: !!pendingRenewalTask.password
+            });
+          } else {
+            console.log('🎯 Task de renovação dequeued:', {
+              taskId: pendingRenewalTask.id,
               sistemaId: pendingRenewalTask.sistemaId,
-              data: pendingRenewalTask.metadata || {},
-              metadata: pendingRenewalTask.metadata || {}
-            }
-          });
+              username: pendingRenewalTask.username,
+              metadata: pendingRenewalTask.metadata
+            });
+            
+            return res.json({
+              ...baseResponse,
+              hasTask: true,
+              task: {
+                id: pendingRenewalTask.id,
+                type: 'renewal',
+                quantity: 1,
+                sistemaId: pendingRenewalTask.sistemaId,
+                username: pendingRenewalTask.username,
+                password: pendingRenewalTask.password,
+                data: pendingRenewalTask.metadata || {},
+                metadata: pendingRenewalTask.metadata || {}
+              }
+            });
+          }
         }
         
         // Verifica se há tarefa pendente manual (single generation)
@@ -8277,24 +8289,36 @@ Como posso ajudar você hoje?
       // Automação HABILITADA - primeiro verifica tasks de renovação
       const pendingRenewalTask = await storage.getNextPendingRenewalTask();
       if (pendingRenewalTask) {
-        console.log('📋 Task de renovação pendente encontrada (automação habilitada):', {
-          taskId: pendingRenewalTask.id,
-          sistemaId: pendingRenewalTask.sistemaId,
-          metadata: pendingRenewalTask.metadata
-        });
-        
-        return res.json({
-          ...baseResponse,
-          hasTask: true,
-          task: {
-            id: pendingRenewalTask.id,
-            type: 'renewal',
-            quantity: 1,
+        // IMPORTANTE: Apenas processar tarefas com credenciais completas
+        if (!pendingRenewalTask.username || !pendingRenewalTask.password) {
+          console.warn('⚠️ Task de renovação sem credenciais completas (automação habilitada), pulando:', {
+            taskId: pendingRenewalTask.id,
+            hasUsername: !!pendingRenewalTask.username,
+            hasPassword: !!pendingRenewalTask.password
+          });
+        } else {
+          console.log('🎯 Task de renovação dequeued (automação habilitada):', {
+            taskId: pendingRenewalTask.id,
             sistemaId: pendingRenewalTask.sistemaId,
-            data: pendingRenewalTask.metadata || {},
-            metadata: pendingRenewalTask.metadata || {}
-          }
-        });
+            username: pendingRenewalTask.username,
+            metadata: pendingRenewalTask.metadata
+          });
+          
+          return res.json({
+            ...baseResponse,
+            hasTask: true,
+            task: {
+              id: pendingRenewalTask.id,
+              type: 'renewal',
+              quantity: 1,
+              sistemaId: pendingRenewalTask.sistemaId,
+              username: pendingRenewalTask.username,
+              password: pendingRenewalTask.password,
+              data: pendingRenewalTask.metadata || {},
+              metadata: pendingRenewalTask.metadata || {}
+            }
+          });
+        }
       }
       
       // Verificar tarefas pendentes normais
@@ -8387,6 +8411,11 @@ Como posso ajudar você hoje?
       console.log(`    - metadata.sistemaId: ${metadata?.sistemaId}`);
       console.log(`    - metadata.systemId: ${metadata?.systemId}`);
       
+      // Log de task locked
+      if (taskId) {
+        console.log(`🔒 Task ${taskId} locked - Processando conclusão`);
+      }
+      
       // Verificar se é uma renovação checando a task na base de dados
       let isRenewal = false;
       let renewalTask = null;
@@ -8411,6 +8440,7 @@ Como posso ajudar você hoje?
             credentials?.username || 'error', 
             credentials?.password || error || 'error'
           );
+          console.log(`✅ Task ${taskId} completed - Tipo: ${type}, Status: ${error ? 'erro' : 'sucesso'}`);
           console.log(`✅ Task de renovação ${taskId} atualizada na tabela officeCredentials`);
         } else {
           // Outras tasks atualizar na tabela officeAutomationLogs  

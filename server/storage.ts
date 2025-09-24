@@ -2299,14 +2299,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getNextPendingRenewalTask(): Promise<OfficeCredentials | null> {
+    // IMPORTANTE: Filtrar apenas tarefas com credenciais completas (username E password não nulos)
     const result = await db.select()
       .from(officeCredentials)
       .where(and(
         eq(officeCredentials.status, 'pending'),
-        eq(officeCredentials.source, 'renewal')
+        eq(officeCredentials.source, 'renewal'),
+        sql`${officeCredentials.username} IS NOT NULL AND ${officeCredentials.username} != ''`,
+        sql`${officeCredentials.password} IS NOT NULL AND ${officeCredentials.password} != ''`
       ))
-      .orderBy(asc(officeCredentials.generatedAt))
+      .orderBy(asc(officeCredentials.generatedAt))  // Processar tarefas mais antigas primeiro
       .limit(1);
+    
+    if (result[0]) {
+      console.log('📋 Task de renovação selecionada do banco:', {
+        id: result[0].id,
+        sistemaId: result[0].sistemaId,
+        hasUsername: !!result[0].username,
+        hasPassword: !!result[0].password,
+        generatedAt: result[0].generatedAt
+      });
+    }
+    
     return result[0] || null;
   }
 
