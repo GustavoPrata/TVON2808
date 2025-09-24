@@ -455,7 +455,12 @@ export function SyncStatus() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {syncDetails?.systems?.items?.map((system: Sistema, index: number) => (
+                {syncDetails?.systems?.items?.sort((a: Sistema, b: Sistema) => {
+                  // Ordenar numericamente por systemId
+                  const aNum = parseInt(a.systemId) || 0;
+                  const bNum = parseInt(b.systemId) || 0;
+                  return aNum - bNum;
+                }).map((system: Sistema, index: number) => (
                   <TableRow key={system.systemId + index} className="border-slate-700">
                     <TableCell className="text-slate-300">{system.systemId}</TableCell>
                     <TableCell className="text-slate-300">{system.username}</TableCell>
