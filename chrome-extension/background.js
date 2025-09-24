@@ -658,38 +658,27 @@ async function processTask(task) {
       return;
     }
     
-    // Para outras tarefas (generate_batch, generate_single), ainda usa abas se necessário
-    // Mas verifica se há abas disponíveis primeiro
-    let tabs = await chrome.tabs.query({
-      url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
+    // Para outras tarefas (generate_batch, generate_single), processa diretamente via API
+    // Não precisa mais de abas - tudo é feito via API
+    await logger.info('🎯 Processando tarefa diretamente via API', { 
+      type: task.type,
+      taskId: task.id 
     });
-    
-    if (tabs.length === 0) {
-      await logger.warn('❌ Nenhuma aba OnlineOffice disponível para tarefas de geração');
-      await logger.warn('ℹ️ Para tarefas de geração, uma aba do OnlineOffice precisa estar aberta');
-      
-      // Para tarefas de geração, reporta erro se não há abas
-      await reportTaskResult({
-        taskId: task.id,
-        success: false,
-        error: 'Aba OnlineOffice necessária para tarefas de geração'
-      });
-      return;
-    }
-    
-    const tabId = tabs[0].id;
-    await logger.info(`✅ Aba encontrada para geração`, { url: tabs[0].url });
     
     // Processa baseado no tipo de tarefa
     if (task.type === 'generate_batch') {
-      await generateBatch(tabId, task);
+      await logger.info('📦 Task de geração em lote detectada', { 
+        quantity: task.quantity || 10,
+        taskId: task.id
+      });
+      await generateBatch(task);
     } else if (task.type === 'generate_single' || task.type === 'single_generation') {
       // Suporta ambos os tipos: 'generate_single' e 'single_generation'
       await logger.info('🎯 Task de geração única detectada', { 
         type: task.type,
         taskId: task.id
       });
-      await generateSingle(tabId, task);
+      await generateSingle(task);
     } else {
       await logger.warn('⚠️ Tipo de task desconhecido', { type: task.type, task });
       // Reporta erro para task desconhecida
@@ -884,7 +873,7 @@ async function renewSystemDirectly(task) {
   }
 }
 
-async function generateBatch(tabId, task) {
+async function generateBatch(task) {
   const quantity = task.quantity || 10;
   let successCount = 0;
   let errorCount = 0;
@@ -896,8 +885,26 @@ async function generateBatch(tabId, task) {
     await logger.info(`🎯 Gerando credencial ${i + 1}/${quantity}...`);
     
     try {
-      // Envia comando para content script
-      const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
+      // Gera credencial diretamente via API
+      const apiResponse = await fetch(`${API_BASE}/api/office/automation/generate-renewal-credential`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Extension-Key': 'tvon-extension-2024'
+        },
+        body: JSON.stringify({
+          taskId: task.id,
+          type: 'batch_generation',
+          index: i + 1,
+          total: quantity
+        })
+      });
+      
+      if (!apiResponse.ok) {
+        throw new Error(`API error: ${apiResponse.status}`);
+      }
+      
+      const response = await apiResponse.json();
       
       if (response && response.success && response.credentials) {
         successCount++;
@@ -981,16 +988,26 @@ async function generateBatch(tabId, task) {
   }
 }
 
-async function generateSingle(tabId, task) {
+async function generateSingle(task) {
   await logger.info('🎯 Gerando credencial única...', {
     taskId: task?.id,
     taskType: task?.type
   });
   
   try {
-    // Timeout para a geração de credencial (30 segundos)
+    // Gera credencial diretamente via API com timeout de 30 segundos
     const response = await Promise.race([
-      chrome.tabs.sendMessage(tabId, {action: 'generateOne'}),
+      fetch(`${API_BASE}/api/office/automation/generate-renewal-credential`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Extension-Key': 'tvon-extension-2024'
+        },
+        body: JSON.stringify({
+          taskId: task.id,
+          type: task.type || 'single_generation'
+        })
+      }).then(r => r.ok ? r.json() : Promise.reject(new Error(`API error: ${r.status}`))),
       new Promise((_, reject) => setTimeout(
         () => reject(new Error('Timeout ao gerar credencial')), 
         30000
@@ -1045,7 +1062,7 @@ async function generateSingle(tabId, task) {
   }
 }
 
-async function renewSystem(tabId, task) {
+async function renewSystem(task) {
   await logger.info('🔄 Renovando sistema IPTV...', { taskData: task });
   
   // DEBUG: Log completo da task para análise
@@ -1106,7 +1123,27 @@ async function renewSystem(tabId, task) {
       }
     }
     
-    const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
+    // Gera nova credencial diretamente via API
+    const apiResponse = await fetch(`${API_BASE}/api/office/automation/generate-renewal-credential`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Extension-Key': 'tvon-extension-2024'
+      },
+      body: JSON.stringify({
+        taskId: task.id,
+        type: 'renewal',
+        sistemaId: sistemaId,
+        originalUsername: originalUsername,
+        metadata: metadata
+      })
+    });
+    
+    if (!apiResponse.ok) {
+      throw new Error(`API error: ${apiResponse.status}`);
+    }
+    
+    const response = await apiResponse.json();
     
     if (response && response.success && response.credentials) {
       await logger.info('✅ Nova credencial gerada para renovação!', {
