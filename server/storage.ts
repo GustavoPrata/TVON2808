@@ -1264,11 +1264,26 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Remove systems that don't exist in API anymore
+    // Remove systems that don't exist in API anymore (only if they don't have pontos)
     const apiSystemIds = new Set(apiSystems.map(s => s.system_id));
     for (const existing of existingSystems) {
       if (!apiSystemIds.has(existing.systemId)) {
-        await this.deleteSistema(existing.id);
+        // Check if this system has pontos associated
+        const pontosCount = await db
+          .select({ count: count() })
+          .from(pontos)
+          .where(eq(pontos.sistemaId, existing.id));
+        
+        const hasPoints = Number(pontosCount[0]?.count || 0) > 0;
+        
+        if (hasPoints) {
+          console.log(`⚠️ Sistema ${existing.systemId} (ID: ${existing.id}) tem ${pontosCount[0].count} pontos associados - não será deletado`);
+          // Optionally, you could mark the system as expired or inactive
+          // await this.updateSistema(existing.id, { expiracao: new Date() });
+        } else {
+          console.log(`🗑️ Deletando sistema ${existing.systemId} (ID: ${existing.id}) que não existe mais na API`);
+          await this.deleteSistema(existing.id);
+        }
       }
     }
   }
