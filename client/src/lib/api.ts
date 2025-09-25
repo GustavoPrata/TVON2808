@@ -199,6 +199,7 @@ export const api = {
     updated: number; 
     deleted: number; 
     errors: string[];
+    usersUpdated?: number; // número de usuários atualizados com system_id
     detalhes?: {
       created: string;
       updated: string;

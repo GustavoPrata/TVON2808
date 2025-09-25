@@ -1300,6 +1300,7 @@ export class DatabaseStorage implements IStorage {
     updated: number;
     deleted: number;
     errors: string[];
+    usersUpdated: number;
   }> {
     const errors: string[] = [];
     let created = 0;
@@ -1374,17 +1375,43 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
+      // 5. Atualizar os system_ids dos usuários na API externa
+      console.log(`🔄 Atualizando system_ids dos usuários na API externa...`);
+      const allPontos = await this.getAllPontos();
+      let usersUpdated = 0;
+      
+      for (const ponto of allPontos) {
+        if (ponto.sistemaId) {
+          try {
+            // Buscar o sistema local para pegar o systemId
+            const sistema = await this.getSistemaById(ponto.sistemaId);
+            if (sistema) {
+              // Atualizar o usuário na API externa com o system_id correto
+              console.log(`🔄 Atualizando usuário ${ponto.usuario} com system_id ${sistema.systemId}`);
+              await externalApiService.updateUser(ponto.usuario, {
+                system: parseInt(sistema.systemId)
+              });
+              usersUpdated++;
+            }
+          } catch (error) {
+            console.error(`⚠️ Erro ao atualizar usuário ${ponto.usuario} na API:`, error);
+            // Continua com os próximos usuários mesmo se houver erro
+          }
+        }
+      }
+
       console.log(`✅ Sincronização concluída: ${created} criados, ${updated} atualizados, ${deleted} deletados`);
+      console.log(`✅ ${usersUpdated} usuários atualizados com system_id correto na API`);
       if (errors.length > 0) {
         console.log(`⚠️ ${errors.length} erros durante sincronização`);
       }
 
-      return { created, updated, deleted, errors };
+      return { created, updated, deleted, errors, usersUpdated };
     } catch (error) {
       const errorMsg = `Erro geral na sincronização: ${error}`;
       console.error(errorMsg);
       errors.push(errorMsg);
-      return { created, updated, deleted, errors };
+      return { created, updated, deleted, errors, usersUpdated: 0 };
     }
   }
 

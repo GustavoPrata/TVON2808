@@ -6505,6 +6505,7 @@ Como posso ajudar você hoje?
           created: `${result.created} sistemas criados na API`,
           updated: `${result.updated} sistemas atualizados na API`,
           deleted: `${result.deleted} sistemas removidos da API`,
+          usersUpdated: result.usersUpdated ? `${result.usersUpdated} usuários atualizados com system_id correto` : undefined,
           errors: result.errors.length > 0 ? result.errors : undefined
         }
       });
