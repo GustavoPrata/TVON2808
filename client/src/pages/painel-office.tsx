@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon, FileText, Download, Filter, Search, Trash, Eye, Info, Shuffle, Package, Network } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon, FileText, Download, Filter, Search, Trash, Eye, Info, Shuffle, Package, Network, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { apiRequest, queryClient as qc } from '@/lib/queryClient';
@@ -347,9 +347,17 @@ export default function PainelOffice() {
     pointsWithoutSystem: number;
     systemsNeeded: number;
     pointsPerSystemCalculated?: number;
-    currentDistribution: Array<{ systemId: number; username: string; pointCount: number }>;
+    currentDistribution: Array<{ systemId: number; username: string; pointCount: number; isFixed?: boolean }>;
   } | null>(null);
   const [isLoadingPoints, setIsLoadingPoints] = useState(false);
+  
+  // Estado para sistemas fixos/reserva (IDs 1000+)
+  const [fixedSystems, setFixedSystems] = useState<{id: number, points: number}[]>([
+    { id: 1001, points: 10 },
+    { id: 1002, points: 10 },
+    { id: 1003, points: 10 }
+  ]);
+  const [editingFixedSystem, setEditingFixedSystem] = useState<{id: number, index: number} | null>(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -436,20 +444,56 @@ export default function PainelOffice() {
       }
     });
     
-    const currentDistribution = systems.map(system => ({
-      systemId: parseInt(system.system_id),
-      username: system.username,
-      pointCount: currentDist.get(parseInt(system.system_id)) || 0,
-    }));
+    // Combinar sistemas normais e fixos
+    let currentDistribution = [];
+    
+    // Adicionar sistemas fixos primeiro (se no modo fixed-points)
+    if (distributionMode === 'fixed-points') {
+      fixedSystems.forEach(fixedSys => {
+        currentDistribution.push({
+          systemId: fixedSys.id,
+          username: `Sistema Fixo ${fixedSys.id}`,
+          pointCount: currentDist.get(fixedSys.id) || 0,
+          isFixed: true
+        });
+      });
+    }
+    
+    // Adicionar sistemas normais
+    systems.forEach(system => {
+      const sysId = parseInt(system.system_id);
+      // Pular se já foi adicionado como sistema fixo
+      if (distributionMode === 'fixed-points' && fixedSystems.some(fs => fs.id === sysId)) {
+        return;
+      }
+      currentDistribution.push({
+        systemId: sysId,
+        username: system.username,
+        pointCount: currentDist.get(sysId) || 0,
+        isFixed: false
+      });
+    });
+    
+    // Ordenar por ID (fixos primeiro)
+    currentDistribution.sort((a, b) => {
+      // Sistemas fixos vêm primeiro
+      if (a.isFixed && !b.isFixed) return -1;
+      if (!a.isFixed && b.isFixed) return 1;
+      // Depois ordena por ID
+      return a.systemId - b.systemId;
+    });
     
     let systemsNeeded = 0;
     if (distributionMode === 'one-per-point') {
       // Um sistema por ponto - precisa de um sistema para cada ponto ativo
       systemsNeeded = Math.max(0, activePontos.length - systems.length);
     } else {
-      // Pontos fixos por sistema
-      const totalSystemsNeeded = Math.ceil(activePontos.length / pointsPerSystem);
-      systemsNeeded = Math.max(0, totalSystemsNeeded - systems.length);
+      // Pontos fixos por sistema - considerar sistemas fixos
+      const totalFixedCapacity = fixedSystems.reduce((sum, fs) => sum + fs.points, 0);
+      const remainingPoints = Math.max(0, activePontos.length - totalFixedCapacity);
+      const additionalSystemsNeeded = Math.ceil(remainingPoints / pointsPerSystem);
+      const currentNormalSystems = systems.length;
+      systemsNeeded = Math.max(0, additionalSystemsNeeded - currentNormalSystems);
     }
     
     setDistributionPreview({
@@ -466,7 +510,42 @@ export default function PainelOffice() {
     if (isDistributionModalOpen) {
       calculateDistributionPreview();
     }
-  }, [distributionMode, pointsPerSystem, pontos, systems, isDistributionModalOpen]);
+  }, [distributionMode, pointsPerSystem, pontos, systems, isDistributionModalOpen, fixedSystems]);
+  
+  // Funções para gerenciar sistemas fixos
+  const getNextFixedSystemId = () => {
+    const existingIds = fixedSystems.map(fs => fs.id);
+    let nextId = 1001;
+    while (existingIds.includes(nextId)) {
+      nextId++;
+    }
+    return nextId;
+  };
+  
+  const addFixedSystem = () => {
+    const newId = getNextFixedSystemId();
+    setFixedSystems([...fixedSystems, { id: newId, points: 10 }]);
+  };
+  
+  const updateFixedSystem = (index: number, points: number) => {
+    const updated = [...fixedSystems];
+    if (points > 0) {
+      updated[index].points = points;
+      setFixedSystems(updated);
+    }
+  };
+  
+  const removeFixedSystem = (index: number) => {
+    if (fixedSystems.length > 1) { // Manter pelo menos 1 sistema fixo
+      setFixedSystems(fixedSystems.filter((_, i) => i !== index));
+    } else {
+      toast({
+        title: "⚠️ Aviso",
+        description: "Deve haver pelo menos um sistema fixo no modo de pontos fixos.",
+        variant: "default",
+      });
+    }
+  };
 
   // Atualizar o timer a cada segundo
   useEffect(() => {
@@ -822,7 +901,10 @@ export default function PainelOffice() {
 
       const payload = {
         mode: distributionMode,
-        ...(distributionMode === 'fixed-points' && { pointsPerSystem })
+        ...(distributionMode === 'fixed-points' && { 
+          pointsPerSystem,
+          fixedSystems: fixedSystems.map(fs => ({ systemId: fs.id, points: fs.points }))
+        })
       };
 
       // Use apiRequest to make the POST request
@@ -1769,10 +1851,10 @@ export default function PainelOffice() {
                           </p>
                           
                           {distributionMode === 'fixed-points' && (
-                            <div className="space-y-3 mt-3">
+                            <div className="space-y-4 mt-3">
                               <div className="flex items-center gap-3">
                                 <Label htmlFor="points-per-system" className="text-sm">
-                                  Pontos por sistema:
+                                  Pontos por sistema normal:
                                 </Label>
                                 <Input
                                   id="points-per-system"
@@ -1786,16 +1868,105 @@ export default function PainelOffice() {
                                 />
                               </div>
                               
+                              <Separator className="bg-slate-700" />
+                              
+                              {/* Seção de Sistemas Fixos/Reserva */}
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="text-base font-semibold flex items-center gap-2">
+                                    <Lock className="w-4 h-4 text-orange-400" />
+                                    Sistemas Fixos (Reserva)
+                                  </h4>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={addFixedSystem}
+                                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                                    data-testid="add-fixed-system-button"
+                                  >
+                                    <Plus className="w-4 h-4 mr-1" />
+                                    Adicionar Sistema Fixo
+                                  </Button>
+                                </div>
+                                
+                                <div className="bg-slate-900/30 rounded-lg p-3 border border-orange-500/30">
+                                  <p className="text-xs text-slate-300 mb-3">
+                                    Sistemas fixos têm IDs 1000+ e permitem redistribuição flexível de pontos
+                                  </p>
+                                  
+                                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {fixedSystems.map((fixedSys, index) => (
+                                      <div 
+                                        key={fixedSys.id} 
+                                        className="flex items-center gap-3 p-2 bg-orange-900/20 border border-orange-500/30 rounded-lg"
+                                      >
+                                        <Shield className="w-5 h-5 text-orange-400" />
+                                        <div className="flex-1 flex items-center gap-3">
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-sm font-semibold text-orange-300">
+                                              Sistema #{fixedSys.id}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <Label className="text-xs text-slate-400">Pontos:</Label>
+                                            <Input
+                                              type="number"
+                                              min="1"
+                                              max="100"
+                                              value={editingFixedSystem?.index === index 
+                                                ? fixedSys.points 
+                                                : fixedSys.points}
+                                              onChange={(e) => {
+                                                const newPoints = Math.max(1, parseInt(e.target.value) || 1);
+                                                updateFixedSystem(index, newPoints);
+                                              }}
+                                              onFocus={() => setEditingFixedSystem({ id: fixedSys.id, index })}
+                                              onBlur={() => setEditingFixedSystem(null)}
+                                              className="w-16 h-7 bg-slate-800 border-orange-500/50 text-white text-sm"
+                                              data-testid={`fixed-system-points-${fixedSys.id}`}
+                                            />
+                                          </div>
+                                        </div>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => removeFixedSystem(index)}
+                                          className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1 h-7 w-7"
+                                          data-testid={`remove-fixed-system-${fixedSys.id}`}
+                                        >
+                                          <X className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  
+                                  <div className="mt-3 p-2 bg-slate-900/50 rounded">
+                                    <p className="text-xs text-slate-300">
+                                      <span className="text-orange-400 font-bold">
+                                        {fixedSystems.reduce((sum, fs) => sum + fs.points, 0)} pontos
+                                      </span>{' '}
+                                      reservados em {fixedSystems.length} sistema{fixedSystems.length > 1 ? 's' : ''} fixo{fixedSystems.length > 1 ? 's' : ''}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              
                               {distributionPreview && (
                                 <div className="bg-slate-900/50 rounded p-3">
                                   <p className="text-sm">
-                                    Com <span className="font-bold text-blue-400">{pointsPerSystem}</span> pontos por sistema, 
-                                    você precisará de <span className="font-bold text-purple-400">
+                                    <span className="font-bold text-orange-400">
+                                      {fixedSystems.reduce((sum, fs) => sum + fs.points, 0)}
+                                    </span> pontos em sistemas fixos +{' '}
+                                    <span className="font-bold text-blue-400">{pointsPerSystem}</span> pontos por sistema normal
+                                  </p>
+                                  <p className="text-sm mt-2">
+                                    Total de <span className="font-bold text-purple-400">
                                       {Math.ceil(distributionPreview.totalPoints / pointsPerSystem)}
-                                    </span> sistemas no total.
+                                    </span> sistemas necessários.
                                     {distributionPreview.systemsNeeded > 0 && (
                                       <span className="block mt-2 text-yellow-400 font-bold">
-                                        ⚠️ Serão necessários {distributionPreview.systemsNeeded} novos sistemas
+                                        ⚠️ Serão criados {distributionPreview.systemsNeeded} novos sistemas
                                       </span>
                                     )}
                                   </p>
@@ -1819,22 +1990,93 @@ export default function PainelOffice() {
                       Distribuição Atual dos Sistemas
                     </h3>
                     <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                      <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto">
-                        {distributionPreview.currentDistribution.map((dist) => (
-                          <div 
-                            key={dist.systemId} 
-                            className="flex items-center justify-between bg-slate-900/50 rounded p-2 text-sm"
-                          >
-                            <span className="flex items-center gap-2">
-                              <Server className="w-4 h-4 text-slate-400" />
-                              <span className="font-medium">Sistema {dist.systemId}</span>
-                              <span className="text-slate-500">({dist.username})</span>
-                            </span>
-                            <Badge variant="secondary" className="bg-blue-900/50 text-blue-300">
-                              {dist.pointCount} pontos
-                            </Badge>
+                      <div className="space-y-3">
+                        {/* Estatísticas gerais */}
+                        <div className="grid grid-cols-3 gap-4 pb-3 border-b border-slate-700">
+                          <div className="text-center">
+                            <p className="text-xs text-slate-400 mb-1">Total de Pontos</p>
+                            <p className="text-lg font-bold text-purple-400">{distributionPreview.totalPoints}</p>
                           </div>
-                        ))}
+                          <div className="text-center">
+                            <p className="text-xs text-slate-400 mb-1">Sistemas Ativos</p>
+                            <p className="text-lg font-bold text-green-400">
+                              {distributionPreview.currentDistribution.filter(d => d.pointCount > 0).length}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs text-slate-400 mb-1">Pontos Sem Sistema</p>
+                            <p className="text-lg font-bold text-yellow-400">{distributionPreview.pointsWithoutSystem}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Lista de sistemas */}
+                        <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto">
+                          {distributionPreview.currentDistribution.map((dist) => (
+                            <div 
+                              key={dist.systemId} 
+                              className={`flex items-center justify-between rounded p-2 text-sm border ${
+                                dist.isFixed 
+                                  ? 'bg-orange-900/20 border-orange-500/30' 
+                                  : 'bg-slate-900/50 border-slate-700/50'
+                              }`}
+                            >
+                              <span className="flex items-center gap-2">
+                                {dist.isFixed ? (
+                                  <Lock className="w-4 h-4 text-orange-400" />
+                                ) : (
+                                  <Server className="w-4 h-4 text-slate-400" />
+                                )}
+                                <span className={`font-medium ${dist.isFixed ? 'text-orange-300' : ''}`}>
+                                  Sistema {dist.systemId}
+                                </span>
+                                {!dist.isFixed && (
+                                  <span className="text-slate-500 text-xs">({dist.username})</span>
+                                )}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <Badge 
+                                  variant="secondary" 
+                                  className={
+                                    dist.isFixed 
+                                      ? 'bg-orange-500/20 text-orange-300'
+                                      : dist.pointCount > 0
+                                      ? 'bg-blue-900/50 text-blue-300'
+                                      : 'bg-slate-800 text-slate-500'
+                                  }
+                                >
+                                  {dist.pointCount} {dist.pointCount === 1 ? 'ponto' : 'pontos'}
+                                </Badge>
+                                {dist.isFixed && distributionMode === 'fixed-points' && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className="text-xs border-orange-500/30 text-orange-400"
+                                  >
+                                    Fixo
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {/* Rodapé com totais */}
+                        <div className="pt-3 border-t border-slate-700">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-slate-400">
+                              Total de {distributionPreview.currentDistribution.length} sistemas
+                            </span>
+                            <span className="font-semibold text-white">
+                              {distributionPreview.currentDistribution.reduce((sum, d) => sum + d.pointCount, 0)} pontos distribuídos
+                            </span>
+                          </div>
+                          {distributionMode === 'fixed-points' && fixedSystems.length > 0 && (
+                            <div className="mt-2 text-xs text-orange-400">
+                              <Lock className="w-3 h-3 inline mr-1" />
+                              {fixedSystems.length} sistema{fixedSystems.length > 1 ? 's' : ''} fixo{fixedSystems.length > 1 ? 's' : ''} com{' '}
+                              {fixedSystems.reduce((sum, fs) => sum + fs.points, 0)} pontos reservados
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
