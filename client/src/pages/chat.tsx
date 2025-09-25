@@ -3529,7 +3529,7 @@ export default function Chat() {
                     {isSendingTestMessage ? (
                       <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> Enviando...</>
                     ) : (
-                      <><Bot className="w-3 h-3 mr-1.5" /> Simular Mensagem do Cliente</>
+                      <><Bot className="w-3 h-3 mr-1.5" /> Enviar</>
                     )}
                   </Button>
                   
