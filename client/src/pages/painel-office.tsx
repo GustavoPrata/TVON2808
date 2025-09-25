@@ -351,13 +351,11 @@ export default function PainelOffice() {
   } | null>(null);
   const [isLoadingPoints, setIsLoadingPoints] = useState(false);
   
-  // Estado para sistemas fixos/reserva (IDs 1000+)
-  const [fixedSystems, setFixedSystems] = useState<{id: number, points: number}[]>([
-    { id: 1001, points: 10 },
-    { id: 1002, points: 10 },
-    { id: 1003, points: 10 }
-  ]);
-  const [editingFixedSystem, setEditingFixedSystem] = useState<{id: number, index: number} | null>(null);
+  // Estado para Dialog de criação de sistema fixo
+  const [showCreateFixedSystemDialog, setShowCreateFixedSystemDialog] = useState(false);
+  const [newFixedSystem, setNewFixedSystem] = useState({ username: '', password: '' });
+  const [isCreatingFixedSystem, setIsCreatingFixedSystem] = useState(false);
+  const [fixedSystemToRemove, setFixedSystemToRemove] = useState<string | null>(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -374,9 +372,16 @@ export default function PainelOffice() {
     refetchOnWindowFocus: true,
   });
   
-  // Fetch systems
+  // Fetch all systems
   const { data: systemsRaw = [], isLoading: loadingSystems, refetch: refetchSystems } = useQuery<System[]>({
     queryKey: ['/api/external-api/systems'],
+  });
+
+  // Fetch pontos data for automatic calculation
+  const { data: allPontos = [] } = useQuery<any[]>({
+    queryKey: ['/api/pontos'],
+    staleTime: 5000,
+    refetchOnWindowFocus: true,
   });
 
   // Sort systems by system_id (numerical order)
@@ -386,6 +391,18 @@ export default function PainelOffice() {
     
     return sortOrder === 'asc' ? idA - idB : idB - idA;
   });
+
+  // Filter fixed systems (ID >= 1000)
+  const fixedSystems = systems.filter(system => {
+    const systemId = parseInt(system.system_id);
+    return systemId >= 1000;
+  });
+
+  // Calculate points for automatic distribution
+  const activePontos = allPontos.filter((p: any) => p.status === 'ativo');
+  const totalActivePontos = activePontos.length;
+  const totalSystems = systems.length;
+  const pointsPerSystemCalculated = totalSystems > 0 ? Math.ceil(totalActivePontos / totalSystems) : 0;
 
   // Fetch automation config from backend
   const { data: configData, refetch: refetchConfig } = useQuery<any>({
@@ -450,10 +467,11 @@ export default function PainelOffice() {
     // Adicionar sistemas fixos primeiro (se no modo fixed-points)
     if (distributionMode === 'fixed-points') {
       fixedSystems.forEach(fixedSys => {
+        const sysId = parseInt(fixedSys.system_id);
         currentDistribution.push({
-          systemId: fixedSys.id,
-          username: `Sistema Fixo ${fixedSys.id}`,
-          pointCount: currentDist.get(fixedSys.id) || 0,
+          systemId: sysId,
+          username: fixedSys.username || `Sistema ${sysId}`,
+          pointCount: currentDist.get(sysId) || 0,
           isFixed: true
         });
       });
@@ -463,7 +481,7 @@ export default function PainelOffice() {
     systems.forEach(system => {
       const sysId = parseInt(system.system_id);
       // Pular se já foi adicionado como sistema fixo
-      if (distributionMode === 'fixed-points' && fixedSystems.some(fs => fs.id === sysId)) {
+      if (distributionMode === 'fixed-points' && fixedSystems.some(fs => parseInt(fs.system_id) === sysId)) {
         return;
       }
       currentDistribution.push({
@@ -488,12 +506,10 @@ export default function PainelOffice() {
       // Um sistema por ponto - precisa de um sistema para cada ponto ativo
       systemsNeeded = Math.max(0, activePontos.length - systems.length);
     } else {
-      // Pontos fixos por sistema - considerar sistemas fixos
-      const totalFixedCapacity = fixedSystems.reduce((sum, fs) => sum + fs.points, 0);
-      const remainingPoints = Math.max(0, activePontos.length - totalFixedCapacity);
-      const additionalSystemsNeeded = Math.ceil(remainingPoints / pointsPerSystem);
-      const currentNormalSystems = systems.length;
-      systemsNeeded = Math.max(0, additionalSystemsNeeded - currentNormalSystems);
+      // Pontos fixos por sistema - cálculo automático
+      const totalSystemsNeeded = Math.ceil(activePontos.length / pointsPerSystem);
+      const currentTotalSystems = systems.length;
+      systemsNeeded = Math.max(0, totalSystemsNeeded - currentTotalSystems);
     }
     
     setDistributionPreview({
@@ -510,42 +526,77 @@ export default function PainelOffice() {
     if (isDistributionModalOpen) {
       calculateDistributionPreview();
     }
-  }, [distributionMode, pointsPerSystem, pontos, systems, isDistributionModalOpen, fixedSystems]);
+  }, [distributionMode, pointsPerSystem, pontos, systems, isDistributionModalOpen]);
   
-  // Funções para gerenciar sistemas fixos
-  const getNextFixedSystemId = () => {
-    const existingIds = fixedSystems.map(fs => fs.id);
-    let nextId = 1001;
-    while (existingIds.includes(nextId)) {
-      nextId++;
-    }
-    return nextId;
-  };
-  
-  const addFixedSystem = () => {
-    const newId = getNextFixedSystemId();
-    setFixedSystems([...fixedSystems, { id: newId, points: 10 }]);
-  };
-  
-  const updateFixedSystem = (index: number, points: number) => {
-    const updated = [...fixedSystems];
-    if (points > 0) {
-      updated[index].points = points;
-      setFixedSystems(updated);
-    }
-  };
-  
-  const removeFixedSystem = (index: number) => {
-    if (fixedSystems.length > 1) { // Manter pelo menos 1 sistema fixo
-      setFixedSystems(fixedSystems.filter((_, i) => i !== index));
-    } else {
+  // Mutation para criar sistema fixo
+  const createFixedSystemMutation = useMutation({
+    mutationFn: async (data: { username: string; password: string }) => {
+      // Encontrar próximo ID >= 1001
+      const existingFixedIds = fixedSystems.map(s => parseInt(s.system_id));
+      const maxId = existingFixedIds.length > 0 ? Math.max(...existingFixedIds) : 1000;
+      const nextId = Math.max(1001, maxId + 1).toString();
+      
+      const response = await apiRequest('POST', '/api/external-api/systems', {
+        system_id: nextId,
+        username: data.username,
+        password: data.password
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao criar sistema fixo');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external-api/systems'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
+      setShowCreateFixedSystemDialog(false);
+      setNewFixedSystem({ username: '', password: '' });
       toast({
-        title: "⚠️ Aviso",
-        description: "Deve haver pelo menos um sistema fixo no modo de pontos fixos.",
-        variant: "default",
+        title: "✅ Sistema Fixo Criado",
+        description: "Sistema fixo criado com sucesso!",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "❌ Erro ao criar sistema",
+        description: error.message,
+        variant: "destructive",
       });
     }
-  };
+  });
+
+  // Mutation para remover sistema fixo
+  const removeFixedSystemMutation = useMutation({
+    mutationFn: async (systemId: string) => {
+      const response = await apiRequest('DELETE', `/api/external-api/systems/${systemId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao remover sistema');
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/external-api/systems'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/pontos'] });
+      setFixedSystemToRemove(null);
+      toast({
+        title: "✅ Sistema Removido",
+        description: "Sistema fixo removido com sucesso!",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "❌ Erro ao remover sistema",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
 
   // Atualizar o timer a cada segundo
   useEffect(() => {
@@ -903,7 +954,7 @@ export default function PainelOffice() {
         mode: distributionMode,
         ...(distributionMode === 'fixed-points' && { 
           pointsPerSystem,
-          fixedSystems: fixedSystems.map(fs => ({ systemId: fs.id, points: fs.points }))
+          fixedSystemIds: fixedSystems.map(fs => fs.system_id)
         })
       };
 
@@ -1880,7 +1931,7 @@ export default function PainelOffice() {
                                   <Button
                                     type="button"
                                     size="sm"
-                                    onClick={addFixedSystem}
+                                    onClick={() => setShowCreateFixedSystemDialog(true)}
                                     className="bg-orange-600 hover:bg-orange-700 text-white"
                                     data-testid="add-fixed-system-button"
                                   >
@@ -1895,58 +1946,67 @@ export default function PainelOffice() {
                                   </p>
                                   
                                   <div className="space-y-2 max-h-48 overflow-y-auto">
-                                    {fixedSystems.map((fixedSys, index) => (
-                                      <div 
-                                        key={fixedSys.id} 
-                                        className="flex items-center gap-3 p-2 bg-orange-900/20 border border-orange-500/30 rounded-lg"
-                                      >
-                                        <Shield className="w-5 h-5 text-orange-400" />
-                                        <div className="flex-1 flex items-center gap-3">
-                                          <div className="flex items-center gap-1">
-                                            <span className="text-sm font-semibold text-orange-300">
-                                              Sistema #{fixedSys.id}
-                                            </span>
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                            <Label className="text-xs text-slate-400">Pontos:</Label>
-                                            <Input
-                                              type="number"
-                                              min="1"
-                                              max="100"
-                                              value={editingFixedSystem?.index === index 
-                                                ? fixedSys.points 
-                                                : fixedSys.points}
-                                              onChange={(e) => {
-                                                const newPoints = Math.max(1, parseInt(e.target.value) || 1);
-                                                updateFixedSystem(index, newPoints);
-                                              }}
-                                              onFocus={() => setEditingFixedSystem({ id: fixedSys.id, index })}
-                                              onBlur={() => setEditingFixedSystem(null)}
-                                              className="w-16 h-7 bg-slate-800 border-orange-500/50 text-white text-sm"
-                                              data-testid={`fixed-system-points-${fixedSys.id}`}
-                                            />
-                                          </div>
-                                        </div>
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => removeFixedSystem(index)}
-                                          className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1 h-7 w-7"
-                                          data-testid={`remove-fixed-system-${fixedSys.id}`}
-                                        >
-                                          <X className="w-4 h-4" />
-                                        </Button>
+                                    {fixedSystems.length === 0 ? (
+                                      <div className="text-center py-4 text-slate-400 text-sm">
+                                        Nenhum sistema fixo criado. Clique em "Adicionar Sistema Fixo" para criar.
                                       </div>
-                                    ))}
+                                    ) : (
+                                      fixedSystems.map((fixedSys) => {
+                                        const systemId = parseInt(fixedSys.system_id);
+                                        const systemPoints = pointsPerSystemCalculated;
+                                        return (
+                                          <div 
+                                            key={fixedSys.system_id} 
+                                            className="flex items-center gap-3 p-2 bg-orange-900/20 border border-orange-500/30 rounded-lg"
+                                          >
+                                            <Shield className="w-5 h-5 text-orange-400" />
+                                            <div className="flex-1 flex items-center gap-3">
+                                              <div className="flex flex-col gap-1">
+                                                <span className="text-sm font-semibold text-orange-300">
+                                                  Sistema #{systemId}
+                                                </span>
+                                                <span className="text-xs text-slate-400">
+                                                  {fixedSys.username}
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-2 ml-auto">
+                                                <Badge variant="outline" className="text-xs border-orange-500/30 text-orange-400">
+                                                  {systemPoints} pontos (auto)
+                                                </Badge>
+                                              </div>
+                                            </div>
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() => {
+                                                if (fixedSystems.length <= 1 && distributionMode === 'fixed-points') {
+                                                  toast({
+                                                    title: "⚠️ Aviso",
+                                                    description: "Deve haver pelo menos um sistema fixo no modo de pontos fixos.",
+                                                    variant: "default",
+                                                  });
+                                                } else {
+                                                  setFixedSystemToRemove(fixedSys.system_id);
+                                                }
+                                              }}
+                                              className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1 h-7 w-7"
+                                              data-testid={`remove-fixed-system-${fixedSys.system_id}`}
+                                            >
+                                              <X className="w-4 h-4" />
+                                            </Button>
+                                          </div>
+                                        );
+                                      })
+                                    )}
                                   </div>
                                   
                                   <div className="mt-3 p-2 bg-slate-900/50 rounded">
                                     <p className="text-xs text-slate-300">
                                       <span className="text-orange-400 font-bold">
-                                        {fixedSystems.reduce((sum, fs) => sum + fs.points, 0)} pontos
+                                        {fixedSystems.length * pointsPerSystemCalculated} pontos
                                       </span>{' '}
-                                      reservados em {fixedSystems.length} sistema{fixedSystems.length > 1 ? 's' : ''} fixo{fixedSystems.length > 1 ? 's' : ''}
+                                      calculados automaticamente para {fixedSystems.length} sistema{fixedSystems.length > 1 ? 's' : ''} fixo{fixedSystems.length > 1 ? 's' : ''}
                                     </p>
                                   </div>
                                 </div>
@@ -1955,10 +2015,8 @@ export default function PainelOffice() {
                               {distributionPreview && (
                                 <div className="bg-slate-900/50 rounded p-3">
                                   <p className="text-sm">
-                                    <span className="font-bold text-orange-400">
-                                      {fixedSystems.reduce((sum, fs) => sum + fs.points, 0)}
-                                    </span> pontos em sistemas fixos +{' '}
-                                    <span className="font-bold text-blue-400">{pointsPerSystem}</span> pontos por sistema normal
+                                    Cada sistema (fixo ou normal) receberá{' '}
+                                    <span className="font-bold text-blue-400">{pointsPerSystem}</span> pontos
                                   </p>
                                   <p className="text-sm mt-2">
                                     Total de <span className="font-bold text-purple-400">
@@ -2072,8 +2130,7 @@ export default function PainelOffice() {
                           {distributionMode === 'fixed-points' && fixedSystems.length > 0 && (
                             <div className="mt-2 text-xs text-orange-400">
                               <Lock className="w-3 h-3 inline mr-1" />
-                              {fixedSystems.length} sistema{fixedSystems.length > 1 ? 's' : ''} fixo{fixedSystems.length > 1 ? 's' : ''} com{' '}
-                              {fixedSystems.reduce((sum, fs) => sum + fs.points, 0)} pontos reservados
+                              {fixedSystems.length} sistema{fixedSystems.length > 1 ? 's' : ''} fixo{fixedSystems.length > 1 ? 's' : ''} com divisão automática de pontos
                             </div>
                           )}
                         </div>
@@ -2115,6 +2172,128 @@ export default function PainelOffice() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog para criar sistema fixo */}
+      <Dialog open={showCreateFixedSystemDialog} onOpenChange={setShowCreateFixedSystemDialog}>
+        <DialogContent className="bg-slate-900 border-slate-800 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <Lock className="w-5 h-5 text-orange-400" />
+              Criar Sistema Fixo
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Crie um novo sistema fixo com ID automático (≥ 1001)
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="fixed-username" className="text-sm text-slate-300">
+                Username *
+              </Label>
+              <Input
+                id="fixed-username"
+                type="text"
+                value={newFixedSystem.username}
+                onChange={(e) => setNewFixedSystem({ ...newFixedSystem, username: e.target.value })}
+                placeholder="Digite o username"
+                className="bg-slate-800 border-slate-700 text-white"
+                data-testid="input-fixed-username"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fixed-password" className="text-sm text-slate-300">
+                Password *
+              </Label>
+              <Input
+                id="fixed-password"
+                type="password"
+                value={newFixedSystem.password}
+                onChange={(e) => setNewFixedSystem({ ...newFixedSystem, password: e.target.value })}
+                placeholder="Digite o password"
+                className="bg-slate-800 border-slate-700 text-white"
+                data-testid="input-fixed-password"
+              />
+            </div>
+
+            <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
+              <p className="text-xs text-orange-300">
+                <Info className="w-4 h-4 inline mr-1" />
+                O sistema será criado com o próximo ID disponível (≥ 1001) e receberá pontos automaticamente.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateFixedSystemDialog(false);
+                setNewFixedSystem({ username: '', password: '' });
+              }}
+              className="border-slate-700"
+              data-testid="button-cancel-fixed-system"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => createFixedSystemMutation.mutate(newFixedSystem)}
+              disabled={!newFixedSystem.username || !newFixedSystem.password || createFixedSystemMutation.isPending}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              data-testid="button-create-fixed-system"
+            >
+              {createFixedSystemMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Criando...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Criar Sistema Fixo
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AlertDialog para confirmar remoção de sistema fixo */}
+      <AlertDialog open={!!fixedSystemToRemove} onOpenChange={(open) => !open && setFixedSystemToRemove(null)}>
+        <AlertDialogContent className="bg-slate-900 border-slate-800 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold">
+              Confirmar Remoção de Sistema Fixo
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              Tem certeza que deseja remover o Sistema #{fixedSystemToRemove}? 
+              Esta ação não pode ser desfeita e o sistema será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => setFixedSystemToRemove(null)}
+              className="border-slate-700 hover:bg-slate-800"
+              data-testid="button-cancel-remove-fixed"
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (fixedSystemToRemove) {
+                  removeFixedSystemMutation.mutate(fixedSystemToRemove);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="button-confirm-remove-fixed"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Remover Sistema
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
