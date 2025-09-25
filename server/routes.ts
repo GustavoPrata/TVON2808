@@ -8584,6 +8584,7 @@ Como posso ajudar você hoje?
         intervalMinutes: z.number().min(1).max(1440).optional(),
         singleGeneration: z.boolean().optional(),
         renewalAdvanceTime: z.number().min(1).max(1440).optional(), // Tempo em minutos antes do vencimento
+        distributionMode: z.enum(['individual', 'fixed-points']).optional(), // Modo de distribuição
       });
 
       const validated = schema.parse(req.body);
@@ -8658,6 +8659,37 @@ Como posso ajudar você hoje?
     } catch (error) {
       console.error('Erro ao parar automação:', error);
       res.status(500).json({ error: 'Erro ao parar automação' });
+    }
+  });
+
+  // POST /api/office/automation/maintenance/fixed-systems - Executa manutenção para sistemas fixos
+  app.post('/api/office/automation/maintenance/fixed-systems', checkAuth, async (req, res) => {
+    try {
+      console.log('🔧 Iniciando manutenção de sistemas fixos...');
+      
+      // Executar função de manutenção
+      await storage.updateExistingFixedSystemsExpiry();
+      
+      // Buscar sistemas fixos atualizados para retornar
+      const allSistemas = await storage.getAllSistemas();
+      const sistemasFixos = allSistemas.filter(s => {
+        const systemId = parseInt(s.systemId) || 0;
+        return systemId >= 1000;
+      });
+      
+      res.json({
+        success: true,
+        message: 'Sistemas fixos atualizados com 365 dias de expiração',
+        totalAtualizados: sistemasFixos.length,
+        sistemas: sistemasFixos.map(s => ({
+          systemId: s.systemId,
+          usuario: s.usuario,
+          expiracao: s.expiracao
+        }))
+      });
+    } catch (error) {
+      console.error('Erro ao executar manutenção de sistemas fixos:', error);
+      res.status(500).json({ error: 'Erro ao executar manutenção' });
     }
   });
 

@@ -384,8 +384,46 @@ export default function PainelOffice() {
     refetchOnWindowFocus: true,
   });
 
-  // Sort systems by system_id (numerical order)
-  const systems = [...systemsRaw].sort((a, b) => {
+  // Create state for distribution mode with localStorage
+  const [storedDistributionMode, setStoredDistributionMode] = useState<string>(() => {
+    return localStorage.getItem('distributionMode') || 'individual';
+  });
+  
+  // Add listener for localStorage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const mode = localStorage.getItem('distributionMode') || 'individual';
+      setStoredDistributionMode(mode);
+    };
+    
+    // Listen for storage events (changes from other tabs/windows)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Listen for custom event (changes in same tab)
+    window.addEventListener('distributionModeChanged', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('distributionModeChanged', handleStorageChange);
+    };
+  }, []);
+  
+  const isFixedMode = storedDistributionMode === 'fixed-points';
+  
+  // Filter systems based on distribution mode
+  const filteredSystems = systemsRaw.filter((system: System) => {
+    const systemId = parseInt(system.system_id) || 0;
+    // In fixed-points mode: show only systems with ID >= 1000
+    // In individual mode: show only systems with ID < 1000
+    if (isFixedMode) {
+      return systemId >= 1000;
+    } else {
+      return systemId < 1000;
+    }
+  });
+  
+  // Sort filtered systems by system_id (numerical order)
+  const systems = [...filteredSystems].sort((a, b) => {
     const idA = parseInt(a.system_id) || 0;
     const idB = parseInt(b.system_id) || 0;
     

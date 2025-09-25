@@ -304,6 +304,7 @@ export interface IStorage {
   getOfficeAutomationConfig(): Promise<OfficeAutomationConfig | null>;
   createOfficeAutomationConfig(config: InsertOfficeAutomationConfig): Promise<OfficeAutomationConfig>;
   updateOfficeAutomationConfig(config: Partial<InsertOfficeAutomationConfig>): Promise<OfficeAutomationConfig>;
+  updateExistingFixedSystemsExpiry(): Promise<void>;
   
   // Office Automation Logs
   getOfficeAutomationLogs(limit?: number): Promise<OfficeAutomationLogs[]>;
@@ -1231,6 +1232,16 @@ export class DatabaseStorage implements IStorage {
 
   async createSistema(sistema: InsertSistema): Promise<Sistema> {
     const mapped = mapSistemaFromFrontend(sistema);
+    
+    // Se for um sistema fixo (ID >= 1000), definir expiração para 365 dias
+    const systemId = parseInt(mapped.systemId) || 0;
+    if (systemId >= 1000) {
+      const expiracaoFixo = new Date();
+      expiracaoFixo.setDate(expiracaoFixo.getDate() + 365);
+      mapped.expiracao = expiracaoFixo;
+      console.log(`🔒 Sistema fixo ${mapped.systemId} criado com validade de 365 dias`);
+    }
+    
     const result = await db.insert(sistemas).values(mapped).returning();
     return mapSistemaToFrontend(result[0]);
   }
@@ -2667,6 +2678,48 @@ export class DatabaseStorage implements IStorage {
       } as InsertOfficeAutomationConfig)
       .returning();
     return result[0];
+  }
+
+  // Função de manutenção para atualizar sistemas fixos existentes com 365 dias
+  async updateExistingFixedSystemsExpiry(): Promise<void> {
+    const allSistemas = await db.select().from(sistemas);
+    const sistemasFixos = allSistemas.filter(s => {
+      const systemId = parseInt(s.systemId) || 0;
+      return systemId >= 1000;
+    });
+    
+    if (sistemasFixos.length === 0) {
+      console.log('ℹ️ Nenhum sistema fixo encontrado para atualizar');
+      return;
+    }
+    
+    // Definir expiração para 365 dias a partir de hoje
+    const expiracao = new Date();
+    expiracao.setDate(expiracao.getDate() + 365);
+    
+    console.log(`📅 Atualizando ${sistemasFixos.length} sistemas fixos com expiração em 365 dias: ${expiracao.toISOString()}`);
+    
+    for (const sistema of sistemasFixos) {
+      await db.update(sistemas)
+        .set({ 
+          expiracao: expiracao,
+          atualizadoEm: new Date()
+        })
+        .where(eq(sistemas.id, sistema.id));
+      
+      console.log(`✅ Sistema fixo ${sistema.systemId} atualizado com nova expiração`);
+    }
+    
+    await this.createLog({
+      nivel: 'info',
+      origem: 'Maintenance',
+      mensagem: 'Sistemas fixos atualizados com 365 dias de expiração',
+      detalhes: {
+        totalSistemas: sistemasFixos.length,
+        novaExpiracao: expiracao.toISOString(),
+        sistemasAtualizados: sistemasFixos.map(s => s.systemId)
+      }
+    });
   }
 
   // Office Automation Logs implementation

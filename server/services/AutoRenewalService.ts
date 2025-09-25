@@ -118,6 +118,23 @@ export class AutoRenewalService {
         });
         return;
       }
+      
+      // Verificar modo de distribuição na configuração
+      if (config.distributionMode === 'fixed-points') {
+        console.log('🔒 === RENOVAÇÃO AUTOMÁTICA PAUSADA ===');
+        console.log('📊 Modo fixo configurado: distributionMode = fixed-points');
+        console.log('⏸️ Renovação pausada para proteger configuração de pontos fixos');
+        await storage.createLog({
+          nivel: 'info',
+          origem: 'AutoRenewal',
+          mensagem: 'Renovação automática pausada: Modo fixo está ativo',
+          detalhes: { 
+            reason: 'Fixed mode configured',
+            distributionMode: 'fixed-points'
+          }
+        });
+        return;
+      }
 
       const renewalAdvanceMinutes = config.renewalAdvanceTime || 60;
 
