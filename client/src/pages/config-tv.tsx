@@ -926,70 +926,289 @@ export default function ConfigTV() {
                 <div className="p-2 bg-indigo-500/20 rounded-lg">
                   <Server className="w-5 h-5 text-indigo-400" />
                 </div>
-                Endpoints Disponíveis
+                Documentação Completa da API Externa
               </CardTitle>
+              <CardDescription className="text-slate-400">
+                Referência detalhada de todos os endpoints e funcionalidades disponíveis
+              </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
+              {/* Autenticação */}
+              <div className="p-4 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/30 rounded-lg">
+                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                  <Key className="w-5 h-5 text-blue-400" />
+                  Autenticação
+                </h3>
+                <p className="text-slate-300 text-sm mb-3">
+                  A API aceita autenticação de várias formas diferentes. A chave API é: <code className="bg-slate-800 px-2 py-1 rounded text-xs">key170604</code>
+                </p>
+                <div className="space-y-3">
+                  <div className="bg-slate-800/50 p-3 rounded">
+                    <p className="text-xs text-slate-400 mb-1">Método 1: Header Authorization</p>
+                    <code className="text-green-400 text-sm font-mono">Authorization: Bearer key170604</code>
+                  </div>
+                  <div className="bg-slate-800/50 p-3 rounded">
+                    <p className="text-xs text-slate-400 mb-1">Método 2: Header X-API-Key</p>
+                    <code className="text-green-400 text-sm font-mono">X-API-Key: key170604</code>
+                  </div>
+                  <div className="bg-slate-800/50 p-3 rounded">
+                    <p className="text-xs text-slate-400 mb-1">Método 3: Parâmetro GET</p>
+                    <code className="text-green-400 text-sm font-mono">?key=key170604</code>
+                  </div>
+                  <div className="bg-slate-800/50 p-3 rounded">
+                    <p className="text-xs text-slate-400 mb-1">Método 4: Body JSON</p>
+                    <code className="text-green-400 text-sm font-mono">{{"key": "key170604"}}</code>
+                  </div>
+                </div>
+              </div>
+
+              {/* Endpoints de Usuários */}
               <div className="space-y-4">
+                <h3 className="text-white font-semibold flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-400" />
+                  Endpoints de Usuários
+                </h3>
+                
+                {/* GET Users */}
+                <div className="border border-slate-700 rounded-lg overflow-hidden">
+                  <div className="bg-green-500/10 px-4 py-2 border-b border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-green-400 font-mono text-sm">GET /api/users/get</span>
+                      <Badge className="bg-green-500/20 text-green-400">Lista todos</Badge>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-slate-300 text-sm mb-3">Retorna lista de todos os usuários</p>
+                    <div className="bg-slate-900 p-3 rounded font-mono text-xs">
+                      <span className="text-slate-400">// Resposta</span><br/>
+                      {`{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "username": "usuario1",
+      "password": "senha123",
+      "status": "Active",
+      "exp_date": "2025-12-31",
+      "system": 1
+    }
+  ]
+}`}
+                    </div>
+                  </div>
+                </div>
+
+                {/* GET User by ID */}
+                <div className="border border-slate-700 rounded-lg overflow-hidden">
+                  <div className="bg-green-500/10 px-4 py-2 border-b border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-green-400 font-mono text-sm">GET /api/users/get/{`{id}`}</span>
+                      <Badge className="bg-green-500/20 text-green-400">Buscar por ID</Badge>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-slate-300 text-sm mb-3">Retorna um usuário específico por ID</p>
+                    <div className="bg-slate-900 p-3 rounded font-mono text-xs">
+                      <span className="text-slate-400">// Exemplo: GET /api/users/get/75</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* POST Create User */}
+                <div className="border border-slate-700 rounded-lg overflow-hidden">
+                  <div className="bg-blue-500/10 px-4 py-2 border-b border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-blue-400 font-mono text-sm">POST /api/users/adicionar</span>
+                      <Badge className="bg-blue-500/20 text-blue-400">Criar novo</Badge>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-slate-300 text-sm mb-3">Cria um novo usuário</p>
+                    <div className="bg-slate-900 p-3 rounded font-mono text-xs mb-3">
+                      <span className="text-slate-400">// Body JSON (obrigatórios: username, password)</span><br/>
+                      {`{
+  "username": "novousuario",
+  "password": "senha123",
+  "status": "Active",
+  "exp_date": "2025-12-31",
+  "system": 1
+}`}
+                    </div>
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 rounded">
+                      <p className="text-yellow-400 text-xs">
+                        ⚠️ <strong>Aviso:</strong> Campo "system" causa erro SQL na API. Use com backticks (`system`) no MySQL.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PUT Edit User */}
+                <div className="border border-slate-700 rounded-lg overflow-hidden">
+                  <div className="bg-yellow-500/10 px-4 py-2 border-b border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-yellow-400 font-mono text-sm">PUT /api/users/editar/{`{id}`}</span>
+                      <Badge className="bg-yellow-500/20 text-yellow-400">Atualizar</Badge>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-slate-300 text-sm mb-3">Atualiza dados de um usuário existente</p>
+                    <div className="bg-slate-900 p-3 rounded font-mono text-xs">
+                      <span className="text-slate-400">// Exemplo: PUT /api/users/editar/75</span><br/>
+                      <span className="text-slate-400">// Envie apenas os campos que deseja alterar</span><br/>
+                      {`{
+  "password": "novasenha123",
+  "exp_date": "2026-01-15"
+}`}
+                    </div>
+                  </div>
+                </div>
+
+                {/* DELETE User */}
+                <div className="border border-slate-700 rounded-lg overflow-hidden">
+                  <div className="bg-red-500/10 px-4 py-2 border-b border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-red-400 font-mono text-sm">DELETE /api/users/apagar/{`{id}`}</span>
+                      <Badge className="bg-red-500/20 text-red-400">Remover</Badge>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-slate-300 text-sm mb-3">Remove um usuário do sistema</p>
+                    <div className="bg-slate-900 p-3 rounded font-mono text-xs">
+                      <span className="text-slate-400">// Exemplo: DELETE /api/users/apagar/75</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Endpoints de Credenciais do Sistema */}
+              <div className="space-y-4">
+                <h3 className="text-white font-semibold flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-orange-400" />
+                  Endpoints de Credenciais do Sistema
+                </h3>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 bg-slate-800/50 rounded-lg">
-                    <h4 className="font-semibold text-white mb-3 flex items-center gap-2">
-                      <Users className="w-4 h-4 text-indigo-400" />
-                      Usuários
-                    </h4>
-                    <ul className="text-slate-400 space-y-2 font-mono text-sm">
-                      <li className="flex items-center gap-2">
-                        <span className="text-green-400 text-xs">GET</span>
-                        /users/get
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="text-blue-400 text-xs">POST</span>
-                        /users/adicionar
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="text-yellow-400 text-xs">PUT</span>
-                        /users/editar/{`{id}`}
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="text-red-400 text-xs">DELETE</span>
-                        /users/apagar/{`{id}`}
-                      </li>
+                  <div className="bg-slate-800/50 p-4 rounded-lg">
+                    <h4 className="text-green-400 font-mono text-xs mb-2">GET /api/system_credentials/get</h4>
+                    <p className="text-slate-400 text-xs">Lista todas as credenciais</p>
+                  </div>
+                  <div className="bg-slate-800/50 p-4 rounded-lg">
+                    <h4 className="text-green-400 font-mono text-xs mb-2">GET /api/system_credentials/get/{`{id}`}</h4>
+                    <p className="text-slate-400 text-xs">Busca credencial por system_id</p>
+                  </div>
+                  <div className="bg-slate-800/50 p-4 rounded-lg">
+                    <h4 className="text-blue-400 font-mono text-xs mb-2">POST /api/system_credentials/adicionar</h4>
+                    <p className="text-slate-400 text-xs">Cria nova credencial (system_id, username, password)</p>
+                  </div>
+                  <div className="bg-slate-800/50 p-4 rounded-lg">
+                    <h4 className="text-yellow-400 font-mono text-xs mb-2">PUT /api/system_credentials/editar/{`{id}`}</h4>
+                    <p className="text-slate-400 text-xs">Atualiza credencial existente</p>
+                  </div>
+                  <div className="bg-slate-800/50 p-4 rounded-lg">
+                    <h4 className="text-red-400 font-mono text-xs mb-2">DELETE /api/system_credentials/apagar/{`{id}`}</h4>
+                    <p className="text-slate-400 text-xs">Remove credencial do sistema</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Endpoints de Configurações */}
+              <div className="space-y-4">
+                <h3 className="text-white font-semibold flex items-center gap-2">
+                  <Settings className="w-5 h-5 text-cyan-400" />
+                  Endpoints de Configurações
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-800/50 p-4 rounded-lg">
+                    <h4 className="text-green-400 font-mono text-xs mb-2">GET /api/settings/get</h4>
+                    <p className="text-slate-400 text-xs">Lista todas as configurações</p>
+                  </div>
+                  <div className="bg-slate-800/50 p-4 rounded-lg">
+                    <h4 className="text-green-400 font-mono text-xs mb-2">GET /api/settings/get/{`{key}`}</h4>
+                    <p className="text-slate-400 text-xs">Busca configuração por chave</p>
+                  </div>
+                  <div className="bg-slate-800/50 p-4 rounded-lg">
+                    <h4 className="text-blue-400 font-mono text-xs mb-2">POST /api/settings/adicionar</h4>
+                    <p className="text-slate-400 text-xs">Cria nova configuração (setting_key, setting_value)</p>
+                  </div>
+                  <div className="bg-slate-800/50 p-4 rounded-lg">
+                    <h4 className="text-yellow-400 font-mono text-xs mb-2">PUT /api/settings/editar/{`{key}`}</h4>
+                    <p className="text-slate-400 text-xs">Atualiza valor da configuração</p>
+                  </div>
+                  <div className="bg-slate-800/50 p-4 rounded-lg">
+                    <h4 className="text-red-400 font-mono text-xs mb-2">DELETE /api/settings/apagar/{`{key}`}</h4>
+                    <p className="text-slate-400 text-xs">Remove configuração</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Estrutura do Banco de Dados */}
+              <div className="p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg">
+                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                  <Server className="w-5 h-5 text-purple-400" />
+                  Estrutura do Banco de Dados
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="text-purple-400 font-semibold text-sm mb-2">Tabela: users</h4>
+                    <ul className="text-slate-300 text-xs space-y-1 font-mono">
+                      <li>• id (INT) - Primary Key</li>
+                      <li>• username (VARCHAR) - Nome de usuário único</li>
+                      <li>• password (VARCHAR) - Senha do usuário</li>
+                      <li>• status (VARCHAR) - Active/Inactive</li>
+                      <li>• exp_date (DATE) - Data de expiração</li>
+                      <li>• system (INT) - ID do sistema</li>
                     </ul>
                   </div>
-                  <div className="p-4 bg-slate-800/50 rounded-lg">
-                    <h4 className="font-semibold text-white mb-3 flex items-center gap-2">
-                      <Settings className="w-4 h-4 text-indigo-400" />
-                      Configurações
-                    </h4>
-                    <ul className="text-slate-400 space-y-2 font-mono text-sm">
-                      <li className="flex items-center gap-2">
-                        <span className="text-green-400 text-xs">GET</span>
-                        /settings/get
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="text-blue-400 text-xs">POST</span>
-                        /settings/adicionar
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="text-yellow-400 text-xs">PUT</span>
-                        /settings/editar/{`{key}`}
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="text-red-400 text-xs">DELETE</span>
-                        /settings/apagar/{`{key}`}
-                      </li>
+                  <div>
+                    <h4 className="text-purple-400 font-semibold text-sm mb-2">Tabela: system_credentials</h4>
+                    <ul className="text-slate-300 text-xs space-y-1 font-mono">
+                      <li>• system_id (INT) - Primary Key</li>
+                      <li>• username (VARCHAR) - Usuário do sistema</li>
+                      <li>• password (VARCHAR) - Senha do sistema</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="text-purple-400 font-semibold text-sm mb-2">Tabela: settings</h4>
+                    <ul className="text-slate-300 text-xs space-y-1 font-mono">
+                      <li>• setting_key (VARCHAR) - Primary Key</li>
+                      <li>• setting_value (TEXT) - Valor da configuração</li>
                     </ul>
                   </div>
                 </div>
-                
-                <div className="mt-4 p-3 bg-dark-surface rounded-lg">
-                  <h4 className="font-medium text-slate-300 mb-2">Autenticação</h4>
-                  <p className="text-slate-400 text-sm">
-                    Todas as requisições devem incluir o header:
-                  </p>
-                  <code className="text-xs bg-dark-card p-2 rounded mt-1 block">
-                    Authorization: Bearer {`{api_key}`}
-                  </code>
+              </div>
+
+              {/* Códigos de Resposta */}
+              <div className="p-4 bg-slate-800/50 rounded-lg">
+                <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-400" />
+                  Códigos de Resposta HTTP
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span className="text-slate-300 text-xs">200 - Sucesso</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                    <span className="text-slate-300 text-xs">201 - Criado</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                    <span className="text-slate-300 text-xs">400 - Requisição Inválida</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                    <span className="text-slate-300 text-xs">401 - Não Autorizado</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                    <span className="text-slate-300 text-xs">404 - Não Encontrado</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-red-600 rounded-full"></div>
+                    <span className="text-slate-300 text-xs">500 - Erro Interno</span>
+                  </div>
                 </div>
               </div>
             </CardContent>
