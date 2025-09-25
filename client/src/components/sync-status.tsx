@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, RefreshCw, Database, Cloud, CheckCircle2, XCircle, AlertTriangle, Users, Shield, ArrowRight, AlertCircle, Server } from 'lucide-react';
+import { Loader2, RefreshCw, Database, Cloud, CheckCircle2, XCircle, AlertTriangle, Users, Shield, ArrowRight, AlertCircle, Server, DatabaseZap } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -37,7 +37,7 @@ interface Ponto {
 export function SyncStatus() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [syncingType, setSyncingType] = useState<'systems' | 'config' | 'users' | null>(null);
+  const [syncingType, setSyncingType] = useState<'systems' | 'config' | 'users' | 'user-systems' | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
 
   // Get sync status and detailed comparison data
@@ -129,6 +129,38 @@ export function SyncStatus() {
       toast({
         title: 'Erro',
         description: 'Erro ao sincronizar configuração',
+        variant: 'destructive',
+      });
+    },
+    onSettled: () => setSyncingType(null),
+  });
+
+  // Sync user systems mutation
+  const syncUserSystemsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/sync/user-systems', { method: 'POST' });
+      if (!response.ok) throw new Error('Failed to sync user systems');
+      return response.json();
+    },
+    onMutate: () => setSyncingType('user-systems'),
+    onSuccess: (data) => {
+      const isSimulation = data.dryRun === true;
+      const updated = data.estatisticas?.atualizados || 0;
+      const verificados = data.estatisticas?.verificados || 0;
+      
+      toast({
+        title: isSimulation ? 'Simulação concluída' : 'Campo system atualizado',
+        description: isSimulation 
+          ? `Simulação: ${updated} usuários seriam atualizados de ${verificados} verificados`
+          : `Campo 'system' atualizado para ${updated} usuários na API (${verificados} verificados)`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sync/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sync/details'] });
+    },
+    onError: () => {
+      toast({
+        title: 'Erro',
+        description: 'Erro ao atualizar campo system dos usuários',
         variant: 'destructive',
       });
     },
@@ -308,7 +340,7 @@ export function SyncStatus() {
         <div className="flex flex-col gap-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
           <h3 className="text-sm font-medium text-white mb-2">Ações de Sincronização</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Button
                 onClick={() => syncSystemsMutation.mutate()}
@@ -375,6 +407,30 @@ export function SyncStatus() {
               </Button>
               <p className="text-xs text-slate-400">
                 Sincroniza configurações gerais da API
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Button
+                data-testid="button-sync-user-systems"
+                onClick={() => syncUserSystemsMutation.mutate()}
+                disabled={!syncStatus.apiConnected || isAnySyncing}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
+              >
+                {syncingType === 'user-systems' ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sincronizando...
+                  </>
+                ) : (
+                  <>
+                    <DatabaseZap className="w-4 h-4 mr-2" />
+                    Atualizar Campo System
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-slate-400">
+                Atualiza campo 'system' dos usuários na API
               </p>
             </div>
           </div>
