@@ -1037,7 +1037,6 @@ export default function PainelOffice() {
     }
   };
 
-  const totalSystems = systems.length;
   const activeSystems = systems.filter((s: System) => (s.pontosAtivos || 0) > 0).length;
   const fullSystems = systems.filter((s: System) => (s.pontosAtivos || 0) >= (s.maxPontosAtivos || 100)).length;
 
