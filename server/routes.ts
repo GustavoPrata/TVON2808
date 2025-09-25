@@ -5511,7 +5511,7 @@ Como posso ajudar você hoje?
   // Distribuir pontos entre sistemas
   app.post("/api/sistemas/distribute", checkAuth, async (req, res) => {
     try {
-      const { mode, pointsPerSystem } = req.body;
+      const { mode, pointsPerSystem, fixedSystemIds } = req.body;
 
       console.log('📊 Iniciando distribuição de pontos:', { mode, pointsPerSystem });
 
@@ -5855,19 +5855,116 @@ Como posso ajudar você hoje?
       } else {
         // Opção 2: Pontos Fixos por Sistema
         console.log('🔄 Modo: Pontos Fixos por Sistema');
-        console.log(`📊 Pontos por sistema: ${pointsPerSystem}`);
+        console.log(`📊 Pontos por sistema normal: ${pointsPerSystem}`);
+        console.log(`🎟️ Sistemas fixos recebidos: ${fixedSystemIds?.length || 0}`);
 
         // Buscar todos os pontos
         const todosPontos = await storage.getPontos();
-        const totalPontos = todosPontos.length;
-        console.log(`📍 Total de pontos: ${totalPontos}`);
+        const pontosAtivos = todosPontos.filter(p => p.status === 'ativo');
+        const totalPontos = pontosAtivos.length;
+        console.log(`📍 Total de pontos ativos: ${totalPontos}`);
 
+        // Buscar sistemas existentes
+        let sistemasExistentes = await storage.getSistemas();
+        
+        // Se há sistemas fixos, eles pegam TODOS os pontos
+        if (fixedSystemIds && fixedSystemIds.length > 0) {
+          console.log(`🔐 Sistemas fixos detectados: ${fixedSystemIds.join(', ')}`);
+          console.log(`🌟 Todos os ${totalPontos} pontos serão divididos entre os ${fixedSystemIds.length} sistemas fixos`);
+          
+          // Filtrar sistemas fixos da lista de sistemas existentes
+          const sistemasFixos = sistemasExistentes.filter(s => 
+            fixedSystemIds.includes(s.systemId) || fixedSystemIds.includes(s.id.toString())
+          );
+          
+          if (sistemasFixos.length === 0) {
+            return res.status(400).json({ 
+              error: 'Nenhum sistema fixo encontrado com os IDs fornecidos' 
+            });
+          }
+          
+          console.log(`✅ ${sistemasFixos.length} sistemas fixos encontrados no banco`);
+          
+          // Limpar atribuições anteriores
+          console.log('🧹 Limpando atribuições anteriores...');
+          for (const ponto of pontosAtivos) {
+            await storage.updatePontoSistema(ponto.id, null);
+          }
+          
+          // Resetar contadores de todos os sistemas
+          for (const sistema of sistemasExistentes) {
+            await storage.updateSistema(sistema.id, { pontosAtivos: 0 });
+          }
+          
+          // Distribuir TODOS os pontos apenas entre os sistemas fixos
+          console.log(`📊 Distribuindo ${totalPontos} pontos entre ${sistemasFixos.length} sistemas fixos...`);
+          const pontosPerFixedSystem = Math.ceil(totalPontos / sistemasFixos.length);
+          console.log(`🎯 Cada sistema fixo receberá aproximadamente ${pontosPerFixedSystem} pontos`);
+          
+          let pontoIndex = 0;
+          const updates: Array<{pontoId: number; sistemaId: number | null}> = [];
+          
+          for (let i = 0; i < sistemasFixos.length; i++) {
+            const sistemaFixo = sistemasFixos[i];
+            let pontosNoSistemaAtual = 0;
+            
+            // Distribuir pontos para este sistema fixo
+            while (pontoIndex < pontosAtivos.length && 
+                   (i === sistemasFixos.length - 1 || pontosNoSistemaAtual < pontosPerFixedSystem)) {
+              const ponto = pontosAtivos[pontoIndex];
+              updates.push({ pontoId: ponto.id, sistemaId: sistemaFixo.id });
+              pontosNoSistemaAtual++;
+              pontoIndex++;
+              pontosAtualizados++;
+            }
+            
+            // Atualizar contador do sistema
+            await storage.updateSistema(sistemaFixo.id, { 
+              pontosAtivos: pontosNoSistemaAtual 
+            });
+            
+            console.log(`✅ Sistema fixo #${sistemaFixo.systemId} recebeu ${pontosNoSistemaAtual} pontos`);
+            
+            detalhes.push({
+              tipo: 'distribuicao_sistema_fixo',
+              sistemaId: sistemaFixo.id,
+              systemId: sistemaFixo.systemId,
+              sistemaUsername: sistemaFixo.username,
+              pontosAtribuidos: pontosNoSistemaAtual,
+              isFixed: true
+            });
+          }
+          
+          // Aplicar todas as atualizações em lote
+          await storage.bulkUpdatePontosSistema(updates);
+          
+          console.log(`✨ Distribuição concluída: ${totalPontos} pontos distribuídos entre ${sistemasFixos.length} sistemas fixos`);
+          
+          // Resposta para sistemas fixos
+          return res.json({
+            sucesso: true,
+            message: `${totalPontos} pontos distribuídos entre ${sistemasFixos.length} sistemas fixos`,
+            modo: mode,
+            sistemasCriados: 0,
+            pontosAtualizados,
+            resumo: {
+              totalPontos: totalPontos,
+              totalSistemas: sistemasExistentes.length,
+              sistemasFixos: sistemasFixos.length,
+              pontosPoSistemaFixo: pontosPerFixedSystem,
+              apiExternaHabilitada: apiEnabled
+            },
+            detalhes
+          });
+        }
+        
+        // Lógica normal quando não há sistemas fixos
+        console.log('📊 Nenhum sistema fixo detectado, usando distribuição normal');
+        
         // Calcular quantos sistemas são necessários
         const sistemasNecessarios = Math.ceil(totalPontos / pointsPerSystem);
         console.log(`💡 Sistemas necessários: ${sistemasNecessarios}`);
 
-        // Buscar sistemas existentes
-        let sistemasExistentes = await storage.getSistemas();
         let sistemasAtuais = sistemasExistentes.length;
 
         // Criar novos sistemas se necessário

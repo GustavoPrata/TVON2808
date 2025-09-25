@@ -403,6 +403,8 @@ export default function PainelOffice() {
   const totalActivePontos = activePontos.length;
   const totalSystems = systems.length;
   const pointsPerSystemCalculated = totalSystems > 0 ? Math.ceil(totalActivePontos / totalSystems) : 0;
+  // Calculo específico para sistemas fixos no modo fixed-points: dividem TODOS os pontos entre si
+  const pointsPerFixedSystem = fixedSystems.length > 0 ? Math.ceil(totalActivePontos / fixedSystems.length) : 0;
 
   // Fetch automation config from backend
   const { data: configData, refetch: refetchConfig } = useQuery<any>({
@@ -502,21 +504,32 @@ export default function PainelOffice() {
     });
     
     let systemsNeeded = 0;
+    let pointsPerSystemCalc = 1;
+    
     if (distributionMode === 'one-per-point') {
       // Um sistema por ponto - precisa de um sistema para cada ponto ativo
       systemsNeeded = Math.max(0, activePontos.length - systems.length);
+      pointsPerSystemCalc = 1;
     } else {
-      // Pontos fixos por sistema - cálculo automático
-      const totalSystemsNeeded = Math.ceil(activePontos.length / pointsPerSystem);
-      const currentTotalSystems = systems.length;
-      systemsNeeded = Math.max(0, totalSystemsNeeded - currentTotalSystems);
+      // Modo fixed-points
+      if (fixedSystems.length > 0) {
+        // Se há sistemas fixos, eles pegam TODOS os pontos
+        systemsNeeded = 0; // Não precisa criar sistemas normais
+        pointsPerSystemCalc = Math.ceil(activePontos.length / fixedSystems.length);
+      } else {
+        // Se não há sistemas fixos, usa a lógica normal
+        const totalSystemsNeeded = Math.ceil(activePontos.length / pointsPerSystem);
+        const currentTotalSystems = systems.length;
+        systemsNeeded = Math.max(0, totalSystemsNeeded - currentTotalSystems);
+        pointsPerSystemCalc = pointsPerSystem;
+      }
     }
     
     setDistributionPreview({
       totalPoints: activePontos.length,
       pointsWithoutSystem,
       systemsNeeded,
-      pointsPerSystemCalculated: distributionMode === 'fixed-points' ? pointsPerSystem : 1,
+      pointsPerSystemCalculated: pointsPerSystemCalc,
       currentDistribution,
     });
   };
@@ -954,7 +967,7 @@ export default function PainelOffice() {
         mode: distributionMode,
         ...(distributionMode === 'fixed-points' && { 
           pointsPerSystem,
-          fixedSystemIds: fixedSystems.map(fs => fs.system_id)
+          fixedSystemIds: fixedSystems.map(fs => parseInt(fs.system_id))
         })
       };
 
@@ -1952,7 +1965,8 @@ export default function PainelOffice() {
                                     ) : (
                                       fixedSystems.map((fixedSys) => {
                                         const systemId = parseInt(fixedSys.system_id);
-                                        const systemPoints = pointsPerSystemCalculated;
+                                        // Sistemas fixos dividem TODOS os pontos entre si no modo fixed-points
+                                        const systemPoints = distributionMode === 'fixed-points' ? pointsPerFixedSystem : 1;
                                         return (
                                           <div 
                                             key={fixedSys.system_id} 
@@ -2003,9 +2017,9 @@ export default function PainelOffice() {
                                   <div className="mt-3 p-2 bg-slate-900/50 rounded">
                                     <p className="text-xs text-slate-300">
                                       <span className="text-orange-400 font-bold">
-                                        {fixedSystems.length * pointsPerSystemCalculated} pontos
+                                        {totalActivePontos || 0} pontos
                                       </span>{' '}
-                                      calculados automaticamente para {fixedSystems.length} sistema{fixedSystems.length > 1 ? 's' : ''} fixo{fixedSystems.length > 1 ? 's' : ''}
+                                      serão divididos igualmente entre {fixedSystems.length} sistema{fixedSystems.length > 1 ? 's' : ''} fixo{fixedSystems.length > 1 ? 's' : ''}
                                     </p>
                                   </div>
                                 </div>
@@ -2013,20 +2027,36 @@ export default function PainelOffice() {
                               
                               {distributionPreview && (
                                 <div className="bg-slate-900/50 rounded p-3">
-                                  <p className="text-sm">
-                                    Cada sistema (fixo ou normal) receberá{' '}
-                                    <span className="font-bold text-blue-400">{pointsPerSystem}</span> pontos
-                                  </p>
-                                  <p className="text-sm mt-2">
-                                    Total de <span className="font-bold text-purple-400">
-                                      {Math.ceil(distributionPreview.totalPoints / pointsPerSystem)}
-                                    </span> sistemas necessários.
-                                    {distributionPreview.systemsNeeded > 0 && (
-                                      <span className="block mt-2 text-yellow-400 font-bold">
-                                        ⚠️ Serão criados {distributionPreview.systemsNeeded} novos sistemas
-                                      </span>
-                                    )}
-                                  </p>
+                                  {fixedSystems.length > 0 ? (
+                                    <div>
+                                      <p className="text-sm">
+                                        Cada sistema fixo receberá{' '}
+                                        <span className="font-bold text-orange-400">
+                                          ~{Math.ceil(distributionPreview.totalPoints / fixedSystems.length)}
+                                        </span> pontos
+                                      </p>
+                                      <p className="text-sm mt-2 text-orange-300">
+                                        Os {fixedSystems.length} sistemas fixos dividirão todos os {distributionPreview.totalPoints} pontos entre si.
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <p className="text-sm">
+                                        Cada sistema normal receberá{' '}
+                                        <span className="font-bold text-blue-400">{pointsPerSystem}</span> pontos
+                                      </p>
+                                      <p className="text-sm mt-2">
+                                        Total de <span className="font-bold text-purple-400">
+                                          {Math.ceil(distributionPreview.totalPoints / pointsPerSystem)}
+                                        </span> sistemas necessários.
+                                        {distributionPreview.systemsNeeded > 0 && (
+                                          <span className="block mt-2 text-yellow-400 font-bold">
+                                            ⚠️ Serão criados {distributionPreview.systemsNeeded} novos sistemas
+                                          </span>
+                                        )}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
