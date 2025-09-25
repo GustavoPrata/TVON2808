@@ -189,6 +189,11 @@ export default function ConfigTV() {
   const { data: systems = [], isLoading: loadingSystems, refetch: refetchSystems } = useQuery({
     queryKey: ['/api/external-api/systems'],
   });
+  
+  // Fetch sistemas para usar na documentação
+  const { data: sistemasReais = [] } = useQuery<any[]>({
+    queryKey: ['/api/sistemas'],
+  });
 
   // Fetch integrations for API config
   const { data: integracoes } = useQuery({
@@ -990,7 +995,7 @@ export default function ConfigTV() {
       "password": "senha123",
       "status": "Active",
       "exp_date": "2025-12-31",
-      "system": 1
+      "system": ${sistemasReais && sistemasReais.length > 0 ? sistemasReais[0].systemId || 1 : 1}
     }
   ]
 }`}
@@ -1031,7 +1036,7 @@ export default function ConfigTV() {
   "password": "senha123",
   "status": "Active",
   "exp_date": "2025-12-31",
-  "system": 1
+  "system": ${sistemasReais && sistemasReais.length > 0 ? sistemasReais[0].systemId || 1 : 1}
 }`}
                     </div>
                     <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 rounded">
@@ -1141,6 +1146,26 @@ export default function ConfigTV() {
                   </div>
                 </div>
               </div>
+
+              {/* Valores Disponíveis de System */}
+              {sistemasReais && sistemasReais.length > 0 && (
+                <div className="p-4 bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-lg">
+                  <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                    <RefreshCw className="w-5 h-5 text-green-400" />
+                    Valores Disponíveis do Campo "system"
+                  </h3>
+                  <p className="text-slate-300 text-sm mb-3">
+                    Valores atuais do campo "system" no banco de dados local:
+                  </p>
+                  <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                    {sistemasReais.map((sistema: any, index: number) => (
+                      <div key={index} className="bg-slate-800/50 px-3 py-2 rounded text-center">
+                        <span className="text-green-400 font-mono text-sm">{sistema.systemId || sistema.system_id}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Estrutura do Banco de Dados */}
               <div className="p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg">
