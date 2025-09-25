@@ -5548,11 +5548,14 @@ Como posso ajudar você hoje?
 
         // Buscar sistemas existentes
         const sistemasExistentes = await storage.getSistemas();
-        console.log(`📊 Sistemas existentes: ${sistemasExistentes.length}`);
+        // IMPORTANTE: Filtrar apenas sistemas normais (ID < 1000) para o modo 1:1
+        const sistemasNormais = sistemasExistentes.filter(s => parseInt(s.systemId) < 1000);
+        console.log(`📊 Sistemas existentes: ${sistemasExistentes.length} (Normais: ${sistemasNormais.length}, Fixos: ${sistemasExistentes.length - sistemasNormais.length})`);
         
         // Calcular quantos novos sistemas são necessários
+        // No modo 1:1, considerar apenas sistemas normais
         const sistemasNecessarios = pontosAtivos.length;
-        const sistemasParaCriar = Math.max(0, sistemasNecessarios - sistemasExistentes.length);
+        const sistemasParaCriar = Math.max(0, sistemasNecessarios - sistemasNormais.length);
         console.log(`🆕 Sistemas necessários: ${sistemasNecessarios}, A criar: ${sistemasParaCriar}`);
         
         // IMPORTANTE: Desassociar TODOS os pontos para garantir redistribuição completa 1:1
@@ -5568,7 +5571,8 @@ Como posso ajudar você hoje?
         }
         
         // Criar novos sistemas se necessário
-        let sistemasList = [...sistemasExistentes];
+        // No modo 1:1, usar apenas sistemas normais
+        let sistemasList = [...sistemasNormais];
         let tarefasCriadas = 0;
         
         if (sistemasParaCriar > 0) {

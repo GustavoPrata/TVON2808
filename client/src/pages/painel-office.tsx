@@ -508,7 +508,9 @@ export default function PainelOffice() {
     
     if (distributionMode === 'one-per-point') {
       // Um sistema por ponto - precisa de um sistema para cada ponto ativo
-      systemsNeeded = Math.max(0, activePontos.length - systems.length);
+      // IMPORTANTE: Contar apenas sistemas normais (ID < 1000), ignorar sistemas fixos
+      const normalSystems = systems.filter(s => parseInt(s.system_id) < 1000);
+      systemsNeeded = Math.max(0, activePontos.length - normalSystems.length);
       pointsPerSystemCalc = 1;
     } else {
       // Modo fixed-points
