@@ -1380,18 +1380,30 @@ export class DatabaseStorage implements IStorage {
       const allPontos = await this.getAllPontos();
       let usersUpdated = 0;
       
+      // Buscar todos os usuários da API para mapear username -> ID
+      const apiUsers = await externalApiService.getUsers();
+      const apiUsersMap = new Map<string, any>(
+        apiUsers.map((u: any) => [u.username, u])
+      );
+      
       for (const ponto of allPontos) {
         if (ponto.sistemaId) {
           try {
             // Buscar o sistema local para pegar o systemId
             const sistema = await this.getSistemaById(ponto.sistemaId);
             if (sistema) {
-              // Atualizar o usuário na API externa com o system_id correto
-              console.log(`🔄 Atualizando usuário ${ponto.usuario} com system_id ${sistema.systemId}`);
-              await externalApiService.updateUser(ponto.usuario, {
-                system: parseInt(sistema.systemId)
-              });
-              usersUpdated++;
+              // Encontrar o usuário na API pelo username
+              const apiUser = apiUsersMap.get(ponto.usuario);
+              if (apiUser) {
+                // Atualizar o usuário na API externa com o system_id correto
+                console.log(`🔄 Atualizando usuário ${ponto.usuario} (ID: ${apiUser.id}) com system_id ${sistema.systemId}`);
+                await externalApiService.updateUser(apiUser.id, {
+                  system: parseInt(sistema.systemId)
+                });
+                usersUpdated++;
+              } else {
+                console.log(`⚠️ Usuário ${ponto.usuario} não encontrado na API`);
+              }
             }
           } catch (error) {
             console.error(`⚠️ Erro ao atualizar usuário ${ponto.usuario} na API:`, error);
