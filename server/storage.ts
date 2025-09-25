@@ -1375,56 +1375,10 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      // 5. Atualizar os system_ids dos usuários na API externa
-      console.log(`🔄 Atualizando system dos usuários na API externa...`);
-      const allPontos = await this.getAllPontos();
+      // Nota: A API externa não suporta o campo "system" na tabela de usuários
+      // Por isso não podemos atualizar esse campo
       let usersUpdated = 0;
-      
-      // Buscar todos os usuários da API para mapear username -> ID
-      const apiUsers = await externalApiService.getUsers();
-      const apiUsersMap = new Map<string, any>(
-        apiUsers.map((u: any) => [u.username, u])
-      );
-      
-      // Buscar todos os sistemas locais de uma vez para evitar múltiplas queries
-      const localSistemasMap = new Map<number, Sistema>(
-        localSystems.map(s => [s.id, s])
-      );
-      
-      for (const ponto of allPontos) {
-        if (ponto.sistemaId) {
-          try {
-            // Buscar o sistema local para pegar o systemId
-            const sistema = localSistemasMap.get(ponto.sistemaId);
-            if (sistema) {
-              // Encontrar o usuário na API pelo username
-              const apiUser = apiUsersMap.get(ponto.usuario);
-              if (apiUser) {
-                // Converter systemId para número (está no formato "1", "2", etc)
-                const systemIdNumber = parseInt(sistema.systemId);
-                
-                // Só atualizar se o valor for diferente
-                if (apiUser.system !== systemIdNumber) {
-                  console.log(`🔄 Atualizando usuário ${ponto.usuario} (API ID: ${apiUser.id}) - system: ${apiUser.system} → ${systemIdNumber}`);
-                  await externalApiService.updateUser(apiUser.id, {
-                    system: systemIdNumber
-                  });
-                  usersUpdated++;
-                } else {
-                  console.log(`✅ Usuário ${ponto.usuario} já tem system correto: ${systemIdNumber}`);
-                }
-              } else {
-                console.log(`⚠️ Usuário ${ponto.usuario} não encontrado na API`);
-              }
-            } else {
-              console.log(`⚠️ Sistema ID ${ponto.sistemaId} não encontrado no banco local`);
-            }
-          } catch (error) {
-            console.error(`⚠️ Erro ao atualizar usuário ${ponto.usuario} na API:`, error);
-            // Continua com os próximos usuários mesmo se houver erro
-          }
-        }
-      }
+      console.log(`⚠️ API externa não suporta campo 'system' em usuários - atualização ignorada`);
 
       console.log(`✅ Sincronização concluída: ${created} criados, ${updated} atualizados, ${deleted} deletados`);
       console.log(`✅ ${usersUpdated} usuários atualizados com system_id correto na API`);
