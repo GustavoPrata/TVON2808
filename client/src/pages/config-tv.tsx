@@ -957,7 +957,7 @@ export default function ConfigTV() {
                   </div>
                   <div className="bg-slate-800/50 p-3 rounded">
                     <p className="text-xs text-slate-400 mb-1">Método 4: Body JSON</p>
-                    <code className="text-green-400 text-sm font-mono">{{"key": "key170604"}}</code>
+                    <code className="text-green-400 text-sm font-mono">{`{"key": "key170604"}`}</code>
                   </div>
                 </div>
               </div>
