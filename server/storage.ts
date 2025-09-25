@@ -1424,9 +1424,15 @@ export class DatabaseStorage implements IStorage {
                 // Converter systemId para número (está no formato "1", "2", etc)
                 const systemIdNumber = parseInt(sistema.systemId);
                 
-                // Só atualizar se o valor for diferente
-                if (apiUser.system !== systemIdNumber) {
-                  console.log(`🔄 Atualizando usuário ${ponto.usuario} (API ID: ${apiUser.id}) - system: ${apiUser.system} → ${systemIdNumber}`);
+                // Debug: mostrar comparação
+                console.log(`📊 Usuário ${ponto.usuario}: API system=${apiUser.system} (tipo: ${typeof apiUser.system}), Local systemId=${systemIdNumber} (tipo: ${typeof systemIdNumber})`);
+                
+                // IMPORTANTE: Comparar convertendo ambos para número para garantir que está comparando corretamente
+                const apiSystemNumber = apiUser.system ? parseInt(String(apiUser.system)) : null;
+                
+                // Sempre atualizar se o campo system não estiver definido ou for diferente
+                if (apiSystemNumber !== systemIdNumber) {
+                  console.log(`🔄 Atualizando usuário ${ponto.usuario} (API ID: ${apiUser.id}) - system: ${apiSystemNumber} → ${systemIdNumber}`);
                   await externalApiService.updateUser(apiUser.id, {
                     system: systemIdNumber
                   });
@@ -1444,6 +1450,9 @@ export class DatabaseStorage implements IStorage {
             console.error(`⚠️ Erro ao atualizar usuário ${ponto.usuario} na API:`, error);
             // Continua com os próximos usuários mesmo se houver erro
           }
+        } else {
+          // Debug para entender pontos sem sistema
+          console.log(`🔍 Ponto ${ponto.id} (usuário: ${ponto.usuario}) não tem sistemaId definido`);
         }
       }
 
