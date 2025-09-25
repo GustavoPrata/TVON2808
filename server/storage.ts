@@ -62,6 +62,27 @@ function mapSistemaFromFrontend(data: any): any {
     mapped.expiracao = data.expiracao; // keep expiracao as is for database
   }
   
+  // IMPORTANTE: Mapear o campo 'system' ou 'systemId' para persistir no banco
+  if ('system' in data && data.system !== undefined) {
+    mapped.systemId = normalizeSystemId(String(data.system));
+  } else if ('systemId' in data && data.systemId !== undefined) {
+    mapped.systemId = normalizeSystemId(String(data.systemId));
+  }
+  
+  // Mapear outros campos relevantes
+  if ('username' in data) {
+    mapped.username = data.username;
+  }
+  if ('password' in data) {
+    mapped.password = data.password;
+  }
+  if ('maxPontosAtivos' in data) {
+    mapped.maxPontosAtivos = data.maxPontosAtivos;
+  }
+  if ('pontosAtivos' in data) {
+    mapped.pontosAtivos = data.pontosAtivos;
+  }
+  
   return mapped;
 }
 
