@@ -866,6 +866,9 @@ export default function PainelOffice() {
         username: system.username,
         password: system.password,
         maxPontosAtivos: system.maxPontosAtivos || 100,
+        expiration: system.expiracao || system.expiration 
+          ? new Date(system.expiracao || system.expiration || '').toISOString().slice(0, 16)
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
       });
     } else {
       setEditingSystem(null);
@@ -873,6 +876,7 @@ export default function PainelOffice() {
         username: '',
         password: '',
         maxPontosAtivos: 100,
+        expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
       });
     }
     setShowSystemDialog(true);
@@ -944,10 +948,17 @@ export default function PainelOffice() {
   }, [showSystemDialog, systemForm, toast]);
 
   const handleSystemSubmit = (data: SystemForm) => {
-    saveSystemMutation.mutate({
+    const submitData: any = {
       ...data,
       system_id: editingSystem?.system_id,
-    });
+    };
+    
+    // Converter expiration para formato ISO se presente
+    if (data.expiration) {
+      submitData.expiracao = new Date(data.expiration).toISOString();
+    }
+    
+    saveSystemMutation.mutate(submitData);
   };
 
   const confirmDeleteSystem = (system_id: string) => {
@@ -1685,13 +1696,17 @@ export default function PainelOffice() {
               <Label htmlFor="expiration" className="text-sm">Validade</Label>
               <Input
                 id="expiration"
-                type="date"
+                type="datetime-local"
                 {...systemForm.register('expiration')}
                 className="bg-slate-800 border-slate-700"
                 data-testid="input-system-expiration"
-                defaultValue={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                defaultValue={
+                  editingSystem?.expiracao || editingSystem?.expiration
+                    ? new Date(editingSystem.expiracao || editingSystem.expiration || '').toISOString().slice(0, 16)
+                    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
+                }
               />
-              <p className="text-xs text-slate-500">Data de validade do sistema (padrão: 30 dias)</p>
+              <p className="text-xs text-slate-500">Data e hora de validade do sistema</p>
             </div>
             
             <div className="flex justify-end gap-2">

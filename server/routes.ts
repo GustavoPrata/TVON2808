@@ -5173,7 +5173,7 @@ Como posso ajudar você hoje?
 
   app.post("/api/external-api/systems", checkAuth, async (req, res) => {
     try {
-      const { system_id, username, password } = req.body;
+      const { system_id, username, password, expiracao, maxPontosAtivos } = req.body;
 
       let finalSystemId = system_id;
 
@@ -5192,6 +5192,8 @@ Como posso ajudar você hoje?
         systemId: finalSystemId,
         username,
         password,
+        maxPontosAtivos: maxPontosAtivos || 100,
+        expiracao: expiracao ? new Date(expiracao) : undefined,
       });
 
       // Try to create in external API if integration is active
@@ -5217,6 +5219,9 @@ Como posso ajudar você hoje?
         username: result.username,
         password: result.password,
         id: result.id,
+        maxPontosAtivos: result.maxPontosAtivos,
+        expiracao: result.expiracao ? result.expiracao.toISOString() : null,
+        expiration: result.expiracao ? result.expiracao.toISOString() : null,
       });
     } catch (error: any) {
       console.error("Erro ao criar sistema:", error);
@@ -5231,7 +5236,7 @@ Como posso ajudar você hoje?
   app.put("/api/external-api/systems/:id", checkAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { system_id, username, password } = req.body;
+      const { system_id, username, password, expiracao, maxPontosAtivos } = req.body;
 
       const localSystem = await storage.getSistemaBySystemId(id);
       
@@ -5245,18 +5250,27 @@ Como posso ajudar você hoje?
       const finalPassword = password || localSystem.password;
 
       // Update locally
-      if (system_id && system_id !== id) {
-        await storage.updateSistema(localSystem.id, {
-          systemId: finalSystemId,
-          username: finalUsername,
-          password: finalPassword,
-        });
-      } else {
-        await storage.updateSistema(localSystem.id, {
-          username: finalUsername,
-          password: finalPassword,
-        });
+      const updateData: any = {
+        username: finalUsername,
+        password: finalPassword,
+      };
+      
+      // Include expiracao if provided
+      if (expiracao !== undefined) {
+        updateData.expiracao = expiracao ? new Date(expiracao) : null;
       }
+      
+      // Include maxPontosAtivos if provided
+      if (maxPontosAtivos !== undefined) {
+        updateData.maxPontosAtivos = maxPontosAtivos;
+      }
+      
+      // Include systemId if it changed
+      if (system_id && system_id !== id) {
+        updateData.systemId = finalSystemId;
+      }
+      
+      const updatedSystem = await storage.updateSistema(localSystem.id, updateData);
 
       // Try to update in external API if integration is active
       try {
@@ -5281,6 +5295,9 @@ Como posso ajudar você hoje?
         username: finalUsername,
         password: finalPassword,
         id: localSystem.id,
+        maxPontosAtivos: updatedSystem.maxPontosAtivos,
+        expiracao: updatedSystem.expiracao ? updatedSystem.expiracao.toISOString() : null,
+        expiration: updatedSystem.expiracao ? updatedSystem.expiracao.toISOString() : null,
       });
     } catch (error) {
       console.error("Erro ao atualizar sistema:", error);
