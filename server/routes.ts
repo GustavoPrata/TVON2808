@@ -333,7 +333,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Note: start/stop/generate-single endpoints remain protected (require authentication)
       
       // TEMPORARY: Public access for renewal processing
-      '/api/sistemas/process-renewal'
+      '/api/sistemas/process-renewal',
+      
+      // TEMPORARY: Public access for user system sync
+      '/api/sync/user-systems'
     ];
     
     // Use originalUrl to get the full path including /api prefix
@@ -7780,6 +7783,42 @@ Como posso ajudar você hoje?
       console.error("Erro ao sincronizar usuários:", error);
       res.status(500).json({ 
         error: "Erro ao sincronizar usuários",
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Endpoint para sincronizar o campo 'system' dos usuários na API
+  app.post("/api/sync/user-systems", async (req, res) => {
+    try {
+      // Verificar se é uma simulação (dry run)
+      const dryRun = req.query.dryRun === 'true' || req.body.dryRun === true;
+      
+      console.log(`🔄 Iniciando sincronização de sistemas dos usuários ${dryRun ? '(SIMULAÇÃO)' : ''}`);
+      
+      // Chamar a função de sincronização
+      const resultado = await storage.syncUserSystemsToApi(externalApiService, dryRun);
+      
+      // Retornar o resultado com estatísticas detalhadas
+      res.json({
+        success: resultado.comErro === 0,
+        dryRun,
+        message: dryRun 
+          ? `Simulação concluída: ${resultado.verificados} verificados, ${resultado.atualizados} seriam atualizados, ${resultado.ignorados} já corretos, ${resultado.comErro} com erro`
+          : `Sincronização concluída: ${resultado.verificados} verificados, ${resultado.atualizados} atualizados, ${resultado.ignorados} já corretos, ${resultado.comErro} com erro`,
+        estatisticas: {
+          verificados: resultado.verificados,
+          atualizados: resultado.atualizados,
+          ignorados: resultado.ignorados,
+          comErro: resultado.comErro
+        },
+        detalhes: resultado.detalhes
+      });
+      
+    } catch (error) {
+      console.error("Erro ao sincronizar sistemas dos usuários:", error);
+      res.status(500).json({ 
+        error: "Erro ao sincronizar sistemas dos usuários",
         details: error instanceof Error ? error.message : String(error)
       });
     }

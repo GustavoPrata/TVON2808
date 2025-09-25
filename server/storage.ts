@@ -328,6 +328,22 @@ export interface IStorage {
   // Extension Status
   getExtensionStatus(): Promise<ExtensionStatus | undefined>;
   updateExtensionStatus(status: UpdateExtensionStatus): Promise<ExtensionStatus>;
+  
+  // Sync user systems to API
+  syncUserSystemsToApi(externalApiService: any, dryRun?: boolean): Promise<{
+    verificados: number;
+    atualizados: number;
+    ignorados: number;
+    comErro: number;
+    detalhes: Array<{
+      usuario: string;
+      sistemaAtual: number | null;
+      sistemaCorreto: number;
+      atualizado: boolean;
+      motivo?: string;
+      erro?: string;
+    }>;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1805,6 +1821,228 @@ export class DatabaseStorage implements IStorage {
         timestamp: new Date()
       });
     });
+  }
+
+  // Sincronizar o campo 'system' dos usuários na API externa com base no sistema_id dos pontos locais
+  async syncUserSystemsToApi(externalApiService: any, dryRun: boolean = false): Promise<{
+    verificados: number;
+    atualizados: number;
+    ignorados: number;
+    comErro: number;
+    detalhes: Array<{
+      usuario: string;
+      sistemaAtual: number | null;
+      sistemaCorreto: number;
+      atualizado: boolean;
+      motivo?: string;
+      erro?: string;
+    }>;
+  }> {
+    let verificados = 0;
+    let atualizados = 0;
+    let ignorados = 0;
+    let comErro = 0;
+    const detalhes: any[] = [];
+
+    try {
+      console.log('🔄 Iniciando sincronização do campo system dos usuários na API...');
+      
+      // 1. Buscar todos os pontos locais com sistema_id não nulo
+      console.log('📋 Iniciando busca de pontos...');
+      
+      // Primeiro buscar todos os pontos para debug
+      const todosPontos = await db.select().from(pontos);
+      console.log(`📊 Total de pontos no banco: ${todosPontos.length}`);
+      
+      // Agora buscar pontos com sistema_id não nulo
+      // Usar isNotNull ao invés de ne para evitar problemas
+      const pontosComSistema = todosPontos.filter(p => p.sistemaId !== null && p.sistemaId !== undefined);
+      
+      console.log(`📊 Encontrados ${pontosComSistema.length} pontos com sistema_id não nulo`);
+      
+      // Debug: mostrar alguns pontos
+      if (todosPontos.length > 0) {
+        const primeiroPonto = todosPontos[0];
+        console.log(`🔍 Primeiro ponto:`, {
+          id: primeiroPonto.id,
+          usuario: primeiroPonto.usuario,
+          sistemaId: primeiroPonto.sistemaId,
+          sistemaIdType: typeof primeiroPonto.sistemaId,
+          isNull: primeiroPonto.sistemaId === null,
+          isUndefined: primeiroPonto.sistemaId === undefined
+        });
+      }
+      
+      if (pontosComSistema.length === 0) {
+        console.log('⚠️ Nenhum ponto com sistema_id encontrado');
+        return { verificados, atualizados, ignorados, comErro, detalhes };
+      }
+
+      // 2. Buscar todos os sistemas locais para mapear id -> systemId
+      const sistemasLocais = await this.getSistemas();
+      const sistemaMap = new Map<number, string>();
+      
+      for (const sistema of sistemasLocais) {
+        if (sistema.id && sistema.systemId) {
+          sistemaMap.set(sistema.id, sistema.systemId);
+        }
+      }
+      
+      console.log(`📋 Mapeamento de sistemas carregado: ${sistemaMap.size} sistemas`);
+      
+      // 3. Buscar todos os usuários da API
+      const apiUsers = await externalApiService.getUsers();
+      const apiUserMap = new Map<string, any>();
+      
+      for (const user of apiUsers) {
+        apiUserMap.set(user.username, user);
+      }
+      
+      console.log(`👥 Usuários da API carregados: ${apiUserMap.size} usuários`);
+      
+      // 4. Para cada ponto local, verificar e atualizar o usuário na API
+      for (const ponto of pontosComSistema) {
+        verificados++;
+        
+        const sistemaId = ponto.sistemaId;
+        const sistemaSystemId = sistemaMap.get(sistemaId);
+        
+        if (!sistemaSystemId) {
+          console.log(`⚠️ Sistema ID ${sistemaId} não encontrado no mapeamento`);
+          comErro++;
+          detalhes.push({
+            usuario: ponto.usuario,
+            sistemaAtual: null,
+            sistemaCorreto: sistemaId,
+            atualizado: false,
+            motivo: 'Sistema não encontrado no mapeamento local',
+            erro: `Sistema ID ${sistemaId} não encontrado`
+          });
+          continue;
+        }
+        
+        // Converter systemId string para número
+        const sistemaCorreto = parseInt(sistemaSystemId);
+        if (isNaN(sistemaCorreto)) {
+          console.log(`⚠️ SystemId '${sistemaSystemId}' não é um número válido`);
+          comErro++;
+          detalhes.push({
+            usuario: ponto.usuario,
+            sistemaAtual: null,
+            sistemaCorreto: sistemaId,
+            atualizado: false,
+            motivo: 'SystemId inválido',
+            erro: `SystemId '${sistemaSystemId}' não é numérico`
+          });
+          continue;
+        }
+        
+        // Encontrar o usuário correspondente na API
+        const apiUser = apiUserMap.get(ponto.usuario);
+        
+        if (!apiUser) {
+          console.log(`⚠️ Usuário '${ponto.usuario}' não encontrado na API`);
+          comErro++;
+          detalhes.push({
+            usuario: ponto.usuario,
+            sistemaAtual: null,
+            sistemaCorreto,
+            atualizado: false,
+            motivo: 'Usuário não encontrado na API',
+            erro: 'Usuário não existe na API externa'
+          });
+          continue;
+        }
+        
+        // Converter o campo system atual do usuário para número (pode vir como string)
+        const sistemaAtual = typeof apiUser.system === 'string' ? parseInt(apiUser.system) : apiUser.system;
+        
+        console.log(`\n🔍 Processando usuário: ${ponto.usuario}`);
+        console.log(`   - Sistema atual na API: ${sistemaAtual}`);
+        console.log(`   - Sistema correto (do ponto local): ${sistemaCorreto}`);
+        
+        // Verificar se precisa atualizar
+        if (sistemaAtual !== sistemaCorreto) {
+          console.log(`   ✅ Sistema diferente, ${dryRun ? 'SIMULANDO' : 'atualizando'}...`);
+          
+          if (!dryRun) {
+            try {
+              // Usar o ID do usuário da API para atualizar
+              const userId = typeof apiUser.id === 'string' ? parseInt(apiUser.id) : apiUser.id;
+              await externalApiService.updateUser(userId, {
+                system: sistemaCorreto
+              });
+              
+              console.log(`   ✅ Usuário '${ponto.usuario}' atualizado: system ${sistemaAtual} -> ${sistemaCorreto}`);
+              atualizados++;
+              
+              detalhes.push({
+                usuario: ponto.usuario,
+                sistemaAtual,
+                sistemaCorreto,
+                atualizado: true,
+                motivo: 'Sistema atualizado com sucesso'
+              });
+            } catch (error) {
+              console.error(`   ❌ Erro ao atualizar usuário '${ponto.usuario}':`, error);
+              comErro++;
+              
+              detalhes.push({
+                usuario: ponto.usuario,
+                sistemaAtual,
+                sistemaCorreto,
+                atualizado: false,
+                motivo: 'Erro na atualização',
+                erro: String(error)
+              });
+            }
+          } else {
+            // Modo dry-run
+            atualizados++;
+            detalhes.push({
+              usuario: ponto.usuario,
+              sistemaAtual,
+              sistemaCorreto,
+              atualizado: false,
+              motivo: 'Simulação (dry-run) - seria atualizado'
+            });
+          }
+        } else {
+          console.log(`   ⏩ Sistema já está correto, ignorando`);
+          ignorados++;
+          
+          detalhes.push({
+            usuario: ponto.usuario,
+            sistemaAtual,
+            sistemaCorreto,
+            atualizado: false,
+            motivo: 'Sistema já está correto'
+          });
+        }
+      }
+      
+      const resultado = {
+        verificados,
+        atualizados: dryRun ? 0 : atualizados,
+        simulados: dryRun ? atualizados : 0,
+        ignorados,
+        comErro,
+        detalhes
+      };
+      
+      console.log('\n✅ Sincronização concluída!');
+      console.log(`📊 Estatísticas:`);
+      console.log(`   - Verificados: ${verificados}`);
+      console.log(`   - ${dryRun ? 'Simulados' : 'Atualizados'}: ${dryRun ? atualizados : atualizados}`);
+      console.log(`   - Ignorados (já corretos): ${ignorados}`);
+      console.log(`   - Com erro: ${comErro}`);
+      
+      return resultado as any;
+      
+    } catch (error) {
+      console.error('❌ Erro na sincronização:', error);
+      throw error;
+    }
   }
 
   // Método para obter sistemas expirando em X minutos
