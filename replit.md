@@ -9,6 +9,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Data Management**: Systems data must come from local database, not external API
 
 ## Recent Changes
+- **25/09/2025**: Added test message simulation feature in chat - allows sending messages as if from the client to test bot responses. Located above PIX billing option in chat sidebar.
 - **24/09/2025**: Reversed synchronization direction - now pushes local database data TO the external API instead of pulling from it. The `/api/sync/systems` endpoint now sends local systems to the API, creating/updating/deleting as needed to make the API match the local database state.
 
 ## System Architecture
@@ -37,6 +38,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
     - **Applications Management (APPs)**: Interface for viewing registered applications with filtering capabilities.
     - **Referral System ("Indique e Ganhe")**: Clients earn free months via phone number-based referral codes with automatic validation and WhatsApp notifications.
     - **Ticket Management System**: Automatically pins conversations with open tickets, visual indicators, and mode switching (human/bot).
+    - **Bot Test Feature**: Allows sending test messages as if from the client to evaluate bot responses, accessible above PIX billing in chat sidebar.
     - **Quick Messages System**: Management and dynamic display of categorized quick messages.
     - **Expired Client Management**: Automatic detection and special menu for expired clients, including trust unlock and configurable notifications.
     - **Pricing Structure**: Configurable monthly, quarterly, semi-annual, and annual plans with progressive discounts.

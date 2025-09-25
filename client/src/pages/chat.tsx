@@ -166,6 +166,8 @@ export default function Chat() {
   const [isLoadingPixState, setIsLoadingPixState] = useState(false);
   const [isSavingPixState, setIsSavingPixState] = useState(false);
   const [showMobileActions, setShowMobileActions] = useState(false); // Mobile actions sidebar state
+  const [testBotMessage, setTestBotMessage] = useState(''); // Test message to send as client
+  const [isSendingTestMessage, setIsSendingTestMessage] = useState(false); // Loading state for test message
   const pixStateSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -1232,6 +1234,41 @@ export default function Chat() {
     }
     
     setMessageText('');
+  };
+
+  const handleSendTestMessage = async () => {
+    if (!testBotMessage.trim() || !selectedConversa) return;
+    
+    setIsSendingTestMessage(true);
+    
+    try {
+      // Send the message as if it came from the client
+      const response = await apiRequest('POST', '/api/whatsapp/simulate-message', {
+        telefone: selectedConversa.telefone,
+        mensagem: testBotMessage.trim(),
+        conversaId: selectedConversa.id
+      });
+      
+      toast({
+        title: "Mensagem de teste enviada",
+        description: "Aguarde a resposta do bot",
+      });
+      setTestBotMessage('');
+      
+      // Refresh messages after a short delay to see the bot response
+      setTimeout(() => {
+        refetchMensagens();
+      }, 1500);
+    } catch (error) {
+      console.error('Erro ao enviar mensagem de teste:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao enviar mensagem de teste",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSendingTestMessage(false);
+    }
   };
 
   const handleSwitchMode = (modo: 'bot' | 'humano') => {
@@ -3462,6 +3499,42 @@ export default function Chat() {
                     <Search className="w-3 h-3 mr-1.5" />
                     Buscar
                   </Button>
+                </div>
+              </div>
+              
+              {/* Bot Test Section - Send message as client */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide px-1">Teste do Bot</h4>
+                <div className="space-y-2">
+                  <Input
+                    id="test-message-input"
+                    data-testid="input-test-message"
+                    placeholder="Mensagem de teste..."
+                    value={testBotMessage}
+                    onChange={(e) => setTestBotMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendTestMessage();
+                      }
+                    }}
+                    className="text-xs h-8 bg-slate-800/50 border-slate-700 focus:border-blue-500"
+                  />
+                  <Button
+                    data-testid="button-send-test-message"
+                    onClick={handleSendTestMessage}
+                    disabled={!testBotMessage.trim() || isSendingTestMessage}
+                    className="w-full justify-start bg-gradient-to-r from-indigo-600/90 to-purple-700/90 hover:from-indigo-500 hover:to-purple-600 text-white text-xs py-1.5 h-8"
+                  >
+                    {isSendingTestMessage ? (
+                      <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> Enviando...</>
+                    ) : (
+                      <><Bot className="w-3 h-3 mr-1.5" /> Simular Mensagem do Cliente</>
+                    )}
+                  </Button>
+                  <p className="text-[10px] text-slate-600 px-1">
+                    Envia mensagem como se fosse o cliente para testar resposta do bot
+                  </p>
                 </div>
               </div>
               
