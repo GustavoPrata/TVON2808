@@ -5940,6 +5940,86 @@ Como posso ajudar você hoje?
           
           console.log(`✨ Distribuição concluída: ${totalPontos} pontos distribuídos entre ${sistemasFixos.length} sistemas fixos`);
           
+          // ===== SINCRONIZAÇÃO COM API EXTERNA =====
+          if (apiEnabled) {
+            console.log('\n🔄 === INICIANDO SINCRONIZAÇÃO COM API EXTERNA ===');
+            console.log(`📊 Sincronizando ${sistemasFixos.length} sistemas fixos com a API externa...`);
+            
+            let apiSyncSuccess = 0;
+            let apiSyncFailed = 0;
+            
+            for (const sistemaFixo of sistemasFixos) {
+              try {
+                // Obter o número de pontos ativos atualizado
+                const sistemaAtualizado = await storage.getSistemaById(sistemaFixo.id);
+                const pontosAtivosAtual = sistemaAtualizado?.pontosAtivos || 0;
+                
+                // Converter systemId para número (remover 'sistema' se presente)
+                const apiSystemId = sistemaFixo.systemId.startsWith('sistema') 
+                  ? parseInt(sistemaFixo.systemId.replace('sistema', ''))
+                  : parseInt(sistemaFixo.systemId);
+                
+                console.log(`🌐 Atualizando sistema ${sistemaFixo.systemId} (ID ${apiSystemId}) na API externa...`);
+                console.log(`   - Pontos ativos: ${pontosAtivosAtual}`);
+                console.log(`   - Username: ${sistemaFixo.username}`);
+                
+                // IMPORTANTE: Verificar se é um sistema fixo real (ID >= 1000)
+                if (apiSystemId >= 1000) {
+                  console.log(`   ✅ Sistema fixo real detectado (ID >= 1000)`);
+                  
+                  // Atualizar sistema na API externa
+                  await externalApiService.updateSystemCredential(apiSystemId, {
+                    username: sistemaFixo.username,
+                    password: sistemaFixo.password
+                  });
+                  
+                  console.log(`   ✅ Sistema ${sistemaFixo.systemId} sincronizado com sucesso na API externa`);
+                  apiSyncSuccess++;
+                  
+                  detalhes.push({
+                    tipo: 'sync_api_externa',
+                    sistemaId: sistemaFixo.id,
+                    systemId: sistemaFixo.systemId,
+                    apiSystemId: apiSystemId,
+                    pontosAtivos: pontosAtivosAtual,
+                    status: 'sucesso',
+                    descricao: `Sistema ${sistemaFixo.systemId} sincronizado com API externa`
+                  });
+                } else {
+                  console.log(`   ⚠️ Sistema com ID < 1000, pulando sincronização API`);
+                  detalhes.push({
+                    tipo: 'sync_api_externa',
+                    sistemaId: sistemaFixo.id,
+                    systemId: sistemaFixo.systemId,
+                    apiSystemId: apiSystemId,
+                    status: 'ignorado',
+                    descricao: `Sistema ${sistemaFixo.systemId} não é um sistema fixo real (ID < 1000)`
+                  });
+                }
+              } catch (apiError) {
+                console.error(`   ❌ Erro ao sincronizar sistema ${sistemaFixo.systemId} com API:`, apiError);
+                apiSyncFailed++;
+                
+                detalhes.push({
+                  tipo: 'sync_api_externa',
+                  sistemaId: sistemaFixo.id,
+                  systemId: sistemaFixo.systemId,
+                  status: 'erro',
+                  erro: apiError instanceof Error ? apiError.message : 'Erro desconhecido',
+                  descricao: `Falha ao sincronizar sistema ${sistemaFixo.systemId} com API externa`
+                });
+              }
+            }
+            
+            console.log(`\n📊 === RESUMO DA SINCRONIZAÇÃO COM API EXTERNA ===`);
+            console.log(`✅ Sistemas sincronizados com sucesso: ${apiSyncSuccess}`);
+            console.log(`❌ Falhas na sincronização: ${apiSyncFailed}`);
+            console.log(`📈 Taxa de sucesso: ${((apiSyncSuccess / sistemasFixos.length) * 100).toFixed(1)}%`);
+            console.log(`=== FIM DA SINCRONIZAÇÃO ===\n`);
+          } else {
+            console.log('⚠️ API externa desabilitada, pulando sincronização');
+          }
+          
           // Resposta para sistemas fixos
           return res.json({
             sucesso: true,
@@ -5952,7 +6032,8 @@ Como posso ajudar você hoje?
               totalSistemas: sistemasExistentes.length,
               sistemasFixos: sistemasFixos.length,
               pontosPoSistemaFixo: pontosPerFixedSystem,
-              apiExternaHabilitada: apiEnabled
+              apiExternaHabilitada: apiEnabled,
+              apiSincronizada: apiEnabled
             },
             detalhes
           });
