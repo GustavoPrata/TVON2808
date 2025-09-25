@@ -3532,9 +3532,7 @@ export default function Chat() {
                       <><Bot className="w-3 h-3 mr-1.5" /> Simular Mensagem do Cliente</>
                     )}
                   </Button>
-                  <p className="text-[10px] text-slate-600 px-1">
-                    Envia mensagem como se fosse o cliente para testar resposta do bot
-                  </p>
+                  
                 </div>
               </div>
               
