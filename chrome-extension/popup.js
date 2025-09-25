@@ -52,16 +52,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           Abrir Painel de Controle
         </button>
         
-        <button class="action-button" id="debugPage" style="margin-top: 10px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          Debug Página OnlineOffice
-        </button>
-        
-        <div id="debugOutput" style="display: none; margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; font-size: 11px; font-family: monospace; max-height: 200px; overflow-y: auto; white-space: pre-wrap;"></div>
-        
         <div id="recentCredentials" style="display: none;">
           <div class="recent-credentials">
             <div style="text-align: center; font-size: 11px; opacity: 0.7;">
@@ -71,48 +61,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       `;
       
-      // Adiciona listener para o botão dashboard
+      // Adiciona listener para o botão
       document.getElementById('openDashboard').addEventListener('click', () => {
         chrome.runtime.sendMessage({type: 'openDashboard'});
         window.close();
-      });
-      
-      // Adiciona listener para o botão de debug
-      document.getElementById('debugPage').addEventListener('click', async () => {
-        const btn = document.getElementById('debugPage');
-        const output = document.getElementById('debugOutput');
-        
-        btn.innerHTML = '🔍 Executando debug...';
-        btn.disabled = true;
-        
-        try {
-          // Envia comando de debug para o content script
-          const [tab] = await chrome.tabs.query({ url: 'https://onlineoffice.zip/*' });
-          
-          if (!tab) {
-            output.style.display = 'block';
-            output.textContent = '❌ Não foi possível encontrar a aba do OnlineOffice.\n\nAbra o site https://onlineoffice.zip primeiro!';
-            btn.innerHTML = '🔄 Tentar Novamente';
-            btn.disabled = false;
-            return;
-          }
-          
-          const response = await chrome.tabs.sendMessage(tab.id, { action: 'debug' });
-          
-          if (response && response.success) {
-            output.style.display = 'block';
-            output.textContent = `✅ Debug executado com sucesso!\n\nURL: ${response.url}\n\nVerifique o console do navegador (F12) na aba do OnlineOffice para ver os detalhes completos.\n\nO debug mostra:\n- Botões encontrados na página\n- Links de ação\n- Inputs visíveis\n- Modais/Dialogs\n- Ícones clicáveis`;
-          } else {
-            output.style.display = 'block';
-            output.textContent = '❌ Erro ao executar debug: ' + (response?.error || 'Desconhecido');
-          }
-        } catch (error) {
-          output.style.display = 'block';
-          output.textContent = `❌ Erro: ${error.message}\n\nCertifique-se de que:\n1. O site OnlineOffice está aberto\n2. Você está logado no site\n3. A extensão tem permissão para acessar o site`;
-        } finally {
-          btn.innerHTML = '🔄 Debug Página OnlineOffice';
-          btn.disabled = false;
-        }
       });
       
     } catch (error) {

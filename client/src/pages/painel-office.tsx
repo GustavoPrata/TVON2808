@@ -1157,8 +1157,8 @@ export default function PainelOffice() {
                 </CardDescription>
               </div>
               <a
-                href="/extensao-debug-corrigida.zip"
-                download="extensao-debug-corrigida.zip"
+                href="/extensao-status-corrigida.zip"
+                download="extensao-status-corrigida.zip"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
               >
                 <Chrome className="h-4 w-4" />

@@ -219,14 +219,13 @@ const PROCESSING_TIMEOUT = 5 * 60 * 1000; // 5 minutos
 // ===========================================================================
 async function sendHeartbeat() {
   try {
-    // Busca todas as abas do OnlineOffice (OPCIONAL - não é requisito)
+    // Busca todas as abas do OnlineOffice
     const tabs = await chrome.tabs.query({
       url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
     });
     
     if (tabs.length === 0) {
-      // Não é erro - heartbeat é opcional
-      await logger.debug('ℹ️ Nenhuma aba OnlineOffice aberta - heartbeat não enviado (opcional)');
+      await logger.debug('💔 Nenhuma aba OnlineOffice aberta para heartbeat');
       return;
     }
     
@@ -369,8 +368,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await logger.debug('⏰ Alarme disparado: checando tarefas...', { alarm: alarm.name });
     await checkForTasks();
   } else if (alarm.name === 'checkStatus') {
-    // NÃO abre mais abas automaticamente - extensão independente
-    await logger.debug('⏰ Alarme checkStatus disparado (abertura de abas desabilitada)');
+    // Verifica se precisa abrir a aba do OnlineOffice
+    await ensureOfficeTabOpen();
   }
 });
 
@@ -383,7 +382,7 @@ chrome.runtime.onStartup.addListener(async () => {
   await logger.info('🔄 Estado resetado no startup', { isProcessingTask: false });
   await setupAlarms();
   await checkForTasks(); // Checa imediatamente
-  // NÃO abre mais abas automaticamente
+  await ensureOfficeTabOpen(); // Garante que a aba está aberta
 });
 
 // Inicia quando instalado/atualizado
@@ -407,14 +406,8 @@ chrome.runtime.onInstalled.addListener(async () => {
   await checkForTasks();
 })();
 
-// Função para garantir que a aba do OnlineOffice está aberta (AGORA OPCIONAL)
+// Função para garantir que a aba do OnlineOffice está aberta
 async function ensureOfficeTabOpen(forceOpen = false) {
-  // DESABILITADO: Não abre mais abas automaticamente
-  // A extensão agora funciona independente de abas abertas
-  await logger.debug('🚫 ensureOfficeTabOpen chamado mas desabilitado - extensão funciona sem abas');
-  return;
-  
-  /* Código antigo comentado para referência
   // Só abre se a automação está habilitada OU se forceOpen é true (quando há task)
   if (!lastStatus.isEnabled && !forceOpen) return;
   
@@ -429,7 +422,6 @@ async function ensureOfficeTabOpen(forceOpen = false) {
       active: false // Abre em background
     });
   }
-  */
 }
 
 // ===========================================================================
@@ -551,10 +543,10 @@ async function checkForTasks() {
     await updateBadge(data.isEnabled || false);
     lastStatus.isEnabled = data.isEnabled || false;
     
-    // Se há task, NÃO abre mais abas - processa diretamente
+    // Se há task, SEMPRE abre a aba OnlineOffice
     if (data.hasTask) {
-      await logger.info('✅ TASK ENCONTRADA! Processando diretamente via API...');
-      // NÃO abre abas - a extensão agora funciona independente
+      await logger.info('✅ TASK ENCONTRADA! Abrindo aba OnlineOffice...');
+      await ensureOfficeTabOpen(true); // força abertura quando há task
     }
     
     // Ajusta intervalo de polling baseado no status
@@ -644,84 +636,65 @@ async function processTask(task) {
   }, 10 * 60 * 1000);
   
   try {
-    // Para tarefas de renovação, processa DIRETAMENTE via API sem precisar de abas
-    if (task.type === 'renewal' || task.type === 'renew_system') {
-      await logger.info('🔄 Task de renovação detectada - processando diretamente via API', { 
-        type: task.type,
-        taskId: task.id,
-        sistemaId: task.sistemaId || task.data?.sistemaId || task.metadata?.sistemaId || 'N/A',
-        metadata: task.metadata,
-        data: task.data
-      });
-      // Processa renovação diretamente sem precisar de abas
-      await renewSystemDirectly(task);
-      return;
-    }
+  
+  // Procura aba do OnlineOffice
+  let tabs = await chrome.tabs.query({
+    url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
+  });
+  
+  // Se não encontrar, tenta abrir automaticamente
+  if (tabs.length === 0) {
+    await logger.warn('📂 Nenhuma aba OnlineOffice encontrada. Abrindo automaticamente...');
     
-    // Para outras tarefas (generate_batch, generate_single), processa diretamente via API
-    // Não precisa mais de abas - tudo é feito via API
-    await logger.info('🎯 Processando tarefa diretamente via API', { 
-      type: task.type,
-      taskId: task.id 
+    // Cria nova aba com o OnlineOffice
+    const newTab = await chrome.tabs.create({
+      url: OFFICE_URL,
+      active: false // Abre em background
     });
     
-    // Processa baseado no tipo de tarefa
-    if (task.type === 'renewal_generation') {
-      // IMPORTANTE: Task específica para gerar credenciais REAIS no OnlineOffice
-      await logger.info('🔄 Task de renewal_generation detectada - gerando credencial REAL', { 
+    // Aguarda a aba carregar
+    await logger.info('⏳ Aguardando aba carregar...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Procura novamente
+    tabs = await chrome.tabs.query({
+      url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
+    });
+    
+    if (tabs.length === 0) {
+      await logger.error('❌ ERRO: Não conseguiu abrir aba OnlineOffice!');
+      await reportTaskResult({
         taskId: task.id,
-        sistemaId: task.sistemaId || task.metadata?.sistemaId
+        success: false,
+        error: 'Não conseguiu abrir aba OnlineOffice'
       });
-      
-      // Gera uma credencial REAL no OnlineOffice
-      try {
-        const response = await generateRealCredentialOnOffice();
-        
-        if (response && response.success && response.credentials) {
-          // Envia credenciais REAIS de volta ao servidor
-          await reportTaskResult({
-            taskId: task.id,
-            type: 'renewal_generation',
-            credentials: {
-              username: response.credentials.username,
-              password: response.credentials.password
-            },
-            sistemaId: task.sistemaId || task.metadata?.sistemaId,
-            metadata: {
-              generatedAt: new Date().toISOString(),
-              source: 'OnlineOffice_REAL'
-            }
-          });
-          
-          await logger.info('✅ Credencial REAL enviada ao servidor', {
-            username: response.credentials.username,
-            taskId: task.id
-          });
-        } else {
-          throw new Error('Falha ao gerar credencial REAL no OnlineOffice');
-        }
-      } catch (error) {
-        await logger.error('❌ Erro ao gerar credencial REAL', { error: error.message });
-        await reportTaskResult({
-          taskId: task.id,
-          type: 'renewal_generation',
-          success: false,
-          error: error.message
-        });
-      }
-    } else if (task.type === 'generate_batch') {
-      await logger.info('📦 Task de geração em lote detectada', { 
-        quantity: task.quantity || 10,
-        taskId: task.id
-      });
-      await generateBatch(task);
+      return;
+    }
+  }
+  
+    const tabId = tabs[0].id;
+    await logger.info(`✅ Aba encontrada`, { url: tabs[0].url });
+    
+    // Processa baseado no tipo de tarefa
+    if (task.type === 'generate_batch') {
+      await generateBatch(tabId, task);
     } else if (task.type === 'generate_single' || task.type === 'single_generation') {
       // Suporta ambos os tipos: 'generate_single' e 'single_generation'
       await logger.info('🎯 Task de geração única detectada', { 
         type: task.type,
         taskId: task.id
       });
-      await generateSingle(task);
+      await generateSingle(tabId, task);
+    } else if (task.type === 'renewal' || task.type === 'renew_system') {
+      // Suporta ambos os tipos: 'renewal' (do backend) e 'renew_system' (legado)
+      await logger.info('🔄 Task de renovação detectada', { 
+        type: task.type,
+        taskId: task.id,
+        sistemaId: task.sistemaId || task.data?.sistemaId || task.metadata?.sistemaId || 'N/A',
+        metadata: task.metadata,
+        data: task.data
+      });
+      await renewSystem(tabId, task);
     } else {
       await logger.warn('⚠️ Tipo de task desconhecido', { type: task.type, task });
       // Reporta erro para task desconhecida
@@ -746,233 +719,20 @@ async function processTask(task) {
   }
 }
 
-// ===========================================================================
-// RENOVAÇÃO DIRETA VIA API (SEM ABAS)
-// ===========================================================================
-async function renewSystemDirectly(task) {
-  await logger.info('🔄 Renovando sistema DIRETAMENTE via API...', { taskData: task });
-  
-  // Extrair sistemaId de diferentes locais possíveis
-  const sistemaId = task.sistemaId || 
-                    task.data?.sistemaId || 
-                    task.data?.systemId || 
-                    task.metadata?.sistemaId || 
-                    task.metadata?.systemId || 
-                    null;
-                     
-  const originalUsername = task.data?.originalUsername || 
-                          task.metadata?.originalUsername || 
-                          task.metadata?.systemUsername ||
-                          task.data?.currentUsername || 
-                          'N/A';
-  
-  await logger.info('📋 Dados da renovação', {
-    sistemaId: sistemaId || 'N/A',
-    usuarioAtual: originalUsername,
-    taskId: task.id,
-    taskType: task.type
-  });
-  
-  // Validação do sistemaId
-  if (!sistemaId) {
-    await logger.error('❌ ERRO CRÍTICO: sistemaId não encontrado na task', {
-      task: JSON.stringify(task)
-    });
-  }
-  
-  try {
-    // Parse data e metadata se forem strings
-    let taskData = task.data;
-    let metadata = task.metadata;
-    
-    if (typeof taskData === 'string') {
-      try {
-        taskData = JSON.parse(taskData);
-      } catch (error) {
-        await logger.warn('⚠️ Erro ao fazer parse do data', { error: error.message });
-      }
-    }
-    
-    if (typeof metadata === 'string') {
-      try {
-        metadata = JSON.parse(metadata);
-      } catch (error) {
-        await logger.warn('⚠️ Erro ao fazer parse do metadata', { error: error.message });
-      }
-    }
-    
-    // Faz chamada direta para API para gerar nova credencial
-    await logger.info('🎯 Gerando nova credencial via API...');
-    
-    // Garantir que API_BASE está definido
-    if (!API_BASE) {
-      API_BASE = await getApiBase();
-      await logger.info(`🔗 Servidor API re-configurado: ${API_BASE}`);
-    }
-    
-    // Fazer requisição para gerar nova credencial
-    const generateResponse = await fetch(`${API_BASE}/api/office/automation/generate-renewal-credential?ts=${Date.now()}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Extension-Key': 'tvon-extension-2024',
-        'Cache-Control': 'no-cache, no-store, max-age=0',
-        'Pragma': 'no-cache'
-      },
-      cache: 'no-store',
-      body: JSON.stringify({
-        taskId: task.id,
-        sistemaId: sistemaId,
-        originalUsername: originalUsername,
-        metadata: metadata
-      })
-    });
-    
-    if (!generateResponse.ok) {
-      const errorText = await generateResponse.text();
-      throw new Error(`Erro ao gerar credencial: ${errorText}`);
-    }
-    
-    const credentialData = await generateResponse.json();
-    
-    // Valida que recebeu as credenciais
-    if (!credentialData.success || !credentialData.credentials) {
-      throw new Error('API não retornou credenciais válidas');
-    }
-    
-    const newCredentials = credentialData.credentials;
-    
-    await logger.info('✅ Nova credencial gerada com sucesso via API!', {
-      novoUsuario: newCredentials.username,
-      novaSenha: newCredentials.password,
-      sistemaId: sistemaId || 'desconhecido'
-    });
-    
-    // Prepara metadata para reporte
-    const reportMetadata = {
-      ...metadata,
-      sistemaId: sistemaId,
-      originalUsername: originalUsername,
-      renewedAt: new Date().toISOString(),
-      renewedViaAPI: true // Marca que foi renovado diretamente via API
-    };
-    
-    // Reporta sucesso ao backend
-    await logger.info('✅ Credenciais de renovação geradas com sucesso!', { 
-      sistemaId,
-      novoUsuario: newCredentials.username,
-      novaSenha: newCredentials.password
-    });
-    
-    // Reporta sucesso ao backend com sistemaId garantido
-    const reportSuccess = await reportTaskResult({
-      taskId: task.id,
-      type: task.type || 'renewal',
-      sistemaId: sistemaId,
-      systemId: sistemaId, // Manter ambos por compatibilidade
-      credentials: {
-        username: newCredentials.username,
-        password: newCredentials.password,
-        sistemaId: sistemaId
-      },
-      oldCredentials: {
-        username: originalUsername,
-        password: taskData?.currentPassword || metadata?.currentPassword || 'unknown'
-      },
-      clienteId: taskData?.clienteId || metadata?.clienteId,
-      metadata: reportMetadata
-    });
-    
-    if (!reportSuccess) {
-      await logger.error('⚠️ Falha ao reportar renovação ao backend!', { sistemaId });
-    } else {
-      await logger.info('✅ Renovação completa via API reportada ao backend com sucesso', { 
-        sistemaId,
-        username: newCredentials.username
-      });
-    }
-    
-  } catch (error) {
-    await logger.error('❌ Erro ao renovar sistema via API', { error: error.message, sistemaId });
-    
-    // Reporta erro ao backend
-    const reportSuccess = await reportTaskResult({
-      taskId: task.id,
-      type: task.type || 'renewal',
-      sistemaId: sistemaId,
-      systemId: sistemaId,
-      error: error.message,
-      metadata: {
-        ...(task.metadata || {}),
-        sistemaId: sistemaId,
-        failedAt: new Date().toISOString(),
-        failureReason: error.message
-      }
-    });
-    
-    if (!reportSuccess) {
-      await logger.error('⚠️ Falha ao reportar erro de renovação ao backend!');
-    }
-  }
-}
-
-// Função auxiliar para criar credencial REAL no OnlineOffice
-async function generateRealCredentialOnOffice() {
-  await logger.info('🎯 Iniciando geração de credencial REAL no OnlineOffice...');
-  
-  try {
-    // Verifica se já existe uma aba do OnlineOffice
-    const tabs = await chrome.tabs.query({ url: '*://onlineoffice.zip/*' });
-    
-    let tab;
-    if (tabs.length > 0) {
-      tab = tabs[0];
-      await chrome.tabs.update(tab.id, { active: true });
-    } else {
-      // Cria nova aba no OnlineOffice
-      tab = await chrome.tabs.create({
-        url: 'https://onlineoffice.zip/#/dashboard',
-        active: true
-      });
-      
-      // Aguarda a página carregar
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    }
-    
-    // Envia comando para o content script clicar nos botões e extrair credencial REAL
-    const response = await chrome.tabs.sendMessage(tab.id, {
-      action: 'generateOne'
-    });
-    
-    if (response && response.success && response.credentials) {
-      await logger.info('✅ Credencial REAL extraída do OnlineOffice!', {
-        username: response.credentials.username,
-        password: response.credentials.password
-      });
-      return response;
-    } else {
-      throw new Error('Falha ao extrair credencial do OnlineOffice');
-    }
-  } catch (error) {
-    await logger.error('❌ Erro ao gerar credencial REAL', { error: error.message });
-    throw error;
-  }
-}
-
-async function generateBatch(task) {
+async function generateBatch(tabId, task) {
   const quantity = task.quantity || 10;
   let successCount = 0;
   let errorCount = 0;
   const results = [];
   
-  await logger.info(`📦 Gerando lote de ${quantity} credenciais REAIS no OnlineOffice...`);
+  await logger.info(`📦 Gerando lote de ${quantity} credenciais...`);
   
   for (let i = 0; i < quantity; i++) {
-    await logger.info(`🎯 Gerando credencial REAL ${i + 1}/${quantity}...`);
+    await logger.info(`🎯 Gerando credencial ${i + 1}/${quantity}...`);
     
     try {
-      // IMPORTANTE: Usar o OnlineOffice REAL para gerar credenciais
-      const response = await generateRealCredentialOnOffice();
+      // Envia comando para content script
+      const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
       
       if (response && response.success && response.credentials) {
         successCount++;
@@ -1056,16 +816,16 @@ async function generateBatch(task) {
   }
 }
 
-async function generateSingle(task) {
-  await logger.info('🎯 Gerando credencial única REAL no OnlineOffice...', {
+async function generateSingle(tabId, task) {
+  await logger.info('🎯 Gerando credencial única...', {
     taskId: task?.id,
     taskType: task?.type
   });
   
   try {
-    // IMPORTANTE: Usar o OnlineOffice REAL para gerar credencial
+    // Timeout para a geração de credencial (30 segundos)
     const response = await Promise.race([
-      generateRealCredentialOnOffice(),
+      chrome.tabs.sendMessage(tabId, {action: 'generateOne'}),
       new Promise((_, reject) => setTimeout(
         () => reject(new Error('Timeout ao gerar credencial')), 
         30000
@@ -1120,7 +880,7 @@ async function generateSingle(task) {
   }
 }
 
-async function renewSystem(task) {
+async function renewSystem(tabId, task) {
   await logger.info('🔄 Renovando sistema IPTV...', { taskData: task });
   
   // DEBUG: Log completo da task para análise
@@ -1181,27 +941,7 @@ async function renewSystem(task) {
       }
     }
     
-    // Gera nova credencial diretamente via API
-    const apiResponse = await fetch(`${API_BASE}/api/office/automation/generate-renewal-credential`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Extension-Key': 'tvon-extension-2024'
-      },
-      body: JSON.stringify({
-        taskId: task.id,
-        type: 'renewal',
-        sistemaId: sistemaId,
-        originalUsername: originalUsername,
-        metadata: metadata
-      })
-    });
-    
-    if (!apiResponse.ok) {
-      throw new Error(`API error: ${apiResponse.status}`);
-    }
-    
-    const response = await apiResponse.json();
+    const response = await chrome.tabs.sendMessage(tabId, {action: 'generateOne'});
     
     if (response && response.success && response.credentials) {
       await logger.info('✅ Nova credencial gerada para renovação!', {
