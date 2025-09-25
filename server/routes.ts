@@ -7708,11 +7708,12 @@ Como posso ajudar você hoje?
         try {
           if (apiUser) {
             // Update existing user
+            // NOTA: Campo "system" comentado pois é palavra reservada em MySQL e causa erro SQL na API externa
             await externalApiService.updateUser(apiUser.id, {
               password: ponto.senha,
               exp_date: expDate,
               status: "Active",
-              system: systemNumber,
+              // system: systemNumber, // Removido: palavra reservada MySQL causa erro na API
             });
             updated++;
 
@@ -7722,12 +7723,13 @@ Como posso ajudar você hoje?
             }
           } else {
             // Create new user
+            // NOTA: Campo "system" comentado pois é palavra reservada em MySQL e causa erro SQL na API externa
             const newUser = await externalApiService.createUser({
               username: ponto.usuario,
               password: ponto.senha,
               exp_date: expDate,
               status: "Active",
-              system: systemNumber,
+              // system: systemNumber, // Removido: palavra reservada MySQL causa erro na API
             });
 
             if (newUser) {
