@@ -264,35 +264,31 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
             </div>
           </div>
           
-          {/* Mostrar clientes ativos se houver */}
-          {system.clientesAtivos && system.clientesAtivos.length > 0 && (
-            <div className="flex items-center gap-2 border-l border-slate-700 pl-4">
-              {system.clientesAtivos.slice(0, 2).map((cliente, index) => (
-                <button
-                  key={cliente.id}
-                  onClick={() => setLocation(`/clientes/${cliente.id}`)}
-                  className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-slate-700/50 transition-colors group"
-                  data-testid={`client-link-${cliente.id}`}
-                >
-                  <User className="w-3 h-3 text-slate-400 group-hover:text-white flex-shrink-0" />
-                  <div className="flex flex-col">
-                    <div className="text-xs font-medium text-white truncate group-hover:text-blue-400 max-w-[120px]">
-                      {cliente.nome}
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <Phone className="w-2.5 h-2.5" />
-                      <span className="truncate">{cliente.telefone}</span>
-                    </div>
+          {/* Mostrar clientes ativos */}
+          <div className="flex items-center gap-2 border-l border-slate-700 pl-4">
+            {!system.clientesAtivos || system.clientesAtivos.length === 0 ? (
+              <span className="text-xs text-slate-500">Nenhum</span>
+            ) : system.clientesAtivos && system.clientesAtivos.length > 1 ? (
+              <span className="text-xs text-slate-400">Vários</span>
+            ) : (
+              <button
+                onClick={() => setLocation(`/clientes/${system.clientesAtivos[0].id}`)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-slate-700/50 transition-colors group"
+                data-testid={`client-link-${system.clientesAtivos[0].id}`}
+              >
+                <User className="w-3 h-3 text-slate-400 group-hover:text-white flex-shrink-0" />
+                <div className="flex flex-col">
+                  <div className="text-xs font-medium text-white truncate group-hover:text-blue-400 max-w-[120px]">
+                    {system.clientesAtivos[0].nome}
                   </div>
-                </button>
-              ))}
-              {system.clientesAtivos.length > 2 && (
-                <div className="text-xs text-slate-500">
-                  +{system.clientesAtivos.length - 2}
+                  <div className="flex items-center gap-1 text-xs text-slate-500">
+                    <Phone className="w-2.5 h-2.5" />
+                    <span className="truncate">{system.clientesAtivos[0].telefone}</span>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+              </button>
+            )}
+          </div>
         </div>
       </TableCell>
       <TableCell className="text-right">
