@@ -266,21 +266,27 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
           </div>
           
           {/* Mostrar clientes ativos */}
-          <div className="flex items-center gap-2 border-l border-slate-700 pl-4">
+          <div className="border-l border-slate-700 pl-4 w-[240px]">
             {!system.clientesAtivos || system.clientesAtivos.length === 0 ? (
-              <span className="text-xs text-slate-500">Nenhum</span>
+              <div className="grid grid-cols-[100px_140px] items-center">
+                <span className="text-xs text-slate-500">Nenhum</span>
+                <div></div>
+              </div>
             ) : system.clientesAtivos && system.clientesAtivos.length > 1 ? (
-              <span className="text-xs text-slate-400">Vários</span>
+              <div className="grid grid-cols-[100px_140px] items-center">
+                <span className="text-xs text-slate-400">Vários</span>
+                <div></div>
+              </div>
             ) : (
               <button
                 onClick={() => setLocation(`/clientes/${system.clientesAtivos[0].id}`)}
-                className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-700/50 transition-colors group"
+                className="grid grid-cols-[100px_140px] items-center gap-2 px-2 py-1 rounded hover:bg-slate-700/50 transition-colors group w-full"
                 data-testid={`client-link-${system.clientesAtivos[0].id}`}
               >
-                <User className="w-3 h-3 text-slate-400 group-hover:text-white flex-shrink-0" />
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-col">
-                    <div className="text-xs font-medium text-white truncate group-hover:text-blue-400 max-w-[120px]">
+                <div className="flex items-center gap-2 min-w-0">
+                  <User className="w-3 h-3 text-slate-400 group-hover:text-white flex-shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <div className="text-xs font-medium text-white truncate group-hover:text-blue-400">
                       {system.clientesAtivos[0].nome}
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-slate-500">
@@ -288,7 +294,9 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
                       <span className="truncate">{system.clientesAtivos[0].telefone}</span>
                     </div>
                   </div>
-                  {system.clientesAtivos[0].vencimento && (() => {
+                </div>
+                <div className="flex items-center justify-end">
+                  {system.clientesAtivos[0].vencimento ? (() => {
                     const vencimento = new Date(system.clientesAtivos[0].vencimento);
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
@@ -314,14 +322,14 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
                     }
                     
                     return (
-                      <div className={`flex items-center gap-1 text-xs ${colorClass} border-l border-slate-700 pl-2`}>
+                      <div className={`flex items-center gap-1 text-xs ${colorClass}`}>
                         <Calendar className="w-2.5 h-2.5" />
                         <span className="whitespace-nowrap font-medium">
                           {text}
                         </span>
                       </div>
                     );
-                  })()}
+                  })() : null}
                 </div>
               </button>
             )}
