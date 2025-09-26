@@ -2118,11 +2118,16 @@ export class DatabaseStorage implements IStorage {
       .where(eq(sistemas.id, sistemaId));
   }
 
-  // Get available systems (not at max capacity)
+  // Get available systems (not at max capacity OR fixed systems)
   async getAvailableSistemas(): Promise<Sistema[]> {
     const result = await db.select()
       .from(sistemas)
-      .where(sql`${sistemas.pontosAtivos} < ${sistemas.maxPontosAtivos}`)
+      .where(or(
+        // Normal systems that have capacity
+        sql`${sistemas.pontosAtivos} < ${sistemas.maxPontosAtivos}`,
+        // Always include fixed systems (ID >= 1000)
+        sql`CAST(${sistemas.systemId} AS INTEGER) >= 1000`
+      ))
       .orderBy(asc(sistemas.pontosAtivos));
     return result.map(mapSistemaToFrontend);
   }
