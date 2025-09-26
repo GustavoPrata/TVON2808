@@ -674,7 +674,7 @@ export default function PainelOffice() {
 
   // Create/Update system mutation
   const saveSystemMutation = useMutation({
-    mutationFn: async (data: SystemForm & { system_id?: string }) => {
+    mutationFn: async (data: SystemForm & { system_id?: string, expiracao?: string }) => {
       const endpoint = data.system_id 
         ? `/api/external-api/systems/${data.system_id}`
         : '/api/external-api/systems';
@@ -688,6 +688,7 @@ export default function PainelOffice() {
           username: data.username,
           password: data.password,
           maxPontosAtivos: data.maxPontosAtivos || 100,
+          expiracao: data.expiracao,  // Incluir a data de expiração
         }),
       });
       
