@@ -232,64 +232,63 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
           </div>
         )}
       </TableCell>
-      <TableCell className="text-center">
-        <div className="space-y-2">
-          <div className="flex items-center justify-center gap-2">
-            <div className="relative">
-              <div className="flex items-center gap-1">
-                <Users className="w-4 h-4 text-slate-400" />
-                <span 
-                  className={`font-medium ${
-                    (system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) 
-                      ? 'text-red-400' 
-                      : (system.pontosAtivos || 0) >= ((system.maxPontosAtivos || 100) * 0.8)
-                      ? 'text-yellow-400'
-                      : 'text-green-400'
-                  }`}
-                >
-                  {system.pontosAtivos || 0} / {system.maxPontosAtivos || 100}
-                </span>
-              </div>
-              <div className="w-full bg-slate-700 rounded-full h-1.5 mt-1">
-                <div 
-                  className={`h-1.5 rounded-full transition-all ${
-                    (system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) 
-                      ? 'bg-red-500' 
-                      : (system.pontosAtivos || 0) >= ((system.maxPontosAtivos || 100) * 0.8)
-                      ? 'bg-yellow-500'
-                      : 'bg-green-500'
-                  }`}
-                  style={{ width: `${Math.min(100, ((system.pontosAtivos || 0) / (system.maxPontosAtivos || 100)) * 100)}%` }}
-                />
-              </div>
+      <TableCell>
+        <div className="flex items-center gap-4">
+          {/* Pontos ativos */}
+          <div className="flex-shrink-0">
+            <div className="flex items-center gap-1">
+              <Users className="w-4 h-4 text-slate-400" />
+              <span 
+                className={`font-medium ${
+                  (system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) 
+                    ? 'text-red-400' 
+                    : (system.pontosAtivos || 0) >= ((system.maxPontosAtivos || 100) * 0.8)
+                    ? 'text-yellow-400'
+                    : 'text-green-400'
+                }`}
+              >
+                {system.pontosAtivos || 0} / {system.maxPontosAtivos || 100}
+              </span>
+            </div>
+            <div className="w-24 bg-slate-700 rounded-full h-1.5 mt-1">
+              <div 
+                className={`h-1.5 rounded-full transition-all ${
+                  (system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) 
+                    ? 'bg-red-500' 
+                    : (system.pontosAtivos || 0) >= ((system.maxPontosAtivos || 100) * 0.8)
+                    ? 'bg-yellow-500'
+                    : 'bg-green-500'
+                }`}
+                style={{ width: `${Math.min(100, ((system.pontosAtivos || 0) / (system.maxPontosAtivos || 100)) * 100)}%` }}
+              />
             </div>
           </div>
           
           {/* Mostrar clientes ativos se houver */}
           {system.clientesAtivos && system.clientesAtivos.length > 0 && (
-            <div className="space-y-1 mt-2 border-t border-slate-700 pt-2">
+            <div className="flex items-center gap-2 border-l border-slate-700 pl-4">
               {system.clientesAtivos.slice(0, 2).map((cliente, index) => (
                 <button
                   key={cliente.id}
                   onClick={() => setLocation(`/clientes/${cliente.id}`)}
-                  className="flex items-start gap-1.5 p-1.5 rounded hover:bg-slate-700/50 transition-colors text-left w-full group"
+                  className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-slate-700/50 transition-colors group"
                   data-testid={`client-link-${cliente.id}`}
                 >
-                  <User className="w-3 h-3 text-slate-400 mt-0.5 group-hover:text-white" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-white truncate group-hover:text-blue-400">
+                  <User className="w-3 h-3 text-slate-400 group-hover:text-white flex-shrink-0" />
+                  <div className="flex flex-col">
+                    <div className="text-xs font-medium text-white truncate group-hover:text-blue-400 max-w-[120px]">
                       {cliente.nome}
                     </div>
                     <div className="flex items-center gap-1 text-xs text-slate-500">
                       <Phone className="w-2.5 h-2.5" />
-                      <span>{cliente.telefone}</span>
+                      <span className="truncate">{cliente.telefone}</span>
                     </div>
                   </div>
                 </button>
               ))}
               {system.clientesAtivos.length > 2 && (
-                <div className="text-xs text-slate-500 text-center">
-                  +{system.clientesAtivos.length - 2} clientes
+                <div className="text-xs text-slate-500">
+                  +{system.clientesAtivos.length - 2}
                 </div>
               )}
             </div>
