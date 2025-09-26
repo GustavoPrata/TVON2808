@@ -80,8 +80,8 @@ export default function Login() {
 
   // TEMPORÁRIO: Auto-login para desenvolvimento
   const handleAutoLogin = async () => {
-    setUser("admin");
-    setPassword("admin");
+    setUser("gustavoprtt");
+    setPassword("Gustavoprata1@");
     setRememberMe(true);
     
     // Aguarda um momento para os campos serem preenchidos
@@ -89,14 +89,14 @@ export default function Login() {
       setIsLoading(true);
       try {
         const response = await apiRequest("POST", "/api/login", { 
-          user: "admin", 
-          password: "admin", 
+          user: "gustavoprtt", 
+          password: "Gustavoprata1@", 
           rememberMe: true 
         });
         const data = await response.json();
         
         if (data.success) {
-          localStorage.setItem("rememberedUser", "admin");
+          localStorage.setItem("rememberedUser", "gustavoprtt");
           localStorage.setItem("rememberMe", "true");
           
           toast({

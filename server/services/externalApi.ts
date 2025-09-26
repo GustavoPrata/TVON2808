@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import { storage } from '../storage';
 
 export interface ExternalApiUser {
@@ -45,13 +45,6 @@ export class ExternalApiService {
         
         this.client.defaults.baseURL = this.baseUrl;
         this.client.defaults.headers.common['Authorization'] = `Bearer ${this.apiKey}`;
-        
-        console.log('🌐 [API] Configuração da API Externa inicializada:');
-        console.log(`   Base URL: ${this.baseUrl}`);
-        console.log(`   API Key: ${this.apiKey ? this.apiKey.substring(0, 10) + '...' : 'NÃO CONFIGURADO'}`);
-        console.log(`   Chave key170604: ${this.apiKey?.includes('170604') ? '✅ ENCONTRADA' : '❌ NÃO ENCONTRADA'}`);
-      } else {
-        console.log('⚠️ [API] API Externa não está configurada ou está inativa');
       }
     } catch (error) {
       console.error('Erro ao inicializar configuração da API externa:', error);
@@ -145,37 +138,10 @@ export class ExternalApiService {
 
   async updateUser(id: number, userData: Partial<ExternalApiUser>): Promise<ExternalApiUser | null> {
     try {
-      console.log(`🔄 [API] Atualizando usuário ${id}:`, userData);
-      console.log(`🌐 [API] URL: ${this.baseUrl}/users/editar/${id}`);
-      console.log(`🔑 [API] API Key em uso: ${this.apiKey ? this.apiKey.substring(0, 10) + '...' : 'NÃO CONFIGURADO'}`);
-      
       const response = await this.client.put<ExternalApiResponse<ExternalApiUser>>(`/users/editar/${id}`, userData);
-      
-      console.log(`✅ [API] Resposta da atualização do usuário ${id}:`, {
-        success: response.data.success,
-        hasData: !!response.data.data,
-        status: response.status
-      });
-      
-      // Log do campo system se estiver presente
-      if (userData.system !== undefined) {
-        console.log(`🔗 [API] Campo 'system' enviado: ${userData.system}`);
-        if (response.data.data?.system !== undefined) {
-          console.log(`🔗 [API] Campo 'system' retornado: ${response.data.data.system}`);
-        }
-      }
-      
       return response.data.data || null;
     } catch (error) {
-      console.error('❌ [API] Erro ao atualizar usuário:', error);
-      if ((error as any).isAxiosError) {
-        const axiosError = error as any;
-        console.error('📄 [API] Detalhes do erro:', {
-          status: axiosError.response?.status,
-          data: axiosError.response?.data,
-          message: axiosError.message
-        });
-      }
+      console.error('Erro ao atualizar usuário:', error);
       throw error;
     }
   }

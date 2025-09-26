@@ -79,7 +79,6 @@ type SystemForm = z.infer<typeof systemSchema>;
 
 interface System {
   system_id: string;
-  systemId?: string; // Campo alternativo para o ID do sistema
   username: string;
   password: string;
   maxPontosAtivos?: number;
@@ -385,27 +384,41 @@ export default function PainelOffice() {
     refetchOnWindowFocus: true,
   });
 
-  // Detecção automática do modo baseado em sistemas fixos com pontos ativos
-  // Se existem sistemas com ID >= 1000 com pontos ativos > 0, usar modo fixed-points
-  // Caso contrário, mostrar todos os sistemas (modo 1:1)
-  const hasActiveFixedSystems = systemsRaw.some((system: System) => {
-    const systemId = parseInt(system.systemId || system.system_id) || 0;
-    const activePontos = system.pontosAtivos || 0;
-    return systemId >= 1000 && activePontos > 0;
+  // Create state for distribution mode with localStorage
+  const [storedDistributionMode, setStoredDistributionMode] = useState<string>(() => {
+    return localStorage.getItem('distributionMode') || 'individual';
   });
   
-  const isFixedMode = hasActiveFixedSystems;
+  // Add listener for localStorage changes
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const mode = localStorage.getItem('distributionMode') || 'individual';
+      setStoredDistributionMode(mode);
+    };
+    
+    // Listen for storage events (changes from other tabs/windows)
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Listen for custom event (changes in same tab)
+    window.addEventListener('distributionModeChanged', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('distributionModeChanged', handleStorageChange);
+    };
+  }, []);
   
-  // Filtrar sistemas baseado na detecção automática de modo
+  const isFixedMode = storedDistributionMode === 'fixed-points';
+  
+  // Filter systems based on distribution mode
   const filteredSystems = systemsRaw.filter((system: System) => {
     const systemId = parseInt(system.systemId || system.system_id) || 0;
-    // Se há sistemas fixos com pontos ativos: mostrar apenas sistemas fixos (ID >= 1000)
-    // Caso contrário: mostrar todos os sistemas (modo 1:1)
+    // In fixed-points mode: show only systems with ID >= 1000
+    // In individual mode: show only systems with ID < 1000
     if (isFixedMode) {
       return systemId >= 1000;
     } else {
-      // Modo 1:1 - mostrar todos os sistemas
-      return true;
+      return systemId < 1000;
     }
   });
   
@@ -1187,13 +1200,13 @@ export default function PainelOffice() {
                   {/* Indicador do Modo Ativo */}
                   <Badge 
                     className={
-                      !isFixedMode 
+                      storedDistributionMode === 'individual' 
                         ? "bg-blue-500/20 text-blue-400 border-blue-500/50" 
                         : "bg-purple-500/20 text-purple-400 border-purple-500/50"
                     }
                     variant="outline"
                   >
-                    {!isFixedMode ? (
+                    {storedDistributionMode === 'individual' ? (
                       <>
                         <Package className="w-3 h-3 mr-1" />
                         1:1
@@ -1207,7 +1220,7 @@ export default function PainelOffice() {
                   </Badge>
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  {!isFixedMode 
+                  {storedDistributionMode === 'individual' 
                     ? "Modo: Um Sistema por Ponto - Cada ponto tem seu sistema dedicado"
                     : "Modo: Pontos Fixos - Sistemas com quantidade fixa de pontos"}
                 </CardDescription>
