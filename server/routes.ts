@@ -6336,94 +6336,109 @@ Como posso ajudar você hoje?
   app.post("/api/sistemas/auto-generate", async (req, res) => {
     try {
       console.log('🚀 Iniciando geração automática de sistema...');
-      const { sistemaId } = req.body; // Receber sistemaId se for renovação
       
-      // 1. Criar tarefa para extensão Chrome gerar credenciais
-      const task = await storage.createPendingTask('single_generation', {
-        purpose: 'auto_generate_system',
-        sistemaId: sistemaId // Passar sistemaId para o metadata
-      });
+      // 1. Buscar todos os sistemas existentes
+      const sistemasExistentes = await storage.getSistemas();
       
-      console.log(`📝 Tarefa criada com ID ${task.id}`);
+      // 2. Encontrar o próximo número disponível
+      // Filtrar apenas números menores que 1000
+      const systemNumbers = sistemasExistentes
+        .map(s => parseInt(s.systemId) || 0)
+        .filter(n => n > 0 && n < 1000)
+        .sort((a, b) => a - b);
       
-      // 2. Aguardar a tarefa ser processada (timeout de 30 segundos)
-      const maxWaitTime = 30000; // 30 seconds
-      const checkInterval = 1000; // Check every second
-      const startTime = Date.now();
+      let nextSystemId: number = 1;
       
-      let completedTask = null;
-      while (Date.now() - startTime < maxWaitTime) {
-        // Check if task is completed
-        const taskStatus = await storage.getOfficeAutomationTaskById(task.id);
-        
-        if (taskStatus && taskStatus.status === 'completed') {
-          completedTask = taskStatus;
-          break;
-        } else if (taskStatus && taskStatus.status === 'error') {
-          console.error('❌ Erro na geração de credenciais:', taskStatus.errorMessage);
-          return res.status(500).json({ 
-            error: 'Erro ao gerar credenciais',
-            details: taskStatus.errorMessage 
-          });
+      if (systemNumbers.length === 0) {
+        // Se não há sistemas, começar com 1
+        nextSystemId = 1;
+      } else {
+        // Procurar por gaps na sequência
+        let foundGap = false;
+        for (let i = 1; i < 1000; i++) {
+          if (!systemNumbers.includes(i)) {
+            nextSystemId = i;
+            foundGap = true;
+            break;
+          }
         }
         
-        // Wait before next check
-        await new Promise(resolve => setTimeout(resolve, checkInterval));
+        // Se não encontrou gap, usar o próximo número após o maior
+        if (!foundGap) {
+          const maxNum = Math.max(...systemNumbers);
+          if (maxNum < 999) {
+            nextSystemId = maxNum + 1;
+          } else {
+            throw new Error('Não há números disponíveis abaixo de 1000');
+          }
+        }
       }
       
-      if (!completedTask) {
-        console.error('⏰ Timeout esperando geração de credenciais');
-        return res.status(408).json({ error: 'Timeout aguardando geração de credenciais. Certifique-se de que a extensão Chrome está instalada e ativa.' });
-      }
+      console.log(`📊 Próximo systemId disponível: ${nextSystemId}`);
       
-      // 3. Extrair credenciais do resultado
-      let credentials;
+      // 3. Definir as credenciais fixas
+      const username = 'tvon';
+      const password = 'tvon';
+      
+      // 4. Definir expiração para ontem (já vencido)
+      const ontem = new Date();
+      ontem.setDate(ontem.getDate() - 1);
+      ontem.setHours(23, 59, 59, 999);
+      
+      console.log(`📅 Data de expiração (ontem): ${ontem.toISOString()}`);
+      
+      // 5. Criar na API externa primeiro
       try {
-        // O resultado pode vir diretamente nos campos username/password
-        if (completedTask.username && completedTask.password) {
-          credentials = {
-            username: completedTask.username,
-            password: completedTask.password
-          };
-        } else if (completedTask.result) {
-          // Ou pode vir no campo result como JSON
-          const resultData = typeof completedTask.result === 'string' 
-            ? JSON.parse(completedTask.result) 
-            : completedTask.result;
-          credentials = {
-            username: resultData.username || resultData.user,
-            password: resultData.password || resultData.pass
-          };
+        const integracaoConfig = await storage.getIntegracaoByTipo('api_externa');
+        if (integracaoConfig?.ativo) {
+          console.log('🌐 Criando sistema na API externa...');
+          
+          const externalUser = await externalApiService.createUser({
+            username: username,
+            password: password,
+            exp_date: Math.floor(ontem.getTime() / 1000).toString(),
+            system: nextSystemId,
+            device_limit: 100,
+            user_type: "system",
+            is_active: true
+          });
+          
+          console.log(`✅ Sistema ${nextSystemId} criado na API externa com sucesso`);
         }
-        
-        if (!credentials || !credentials.username || !credentials.password) {
-          throw new Error('Credenciais incompletas');
-        }
-      } catch (error) {
-        console.error('❌ Erro ao processar credenciais:', error);
-        return res.status(500).json({ 
-          error: 'Erro ao processar credenciais geradas',
-          details: error.message
-        });
+      } catch (apiError) {
+        console.error('⚠️ Erro ao criar na API externa:', apiError);
+        // Continuar mesmo se a API externa falhar
       }
       
-      console.log(`✅ Credenciais geradas: ${credentials.username}`);
-      
-      // 4. Criar ou atualizar o sistema com as credenciais geradas
-      const sistema = await storage.createSistemaAutoGenerated({
-        username: credentials.username,
-        password: credentials.password,
-        nome: `Sistema Auto ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`,
+      // 6. Criar no banco local
+      const sistemaData = {
+        systemId: nextSystemId.toString(),
+        username: username,
+        password: password,
+        nome: `Sistema ${nextSystemId}`,
         url: 'https://onlineoffice.zip/iptv/',
-        sistemaId: sistemaId // Passar o sistemaId se for renovação
+        expiracao: ontem,
+        maxPontosAtivos: 100,
+        pontosAtivos: 0
+      };
+      
+      const result = await db.insert(sistemas)
+        .values(sistemaData)
+        .returning();
+      
+      const sistemaCriado = result[0];
+      
+      console.log(`💾 Sistema ${nextSystemId} criado no banco local com ID ${sistemaCriado.id}`);
+      
+      // 7. Broadcast do evento
+      broadcastMessage('system_created', {
+        sistema: sistemaCriado
       });
       
-      console.log(`💾 Sistema ${sistemaId ? 'atualizado' : 'criado'} com ID ${sistema.id} e systemId ${sistema.systemId}`);
-      
-      // 5. Retornar o sistema criado
+      // 8. Retornar o sistema criado
       res.json({
         success: true,
-        sistema: sistema
+        sistema: sistemaCriado
       });
       
     } catch (error) {
