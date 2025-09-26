@@ -29,6 +29,7 @@ import {
   login,
   officeExtensionConfig,
   officeCredentials,
+  clientes,
 } from "@shared/schema";
 import { z } from "zod";
 import { asc, desc, sql, eq, and } from "drizzle-orm";
@@ -5149,8 +5150,36 @@ Como posso ajudar você hoje?
         pontosAtivosCount.map((p) => [p.sistemaId, Number(p.count)]),
       );
 
+      // Get pontos ativos com clientes para cada sistema
+      const pontosComClientes = await db
+        .select({
+          sistemaId: pontos.sistemaId,
+          clienteId: pontos.clienteId,
+          clienteNome: clientes.nome,
+          clienteTelefone: clientes.telefone,
+        })
+        .from(pontos)
+        .leftJoin(clientes, eq(pontos.clienteId, clientes.id))
+        .where(eq(pontos.status, "ativo"));
+
+      // Criar um mapa de clientes ativos por sistema
+      const clientesAtivosPorSistema = new Map();
+      pontosComClientes.forEach((ponto) => {
+        if (ponto.sistemaId && ponto.clienteId) {
+          if (!clientesAtivosPorSistema.has(ponto.sistemaId)) {
+            clientesAtivosPorSistema.set(ponto.sistemaId, []);
+          }
+          clientesAtivosPorSistema.get(ponto.sistemaId).push({
+            id: ponto.clienteId,
+            nome: ponto.clienteNome,
+            telefone: ponto.clienteTelefone,
+          });
+        }
+      });
+
       // Mapear sistemas para o formato snake_case esperado pelo frontend
       const enrichedSystems = localSistemas.map((sistema) => {
+        const clientesAtivos = clientesAtivosPorSistema.get(sistema.id) || [];
         return {
           system_id: sistema.systemId,
           username: sistema.username,
@@ -5158,6 +5187,7 @@ Como posso ajudar você hoje?
           id: sistema.id,
           maxPontosAtivos: sistema.maxPontosAtivos || 100,
           pontosAtivos: pontosCountMap.get(sistema.id) || 0,
+          clientesAtivos: clientesAtivos, // Adiciona lista de clientes ativos
           expiracao: sistema.expiracao ? sistema.expiracao.toISOString() : null,
           expiration: sistema.expiracao ? sistema.expiracao.toISOString() : null, // Adiciona campo expiration também
           nota: sistema.nota || null,

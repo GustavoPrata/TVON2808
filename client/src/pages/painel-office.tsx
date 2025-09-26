@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon, FileText, Download, Filter, Search, Trash, Eye, Info, Shuffle, Package, Network, Lock } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon, FileText, Download, Filter, Search, Trash, Eye, Info, Shuffle, Package, Network, Lock, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { apiRequest, queryClient as qc } from '@/lib/queryClient';
@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { RenewalQueueSection } from '@/components/renewal-queue-logs';
+import { useLocation } from 'wouter';
 import { ExtensionStatusIndicator } from '@/components/extension-status-indicator';
 import {
   Dialog,
@@ -84,6 +85,11 @@ interface System {
   password: string;
   maxPontosAtivos?: number;
   pontosAtivos?: number;
+  clientesAtivos?: Array<{
+    id: number;
+    nome: string;
+    telefone: string;
+  }>;
   expiration?: string;
   expiracao?: string; // Campo vindo do banco local
   autoRenewalEnabled?: boolean;
@@ -104,6 +110,7 @@ interface SortableRowProps {
 
 function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowProps) {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const {
     attributes,
     listeners,
@@ -226,35 +233,67 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
         )}
       </TableCell>
       <TableCell className="text-center">
-        <div className="flex items-center justify-center gap-2">
-          <div className="relative">
-            <div className="flex items-center gap-1">
-              <Users className="w-4 h-4 text-slate-400" />
-              <span 
-                className={`font-medium ${
-                  (system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) 
-                    ? 'text-red-400' 
-                    : (system.pontosAtivos || 0) >= ((system.maxPontosAtivos || 100) * 0.8)
-                    ? 'text-yellow-400'
-                    : 'text-green-400'
-                }`}
-              >
-                {system.pontosAtivos || 0} / {system.maxPontosAtivos || 100}
-              </span>
-            </div>
-            <div className="w-full bg-slate-700 rounded-full h-1.5 mt-1">
-              <div 
-                className={`h-1.5 rounded-full transition-all ${
-                  (system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) 
-                    ? 'bg-red-500' 
-                    : (system.pontosAtivos || 0) >= ((system.maxPontosAtivos || 100) * 0.8)
-                    ? 'bg-yellow-500'
-                    : 'bg-green-500'
-                }`}
-                style={{ width: `${Math.min(100, ((system.pontosAtivos || 0) / (system.maxPontosAtivos || 100)) * 100)}%` }}
-              />
+        <div className="space-y-2">
+          <div className="flex items-center justify-center gap-2">
+            <div className="relative">
+              <div className="flex items-center gap-1">
+                <Users className="w-4 h-4 text-slate-400" />
+                <span 
+                  className={`font-medium ${
+                    (system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) 
+                      ? 'text-red-400' 
+                      : (system.pontosAtivos || 0) >= ((system.maxPontosAtivos || 100) * 0.8)
+                      ? 'text-yellow-400'
+                      : 'text-green-400'
+                  }`}
+                >
+                  {system.pontosAtivos || 0} / {system.maxPontosAtivos || 100}
+                </span>
+              </div>
+              <div className="w-full bg-slate-700 rounded-full h-1.5 mt-1">
+                <div 
+                  className={`h-1.5 rounded-full transition-all ${
+                    (system.pontosAtivos || 0) >= (system.maxPontosAtivos || 100) 
+                      ? 'bg-red-500' 
+                      : (system.pontosAtivos || 0) >= ((system.maxPontosAtivos || 100) * 0.8)
+                      ? 'bg-yellow-500'
+                      : 'bg-green-500'
+                  }`}
+                  style={{ width: `${Math.min(100, ((system.pontosAtivos || 0) / (system.maxPontosAtivos || 100)) * 100)}%` }}
+                />
+              </div>
             </div>
           </div>
+          
+          {/* Mostrar clientes ativos se houver */}
+          {system.clientesAtivos && system.clientesAtivos.length > 0 && (
+            <div className="space-y-1 mt-2 border-t border-slate-700 pt-2">
+              {system.clientesAtivos.slice(0, 2).map((cliente, index) => (
+                <button
+                  key={cliente.id}
+                  onClick={() => setLocation(`/clientes/${cliente.id}`)}
+                  className="flex items-start gap-1.5 p-1.5 rounded hover:bg-slate-700/50 transition-colors text-left w-full group"
+                  data-testid={`client-link-${cliente.id}`}
+                >
+                  <User className="w-3 h-3 text-slate-400 mt-0.5 group-hover:text-white" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-white truncate group-hover:text-blue-400">
+                      {cliente.nome}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                      <Phone className="w-2.5 h-2.5" />
+                      <span>{cliente.telefone}</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+              {system.clientesAtivos.length > 2 && (
+                <div className="text-xs text-slate-500 text-center">
+                  +{system.clientesAtivos.length - 2} clientes
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </TableCell>
       <TableCell className="text-right">
