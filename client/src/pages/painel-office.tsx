@@ -163,14 +163,24 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
         </button>
       </TableCell>
       <TableCell className="text-slate-300 w-20 text-center">
-        <Badge variant="outline" className="text-xs">{system.systemId || system.system_id}</Badge>
+        <div className="flex items-center justify-center gap-1">
+          {parseInt(system.systemId || system.system_id) >= 1000 && (
+            <Key className="w-3 h-3 text-orange-400" />
+          )}
+          <Badge variant="outline" className="text-xs">{system.systemId || system.system_id}</Badge>
+        </div>
       </TableCell>
       <TableCell className="text-slate-300">
         <div className="flex items-center gap-2">
           <Server className="w-4 h-4 text-slate-400" />
           <div>
-            <div className="font-medium">
+            <div className="font-medium flex items-center gap-2">
               {system.username || `Sistema ${system.systemId || system.system_id}`}
+              {parseInt(system.systemId || system.system_id) >= 1000 && (
+                <Badge className="text-xs bg-orange-500/20 text-orange-400 border-orange-500/30 px-1 py-0">
+                  Fixo
+                </Badge>
+              )}
             </div>
             {system.nota && (
               <div className="text-xs text-slate-500">{system.nota}</div>
@@ -411,16 +421,8 @@ export default function PainelOffice() {
   const isFixedMode = storedDistributionMode === 'fixed-points';
   
   // Filter systems based on distribution mode
-  const filteredSystems = systemsRaw.filter((system: System) => {
-    const systemId = parseInt(system.systemId || system.system_id) || 0;
-    // In fixed-points mode: show only systems with ID >= 1000
-    // In individual mode: show only systems with ID < 1000
-    if (isFixedMode) {
-      return systemId >= 1000;
-    } else {
-      return systemId < 1000;
-    }
-  });
+  // Show ALL systems in the list (both normal and fixed)
+  const filteredSystems = systemsRaw;
   
   // Sort filtered systems by system_id (numerical order)
   const systems = [...filteredSystems].sort((a, b) => {
