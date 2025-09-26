@@ -185,11 +185,47 @@ export class AutoRenewalService {
         console.log(`    - Pontos ativos: ${sistema.pontosAtivos}/${sistema.maxPontosAtivos}`);
       });
 
-      // Atualizar fila APENAS com sistemas vencidos ou próximos do vencimento
+      // Buscar pontos ativos e clientes para verificar vencimentos
+      const allPontos = await storage.getAllPontos();
+      const allClientes = await storage.getClientes();
+      
+      // Criar mapa de clienteId -> cliente para lookup rápido
+      const clientesMap = new Map<number, typeof allClientes[0]>();
+      for (const cliente of allClientes) {
+        clientesMap.set(cliente.id, cliente);
+      }
+      
+      // Identificar sistemas com clientes vencidos
+      const sistemasComClientesVencidos = new Set<string>();
+      for (const ponto of allPontos) {
+        if (ponto.sistemaId && ponto.clienteId && ponto.status === 'ativo') {
+          const cliente = clientesMap.get(ponto.clienteId);
+          if (cliente && cliente.vencimento) {
+            const vencimentoCliente = new Date(cliente.vencimento);
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            vencimentoCliente.setHours(0, 0, 0, 0);
+            
+            if (vencimentoCliente < hoje) {
+              const diasVencido = Math.floor((hoje.getTime() - vencimentoCliente.getTime()) / (1000 * 60 * 60 * 24));
+              console.log(`🚫 Sistema ${ponto.sistemaId} tem cliente vencido: ${cliente.nome} (vencido há ${diasVencido} dias)`);
+              sistemasComClientesVencidos.add(ponto.sistemaId.toString());
+            }
+          }
+        }
+      }
+      
+      // Atualizar fila APENAS com sistemas vencidos ou próximos do vencimento (e SEM clientes vencidos)
       for (const sistema of sistemasAutoRenew) {
         // Pular sistemas sem data de expiração
         if (!sistema.expiracao) {
           console.log(`⚠️ Sistema ${sistema.systemId} sem data de expiração definida`);
+          continue;
+        }
+        
+        // NOVO: Pular sistemas com clientes vencidos
+        if (sistemasComClientesVencidos.has(sistema.systemId)) {
+          console.log(`🚫 Sistema ${sistema.systemId} NÃO adicionado à fila - tem cliente vencido`);
           continue;
         }
         
@@ -228,6 +264,12 @@ export class AutoRenewalService {
           console.log(`⏭️ Sistema ${sistema.systemId} (${sistema.username}) já está em processo de renovação`);
           return false;
         }
+        
+        // NOVO: Verificar se o sistema tem cliente vencido
+        if (sistemasComClientesVencidos.has(sistema.systemId)) {
+          console.log(`❌ Sistema ${sistema.systemId} (${sistema.username}) NÃO será renovado - tem cliente vencido`);
+          return false;
+        }
 
         // Verificar se está vencido ou próximo do vencimento
         if (!sistema.expiracao) {
@@ -237,7 +279,7 @@ export class AutoRenewalService {
         const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
         const isExpired = expiracaoDate <= now;
         
-        // SE ESTÁ VENCIDO, renovar imediatamente
+        // SE ESTÁ VENCIDO, renovar imediatamente (mas só se não tem cliente vencido)
         if (isExpired) {
           console.log(`🚨 Sistema ${sistema.systemId} (${sistema.username}) VENCIDO há ${Math.abs(minutosAteExpiracao).toFixed(0)} minutos - renovação IMEDIATA`);
           return true;
