@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, ArrowUpDown, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon, FileText, Download, Filter, Search, Trash, Eye, Info, Shuffle, Package, Network, Lock, Phone } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon, FileText, Download, Filter, Search, Trash, Eye, Info, Shuffle, Package, Network, Lock, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { apiRequest, queryClient as qc } from '@/lib/queryClient';
@@ -354,7 +354,6 @@ export default function PainelOffice() {
   const [showSystemDialog, setShowSystemDialog] = useState(false);
   const [systemToDelete, setSystemToDelete] = useState<string | null>(null);
   const [isGeneratingIPTV, setIsGeneratingIPTV] = useState(false);
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   // Estado removido - usando automationConfig.isEnabled diretamente
   const [automationConfig, setAutomationConfig] = useState({
     isEnabled: false,
@@ -470,7 +469,7 @@ export default function PainelOffice() {
     const idA = parseInt(a.systemId || a.system_id) || 0;
     const idB = parseInt(b.systemId || b.system_id) || 0;
     
-    return sortOrder === 'asc' ? idA - idB : idB - idA;
+    return idA - idB; // Sempre ordenar crescente
   });
 
   // Filter fixed systems (ID >= 1000) from ALL systems (not filtered ones)
@@ -1286,18 +1285,6 @@ export default function PainelOffice() {
                   data-testid="button-refresh-systems"
                 >
                   <RefreshCw className="w-4 h-4" />
-                </Button>
-                <Button
-                  onClick={() => {
-                    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
-                  }}
-                  variant="ghost"
-                  size="sm"
-                  className="text-slate-400 hover:text-slate-300"
-                  title={`Ordenar por ID do sistema (${sortOrder === 'asc' ? 'crescente' : 'decrescente'})`}
-                  data-testid="button-sort-expiration"
-                >
-                  <ArrowUpDown className="w-4 h-4" />
                 </Button>
                 <Button
                   onClick={() => openSystemDialog()}
