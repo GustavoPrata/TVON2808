@@ -5986,6 +5986,92 @@ Como posso ajudar você hoje?
             let apiSyncSuccess = 0;
             let apiSyncFailed = 0;
             
+            // IMPORTANTE: Sincronizar usuários (pontos) com API externa
+            console.log('\n📊 === SINCRONIZANDO USUÁRIOS (PONTOS) COM API EXTERNA ===');
+            console.log(`🔄 Atualizando campo 'system' de ${pontosAtivos.length} usuários na API...`);
+            
+            let userApiSyncSuccess = 0;
+            let userApiSyncFailed = 0;
+            
+            // Para cada ponto atribuído, atualizar o campo system do usuário na API
+            for (const update of updates) {
+              if (!update.sistemaId) continue; // Pular pontos não atribuídos
+              
+              try {
+                // Buscar o ponto e o sistema
+                const ponto = pontosAtivos.find(p => p.id === update.pontoId);
+                const sistema = sistemasFixos.find(s => s.id === update.sistemaId);
+                
+                if (!ponto || !sistema) {
+                  console.error(`⚠️ Ponto ${update.pontoId} ou Sistema ${update.sistemaId} não encontrado`);
+                  continue;
+                }
+                
+                // Converter systemId para número
+                const systemNumber = sistema.systemId.startsWith('sistema') 
+                  ? parseInt(sistema.systemId.replace('sistema', ''))
+                  : parseInt(sistema.systemId);
+                
+                // Se o ponto tem apiUserId, atualizar o usuário na API
+                if (ponto.apiUserId) {
+                  console.log(`  📝 Atualizando usuário ${ponto.usuario} (API ID: ${ponto.apiUserId}) para sistema ${systemNumber}`);
+                  
+                  // Verificar se o usuário existe na API
+                  const userExists = await externalApiService.getUser(parseInt(ponto.apiUserId));
+                  
+                  if (userExists) {
+                    // Atualizar o campo system do usuário
+                    await externalApiService.updateUser(parseInt(ponto.apiUserId), {
+                      system: systemNumber
+                    });
+                    console.log(`    ✅ Usuário atualizado com sucesso`);
+                    userApiSyncSuccess++;
+                  } else {
+                    // Criar novo usuário se não existir
+                    console.log(`    ⚠️ Usuário não encontrado na API. Criando...`);
+                    const newUser = await externalApiService.createUser({
+                      username: ponto.usuario,
+                      password: ponto.senha || nanoid(8),
+                      status: 'Active',
+                      exp_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                      system: systemNumber
+                    });
+                    
+                    if (newUser && newUser.id) {
+                      await storage.updatePonto(ponto.id, { apiUserId: newUser.id.toString() });
+                      console.log(`    ✅ Novo usuário criado e vinculado`);
+                      userApiSyncSuccess++;
+                    }
+                  }
+                } else {
+                  // Criar novo usuário na API
+                  console.log(`  📝 Criando usuário ${ponto.usuario} na API com sistema ${systemNumber}`);
+                  const newUser = await externalApiService.createUser({
+                    username: ponto.usuario,
+                    password: ponto.senha || nanoid(8),
+                    status: 'Active',
+                    exp_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                    system: systemNumber
+                  });
+                  
+                  if (newUser && newUser.id) {
+                    await storage.updatePonto(ponto.id, { apiUserId: newUser.id.toString() });
+                    console.log(`    ✅ Usuário criado e vinculado com sucesso`);
+                    userApiSyncSuccess++;
+                  }
+                }
+              } catch (userApiError) {
+                console.error(`    ❌ Erro ao sincronizar usuário:`, userApiError);
+                userApiSyncFailed++;
+              }
+            }
+            
+            console.log(`\n📊 === RESUMO DA SINCRONIZAÇÃO DE USUÁRIOS ===`);
+            console.log(`✅ Usuários sincronizados com sucesso: ${userApiSyncSuccess}`);
+            console.log(`❌ Falhas na sincronização: ${userApiSyncFailed}`);
+            console.log(`📈 Taxa de sucesso: ${((userApiSyncSuccess / pontosAtivos.length) * 100).toFixed(1)}%`);
+            console.log(`===========================================\n`);
+            
             for (const sistemaFixo of sistemasFixos) {
               try {
                 // Obter o número de pontos ativos atualizado
@@ -6225,6 +6311,102 @@ Como posso ajudar você hoje?
 
         // Aplicar todas as atualizações em lote
         await storage.bulkUpdatePontosSistema(updates);
+        
+        // ===== SINCRONIZAÇÃO COM API EXTERNA (MODO NORMAL) =====
+        if (apiEnabled && pontosAtualizados > 0) {
+          console.log('\n🔄 === INICIANDO SINCRONIZAÇÃO COM API EXTERNA (MODO NORMAL) ===');
+          console.log(`📊 Sincronizando ${pontosAtualizados} pontos com a API externa...`);
+          
+          let userApiSyncSuccess = 0;
+          let userApiSyncFailed = 0;
+          
+          // Para cada ponto atribuído, atualizar o campo system do usuário na API
+          for (const update of updates) {
+            if (!update.sistemaId) continue; // Pular pontos não atribuídos
+            
+            try {
+              // Buscar o ponto e o sistema
+              const ponto = todosPontos.find(p => p.id === update.pontoId);
+              const sistema = sistemasExistentes.find(s => s.id === update.sistemaId);
+              
+              if (!ponto || !sistema) {
+                console.error(`⚠️ Ponto ${update.pontoId} ou Sistema ${update.sistemaId} não encontrado`);
+                continue;
+              }
+              
+              // Converter systemId para número
+              const systemNumber = sistema.systemId.startsWith('sistema') 
+                ? parseInt(sistema.systemId.replace('sistema', ''))
+                : parseInt(sistema.systemId);
+              
+              // Se o ponto tem apiUserId, atualizar o usuário na API
+              if (ponto.apiUserId) {
+                console.log(`  📝 Atualizando usuário ${ponto.usuario} (API ID: ${ponto.apiUserId}) para sistema ${systemNumber}`);
+                
+                // Verificar se o usuário existe na API
+                const userExists = await externalApiService.getUser(parseInt(ponto.apiUserId));
+                
+                if (userExists) {
+                  // Atualizar o campo system do usuário
+                  await externalApiService.updateUser(parseInt(ponto.apiUserId), {
+                    system: systemNumber
+                  });
+                  console.log(`    ✅ Usuário atualizado com sucesso`);
+                  userApiSyncSuccess++;
+                } else {
+                  // Criar novo usuário se não existir
+                  console.log(`    ⚠️ Usuário não encontrado na API. Criando...`);
+                  const newUser = await externalApiService.createUser({
+                    username: ponto.usuario,
+                    password: ponto.senha || nanoid(8),
+                    status: 'Active',
+                    exp_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                    system: systemNumber
+                  });
+                  
+                  if (newUser && newUser.id) {
+                    await storage.updatePonto(ponto.id, { apiUserId: newUser.id.toString() });
+                    console.log(`    ✅ Novo usuário criado e vinculado`);
+                    userApiSyncSuccess++;
+                  }
+                }
+              } else {
+                // Criar novo usuário na API
+                console.log(`  📝 Criando usuário ${ponto.usuario} na API com sistema ${systemNumber}`);
+                const newUser = await externalApiService.createUser({
+                  username: ponto.usuario,
+                  password: ponto.senha || nanoid(8),
+                  status: 'Active',
+                  exp_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                  system: systemNumber
+                });
+                
+                if (newUser && newUser.id) {
+                  await storage.updatePonto(ponto.id, { apiUserId: newUser.id.toString() });
+                  console.log(`    ✅ Usuário criado e vinculado com sucesso`);
+                  userApiSyncSuccess++;
+                }
+              }
+            } catch (userApiError) {
+              console.error(`    ❌ Erro ao sincronizar usuário:`, userApiError);
+              userApiSyncFailed++;
+            }
+          }
+          
+          console.log(`\n📊 === RESUMO DA SINCRONIZAÇÃO DE USUÁRIOS (MODO NORMAL) ===`);
+          console.log(`✅ Usuários sincronizados com sucesso: ${userApiSyncSuccess}`);
+          console.log(`❌ Falhas na sincronização: ${userApiSyncFailed}`);
+          console.log(`📈 Taxa de sucesso: ${pontosAtualizados > 0 ? ((userApiSyncSuccess / pontosAtualizados) * 100).toFixed(1) : 0}%`);
+          console.log(`================================================\n`);
+          
+          detalhes.push({
+            tipo: 'sync_api_usuarios',
+            totalUsuarios: pontosAtualizados,
+            sucessos: userApiSyncSuccess,
+            falhas: userApiSyncFailed,
+            taxaSucesso: `${pontosAtualizados > 0 ? ((userApiSyncSuccess / pontosAtualizados) * 100).toFixed(1) : 0}%`
+          });
+        }
       }
 
       // Resposta detalhada
