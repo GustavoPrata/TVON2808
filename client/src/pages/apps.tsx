@@ -35,8 +35,11 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface PontoComCliente extends Ponto {
-  clienteNome?: string;
-  clienteTelefone?: string;
+  cliente?: {
+    id: number;
+    nome: string;
+    telefone: string;
+  };
 }
 
 export default function Apps() {
@@ -179,8 +182,8 @@ export default function Apps() {
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       return (
-        ponto.clienteNome?.toLowerCase().includes(search) ||
-        ponto.clienteTelefone?.includes(search) ||
+        ponto.cliente?.nome?.toLowerCase().includes(search) ||
+        ponto.cliente?.telefone?.includes(search) ||
         ponto.macAddress?.toLowerCase().includes(search) ||
         ponto.usuario?.toLowerCase().includes(search)
       );
@@ -324,11 +327,11 @@ export default function Apps() {
                         {ponto.clienteId ? (
                           <Link href={`/clientes/${ponto.clienteId}`}>
                             <h3 className="font-bold text-white hover:text-blue-400 cursor-pointer transition-colors">
-                              {ponto.clienteNome || 'Cliente'}
+                              {ponto.cliente?.nome || 'Cliente'}
                             </h3>
                           </Link>
                         ) : (
-                          <h3 className="font-bold text-white">{ponto.clienteNome || 'Cliente'}</h3>
+                          <h3 className="font-bold text-white">{ponto.cliente?.nome || 'Cliente'}</h3>
                         )}
                         <Badge className={cn(
                           "text-xs",
@@ -342,11 +345,11 @@ export default function Apps() {
                       {ponto.clienteId ? (
                         <Link href={`/clientes/${ponto.clienteId}`}>
                           <p className="text-sm text-slate-400 hover:text-blue-400 cursor-pointer transition-colors">
-                            {formatPhone(ponto.clienteTelefone || '')}
+                            {formatPhone(ponto.cliente?.telefone || '')}
                           </p>
                         </Link>
                       ) : (
-                        <p className="text-sm text-slate-400">{formatPhone(ponto.clienteTelefone || '')}</p>
+                        <p className="text-sm text-slate-400">{formatPhone(ponto.cliente?.telefone || '')}</p>
                       )}
                       <Badge className="mt-2 bg-slate-700 text-slate-300 border-slate-600">
                         {getAppLabel(ponto.aplicativo)}
