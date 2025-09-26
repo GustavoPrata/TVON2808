@@ -5525,6 +5525,120 @@ Como posso ajudar você hoje?
     }
   });
 
+  // Endpoint de teste para verificar configuração da API e sincronização
+  app.get("/api/sistemas/test-api-sync", checkAuth, async (req, res) => {
+    try {
+      console.log('\n🧑‍💻 === TESTE DE CONFIGURAÇÃO E SINCRONIZAÇÃO DA API EXTERNA ===');
+      
+      // 1. Verificar configuração da API
+      const integracaoApi = await storage.getIntegracaoByTipo('api_externa');
+      const apiEnabled = integracaoApi && integracaoApi.ativo;
+      
+      const resultado: any = {
+        configuracao: {
+          apiAtiva: apiEnabled,
+          baseUrl: null,
+          apiKey: null,
+          key170604Encontrada: false
+        },
+        conexao: {
+          testeConexao: false,
+          erro: null
+        },
+        usuarios: {
+          total: 0,
+          amostra: []
+        },
+        sistemas: {
+          total: 0,
+          amostra: []
+        },
+        pontosLocais: {
+          total: 0,
+          comApiUserId: 0,
+          semApiUserId: 0
+        }
+      };
+      
+      if (integracaoApi) {
+        const config = integracaoApi.configuracoes as any;
+        resultado.configuracao.baseUrl = config?.baseUrl || 'NÃO CONFIGURADO';
+        resultado.configuracao.apiKey = config?.apiKey ? config.apiKey.substring(0, 10) + '...' : 'NÃO CONFIGURADO';
+        resultado.configuracao.key170604Encontrada = config?.apiKey?.includes('170604') || false;
+      }
+      
+      if (apiEnabled) {
+        // 2. Testar conexão com a API
+        console.log('🌐 Testando conexão com API externa...');
+        try {
+          const conectado = await externalApiService.testConnection();
+          resultado.conexao.testeConexao = conectado;
+          console.log(`  ${conectado ? '✅ Conexão bem-sucedida' : '❌ Falha na conexão'}`);
+        } catch (error) {
+          resultado.conexao.erro = error instanceof Error ? error.message : 'Erro desconhecido';
+          console.error('  ❌ Erro ao testar conexão:', error);
+        }
+        
+        // 3. Buscar usuários da API
+        console.log('👥 Buscando usuários da API externa...');
+        try {
+          const usuarios = await externalApiService.getUsers();
+          resultado.usuarios.total = usuarios.length;
+          resultado.usuarios.amostra = usuarios.slice(0, 3).map(u => ({
+            id: u.id,
+            username: u.username,
+            system: u.system,
+            status: u.status
+          }));
+          console.log(`  👥 ${usuarios.length} usuários encontrados`);
+        } catch (error) {
+          console.error('  ❌ Erro ao buscar usuários:', error);
+        }
+        
+        // 4. Buscar sistemas da API
+        console.log('📦 Buscando sistemas da API externa...');
+        try {
+          const sistemas = await externalApiService.getSystemCredentials();
+          resultado.sistemas.total = sistemas.length;
+          resultado.sistemas.amostra = sistemas.slice(0, 3).map(s => ({
+            system_id: s.system_id,
+            username: s.username
+          }));
+          console.log(`  📦 ${sistemas.length} sistemas encontrados`);
+        } catch (error) {
+          console.error('  ❌ Erro ao buscar sistemas:', error);
+        }
+      }
+      
+      // 5. Verificar pontos locais
+      console.log('📍 Verificando pontos locais...');
+      const pontosLocais = await storage.getPontos();
+      const pontosComApiId = pontosLocais.filter(p => p.apiUserId);
+      resultado.pontosLocais.total = pontosLocais.length;
+      resultado.pontosLocais.comApiUserId = pontosComApiId.length;
+      resultado.pontosLocais.semApiUserId = pontosLocais.length - pontosComApiId.length;
+      console.log(`  📍 ${pontosLocais.length} pontos locais`);
+      console.log(`  🔗 ${pontosComApiId.length} com apiUserId`);
+      console.log(`  ⛓ ${pontosLocais.length - pontosComApiId.length} sem apiUserId`);
+      
+      console.log('=== FIM DO TESTE ===\n');
+      
+      res.json({
+        sucesso: true,
+        resultado,
+        recomendacoes: [
+          resultado.configuracao.apiAtiva ? null : 'API externa está desativada. Ative em Configurações.',
+          resultado.configuracao.key170604Encontrada ? null : 'Chave key170604 não encontrada nas credenciais.',
+          resultado.conexao.testeConexao ? null : 'Falha na conexão com a API. Verifique as credenciais.',
+          resultado.pontosLocais.semApiUserId > 0 ? `${resultado.pontosLocais.semApiUserId} pontos sem apiUserId precisam ser sincronizados.` : null
+        ].filter(Boolean)
+      });
+    } catch (error) {
+      console.error('❌ Erro ao testar API:', error);
+      res.status(500).json({ error: 'Erro ao testar API', detalhes: error instanceof Error ? error.message : error });
+    }
+  });
+  
   // Distribuir pontos entre sistemas
   app.post("/api/sistemas/distribute", checkAuth, async (req, res) => {
     try {
@@ -5548,6 +5662,19 @@ Como posso ajudar você hoje?
       // Verificar se API externa está configurada
       const integracaoApi = await storage.getIntegracaoByTipo('api_externa');
       const apiEnabled = integracaoApi && integracaoApi.ativo;
+      
+      // Log detalhado da configuração da API
+      console.log('🔍 === DEBUG: CONFIGURAÇÃO DA API EXTERNA ===');
+      if (integracaoApi) {
+        const config = integracaoApi.configuracoes as any;
+        console.log(`📡 Status da API: ${apiEnabled ? '✅ ATIVA' : '❌ INATIVA'}`);
+        console.log(`🌐 Base URL: ${config?.baseUrl || 'NÃO CONFIGURADO'}`);
+        console.log(`🔑 API Key: ${config?.apiKey ? config.apiKey.substring(0, 10) + '...' : 'NÃO CONFIGURADO'}`);
+        console.log(`🔧 Verificando credencial key170604: ${config?.apiKey?.includes('170604') ? '✅ ENCONTRADO' : '❌ NÃO ENCONTRADO'}`);
+      } else {
+        console.log('❌ Integração API Externa não configurada no banco de dados');
+      }
+      console.log('===========================================\n');
       
       // Estatísticas para resposta
       let sistemasCriados = 0;
@@ -8109,12 +8236,12 @@ Como posso ajudar você hoje?
         try {
           if (apiUser) {
             // Update existing user
-            // NOTA: Campo "system" comentado pois é palavra reservada em MySQL e causa erro SQL na API externa
+            // Atualizar usuário existente com campo system
             await externalApiService.updateUser(apiUser.id, {
               password: ponto.senha,
               exp_date: expDate,
               status: "Active",
-              // system: systemNumber, // Removido: palavra reservada MySQL causa erro na API
+              system: systemNumber, // Campo system reativado - API deve tratar como campo quoted
             });
             updated++;
 
@@ -8124,13 +8251,13 @@ Como posso ajudar você hoje?
             }
           } else {
             // Create new user
-            // NOTA: Campo "system" comentado pois é palavra reservada em MySQL e causa erro SQL na API externa
+            // Campo system incluído - API deve tratar campos reservados adequadamente
             const newUser = await externalApiService.createUser({
               username: ponto.usuario,
               password: ponto.senha,
               exp_date: expDate,
               status: "Active",
-              // system: systemNumber, // Removido: palavra reservada MySQL causa erro na API
+              system: systemNumber, // Campo system reativado - API deve tratar como campo quoted
             });
 
             if (newUser) {
