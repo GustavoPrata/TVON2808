@@ -5893,10 +5893,27 @@ Como posso ajudar você hoje?
           console.log(`🔐 Sistemas fixos detectados: ${fixedSystemIds.join(', ')}`);
           console.log(`🌟 Todos os ${totalPontos} pontos serão divididos entre os ${fixedSystemIds.length} sistemas fixos`);
           
+          // Converter fixedSystemIds para strings para garantir comparação correta
+          const fixedSystemIdsStr = fixedSystemIds.map(id => String(id));
+          
+          // Debug: log dos sistemas e IDs
+          console.log(`🔍 Debug - fixedSystemIdsStr: [${fixedSystemIdsStr.join(', ')}]`);
+          console.log(`🔍 Debug - Total sistemas existentes: ${sistemasExistentes.length}`);
+          
           // Filtrar sistemas fixos da lista de sistemas existentes
-          const sistemasFixos = sistemasExistentes.filter(s => 
-            fixedSystemIds.includes(s.systemId) || fixedSystemIds.includes(s.id.toString())
-          );
+          const sistemasFixos = sistemasExistentes.filter(s => {
+            // Normalizar o systemId removendo prefixo 'sistema' se existir
+            const systemIdNormalizado = normalizeSystemId(s.systemId) || '';
+            const match = fixedSystemIdsStr.includes(systemIdNormalizado) || 
+                         fixedSystemIdsStr.includes(String(s.id));
+            
+            if (parseInt(systemIdNormalizado) >= 1000) {
+              console.log(`🔍 Debug - Sistema ${s.id}: systemId="${s.systemId}", normalizado="${systemIdNormalizado}", match=${match}`);
+            }
+            
+            // Comparar como strings
+            return match;
+          });
           
           if (sistemasFixos.length === 0) {
             return res.status(400).json({ 
