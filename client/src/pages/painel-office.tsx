@@ -909,22 +909,62 @@ export default function PainelOffice() {
           ? new Date(system.expiracao || system.expiration || '').toISOString().slice(0, 16)
           : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
       });
+      setShowSystemDialog(true);
     } else {
       // Gerar sistema automaticamente quando criar novo
-      setEditingSystem(null);
-      
-      // Gerar dados automaticamente
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      
-      systemForm.reset({
-        username: 'tvon',
-        password: 'tvon',
-        maxPontosAtivos: 100,
-        expiration: yesterday.toISOString().slice(0, 16),
-      });
+      try {
+        toast({
+          title: "Gerando Sistema",
+          description: "Criando novo sistema automaticamente...",
+        });
+        
+        const response = await fetch('/api/sistemas/auto-generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Erro ao gerar sistema');
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.sistema) {
+          toast({
+            title: "Sistema Gerado",
+            description: `Sistema ${result.sistema.systemId} criado com sucesso!`,
+            variant: "default",
+          });
+          
+          // Recarregar lista de sistemas
+          queryClient.invalidateQueries({ queryKey: ['/api/external-api/systems'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/sistemas'] });
+          
+          // Não abrir o diálogo, pois o sistema já foi criado
+        }
+      } catch (error: any) {
+        console.error('Erro ao gerar sistema:', error);
+        toast({
+          title: "Erro",
+          description: error.message || "Erro ao gerar sistema automaticamente",
+          variant: "destructive",
+        });
+        
+        // Em caso de erro, abrir o diálogo com valores padrão
+        setEditingSystem(null);
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        systemForm.reset({
+          username: 'tvon',
+          password: 'tvon',
+          maxPontosAtivos: 100,
+          expiration: yesterday.toISOString().slice(0, 16),
+        });
+        setShowSystemDialog(true);
+      }
     }
-    setShowSystemDialog(true);
   };
 
   // Intelligent paste handler for system dialog
@@ -1691,37 +1731,13 @@ export default function PainelOffice() {
           <div className="grid grid-cols-2 gap-4 py-4">
             <div>
               <Label htmlFor="username" className="text-slate-400">Usuário *</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="username"
-                  {...systemForm.register('username')}
-                  placeholder="Digite o usuário"
-                  className="bg-slate-800 border-slate-700 mt-1.5"
-                  data-testid="input-system-username"
-                />
-                <Button
-                  type="button"
-                  onClick={() => {
-                    // Gerar dados automaticamente
-                    const yesterday = new Date();
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    systemForm.reset({
-                      username: 'tvon',
-                      password: 'tvon',
-                      maxPontosAtivos: 100,
-                      expiration: yesterday.toISOString().slice(0, 16),
-                    });
-                    toast({
-                      title: "Dados Gerados",
-                      description: "Usuário e senha configurados como 'tvon'",
-                    });
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 px-3 mt-1.5"
-                  title="Gerar Dados Automaticamente"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
+              <Input
+                id="username"
+                {...systemForm.register('username')}
+                placeholder="Digite o usuário"
+                className="bg-slate-800 border-slate-700 mt-1.5"
+                data-testid="input-system-username"
+              />
               {systemForm.formState.errors.username && (
                 <p className="text-xs text-red-400 mt-1">{systemForm.formState.errors.username.message}</p>
               )}
