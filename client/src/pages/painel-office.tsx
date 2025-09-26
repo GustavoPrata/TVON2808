@@ -278,18 +278,20 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
                 data-testid={`client-link-${system.clientesAtivos[0].id}`}
               >
                 <User className="w-3 h-3 text-slate-400 group-hover:text-white flex-shrink-0" />
-                <div className="flex flex-col">
-                  <div className="text-xs font-medium text-white truncate group-hover:text-blue-400 max-w-[120px]">
-                    {system.clientesAtivos[0].nome}
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-slate-500">
-                    <Phone className="w-2.5 h-2.5" />
-                    <span className="truncate">{system.clientesAtivos[0].telefone}</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col">
+                    <div className="text-xs font-medium text-white truncate group-hover:text-blue-400 max-w-[120px]">
+                      {system.clientesAtivos[0].nome}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                      <Phone className="w-2.5 h-2.5" />
+                      <span className="truncate">{system.clientesAtivos[0].telefone}</span>
+                    </div>
                   </div>
                   {system.clientesAtivos[0].vencimento && (
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                    <div className="flex items-center gap-1 text-xs text-slate-500 border-l border-slate-700 pl-2">
                       <Calendar className="w-2.5 h-2.5" />
-                      <span className="truncate">
+                      <span className="whitespace-nowrap">
                         {(() => {
                           const vencimento = new Date(system.clientesAtivos[0].vencimento);
                           const today = new Date();
