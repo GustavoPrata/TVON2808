@@ -898,7 +898,7 @@ export default function PainelOffice() {
     }
   };
 
-  const openSystemDialog = (system?: System) => {
+  const openSystemDialog = async (system?: System) => {
     if (system) {
       setEditingSystem(system);
       systemForm.reset({
@@ -910,12 +910,18 @@ export default function PainelOffice() {
           : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
       });
     } else {
+      // Gerar sistema automaticamente quando criar novo
       setEditingSystem(null);
+      
+      // Gerar dados automaticamente
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      
       systemForm.reset({
-        username: '',
-        password: '',
+        username: 'tvon',
+        password: 'tvon',
         maxPontosAtivos: 100,
-        expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+        expiration: yesterday.toISOString().slice(0, 16),
       });
     }
     setShowSystemDialog(true);
@@ -1685,13 +1691,37 @@ export default function PainelOffice() {
           <div className="grid grid-cols-2 gap-4 py-4">
             <div>
               <Label htmlFor="username" className="text-slate-400">Usuário *</Label>
-              <Input
-                id="username"
-                {...systemForm.register('username')}
-                placeholder="Digite o usuário"
-                className="bg-slate-800 border-slate-700 mt-1.5"
-                data-testid="input-system-username"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="username"
+                  {...systemForm.register('username')}
+                  placeholder="Digite o usuário"
+                  className="bg-slate-800 border-slate-700 mt-1.5"
+                  data-testid="input-system-username"
+                />
+                <Button
+                  type="button"
+                  onClick={() => {
+                    // Gerar dados automaticamente
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    systemForm.reset({
+                      username: 'tvon',
+                      password: 'tvon',
+                      maxPontosAtivos: 100,
+                      expiration: yesterday.toISOString().slice(0, 16),
+                    });
+                    toast({
+                      title: "Dados Gerados",
+                      description: "Usuário e senha configurados como 'tvon'",
+                    });
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 px-3 mt-1.5"
+                  title="Gerar Dados Automaticamente"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
               {systemForm.formState.errors.username && (
                 <p className="text-xs text-red-400 mt-1">{systemForm.formState.errors.username.message}</p>
               )}
