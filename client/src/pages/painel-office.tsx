@@ -1187,13 +1187,13 @@ export default function PainelOffice() {
                   {/* Indicador do Modo Ativo */}
                   <Badge 
                     className={
-                      storedDistributionMode === 'individual' 
+                      !isFixedMode 
                         ? "bg-blue-500/20 text-blue-400 border-blue-500/50" 
                         : "bg-purple-500/20 text-purple-400 border-purple-500/50"
                     }
                     variant="outline"
                   >
-                    {storedDistributionMode === 'individual' ? (
+                    {!isFixedMode ? (
                       <>
                         <Package className="w-3 h-3 mr-1" />
                         1:1
@@ -1207,7 +1207,7 @@ export default function PainelOffice() {
                   </Badge>
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  {storedDistributionMode === 'individual' 
+                  {!isFixedMode 
                     ? "Modo: Um Sistema por Ponto - Cada ponto tem seu sistema dedicado"
                     : "Modo: Pontos Fixos - Sistemas com quantidade fixa de pontos"}
                 </CardDescription>
