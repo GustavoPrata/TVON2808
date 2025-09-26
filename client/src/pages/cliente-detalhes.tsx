@@ -1434,6 +1434,15 @@ export default function ClienteDetalhes() {
                                   .sort((a: any, b: any) => {
                                     const numA = parseInt(a.systemId) || 0;
                                     const numB = parseInt(b.systemId) || 0;
+                                    
+                                    // Sistemas com 0 ativos primeiro (exceto 1000+)
+                                    const aIsEmpty = a.pontosAtivos === 0 && numA < 1000;
+                                    const bIsEmpty = b.pontosAtivos === 0 && numB < 1000;
+                                    
+                                    if (aIsEmpty && !bIsEmpty) return -1;
+                                    if (!aIsEmpty && bIsEmpty) return 1;
+                                    
+                                    // Depois ordena por número
                                     return numA - numB;
                                   })
                                   .map((sistema: any) => (
@@ -1820,6 +1829,15 @@ export default function ClienteDetalhes() {
                       .sort((a: any, b: any) => {
                         const numA = parseInt(a.systemId) || 0;
                         const numB = parseInt(b.systemId) || 0;
+                        
+                        // Sistemas com 0 ativos primeiro (exceto 1000+)
+                        const aIsEmpty = (a.pontosAtivos === 0 || !a.pontosAtivos) && numA < 1000;
+                        const bIsEmpty = (b.pontosAtivos === 0 || !b.pontosAtivos) && numB < 1000;
+                        
+                        if (aIsEmpty && !bIsEmpty) return -1;
+                        if (!aIsEmpty && bIsEmpty) return 1;
+                        
+                        // Depois ordena por número
                         return numA - numB;
                       })
                       .map((sistema: any) => (
