@@ -1822,16 +1822,25 @@ export default function ClienteDetalhes() {
                         const numB = parseInt(b.systemId) || 0;
                         return numA - numB;
                       })
-                      .map((sistema: any) => (
-                        <SelectItem 
-                          key={sistema.id} 
-                          value={sistema.id.toString()}
-                          disabled={sistema.pontosAtivos >= sistema.maxPontosAtivos}
-                        >
-                          {sistema.systemId} ({sistema.pontosAtivos || 0}/{sistema.maxPontosAtivos || 100})
-                          {sistema.pontosAtivos >= sistema.maxPontosAtivos && ' - Limite atingido'}
-                        </SelectItem>
-                      ))}
+                      .map((sistema: any) => {
+                        // Log para debug
+                        console.log(`Sistema ${sistema.systemId}: pontos=${sistema.pontosAtivos}, max=${sistema.maxPontosAtivos}, disabled=${sistema.pontosAtivos >= sistema.maxPontosAtivos}`);
+                        
+                        const pontosAtivos = sistema.pontosAtivos || 0;
+                        const maxPontos = sistema.maxPontosAtivos || 100;
+                        const isDisabled = pontosAtivos >= maxPontos;
+                        
+                        return (
+                          <SelectItem 
+                            key={sistema.id} 
+                            value={sistema.id.toString()}
+                            disabled={isDisabled}
+                          >
+                            {sistema.systemId} ({pontosAtivos}/{maxPontos})
+                            {isDisabled && ' - Limite atingido'}
+                          </SelectItem>
+                        );
+                      })}
                   </SelectContent>
                 </Select>
                 <Button
