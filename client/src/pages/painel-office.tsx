@@ -1668,87 +1668,71 @@ export default function PainelOffice() {
         <RenewalQueueSection />
       </div>
 
-      {/* Custom System Modal */}
-      {showSystemDialog && (
-        <div 
-          className="fixed rounded-xl shadow-2xl p-6 max-w-md bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-600/50"
-          style={{
-            left: '25%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 999,
-            minWidth: '400px',
-            backdropFilter: 'blur(10px)',
-          }}
-        >
-          {/* Close button */}
-          <button
-            onClick={() => setShowSystemDialog(false)}
-            className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 hover:bg-slate-700 p-1 transition-all"
-          >
-            <X className="h-4 w-4 text-slate-300" />
-          </button>
-          
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-white">
-              {editingSystem ? '✏️ Editar Sistema' : '➕ Novo Sistema'}
-            </h2>
-            <p className="text-xs text-slate-400 mt-1">
+      {/* Dialog para adicionar/editar sistema */}
+      <Dialog open={showSystemDialog} onOpenChange={setShowSystemDialog}>
+        <DialogContent className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700/50 max-w-2xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">
+              {editingSystem ? 'Editar Sistema' : 'Adicionar Novo Sistema'}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
               {editingSystem 
                 ? `Editando sistema ID: ${editingSystem.systemId || editingSystem.system_id}`
-                : 'Adicione um novo sistema IPTV'}
-            </p>
-          </div>
+                : 'Preencha os dados para criar um novo sistema IPTV'}
+            </DialogDescription>
+          </DialogHeader>
           
-          <form onSubmit={systemForm.handleSubmit(handleSystemSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm">Usuário</Label>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <div>
+              <Label htmlFor="username" className="text-slate-400">Usuário *</Label>
               <Input
                 id="username"
                 {...systemForm.register('username')}
-                placeholder="Digite o usuário do sistema"
-                className="bg-slate-800 border-slate-700"
+                placeholder="Digite o usuário"
+                className="bg-slate-800 border-slate-700 mt-1.5"
                 data-testid="input-system-username"
               />
               {systemForm.formState.errors.username && (
-                <p className="text-xs text-red-400">{systemForm.formState.errors.username.message}</p>
+                <p className="text-xs text-red-400 mt-1">{systemForm.formState.errors.username.message}</p>
               )}
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm">Senha</Label>
+            <div>
+              <Label htmlFor="password" className="text-slate-400">Senha *</Label>
               <Input
                 id="password"
                 {...systemForm.register('password')}
-                placeholder="Digite a senha do sistema"
-                className="bg-slate-800 border-slate-700"
+                placeholder="Digite a senha"
+                className="bg-slate-800 border-slate-700 mt-1.5"
                 data-testid="input-system-password"
               />
               {systemForm.formState.errors.password && (
-                <p className="text-xs text-red-400">{systemForm.formState.errors.password.message}</p>
+                <p className="text-xs text-red-400 mt-1">{systemForm.formState.errors.password.message}</p>
               )}
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="maxPontosAtivos" className="text-sm">Máximo de Pontos Ativos</Label>
+            <div>
+              <Label htmlFor="maxPontosAtivos" className="text-slate-400">Pontos Máximos *</Label>
               <Input
                 id="maxPontosAtivos"
                 type="number"
                 {...systemForm.register('maxPontosAtivos', { valueAsNumber: true })}
-                placeholder="100"
-                className="bg-slate-800 border-slate-700"
+                placeholder="Ex: 100"
+                className="bg-slate-800 border-slate-700 mt-1.5"
                 data-testid="input-system-max-pontos"
               />
-              <p className="text-xs text-slate-500">Limite máximo de pontos que este sistema pode ter ativos</p>
+              {systemForm.formState.errors.maxPontosAtivos && (
+                <p className="text-xs text-red-400 mt-1">{systemForm.formState.errors.maxPontosAtivos.message}</p>
+              )}
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="expiration" className="text-sm">Validade</Label>
+            <div>
+              <Label htmlFor="expiration" className="text-slate-400">Data de Vencimento</Label>
               <Input
                 id="expiration"
                 type="datetime-local"
                 {...systemForm.register('expiration')}
-                className="bg-slate-800 border-slate-700"
+                className="bg-slate-800 border-slate-700 mt-1.5"
                 data-testid="input-system-expiration"
                 defaultValue={
                   editingSystem?.expiracao || editingSystem?.expiration
@@ -1756,40 +1740,43 @@ export default function PainelOffice() {
                     : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)
                 }
               />
-              <p className="text-xs text-slate-500">Data e hora de validade do sistema</p>
+              {systemForm.formState.errors.expiration && (
+                <p className="text-xs text-red-400 mt-1">{systemForm.formState.errors.expiration.message}</p>
+              )}
             </div>
-            
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowSystemDialog(false)}
-                className="border-slate-700"
-                data-testid="button-cancel-system"
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                disabled={saveSystemMutation.isPending}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-                data-testid="button-save-system"
-              >
-                {saveSystemMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  <>
-                    {editingSystem ? 'Salvar Alterações' : 'Criar Sistema'}
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </div>
-      )}
+          </div>
+          
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowSystemDialog(false)}
+              className="text-slate-400 hover:text-white"
+              disabled={saveSystemMutation.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={systemForm.handleSubmit(handleSystemSubmit)}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              disabled={saveSystemMutation.isPending}
+              data-testid="button-save-system"
+            >
+              {saveSystemMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {editingSystem ? 'Atualizando...' : 'Criando...'}
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  {editingSystem ? 'Atualizar' : 'Criar Sistema'}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!systemToDelete} onOpenChange={() => setSystemToDelete(null)}>
