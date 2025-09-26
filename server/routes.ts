@@ -6393,14 +6393,10 @@ Como posso ajudar você hoje?
         if (integracaoConfig?.ativo) {
           console.log('🌐 Criando sistema na API externa...');
           
-          const externalUser = await externalApiService.createUser({
+          const externalSystem = await externalApiService.createSystemCredential({
+            system_id: nextSystemId.toString(),
             username: username,
-            password: password,
-            exp_date: Math.floor(ontem.getTime() / 1000).toString(),
-            system: nextSystemId,
-            device_limit: 100,
-            user_type: "system",
-            is_active: true
+            password: password
           });
           
           console.log(`✅ Sistema ${nextSystemId} criado na API externa com sucesso`);
