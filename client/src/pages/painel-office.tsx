@@ -79,6 +79,7 @@ type SystemForm = z.infer<typeof systemSchema>;
 
 interface System {
   system_id: string;
+  systemId?: string; // Propriedade alternativa para compatibilidade
   username: string;
   password: string;
   maxPontosAtivos?: number;
@@ -91,6 +92,7 @@ interface System {
   lastRenewalAt?: string;
   renewalCount?: number;
   nota?: string; // Campo opcional para descrição
+  id?: number; // ID do sistema no banco local
 }
 
 interface SortableRowProps {
