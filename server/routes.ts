@@ -5985,6 +5985,8 @@ Como posso ajudar você hoje?
             
             let apiSyncSuccess = 0;
             let apiSyncFailed = 0;
+            let userSyncSuccess = 0;
+            let userSyncFailed = 0;
             
             for (const sistemaFixo of sistemasFixos) {
               try {
@@ -6049,10 +6051,84 @@ Como posso ajudar você hoje?
               }
             }
             
+            // IMPORTANTE: ATUALIZAR O CAMPO 'system' DOS USUÁRIOS NA API EXTERNA
+            console.log('\n🔄 === SINCRONIZANDO USUÁRIOS COM API EXTERNA ===');
+            console.log(`📊 Atualizando campo 'system' de ${pontosAtivos.length} usuários na API externa...`);
+            
+            for (const update of updates) {
+              const ponto = pontosAtivos.find(p => p.id === update.pontoId);
+              const sistema = sistemasFixos.find(s => s.id === update.sistemaId);
+              
+              if (ponto && sistema) {
+                try {
+                  // Converter systemId para número
+                  const systemNumber = sistema.systemId.startsWith('sistema') 
+                    ? parseInt(sistema.systemId.replace('sistema', ''))
+                    : parseInt(sistema.systemId);
+                  
+                  console.log(`  🔗 Atualizando usuário ${ponto.usuario} para sistema ${systemNumber}...`);
+                  
+                  if (ponto.apiUserId) {
+                    // Verificar se o usuário existe na API
+                    const userExists = await externalApiService.getUser(parseInt(ponto.apiUserId));
+                    
+                    if (userExists) {
+                      // Atualizar usuário existente
+                      await externalApiService.updateUser(parseInt(ponto.apiUserId), {
+                        system: systemNumber
+                      });
+                      console.log(`    ✅ Usuário ${ponto.usuario} (ID: ${ponto.apiUserId}) atualizado com sistema ${systemNumber}`);
+                      userSyncSuccess++;
+                    } else {
+                      console.log(`    ⚠️ Usuário ID ${ponto.apiUserId} não encontrado. Criando novo...`);
+                      // Criar novo usuário
+                      const newUser = await externalApiService.createUser({
+                        username: ponto.usuario,
+                        password: ponto.senha || nanoid(8),
+                        status: 'Active',
+                        exp_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                        system: systemNumber
+                      });
+                      
+                      // Atualizar ponto com novo apiUserId
+                      if (newUser && newUser.id) {
+                        await storage.updatePonto(ponto.id, { apiUserId: newUser.id.toString() });
+                        console.log(`    ✅ Novo usuário criado (ID: ${newUser.id}) com sistema ${systemNumber}`);
+                        userSyncSuccess++;
+                      }
+                    }
+                  } else {
+                    // Ponto sem apiUserId - criar novo usuário
+                    console.log(`    📝 Ponto sem apiUserId. Criando usuário na API...`);
+                    const newUser = await externalApiService.createUser({
+                      username: ponto.usuario,
+                      password: ponto.senha || nanoid(8),
+                      status: 'Active',
+                      exp_date: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0],
+                      system: systemNumber
+                    });
+                    
+                    // Atualizar ponto com novo apiUserId
+                    if (newUser && newUser.id) {
+                      await storage.updatePonto(ponto.id, { apiUserId: newUser.id.toString() });
+                      console.log(`    ✅ Usuário criado (ID: ${newUser.id}) com sistema ${systemNumber}`);
+                      userSyncSuccess++;
+                    }
+                  }
+                } catch (userError) {
+                  console.error(`    ❌ Erro ao sincronizar usuário ${ponto.usuario}:`, userError);
+                  userSyncFailed++;
+                }
+              }
+            }
+            
             console.log(`\n📊 === RESUMO DA SINCRONIZAÇÃO COM API EXTERNA ===`);
             console.log(`✅ Sistemas sincronizados com sucesso: ${apiSyncSuccess}`);
-            console.log(`❌ Falhas na sincronização: ${apiSyncFailed}`);
-            console.log(`📈 Taxa de sucesso: ${((apiSyncSuccess / sistemasFixos.length) * 100).toFixed(1)}%`);
+            console.log(`❌ Falhas na sincronização de sistemas: ${apiSyncFailed}`);
+            console.log(`✅ Usuários atualizados com sucesso: ${userSyncSuccess}`);
+            console.log(`❌ Falhas na atualização de usuários: ${userSyncFailed}`);
+            console.log(`📈 Taxa de sucesso sistemas: ${((apiSyncSuccess / sistemasFixos.length) * 100).toFixed(1)}%`);
+            console.log(`📈 Taxa de sucesso usuários: ${((userSyncSuccess / pontosAtivos.length) * 100).toFixed(1)}%`);
             console.log(`=== FIM DA SINCRONIZAÇÃO ===\n`);
           } else {
             console.log('⚠️ API externa desabilitada, pulando sincronização');
