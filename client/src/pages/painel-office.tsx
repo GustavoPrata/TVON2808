@@ -266,75 +266,69 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
           </div>
           
           {/* Mostrar clientes ativos */}
-          <div className="border-l border-slate-700 pl-4 w-[240px]">
+          <div className="border-l border-slate-700 pl-4">
             {!system.clientesAtivos || system.clientesAtivos.length === 0 ? (
-              <div className="grid grid-cols-[100px_140px] items-center">
-                <span className="text-xs text-slate-500">Nenhum</span>
-                <div></div>
-              </div>
+              <span className="text-xs text-slate-500">Nenhum</span>
             ) : system.clientesAtivos && system.clientesAtivos.length > 1 ? (
-              <div className="grid grid-cols-[100px_140px] items-center">
-                <span className="text-xs text-slate-400">Vários</span>
-                <div></div>
-              </div>
+              <span className="text-xs text-slate-400">Vários</span>
             ) : (
               <button
                 onClick={() => setLocation(`/clientes/${system.clientesAtivos[0].id}`)}
-                className="grid grid-cols-[100px_140px] items-center gap-2 px-2 py-1 rounded hover:bg-slate-700/50 transition-colors group w-full"
+                className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-700/50 transition-colors group"
                 data-testid={`client-link-${system.clientesAtivos[0].id}`}
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <User className="w-3 h-3 text-slate-400 group-hover:text-white flex-shrink-0" />
-                  <div className="flex flex-col min-w-0">
-                    <div className="text-xs font-medium text-white truncate group-hover:text-blue-400">
-                      {system.clientesAtivos[0].nome}
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px] text-slate-500">
-                      <Phone className="w-2 h-2" />
-                      <span className="truncate">{system.clientesAtivos[0].telefone}</span>
-                    </div>
+                <User className="w-3 h-3 text-slate-400 group-hover:text-white flex-shrink-0" />
+                <div className="flex flex-col">
+                  <div className="text-xs font-medium text-white group-hover:text-blue-400 whitespace-nowrap">
+                    {system.clientesAtivos[0].nome}
                   </div>
-                </div>
-                <div className="flex items-center justify-end">
-                  {system.clientesAtivos[0].vencimento ? (() => {
-                    const vencimento = new Date(system.clientesAtivos[0].vencimento);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    vencimento.setHours(0, 0, 0, 0);
-                    const days = Math.floor((vencimento.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                    
-                    let colorClass = '';
-                    let text = '';
-                    
-                    if (days < 0) {
-                      colorClass = 'text-red-500';
-                      text = `Vencido há ${Math.abs(days)}d`;
-                    } else if (days === 0) {
-                      colorClass = 'text-yellow-500';
-                      text = 'Vence hoje';
-                    } else {
-                      colorClass = 'text-green-500';
-                      if (days === 1) {
-                        text = 'Vence amanhã';
-                      } else {
-                        text = `Vence em ${days}d`;
-                      }
-                    }
-                    
-                    return (
-                      <div className={`flex items-center gap-1 text-xs ${colorClass}`}>
-                        <Calendar className="w-2.5 h-2.5" />
-                        <span className="whitespace-nowrap font-medium">
-                          {text}
-                        </span>
-                      </div>
-                    );
-                  })() : null}
+                  <div className="flex items-center gap-1 text-[10px] text-slate-500">
+                    <Phone className="w-2 h-2" />
+                    <span>{system.clientesAtivos[0].telefone}</span>
+                  </div>
                 </div>
               </button>
             )}
           </div>
         </div>
+      </TableCell>
+      <TableCell>
+        {system.clientesAtivos && system.clientesAtivos.length === 1 && system.clientesAtivos[0].vencimento ? (() => {
+          const vencimento = new Date(system.clientesAtivos[0].vencimento);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          vencimento.setHours(0, 0, 0, 0);
+          const days = Math.floor((vencimento.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          
+          let colorClass = '';
+          let text = '';
+          
+          if (days < 0) {
+            colorClass = 'text-red-500';
+            text = `Vencido há ${Math.abs(days)}d`;
+          } else if (days === 0) {
+            colorClass = 'text-yellow-500';
+            text = 'Vence hoje';
+          } else {
+            colorClass = 'text-green-500';
+            if (days === 1) {
+              text = 'Vence amanhã';
+            } else {
+              text = `Vence em ${days}d`;
+            }
+          }
+          
+          return (
+            <div className={`flex items-center gap-1 text-xs ${colorClass}`}>
+              <Calendar className="w-3 h-3" />
+              <span className="font-medium">
+                {text}
+              </span>
+            </div>
+          );
+        })() : (
+          <span className="text-xs text-slate-500">-</span>
+        )}
       </TableCell>
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-2">
@@ -1455,7 +1449,13 @@ export default function PainelOffice() {
                           <TableHead className="text-slate-400 text-center">
                             <div className="flex items-center justify-center gap-2">
                               <Users className="w-4 h-4" />
-                              Pontos Ativos
+                              Pontos Ativos / Cliente
+                            </div>
+                          </TableHead>
+                          <TableHead className="text-slate-400">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4" />
+                              Vencimento Cliente
                             </div>
                           </TableHead>
                           <TableHead className="text-slate-400 text-right">Ações</TableHead>
