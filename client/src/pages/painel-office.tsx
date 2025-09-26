@@ -89,6 +89,7 @@ interface System {
     id: number;
     nome: string;
     telefone: string;
+    vencimento?: Date | string | null;
   }>;
   expiration?: string;
   expiracao?: string; // Campo vindo do banco local
@@ -285,6 +286,28 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
                     <Phone className="w-2.5 h-2.5" />
                     <span className="truncate">{system.clientesAtivos[0].telefone}</span>
                   </div>
+                  {system.clientesAtivos[0].vencimento && (
+                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                      <Calendar className="w-2.5 h-2.5" />
+                      <span className="truncate">
+                        {(() => {
+                          const vencimento = new Date(system.clientesAtivos[0].vencimento);
+                          const today = new Date();
+                          const days = Math.floor((vencimento.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                          
+                          if (days < 0) {
+                            return `Vencido há ${Math.abs(days)}d`;
+                          } else if (days === 0) {
+                            return 'Vence hoje';
+                          } else if (days === 1) {
+                            return 'Vence amanhã';
+                          } else {
+                            return `Vence em ${days}d`;
+                          }
+                        })()}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </button>
             )}

@@ -5157,6 +5157,7 @@ Como posso ajudar você hoje?
           clienteId: pontos.clienteId,
           clienteNome: clientes.nome,
           clienteTelefone: clientes.telefone,
+          clienteVencimento: clientes.vencimento,
         })
         .from(pontos)
         .leftJoin(clientes, eq(pontos.clienteId, clientes.id))
@@ -5173,6 +5174,7 @@ Como posso ajudar você hoje?
             id: ponto.clienteId,
             nome: ponto.clienteNome,
             telefone: ponto.clienteTelefone,
+            vencimento: ponto.clienteVencimento,
           });
         }
       });
