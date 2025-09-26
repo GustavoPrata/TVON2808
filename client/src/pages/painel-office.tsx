@@ -274,42 +274,52 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
             ) : (
               <button
                 onClick={() => setLocation(`/clientes/${system.clientesAtivos[0].id}`)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-slate-700/50 transition-colors group"
+                className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-700/50 transition-colors group"
                 data-testid={`client-link-${system.clientesAtivos[0].id}`}
               >
                 <User className="w-3 h-3 text-slate-400 group-hover:text-white flex-shrink-0" />
-                <div className="flex items-center gap-3">
-                  <div className="flex flex-col">
-                    <div className="text-xs font-medium text-white truncate group-hover:text-blue-400 max-w-[120px]">
-                      {system.clientesAtivos[0].nome}
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-slate-500">
-                      <Phone className="w-2.5 h-2.5" />
-                      <span className="truncate">{system.clientesAtivos[0].telefone}</span>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <div className="text-xs font-medium text-white truncate group-hover:text-blue-400 max-w-[120px]">
+                    {system.clientesAtivos[0].nome}
                   </div>
-                  {system.clientesAtivos[0].vencimento && (
-                    <div className="flex items-center gap-1 text-xs text-slate-500 border-l border-slate-700 pl-2">
-                      <Calendar className="w-2.5 h-2.5" />
-                      <span className="whitespace-nowrap">
-                        {(() => {
-                          const vencimento = new Date(system.clientesAtivos[0].vencimento);
-                          const today = new Date();
-                          const days = Math.floor((vencimento.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                          
-                          if (days < 0) {
-                            return `Vencido há ${Math.abs(days)}d`;
-                          } else if (days === 0) {
-                            return 'Vence hoje';
-                          } else if (days === 1) {
-                            return 'Vence amanhã';
-                          } else {
-                            return `Vence em ${days}d`;
-                          }
-                        })()}
-                      </span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1 text-xs text-slate-500">
+                    <Phone className="w-2.5 h-2.5" />
+                    <span className="truncate">{system.clientesAtivos[0].telefone}</span>
+                  </div>
+                  {system.clientesAtivos[0].vencimento && (() => {
+                    const vencimento = new Date(system.clientesAtivos[0].vencimento);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    vencimento.setHours(0, 0, 0, 0);
+                    const days = Math.floor((vencimento.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    
+                    let colorClass = '';
+                    let text = '';
+                    
+                    if (days < 0) {
+                      colorClass = 'text-red-500';
+                      text = `Vencido há ${Math.abs(days)}d`;
+                    } else if (days === 0) {
+                      colorClass = 'text-yellow-500';
+                      text = 'Vence hoje';
+                    } else {
+                      colorClass = 'text-green-500';
+                      if (days === 1) {
+                        text = 'Vence amanhã';
+                      } else {
+                        text = `Vence em ${days}d`;
+                      }
+                    }
+                    
+                    return (
+                      <div className={`flex items-center gap-1 text-xs ${colorClass} border-l border-slate-700 pl-2`}>
+                        <Calendar className="w-2.5 h-2.5" />
+                        <span className="whitespace-nowrap font-medium">
+                          {text}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </button>
             )}
