@@ -109,7 +109,7 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: system.system_id });
+  } = useSortable({ id: system.systemId || system.system_id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -157,20 +157,20 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
           className="cursor-grab active:cursor-grabbing"
           {...attributes}
           {...listeners}
-          data-testid={`drag-system-${system.system_id}`}
+          data-testid={`drag-system-${system.systemId || system.system_id}`}
         >
           <GripVertical className="w-4 h-4" />
         </button>
       </TableCell>
       <TableCell className="text-slate-300 w-20 text-center">
-        <Badge variant="outline" className="text-xs">{system.system_id}</Badge>
+        <Badge variant="outline" className="text-xs">{system.systemId || system.system_id}</Badge>
       </TableCell>
       <TableCell className="text-slate-300">
         <div className="flex items-center gap-2">
           <Server className="w-4 h-4 text-slate-400" />
           <div>
             <div className="font-medium">
-              {system.username || `Sistema ${system.system_id}`}
+              {system.username || `Sistema ${system.systemId || system.system_id}`}
             </div>
             {system.nota && (
               <div className="text-xs text-slate-500">{system.nota}</div>
@@ -252,16 +252,16 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
             variant="ghost"
             onClick={() => onEdit(system)}
             className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
-            data-testid={`edit-system-${system.system_id}`}
+            data-testid={`edit-system-${system.systemId || system.system_id}`}
           >
             <Pencil className="w-4 h-4" />
           </Button>
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => onDelete(system.system_id)}
+            onClick={() => onDelete(system.systemId || system.system_id)}
             className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
-            data-testid={`delete-system-${system.system_id}`}
+            data-testid={`delete-system-${system.systemId || system.system_id}`}
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -412,7 +412,7 @@ export default function PainelOffice() {
   
   // Filter systems based on distribution mode
   const filteredSystems = systemsRaw.filter((system: System) => {
-    const systemId = parseInt(system.system_id) || 0;
+    const systemId = parseInt(system.systemId || system.system_id) || 0;
     // In fixed-points mode: show only systems with ID >= 1000
     // In individual mode: show only systems with ID < 1000
     if (isFixedMode) {
@@ -424,15 +424,16 @@ export default function PainelOffice() {
   
   // Sort filtered systems by system_id (numerical order)
   const systems = [...filteredSystems].sort((a, b) => {
-    const idA = parseInt(a.system_id) || 0;
-    const idB = parseInt(b.system_id) || 0;
+    const idA = parseInt(a.systemId || a.system_id) || 0;
+    const idB = parseInt(b.systemId || b.system_id) || 0;
     
     return sortOrder === 'asc' ? idA - idB : idB - idA;
   });
 
   // Filter fixed systems (ID >= 1000) from ALL systems (not filtered ones)
   const fixedSystems = systemsRaw.filter((system: System) => {
-    const systemId = parseInt(system.system_id);
+    // Use systemId (camelCase) as returned by backend
+    const systemId = parseInt(system.systemId || system.system_id);
     return systemId >= 1000;
   });
 
@@ -507,7 +508,7 @@ export default function PainelOffice() {
     // Adicionar sistemas fixos primeiro (se no modo fixed-points)
     if (distributionMode === 'fixed-points') {
       fixedSystems.forEach(fixedSys => {
-        const sysId = parseInt(fixedSys.system_id);
+        const sysId = parseInt(fixedSys.systemId || fixedSys.system_id);
         currentDistribution.push({
           systemId: sysId,
           username: fixedSys.username || `Sistema ${sysId}`,
@@ -519,9 +520,9 @@ export default function PainelOffice() {
     
     // Adicionar sistemas normais
     systems.forEach(system => {
-      const sysId = parseInt(system.system_id);
+      const sysId = parseInt(system.systemId || system.system_id);
       // Pular se já foi adicionado como sistema fixo
-      if (distributionMode === 'fixed-points' && fixedSystems.some(fs => parseInt(fs.system_id) === sysId)) {
+      if (distributionMode === 'fixed-points' && fixedSystems.some(fs => parseInt(fs.systemId || fs.system_id) === sysId)) {
         return;
       }
       currentDistribution.push({
@@ -547,7 +548,7 @@ export default function PainelOffice() {
     if (distributionMode === 'one-per-point') {
       // Um sistema por ponto - precisa de um sistema para cada ponto ativo
       // IMPORTANTE: Contar apenas sistemas normais (ID < 1000), ignorar sistemas fixos
-      const normalSystems = systems.filter(s => parseInt(s.system_id) < 1000);
+      const normalSystems = systems.filter(s => parseInt(s.systemId || s.system_id) < 1000);
       systemsNeeded = Math.max(0, activePontos.length - normalSystems.length);
       pointsPerSystemCalc = 1;
     } else {
@@ -585,7 +586,7 @@ export default function PainelOffice() {
   const createFixedSystemMutation = useMutation({
     mutationFn: async (data: { username: string; password: string }) => {
       // Encontrar próximo ID >= 1001
-      const existingFixedIds = fixedSystems.map(s => parseInt(s.system_id));
+      const existingFixedIds = fixedSystems.map(s => parseInt(s.systemId || s.system_id));
       const maxId = existingFixedIds.length > 0 ? Math.max(...existingFixedIds) : 1000;
       const nextId = Math.max(1001, maxId + 1).toString();
       
@@ -848,13 +849,13 @@ export default function PainelOffice() {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const oldIndex = systems.findIndex((s: System) => s.system_id === active.id);
-      const newIndex = systems.findIndex((s: System) => s.system_id === over.id);
+      const oldIndex = systems.findIndex((s: System) => (s.systemId || s.system_id) === active.id);
+      const newIndex = systems.findIndex((s: System) => (s.systemId || s.system_id) === over.id);
 
       if (oldIndex !== -1 && newIndex !== -1) {
         const newOrder = arrayMove(systems, oldIndex, newIndex);
         queryClient.setQueryData<System[]>(['/api/external-api/systems'], newOrder);
-        reorderSystemsMutation.mutate(newOrder.map((s: System) => s.system_id));
+        reorderSystemsMutation.mutate(newOrder.map((s: System) => s.systemId || s.system_id));
       }
     }
   };
@@ -950,7 +951,7 @@ export default function PainelOffice() {
   const handleSystemSubmit = (data: SystemForm) => {
     const submitData: any = {
       ...data,
-      system_id: editingSystem?.system_id,
+      system_id: editingSystem?.systemId || editingSystem?.system_id,
     };
     
     // Converter expiration para formato ISO se presente
@@ -1018,7 +1019,7 @@ export default function PainelOffice() {
         mode: distributionMode,
         ...(distributionMode === 'fixed-points' && { 
           pointsPerSystem,
-          fixedSystemIds: fixedSystems.map(fs => parseInt(fs.system_id))
+          fixedSystemIds: fixedSystems.map(fs => parseInt(fs.systemId || fs.system_id))
         })
       };
 
@@ -1308,7 +1309,7 @@ export default function PainelOffice() {
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext
-                    items={systems.map((s: System) => s.system_id)}
+                    items={systems.map((s: System) => s.systemId || s.system_id)}
                     strategy={verticalListSortingStrategy}
                   >
                     <Table>
@@ -1346,7 +1347,7 @@ export default function PainelOffice() {
                       <TableBody>
                         {systems.map((system: System) => (
                           <SortableRow
-                            key={system.system_id}
+                            key={system.systemId || system.system_id}
                             system={system}
                             onEdit={openSystemDialog}
                             onDelete={confirmDeleteSystem}
@@ -1668,7 +1669,7 @@ export default function PainelOffice() {
             </h2>
             <p className="text-xs text-slate-400 mt-1">
               {editingSystem 
-                ? `Editando sistema ID: ${editingSystem.system_id}`
+                ? `Editando sistema ID: ${editingSystem.systemId || editingSystem.system_id}`
                 : 'Adicione um novo sistema IPTV'}
             </p>
           </div>
@@ -2042,12 +2043,12 @@ export default function PainelOffice() {
                                       </div>
                                     ) : (
                                       fixedSystems.map((fixedSys) => {
-                                        const systemId = parseInt(fixedSys.system_id);
+                                        const systemId = parseInt(fixedSys.systemId || fixedSys.system_id);
                                         // Sistemas fixos dividem TODOS os pontos entre si no modo fixed-points
                                         const systemPoints = distributionMode === 'fixed-points' ? pointsPerFixedSystem : 1;
                                         return (
                                           <div 
-                                            key={fixedSys.system_id} 
+                                            key={fixedSys.systemId || fixedSys.system_id} 
                                             className="flex items-center gap-3 p-2 bg-orange-900/20 border border-orange-500/30 rounded-lg"
                                           >
                                             <Shield className="w-5 h-5 text-orange-400" />
@@ -2078,7 +2079,7 @@ export default function PainelOffice() {
                                                     variant: "default",
                                                   });
                                                 } else {
-                                                  setFixedSystemToRemove(fixedSys.system_id);
+                                                  setFixedSystemToRemove(fixedSys.systemId || fixedSys.system_id);
                                                 }
                                               }}
                                               className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1 h-7 w-7"

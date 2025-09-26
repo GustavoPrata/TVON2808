@@ -1,0 +1,141 @@
+Documentação Completa da API Externa
+Referência detalhada de todos os endpoints e funcionalidades disponíveis
+Autenticação
+A API aceita autenticação de várias formas diferentes. A chave API é: key170604
+
+Método 1: Header Authorization
+
+Authorization: Bearer key170604
+Método 2: Header X-API-Key
+
+X-API-Key: key170604
+Método 3: Parâmetro GET
+
+?key=key170604
+Método 4: Body JSON
+
+{"key": "key170604"}
+Endpoints de Usuários
+GET /api/users/get
+Lista todos
+Retorna lista de todos os usuários
+
+// Resposta
+{ "success": true, "data": [ { "id": 1, "username": "usuario1", "password": "senha123", "status": "Active", "exp_date": "2025-12-31", "system": 1 } ] }
+GET /api/users/get/{id}
+Buscar por ID
+Retorna um usuário específico por ID
+
+// Exemplo: GET /api/users/get/75
+POST /api/users/adicionar
+Criar novo
+Cria um novo usuário
+
+// Body JSON (obrigatórios: username, password)
+{ "username": "novousuario", "password": "senha123", "status": "Active", "exp_date": "2025-12-31", "system": 1 }
+⚠️ Aviso: Campo "system" causa erro SQL na API. Use com backticks (`system`) no MySQL.
+
+PUT /api/users/editar/{id}
+Atualizar
+Atualiza dados de um usuário existente
+
+// Exemplo: PUT /api/users/editar/75
+// Envie apenas os campos que deseja alterar
+{ "password": "novasenha123", "exp_date": "2026-01-15" }
+DELETE /api/users/apagar/{id}
+Remover
+Remove um usuário do sistema
+
+// Exemplo: DELETE /api/users/apagar/75
+Endpoints de Credenciais do Sistema
+GET /api/system_credentials/get
+Lista todas as credenciais
+
+GET /api/system_credentials/get/{id}
+Busca credencial por system_id
+
+POST /api/system_credentials/adicionar
+Cria nova credencial (system_id, username, password)
+
+PUT /api/system_credentials/editar/{id}
+Atualiza credencial existente
+
+DELETE /api/system_credentials/apagar/{id}
+Remove credencial do sistema
+
+Endpoints de Configurações
+GET /api/settings/get
+Lista todas as configurações
+
+GET /api/settings/get/{key}
+Busca configuração por chave
+
+POST /api/settings/adicionar
+Cria nova configuração (setting_key, setting_value)
+
+PUT /api/settings/editar/{key}
+Atualiza valor da configuração
+
+DELETE /api/settings/apagar/{key}
+Remove configuração
+
+Valores Disponíveis do Campo "system"
+Valores atuais do campo "system" no banco de dados local:
+
+1
+10
+1001
+1002
+11
+12
+13
+14
+15
+16
+17
+18
+19
+2
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+3
+30
+31
+32
+33
+4
+5
+6
+7
+8
+9
+Estrutura do Banco de Dados
+Tabela: users
+• id (INT) - Primary Key
+• username (VARCHAR) - Nome de usuário único
+• password (VARCHAR) - Senha do usuário
+• status (VARCHAR) - Active/Inactive
+• exp_date (DATE) - Data de expiração
+• system (INT) - ID do sistema
+Tabela: system_credentials
+• system_id (INT) - Primary Key
+• username (VARCHAR) - Usuário do sistema
+• password (VARCHAR) - Senha do sistema
+Tabela: settings
+• setting_key (VARCHAR) - Primary Key
+• setting_value (TEXT) - Valor da configuração
+Códigos de Resposta HTTP
+200 - Sucesso
+201 - Criado
+400 - Requisição Inválida
+401 - Não Autorizado
+404 - Não Encontrado
+500 - Erro Interno

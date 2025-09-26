@@ -9,6 +9,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Data Management**: Systems data must come from local database, not external API
 
 ## Recent Changes
+- **26/09/2025**: Fixed critical bug where fixed systems (ID >= 1000) weren't appearing in distribution modal. Issue was caused by backend returning `systemId` (camelCase) while frontend expected `system_id` (snake_case). Solution: Added fallback support for both formats throughout the frontend.
 - **25/09/2025 (v2)**: Refactored fixed systems to be REAL systems saved in database and API. Fixed systems now require username/password, use IDs >= 1000, and points are automatically calculated (total_points / num_systems). Removed manual point editing.
 - **25/09/2025**: Added test message simulation feature in chat - allows sending messages as if from the client to test bot responses. Located above PIX billing option in chat sidebar.
 - **24/09/2025**: Reversed synchronization direction - now pushes local database data TO the external API instead of pulling from it. The `/api/sync/systems` endpoint now sends local systems to the API, creating/updating/deleting as needed to make the API match the local database state.
