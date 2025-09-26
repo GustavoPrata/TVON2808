@@ -430,8 +430,8 @@ export default function PainelOffice() {
     return sortOrder === 'asc' ? idA - idB : idB - idA;
   });
 
-  // Filter fixed systems (ID >= 1000)
-  const fixedSystems = systems.filter(system => {
+  // Filter fixed systems (ID >= 1000) from ALL systems (not filtered ones)
+  const fixedSystems = systemsRaw.filter((system: System) => {
     const systemId = parseInt(system.system_id);
     return systemId >= 1000;
   });
