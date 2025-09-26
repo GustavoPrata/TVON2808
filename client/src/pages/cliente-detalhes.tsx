@@ -1430,15 +1430,21 @@ export default function ClienteDetalhes() {
                                 <SelectValue placeholder="Selecione um sistema" />
                               </SelectTrigger>
                               <SelectContent>
-                                {sistemas.map((sistema: any) => (
-                                  <SelectItem 
-                                    key={sistema.id} 
-                                    value={sistema.id.toString()}
-                                    disabled={sistema.pontosAtivos >= sistema.maxPontosAtivos && sistema.id !== ponto.sistemaId}
-                                  >
-                                    {sistema.systemId} ({sistema.pontosAtivos}/{sistema.maxPontosAtivos})
-                                  </SelectItem>
-                                ))}
+                                {sistemas
+                                  .sort((a: any, b: any) => {
+                                    const numA = parseInt(a.systemId) || 0;
+                                    const numB = parseInt(b.systemId) || 0;
+                                    return numA - numB;
+                                  })
+                                  .map((sistema: any) => (
+                                    <SelectItem 
+                                      key={sistema.id} 
+                                      value={sistema.id.toString()}
+                                      disabled={sistema.pontosAtivos >= sistema.maxPontosAtivos && sistema.id !== ponto.sistemaId}
+                                    >
+                                      {sistema.systemId} ({sistema.pontosAtivos}/{sistema.maxPontosAtivos})
+                                    </SelectItem>
+                                  ))}
                               </SelectContent>
                             </Select>
                           ) : (
@@ -1810,16 +1816,22 @@ export default function ClienteDetalhes() {
                     <SelectValue placeholder="Selecione um sistema" />
                   </SelectTrigger>
                   <SelectContent>
-                    {sistemas.map((sistema: any) => (
-                      <SelectItem 
-                        key={sistema.id} 
-                        value={sistema.id.toString()}
-                        disabled={sistema.pontosAtivos >= sistema.maxPontosAtivos}
-                      >
-                        {sistema.systemId} ({sistema.pontosAtivos || 0}/{sistema.maxPontosAtivos || 100})
-                        {sistema.pontosAtivos >= sistema.maxPontosAtivos && ' - Limite atingido'}
-                      </SelectItem>
-                    ))}
+                    {sistemas
+                      .sort((a: any, b: any) => {
+                        const numA = parseInt(a.systemId) || 0;
+                        const numB = parseInt(b.systemId) || 0;
+                        return numA - numB;
+                      })
+                      .map((sistema: any) => (
+                        <SelectItem 
+                          key={sistema.id} 
+                          value={sistema.id.toString()}
+                          disabled={sistema.pontosAtivos >= sistema.maxPontosAtivos}
+                        >
+                          {sistema.systemId} ({sistema.pontosAtivos || 0}/{sistema.maxPontosAtivos || 100})
+                          {sistema.pontosAtivos >= sistema.maxPontosAtivos && ' - Limite atingido'}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 <Button
