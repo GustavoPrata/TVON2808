@@ -268,7 +268,7 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
           {/* Mostrar clientes ativos */}
           <div className="border-l border-slate-700 pl-4">
             {!system.clientesAtivos || system.clientesAtivos.length === 0 ? (
-              <span className="text-xs text-slate-500">Nenhum</span>
+              <span className="text-xs text-slate-500">-</span>
             ) : system.clientesAtivos && system.clientesAtivos.length > 1 ? (
               <span className="text-xs text-slate-400">Vários</span>
             ) : (
