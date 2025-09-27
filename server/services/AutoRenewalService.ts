@@ -482,12 +482,24 @@ export class AutoRenewalService {
         return; // Retornar sem criar nova task
       }
 
-      // 2. Criar task pendente no banco com sistemaId no metadata
-      console.log(`💾 [AutoRenewal] Nenhuma task pendente encontrada - criando nova task de renovação [${traceId}]...`);
+      // 2. Gerar novas credenciais para renovação
+      console.log(`🎲 [AutoRenewal] Gerando novas credenciais para renovação [${traceId}]...`);
+      
+      // Gerar username com padrão similar ao usado na criação
+      const randomNumber = Math.floor(Math.random() * 900000000) + 100000000;
+      const newUsername = randomNumber.toString();
+      const newPassword = `tvon${Math.floor(Math.random() * 10)}@`; // tvon0@ até tvon9@
+      
+      console.log(`📝 [AutoRenewal] Credenciais geradas [${traceId}]:`);
+      console.log(`  Novo username: ${newUsername}`);
+      console.log(`  Novo password: ${newPassword}`);
+      
+      // 3. Criar task com as credenciais já geradas
+      console.log(`💾 [AutoRenewal] Criando task de renovação com credenciais [${traceId}]...`);
       
       const taskData = {
-        username: `renovacao_${Date.now()}`,
-        password: 'pending',
+        username: newUsername,
+        password: newPassword,
         source: 'renewal',
         status: 'pending',
         generatedAt: new Date(),
@@ -537,8 +549,64 @@ export class AutoRenewalService {
         console.warn(`⚠️ [AutoRenewal] Sistema não retornou dados após update [${traceId}]`);
       }
       
-      console.log(`📝 [AutoRenewal] Task ${task.id} criada e aguardando extensão [${traceId}]`);
-      console.log(`🎯 [AutoRenewal] A extensão deverá processar a task e chamar updateSistemaRenewal`);
+      console.log(`📝 [AutoRenewal] Task ${task.id} criada com credenciais prontas [${traceId}]`);
+      console.log(`🎯 [AutoRenewal] Processando renovação diretamente no servidor`);
+      
+      // 4. Processar a renovação imediatamente
+      console.log(`🔄 [AutoRenewal] Atualizando sistema com novas credenciais [${traceId}]...`);
+      
+      try {
+        // Atualizar o sistema com as novas credenciais
+        const sistemaAtualizado = await storage.updateSistemaRenewal(
+          sistema.systemId,
+          newUsername,
+          newPassword
+        );
+        
+        if (!sistemaAtualizado) {
+          throw new Error('Falha ao atualizar sistema no banco de dados');
+        }
+        
+        console.log(`✅ [AutoRenewal] Sistema ${sistema.systemId} atualizado com sucesso [${traceId}]`);
+        console.log(`  Nova expiração: ${sistemaAtualizado.expiracao}`);
+        
+        // Marcar task como completada
+        await db
+          .update(officeCredentials)
+          .set({
+            status: 'completed',
+            usedAt: new Date()
+          })
+          .where(eq(officeCredentials.id, task.id));
+        
+        console.log(`✅ [AutoRenewal] Task ${task.id} marcada como completa [${traceId}]`);
+        
+        await storage.createLog({
+          nivel: 'info',
+          origem: 'AutoRenewal',
+          mensagem: 'Sistema renovado com sucesso automaticamente',
+          detalhes: {
+            traceId,
+            sistemaId: sistema.id,
+            systemId: sistema.systemId,
+            novoUsername: newUsername,
+            novaExpiracao: sistemaAtualizado.expiracao
+          }
+        });
+        
+      } catch (renewError) {
+        console.error(`❌ [AutoRenewal] Erro ao processar renovação automaticamente [${traceId}]:`, renewError);
+        
+        // Marcar task como erro
+        await db
+          .update(officeCredentials)
+          .set({
+            status: 'error'
+          })
+          .where(eq(officeCredentials.id, task.id));
+        
+        throw renewError;
+      }
       
       // Atualizar status na fila
       const queueItem = this.renewalQueue.get(sistema.systemId);
@@ -547,7 +615,7 @@ export class AutoRenewalService {
         queueItem.completedAt = new Date();
       }
 
-      // 3. Agendar remoção da flag de renovação após 5 minutos
+      // 5. Agendar remoção da flag de renovação após 5 minutos
       setTimeout(() => {
         this.isRenewing.delete(sistema.systemId);
         console.log(`🗑️ Flag de renovação removida para sistema ${sistema.systemId}`);
