@@ -185,47 +185,11 @@ export class AutoRenewalService {
         console.log(`    - Pontos ativos: ${sistema.pontosAtivos}/${sistema.maxPontosAtivos}`);
       });
 
-      // Buscar pontos ativos e clientes para verificar vencimentos
-      const allPontos = await storage.getAllPontos();
-      const allClientes = await storage.getClientes();
-      
-      // Criar mapa de clienteId -> cliente para lookup rápido
-      const clientesMap = new Map<number, typeof allClientes[0]>();
-      for (const cliente of allClientes) {
-        clientesMap.set(cliente.id, cliente);
-      }
-      
-      // Identificar sistemas com clientes vencidos
-      const sistemasComClientesVencidos = new Set<string>();
-      for (const ponto of allPontos) {
-        if (ponto.sistemaId && ponto.clienteId && ponto.status === 'ativo') {
-          const cliente = clientesMap.get(ponto.clienteId);
-          if (cliente && cliente.vencimento) {
-            const vencimentoCliente = new Date(cliente.vencimento);
-            const hoje = new Date();
-            hoje.setHours(0, 0, 0, 0);
-            vencimentoCliente.setHours(0, 0, 0, 0);
-            
-            if (vencimentoCliente < hoje) {
-              const diasVencido = Math.floor((hoje.getTime() - vencimentoCliente.getTime()) / (1000 * 60 * 60 * 24));
-              console.log(`🚫 Sistema ${ponto.sistemaId} tem cliente vencido: ${cliente.nome} (vencido há ${diasVencido} dias)`);
-              sistemasComClientesVencidos.add(ponto.sistemaId.toString());
-            }
-          }
-        }
-      }
-      
-      // Atualizar fila APENAS com sistemas vencidos ou próximos do vencimento (e SEM clientes vencidos)
+      // Atualizar fila APENAS com sistemas vencidos ou próximos do vencimento
       for (const sistema of sistemasAutoRenew) {
         // Pular sistemas sem data de expiração
         if (!sistema.expiracao) {
           console.log(`⚠️ Sistema ${sistema.systemId} sem data de expiração definida`);
-          continue;
-        }
-        
-        // NOVO: Pular sistemas com clientes vencidos
-        if (sistemasComClientesVencidos.has(sistema.systemId)) {
-          console.log(`🚫 Sistema ${sistema.systemId} NÃO adicionado à fila - tem cliente vencido`);
           continue;
         }
         
@@ -264,12 +228,6 @@ export class AutoRenewalService {
           console.log(`⏭️ Sistema ${sistema.systemId} (${sistema.username}) já está em processo de renovação`);
           return false;
         }
-        
-        // NOVO: Verificar se o sistema tem cliente vencido
-        if (sistemasComClientesVencidos.has(sistema.systemId)) {
-          console.log(`❌ Sistema ${sistema.systemId} (${sistema.username}) NÃO será renovado - tem cliente vencido`);
-          return false;
-        }
 
         // Verificar se está vencido ou próximo do vencimento
         if (!sistema.expiracao) {
@@ -279,7 +237,7 @@ export class AutoRenewalService {
         const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
         const isExpired = expiracaoDate <= now;
         
-        // SE ESTÁ VENCIDO, renovar imediatamente (mas só se não tem cliente vencido)
+        // SE ESTÁ VENCIDO, renovar imediatamente
         if (isExpired) {
           console.log(`🚨 Sistema ${sistema.systemId} (${sistema.username}) VENCIDO há ${Math.abs(minutosAteExpiracao).toFixed(0)} minutos - renovação IMEDIATA`);
           return true;
@@ -482,24 +440,12 @@ export class AutoRenewalService {
         return; // Retornar sem criar nova task
       }
 
-      // 2. Gerar novas credenciais para renovação
-      console.log(`🎲 [AutoRenewal] Gerando novas credenciais para renovação [${traceId}]...`);
-      
-      // Gerar username com padrão similar ao usado na criação
-      const randomNumber = Math.floor(Math.random() * 900000000) + 100000000;
-      const newUsername = randomNumber.toString();
-      const newPassword = `tvon${Math.floor(Math.random() * 10)}@`; // tvon0@ até tvon9@
-      
-      console.log(`📝 [AutoRenewal] Credenciais geradas [${traceId}]:`);
-      console.log(`  Novo username: ${newUsername}`);
-      console.log(`  Novo password: ${newPassword}`);
-      
-      // 3. Criar task com as credenciais já geradas
-      console.log(`💾 [AutoRenewal] Criando task de renovação com credenciais [${traceId}]...`);
+      // 2. Criar task pendente no banco com sistemaId no metadata
+      console.log(`💾 [AutoRenewal] Nenhuma task pendente encontrada - criando nova task de renovação [${traceId}]...`);
       
       const taskData = {
-        username: newUsername,
-        password: newPassword,
+        username: `renovacao_${Date.now()}`,
+        password: 'pending',
         source: 'renewal',
         status: 'pending',
         generatedAt: new Date(),
@@ -549,64 +495,8 @@ export class AutoRenewalService {
         console.warn(`⚠️ [AutoRenewal] Sistema não retornou dados após update [${traceId}]`);
       }
       
-      console.log(`📝 [AutoRenewal] Task ${task.id} criada com credenciais prontas [${traceId}]`);
-      console.log(`🎯 [AutoRenewal] Processando renovação diretamente no servidor`);
-      
-      // 4. Processar a renovação imediatamente
-      console.log(`🔄 [AutoRenewal] Atualizando sistema com novas credenciais [${traceId}]...`);
-      
-      try {
-        // Atualizar o sistema com as novas credenciais
-        const sistemaAtualizado = await storage.updateSistemaRenewal(
-          sistema.systemId,
-          newUsername,
-          newPassword
-        );
-        
-        if (!sistemaAtualizado) {
-          throw new Error('Falha ao atualizar sistema no banco de dados');
-        }
-        
-        console.log(`✅ [AutoRenewal] Sistema ${sistema.systemId} atualizado com sucesso [${traceId}]`);
-        console.log(`  Nova expiração: ${sistemaAtualizado.expiracao}`);
-        
-        // Marcar task como completada
-        await db
-          .update(officeCredentials)
-          .set({
-            status: 'completed',
-            usedAt: new Date()
-          })
-          .where(eq(officeCredentials.id, task.id));
-        
-        console.log(`✅ [AutoRenewal] Task ${task.id} marcada como completa [${traceId}]`);
-        
-        await storage.createLog({
-          nivel: 'info',
-          origem: 'AutoRenewal',
-          mensagem: 'Sistema renovado com sucesso automaticamente',
-          detalhes: {
-            traceId,
-            sistemaId: sistema.id,
-            systemId: sistema.systemId,
-            novoUsername: newUsername,
-            novaExpiracao: sistemaAtualizado.expiracao
-          }
-        });
-        
-      } catch (renewError) {
-        console.error(`❌ [AutoRenewal] Erro ao processar renovação automaticamente [${traceId}]:`, renewError);
-        
-        // Marcar task como erro
-        await db
-          .update(officeCredentials)
-          .set({
-            status: 'error'
-          })
-          .where(eq(officeCredentials.id, task.id));
-        
-        throw renewError;
-      }
+      console.log(`📝 [AutoRenewal] Task ${task.id} criada e aguardando extensão [${traceId}]`);
+      console.log(`🎯 [AutoRenewal] A extensão deverá processar a task e chamar updateSistemaRenewal`);
       
       // Atualizar status na fila
       const queueItem = this.renewalQueue.get(sistema.systemId);
@@ -615,7 +505,7 @@ export class AutoRenewalService {
         queueItem.completedAt = new Date();
       }
 
-      // 5. Agendar remoção da flag de renovação após 5 minutos
+      // 3. Agendar remoção da flag de renovação após 5 minutos
       setTimeout(() => {
         this.isRenewing.delete(sistema.systemId);
         console.log(`🗑️ Flag de renovação removida para sistema ${sistema.systemId}`);
