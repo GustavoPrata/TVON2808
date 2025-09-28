@@ -1555,6 +1555,37 @@ export class DatabaseStorage implements IStorage {
     console.log(`   Username: ${username}`);
     console.log(`   Password: ***`);
     
+    // VALIDAÇÃO: Username deve ser apenas números
+    if (!/^\d+$/.test(username)) {
+      console.log(`⚠️ [Storage] Username inválido (não é apenas números): ${username} [${traceId}]`);
+      console.log(`🚫 [Storage] Renovação cancelada - username corrompido`);
+      console.log(`💡 [Storage] Sistema permanecerá vencido para nova tentativa de renovação`);
+      
+      // Retornar o sistema atual sem alterações
+      const [sistemaAtual] = await db
+        .select()
+        .from(sistemas)
+        .where(eq(sistemas.systemId, systemId));
+      
+      if (sistemaAtual) {
+        // Log da tentativa falha
+        await this.createLog({
+          nivel: 'warn',
+          origem: 'sistema_renewal',
+          mensagem: `Renovação rejeitada - username inválido: ${username}`,
+          detalhes: JSON.stringify({
+            systemId,
+            usernameRecebido: username,
+            motivo: 'Username não é apenas números',
+            traceId
+          })
+        });
+        
+        return mapSistemaToFrontend(sistemaAtual);
+      }
+      throw new Error(`Sistema ${systemId} não encontrado`);
+    }
+    
     // Busca estado ANTES da atualização
     const [sistemaBefore] = await db
       .select()
@@ -1916,6 +1947,19 @@ export class DatabaseStorage implements IStorage {
         verificados++;
         
         const sistemaId = ponto.sistemaId;
+        if (!sistemaId) {
+          console.log(`⚠️ Ponto ${ponto.usuario} não tem sistemaId`);
+          comErro++;
+          detalhes.push({
+            usuario: ponto.usuario,
+            sistemaAtual: null,
+            sistemaCorreto: null,
+            atualizado: false,
+            motivo: 'Ponto sem sistema associado',
+            erro: `Ponto não tem sistemaId`
+          });
+          continue;
+        }
         const sistemaSystemId = sistemaMap.get(sistemaId);
         
         if (!sistemaSystemId) {
