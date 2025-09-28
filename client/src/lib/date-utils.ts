@@ -95,14 +95,19 @@ export function formatShortInBrazil(date: string | Date): string {
       return `ontem ${formatTimeInBrazil(date)}`;
     }
     
-    // Se está na mesma semana, mostra o nome do dia
-    const startOfWeekDate = startOfWeek(now, { weekStartsOn: 0, locale: ptBR });
-    if (isThisWeek(brazilDate, { weekStartsOn: 0, locale: ptBR })) {
+    // Calcula a diferença em dias
+    const diffInMs = now.getTime() - brazilDate.getTime();
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    
+    // Se está dentro de 6 dias anteriores, mostra o nome do dia (sem "feira")
+    if (diffInDays <= 6 && diffInDays >= 0) {
       const dayName = dateFnsFormat(brazilDate, 'EEEE', { locale: ptBR });
-      return `${dayName} ${formatTimeInBrazil(date)}`;
+      // Remove "-feira" do nome do dia
+      const shortDayName = dayName.replace('-feira', '');
+      return `${shortDayName} ${formatTimeInBrazil(date)}`;
     }
     
-    // Para datas mais antigas, mostra o formato padrão
+    // Para datas com mais de 6 dias, mostra o formato dd/MM
     return formatInBrazilTime(date, 'dd/MM HH:mm');
   } catch (error) {
     console.error('Error formatting short date in Brazil time:', error);
