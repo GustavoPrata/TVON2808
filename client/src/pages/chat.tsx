@@ -26,7 +26,9 @@ import { isToday, isYesterday, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatTimeInBrazil, formatShortInBrazil, formatDateTimeInBrazil } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
+import { getProfilePictureUrl } from '@/lib/profile-picture';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
@@ -1639,16 +1641,19 @@ export default function Chat() {
             <div className="relative">
               <Avatar className="w-12 h-12">
                 <AvatarImage 
-                  src={showPhotosChat && conversa.profilePicture ? conversa.profilePicture : defaultProfileIcon} 
+                  src={getProfilePictureUrl({
+                    profilePicture: conversa.profilePicture,
+                    showPhotosChat,
+                    size: 'medium'
+                  })}
                   alt={conversa.nome || conversa.telefone}
                   className="object-cover"
+                  loading="lazy"
+                  width={48}
+                  height={48}
                 />
-                <AvatarFallback>
-                  <img 
-                    src={defaultProfileIcon} 
-                    alt="Default profile"
-                    className="object-cover w-full h-full"
-                  />
+                <AvatarFallback className="animate-pulse">
+                  <Skeleton className="w-12 h-12 rounded-full" />
                 </AvatarFallback>
               </Avatar>
               
@@ -2352,22 +2357,29 @@ export default function Chat() {
                   <Avatar 
                     className="w-12 h-12 cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={() => {
-                      const photo = showPhotosChat && selectedConversa.profilePicture ? selectedConversa.profilePicture : defaultProfileIcon;
+                      const photo = getProfilePictureUrl({
+                        profilePicture: selectedConversa.profilePicture,
+                        showPhotosChat,
+                        size: 'medium'
+                      });
                       setEnlargedPhoto(photo);
                       setShowPhotoEnlarged(true);
                     }}
                   >
                     <AvatarImage 
-                      src={showPhotosChat && selectedConversa.profilePicture ? selectedConversa.profilePicture : defaultProfileIcon} 
+                      src={getProfilePictureUrl({
+                        profilePicture: selectedConversa.profilePicture,
+                        showPhotosChat,
+                        size: 'medium'
+                      })}
                       alt={selectedConversa.nome || selectedConversa.telefone}
                       className="object-cover"
+                      loading="eager"
+                      width={48}
+                      height={48}
                     />
-                    <AvatarFallback>
-                      <img 
-                        src={defaultProfileIcon} 
-                        alt="Default profile"
-                        className="object-cover w-full h-full"
-                      />
+                    <AvatarFallback className="animate-pulse">
+                      <Skeleton className="w-12 h-12 rounded-full" />
                     </AvatarFallback>
                   </Avatar>
                   
