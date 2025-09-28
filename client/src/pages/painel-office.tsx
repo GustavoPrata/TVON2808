@@ -1335,40 +1335,26 @@ export default function PainelOffice() {
       </div>
 
       {/* Toggle para filtrar sistemas */}
-      <div className="flex justify-center mb-4">
-        <Button
+      <div className="flex justify-center mb-3">
+        <button
           onClick={() => setShowExpiredClients(!showExpiredClients)}
           className={`
-            flex items-center gap-3 px-6 py-3 rounded-xl transition-all duration-300 transform
+            relative flex items-center w-14 h-7 rounded-full transition-all duration-300
             ${showExpiredClients 
-              ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg shadow-red-500/30' 
-              : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg shadow-green-500/30'
+              ? 'bg-red-600 hover:bg-red-700' 
+              : 'bg-gray-600 hover:bg-gray-700'
             }
           `}
           data-testid="button-toggle-expired-filter"
+          title={showExpiredClients ? 'Mostrando sistemas com clientes vencidos' : 'Mostrando todos os sistemas'}
         >
-          <div className="relative">
-            <div className={`absolute inset-0 rounded-full ${showExpiredClients ? 'bg-red-400' : 'bg-green-400'} blur-md opacity-50`} />
-            {showExpiredClients ? (
-              <AlertCircle className="w-5 h-5 relative z-10" />
-            ) : (
-              <CheckCircle2 className="w-5 h-5 relative z-10" />
-            )}
-          </div>
-          <span className="font-semibold text-white">
-            {showExpiredClients ? 'Mostrando Clientes Vencidos' : 'Mostrando Sistemas Normais'}
-          </span>
-          <div className="flex items-center gap-2">
-            <div className={`w-12 h-6 rounded-full p-1 transition-all duration-300 ${showExpiredClients ? 'bg-red-500/30' : 'bg-green-500/30'}`}>
-              <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 ${showExpiredClients ? 'translate-x-6' : 'translate-x-0'}`} />
-            </div>
-          </div>
-          {showExpiredClients && (
-            <Badge className="bg-red-500/20 text-red-300 border-red-500/50">
-              {systemsWithExpiredClients.length} sistemas
-            </Badge>
-          )}
-        </Button>
+          <div 
+            className={`
+              absolute w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300
+              ${showExpiredClients ? 'translate-x-8' : 'translate-x-1'}
+            `}
+          />
+        </button>
       </div>
 
       {/* Main Content */}
