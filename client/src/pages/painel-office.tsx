@@ -269,9 +269,9 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
           <div className="border-l border-slate-700 pl-4">
             {!system.clientesAtivos || system.clientesAtivos.length === 0 ? (
               <span className="text-xs text-slate-500">-</span>
-            ) : system.clientesAtivos && system.clientesAtivos.length > 1 ? (
+            ) : system.clientesAtivos.length > 1 ? (
               <span className="text-xs text-slate-400">Vários</span>
-            ) : (
+            ) : system.clientesAtivos[0] ? (
               <button
                 onClick={() => setLocation(`/clientes/${system.clientesAtivos[0].id}`)}
                 className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-700/50 transition-colors group"
@@ -288,6 +288,8 @@ function SortableRow({ system, onEdit, onDelete, refetchSystems }: SortableRowPr
                   </div>
                 </div>
               </button>
+            ) : (
+              <span className="text-xs text-slate-500">-</span>
             )}
           </div>
         </div>
@@ -475,6 +477,9 @@ export default function PainelOffice() {
     return localStorage.getItem('distributionMode') || 'individual';
   });
   
+  // Estado para controlar o filtro de clientes vencidos
+  const [showExpiredClients, setShowExpiredClients] = useState(false);
+  
   // Add listener for localStorage changes
   useEffect(() => {
     const handleStorageChange = () => {
@@ -498,7 +503,24 @@ export default function PainelOffice() {
   
   // Filter systems based on distribution mode
   // Show ALL systems in the list (both normal and fixed)
-  const filteredSystems = systemsRaw;
+  const baseFilteredSystems = systemsRaw;
+  
+  // Filtro adicional para sistemas com clientes vencidos
+  const systemsWithExpiredClients = baseFilteredSystems.filter((system: System) => {
+    if (!system.clientesAtivos || system.clientesAtivos.length === 0) return false;
+    
+    // Verifica se algum cliente está vencido
+    return system.clientesAtivos.some(cliente => {
+      if (!cliente.vencimento) return false;
+      const vencimentoDate = typeof cliente.vencimento === 'string' 
+        ? new Date(cliente.vencimento) 
+        : cliente.vencimento;
+      return vencimentoDate < new Date();
+    });
+  });
+  
+  // Aplicar filtro baseado no toggle
+  const filteredSystems = showExpiredClients ? systemsWithExpiredClients : baseFilteredSystems;
   
   // Sort filtered systems by system_id (numerical order)
   const systems = [...filteredSystems].sort((a, b) => {
@@ -1312,7 +1334,42 @@ export default function PainelOffice() {
         </div>
       </div>
 
-      
+      {/* Toggle para filtrar sistemas */}
+      <div className="flex justify-center mb-4">
+        <Button
+          onClick={() => setShowExpiredClients(!showExpiredClients)}
+          className={`
+            flex items-center gap-3 px-6 py-3 rounded-xl transition-all duration-300 transform
+            ${showExpiredClients 
+              ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-lg shadow-red-500/30' 
+              : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg shadow-green-500/30'
+            }
+          `}
+          data-testid="button-toggle-expired-filter"
+        >
+          <div className="relative">
+            <div className={`absolute inset-0 rounded-full ${showExpiredClients ? 'bg-red-400' : 'bg-green-400'} blur-md opacity-50`} />
+            {showExpiredClients ? (
+              <AlertCircle className="w-5 h-5 relative z-10" />
+            ) : (
+              <CheckCircle2 className="w-5 h-5 relative z-10" />
+            )}
+          </div>
+          <span className="font-semibold text-white">
+            {showExpiredClients ? 'Mostrando Clientes Vencidos' : 'Mostrando Sistemas Normais'}
+          </span>
+          <div className="flex items-center gap-2">
+            <div className={`w-12 h-6 rounded-full p-1 transition-all duration-300 ${showExpiredClients ? 'bg-red-500/30' : 'bg-green-500/30'}`}>
+              <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-300 ${showExpiredClients ? 'translate-x-6' : 'translate-x-0'}`} />
+            </div>
+          </div>
+          {showExpiredClients && (
+            <Badge className="bg-red-500/20 text-red-300 border-red-500/50">
+              {systemsWithExpiredClients.length} sistemas
+            </Badge>
+          )}
+        </Button>
+      </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-y-auto">
@@ -1403,18 +1460,37 @@ export default function PainelOffice() {
               </div>
             ) : systems.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <Settings className="w-16 h-16 text-slate-600 mb-4" />
-                <p className="text-slate-400 mb-2">Nenhum sistema cadastrado</p>
-                <p className="text-xs text-slate-500 mb-4">Adicione um sistema para começar</p>
-                <Button
-                  onClick={() => openSystemDialog()}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-                  size="sm"
-                  data-testid="button-add-first-system"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Adicionar Primeiro Sistema
-                </Button>
+                {showExpiredClients ? (
+                  <>
+                    <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
+                    <p className="text-slate-400 mb-2">Nenhum sistema com clientes vencidos</p>
+                    <p className="text-xs text-slate-500 mb-4">Todos os clientes estão com pagamento em dia! 🎉</p>
+                    <Button
+                      onClick={() => setShowExpiredClients(false)}
+                      className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+                      size="sm"
+                      data-testid="button-show-all-systems"
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      Ver Todos os Sistemas
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Settings className="w-16 h-16 text-slate-600 mb-4" />
+                    <p className="text-slate-400 mb-2">Nenhum sistema cadastrado</p>
+                    <p className="text-xs text-slate-500 mb-4">Adicione um sistema para começar</p>
+                    <Button
+                      onClick={() => openSystemDialog()}
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+                      size="sm"
+                      data-testid="button-add-first-system"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Adicionar Primeiro Sistema
+                    </Button>
+                  </>
+                )}
               </div>
             ) : (
               <ScrollArea className="h-[500px]">
