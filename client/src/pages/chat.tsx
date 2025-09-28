@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import React from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { FixedSizeList as List } from 'react-window';
+import { useQuery, useMutation, useInfiniteQuery } from '@tanstack/react-query';
+import { FixedSizeList } from 'react-window';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -192,12 +192,20 @@ export default function Chat() {
     refetchInterval: 10000, // Check status every 10 seconds (reduced from 2s)
   });
 
-  // Get conversations with client info (with pagination support)
-  const { data: conversasResponse, refetch: refetchConversas } = useQuery({
+  // Get conversations with client info using infinite query for pagination
+  const {
+    data: conversasInfiniteData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetch: refetchConversas,
+    isLoading: isLoadingConversations
+  } = useInfiniteQuery({
     queryKey: ['/api/whatsapp/conversations', contactFilter, searchTerm],
-    queryFn: async () => {
+    queryFn: async ({ pageParam = null }) => {
       const params = new URLSearchParams();
       params.append('limit', '30');
+      if (pageParam) params.append('cursor', pageParam);
       if (contactFilter) params.append('filter', contactFilter);
       if (searchTerm) params.append('search', searchTerm);
       
@@ -205,16 +213,40 @@ export default function Chat() {
       if (!response.ok) throw new Error('Failed to fetch conversations');
       return response.json();
     },
+    getNextPageParam: (lastPage) => {
+      // Handle both new paginated format and old array format for backward compatibility
+      if (Array.isArray(lastPage)) {
+        return undefined; // Old format, no pagination
+      }
+      return lastPage.nextCursor || undefined;
+    },
     refetchOnWindowFocus: true,
-    refetchInterval: 15000, // Auto-refresh every 15 seconds (reduced from 5s)
+    refetchInterval: 15000, // Auto-refresh every 15 seconds
     staleTime: 30000, // Consider data stale after 30 seconds
     gcTime: 300000, // Keep in cache for 5 minutes
   });
   
-  // Extract conversations from the response (handles both old array format and new paginated format)
-  const conversas: ConversaWithDetails[] = Array.isArray(conversasResponse) 
-    ? conversasResponse 
-    : (conversasResponse?.conversations || []);
+  // Flatten all pages of conversations into a single array
+  const conversas: ConversaWithDetails[] = useMemo(() => {
+    if (!conversasInfiniteData?.pages) return [];
+    
+    return conversasInfiniteData.pages.flatMap(page => {
+      // Handle both old array format and new paginated format
+      if (Array.isArray(page)) {
+        return page;
+      }
+      return page.conversations || [];
+    });
+  }, [conversasInfiniteData]);
+
+  // Get total unread count from the first page
+  const totalUnread = useMemo(() => {
+    const firstPage = conversasInfiniteData?.pages?.[0];
+    if (firstPage && !Array.isArray(firstPage)) {
+      return firstPage.totalUnread || 0;
+    }
+    return 0;
+  }, [conversasInfiniteData]);
 
   // Get sistemas for test creation
   const { data: sistemas } = useQuery({
@@ -600,35 +632,63 @@ export default function Chat() {
     
     // Handle new messages via WebSocket
     const handleNewMessage = (messageData: any) => {
-      // New message received - removed console logs
-      
-      // Update the conversation in the cache with new last message and timestamp
-      // Also move the conversation to the top of the list
+      // Update the conversation in the infinite query cache
       queryClient.setQueryData(
-        ['/api/whatsapp/conversations'],
+        ['/api/whatsapp/conversations', contactFilter, searchTerm],
         (oldData: any) => {
-          if (!oldData) return [];
+          if (!oldData?.pages) return oldData;
           
-          // Find the conversation that received the message
-          const updatedConversation = oldData.find((conv: any) => conv.id === messageData.conversaId);
-          if (!updatedConversation) return oldData;
+          // Find and update the conversation across all pages
+          const updatedPages = oldData.pages.map((page: any, pageIndex: number) => {
+            // Handle both old array format and new paginated format
+            const isArrayFormat = Array.isArray(page);
+            const conversations = isArrayFormat ? page : (page.conversations || []);
+            
+            // Find the conversation in this page
+            const convIndex = conversations.findIndex((conv: any) => conv.id === messageData.conversaId);
+            
+            if (convIndex !== -1) {
+              // Update the conversation with new message data
+              const updatedConversation = {
+                ...conversations[convIndex],
+                ultimaMensagem: messageData.conteudo,
+                ultimoRemetente: messageData.remetente,
+                dataUltimaMensagem: messageData.timestamp || new Date().toISOString(),
+                tipoUltimaMensagem: messageData.tipo || 'text',
+                mensagensNaoLidas: messageData.remetente !== 'sistema' && 
+                  (!selectedConversa || selectedConversa.id !== messageData.conversaId) 
+                    ? (conversations[convIndex].mensagensNaoLidas || 0) + 1 
+                    : conversations[convIndex].mensagensNaoLidas
+              };
+              
+              // If this is the first page, move the conversation to the top
+              if (pageIndex === 0) {
+                const otherConversations = conversations.filter((conv: any) => conv.id !== messageData.conversaId);
+                const updatedConversations = [updatedConversation, ...otherConversations];
+                
+                return isArrayFormat ? updatedConversations : {
+                  ...page,
+                  conversations: updatedConversations
+                };
+              } else {
+                // Update in place if not on first page
+                const updatedConversations = [...conversations];
+                updatedConversations[convIndex] = updatedConversation;
+                
+                return isArrayFormat ? updatedConversations : {
+                  ...page,
+                  conversations: updatedConversations
+                };
+              }
+            }
+            
+            return page;
+          });
           
-          // Update the conversation with new message data
-          const updated = {
-            ...updatedConversation,
-            ultimaMensagem: messageData.conteudo,
-            ultimoRemetente: messageData.remetente,
-            dataUltimaMensagem: messageData.timestamp || new Date().toISOString(),
-            tipoUltimaMensagem: messageData.tipo || 'text',
-            mensagensNaoLidas: messageData.remetente !== 'sistema' && 
-              (!selectedConversa || selectedConversa.id !== messageData.conversaId) 
-                ? (updatedConversation.mensagensNaoLidas || 0) + 1 
-                : updatedConversation.mensagensNaoLidas
+          return {
+            ...oldData,
+            pages: updatedPages
           };
-          
-          // Remove the conversation from its current position and add it to the top
-          const otherConversations = oldData.filter((conv: any) => conv.id !== messageData.conversaId);
-          return [updated, ...otherConversations];
         }
       );
       
@@ -1599,6 +1659,7 @@ export default function Chat() {
   // List height state for responsive sizing
   const [listHeight, setListHeight] = useState(window.innerHeight - 200);
   const listRef = useRef<any>(null);
+  const conversationListContainerRef = useRef<HTMLDivElement>(null);
 
   // Update list height on window resize
   useEffect(() => {
@@ -1607,6 +1668,34 @@ export default function Chat() {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Handle infinite scrolling for conversations
+  const handleConversationScroll = useCallback(
+    ({ scrollDirection, scrollOffset, scrollUpdateWasRequested }: any) => {
+      // Only proceed if we're scrolling down and not already fetching
+      if (scrollDirection !== 'forward' || isFetchingNextPage) return;
+      
+      // Check if we're near the bottom (within 100px)
+      const list = listRef.current;
+      if (!list) return;
+      
+      const totalHeight = filteredConversas.length * 96; // 96px per item (itemSize)
+      const visibleHeight = listHeight;
+      const scrollPercentage = (scrollOffset + visibleHeight) / totalHeight;
+      
+      // Load more when we've scrolled past 80% of the list
+      if (scrollPercentage > 0.8 && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    },
+    [filteredConversas.length, listHeight, hasNextPage, isFetchingNextPage, fetchNextPage]
+  );
+
+  // Variable size function for list items
+  const getItemSize = useCallback((index: number) => {
+    // Fixed size of 96px per conversation row
+    return 96;
   }, []);
 
   // ConversationRow component for virtualized list
@@ -2306,25 +2395,38 @@ export default function Chat() {
               <p className="text-center">Nenhuma conversa encontrada</p>
             </div>
           ) : (
-            <List
-              ref={listRef}
-              height={listHeight}
-              itemCount={filteredConversas?.length || 0}
-              itemSize={96}
-              width="100%"
-              itemData={{
-                conversations: filteredConversas,
-                tickets,
-                selectedConversa,
-                setSelectedConversa,
-                showPhotosChat,
-                toast,
-                refetchConversas
-              }}
-              className="scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent"
-            >
-              {ConversationRow}
-            </List>
+            <div className="relative h-full">
+              <FixedSizeList
+                ref={listRef}
+                height={listHeight}
+                itemCount={filteredConversas?.length || 0}
+                itemSize={getItemSize}
+                width="100%"
+                itemData={{
+                  conversations: filteredConversas,
+                  tickets,
+                  selectedConversa,
+                  setSelectedConversa,
+                  showPhotosChat,
+                  toast,
+                  refetchConversas
+                }}
+                onScroll={handleConversationScroll}
+                className="scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent"
+              >
+                {ConversationRow}
+              </FixedSizeList>
+              
+              {/* Loading indicator for pagination */}
+              {isFetchingNextPage && (
+                <div className="absolute bottom-0 left-0 right-0 p-2 bg-dark-surface/90 backdrop-blur-sm border-t border-slate-600">
+                  <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Carregando mais conversas...
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
