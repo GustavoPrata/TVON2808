@@ -197,6 +197,17 @@ export class DiscordNotificationService {
 
     return sent;
   }
+
+  async notifyTicketOpened(clientName: string | null, ticketTitle: string) {
+    const notificationType = 'ticket_opened';
+    
+    // Para tickets não usamos limitação de frequência, sempre enviamos
+    const message = `🎫 Novo Ticket Aberto\n👤 Cliente: ${clientName || 'Não identificado'}\n📋 ${ticketTitle}`;
+
+    const sent = await this.sendToDiscord(message);
+    
+    return sent;
+  }
 }
 
 // Instância singleton

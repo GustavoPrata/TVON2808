@@ -2775,6 +2775,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'aberto'
       });
       
+      // Get client name if clienteId is provided
+      let clientName = null;
+      if (clienteId) {
+        try {
+          const cliente = await storage.getClienteById(clienteId);
+          if (cliente) {
+            clientName = cliente.nome;
+          }
+        } catch (error) {
+          console.error("Erro ao buscar dados do cliente:", error);
+        }
+      }
+      
+      // Send Discord notification for new ticket
+      try {
+        const { discordNotificationService } = await import('./services/DiscordNotificationService');
+        await discordNotificationService.notifyTicketOpened(clientName, titulo);
+        console.log(`🎫 Notificação Discord enviada para novo ticket: ${titulo}`);
+      } catch (error) {
+        console.error("Erro ao enviar notificação Discord para ticket:", error);
+      }
+      
       // Broadcast new ticket event to all connected clients
       broadcastMessage("ticket_created", {
         id: ticket.id,
