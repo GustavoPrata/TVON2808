@@ -182,17 +182,32 @@ app.use((req, res, next) => {
   await discordNotificationService.initialize();
   console.log("✅ Serviço de notificações Discord inicializado");
   
-  // Iniciar o serviço de renovação automática se a configuração estiver habilitada
+  // SEMPRE iniciar o serviço de renovação automática (funciona 24/7)
   try {
-    const config = await storage.getOfficeAutomationConfig();
-    if (config && config.isEnabled) {
-      autoRenewalService.start();
-      console.log("✅ Serviço de renovação automática iniciado");
-    } else {
-      console.log("⚠️ Serviço de renovação automática desabilitado na configuração");
+    // Garantir que a configuração existe
+    let config = await storage.getOfficeAutomationConfig();
+    if (!config) {
+      // Criar configuração padrão se não existir
+      config = await storage.createOfficeAutomationConfig({
+        isEnabled: true,
+        batchSize: 1,
+        intervalMinutes: 2,
+        singleGeneration: false,
+        renewalAdvanceTime: 30,
+        distributionMode: 'individual'
+      });
+      console.log("📝 Configuração de automação criada com valores padrão");
     }
+    
+    // SEMPRE iniciar o serviço para funcionar 24/7
+    autoRenewalService.start();
+    console.log("🚀 Serviço de renovação automática iniciado (24/7)");
+    console.log(`⚙️ Configuração: Habilitado=${config.isEnabled}, Antecedência=${config.renewalAdvanceTime}min`);
   } catch (error) {
     console.error("❌ Erro ao iniciar serviço de renovação automática:", error);
+    // Tentar iniciar mesmo com erro na configuração
+    autoRenewalService.start();
+    console.log("⚠️ Serviço iniciado com configuração padrão após erro");
   }
   
   // Executar verificação imediatamente ao iniciar
