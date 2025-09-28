@@ -90,9 +90,9 @@ export function formatShortInBrazil(date: string | Date): string {
       return formatTimeInBrazil(date);
     }
     
-    // Se foi ontem, mostra "ontem"
+    // Se foi ontem, mostra "Ontem"
     if (isYesterday(brazilDate)) {
-      return `ontem ${formatTimeInBrazil(date)}`;
+      return `Ontem ${formatTimeInBrazil(date)}`;
     }
     
     // Calcula a diferença em dias
@@ -104,7 +104,9 @@ export function formatShortInBrazil(date: string | Date): string {
       const dayName = dateFnsFormat(brazilDate, 'EEEE', { locale: ptBR });
       // Remove "-feira" do nome do dia
       const shortDayName = dayName.replace('-feira', '');
-      return `${shortDayName} ${formatTimeInBrazil(date)}`;
+      // Capitaliza a primeira letra
+      const capitalizedDayName = shortDayName.charAt(0).toUpperCase() + shortDayName.slice(1);
+      return `${capitalizedDayName} ${formatTimeInBrazil(date)}`;
     }
     
     // Para datas com mais de 6 dias, mostra o formato dd/MM
