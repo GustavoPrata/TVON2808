@@ -3,7 +3,7 @@ import {
   clientes, pontos, pagamentos, pagamentosManual, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
   avisosVencimento, configAvisos, anotacoes, notificacoesRecorrentes,
-  officeAutomationConfig, officeAutomationLogs, officeCredentials, extensionStatus, automationStatus,
+  officeAutomationConfig, officeAutomationLogs, officeCredentials, extensionStatus,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
@@ -20,8 +20,7 @@ import {
   type OfficeAutomationConfig, type InsertOfficeAutomationConfig,
   type OfficeAutomationLogs, type InsertOfficeAutomationLogs,
   type OfficeCredentials, type InsertOfficeCredentials,
-  type ExtensionStatus, type InsertExtensionStatus, type UpdateExtensionStatus,
-  type AutomationStatus, type InsertAutomationStatus
+  type ExtensionStatus, type InsertExtensionStatus, type UpdateExtensionStatus
 } from "@shared/schema";
 import { eq, desc, asc, sql, and, or, gte, lte, ilike, ne, count } from "drizzle-orm";
 
@@ -330,13 +329,6 @@ export interface IStorage {
   // Extension Status
   getExtensionStatus(): Promise<ExtensionStatus | undefined>;
   updateExtensionStatus(status: UpdateExtensionStatus): Promise<ExtensionStatus>;
-  
-  // Automation Status
-  getAutomationStatus(): Promise<AutomationStatus | undefined>;
-  updateAutomationStatus(data: Partial<InsertAutomationStatus>): Promise<AutomationStatus>;
-  setAutomationError(error: string): Promise<void>;
-  updateSistemaRenewalStatus(sistemaId: string, data: {lastRenewalAt?: Date, renewalCount?: number}): Promise<void>;
-  getOfficeCredentials(): Promise<OfficeCredentials[]>;
   
   // Sync user systems to API
   syncUserSystemsToApi(externalApiService: any, dryRun?: boolean): Promise<{
@@ -3026,79 +3018,6 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return created;
     }
-  }
-  
-  // Automation Status Methods
-  async getAutomationStatus(): Promise<AutomationStatus | undefined> {
-    const result = await db.select()
-      .from(automationStatus)
-      .limit(1);
-    return result[0];
-  }
-  
-  async updateAutomationStatus(data: Partial<InsertAutomationStatus>): Promise<AutomationStatus> {
-    // Primeiro verificar se existe
-    const existing = await db.select()
-      .from(automationStatus)
-      .limit(1);
-    
-    if (existing.length === 0) {
-      // Criar novo registro
-      const result = await db.insert(automationStatus)
-        .values({
-          ...data,
-          updatedAt: new Date()
-        })
-        .returning();
-      return result[0];
-    } else {
-      // Atualizar existente
-      const result = await db.update(automationStatus)
-        .set({
-          ...data,
-          updatedAt: new Date()
-        })
-        .where(eq(automationStatus.id, existing[0].id))
-        .returning();
-      return result[0];
-    }
-  }
-  
-  async setAutomationError(error: string): Promise<void> {
-    await this.updateAutomationStatus({
-      lastError: error,
-      updatedAt: new Date()
-    });
-  }
-  
-  async updateSistemaRenewalStatus(sistemaId: string, data: {lastRenewalAt?: Date, renewalCount?: number}): Promise<void> {
-    const updates: any = {};
-    
-    if (data.lastRenewalAt) {
-      updates.lastRenewalAt = data.lastRenewalAt;
-    }
-    
-    if (data.renewalCount !== undefined) {
-      // Incrementar contador existente
-      const sistema = await db.select()
-        .from(sistemas)
-        .where(eq(sistemas.systemId, sistemaId))
-        .limit(1);
-      
-      if (sistema.length > 0) {
-        updates.renewalCount = (sistema[0].renewalCount || 0) + data.renewalCount;
-      }
-    }
-    
-    await db.update(sistemas)
-      .set(updates)
-      .where(eq(sistemas.systemId, sistemaId));
-  }
-  
-  async getOfficeCredentials(): Promise<OfficeCredentials[]> {
-    return await db.select()
-      .from(officeCredentials)
-      .orderBy(desc(officeCredentials.generatedAt));
   }
 }
 

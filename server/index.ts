@@ -182,48 +182,17 @@ app.use((req, res, next) => {
   await discordNotificationService.initialize();
   console.log("✅ Serviço de notificações Discord inicializado");
   
-  // Importar e inicializar o serviço de automação Puppeteer
-  const { onlineOfficeAutomationService } = await import("./services/OnlineOfficeAutomationService");
-  
-  // Verificar se deve iniciar automação baseado na configuração
-  const config = await storage.getOfficeAutomationConfig();
-  if (config?.isEnabled) {
-    try {
-      console.log("🤖 Iniciando serviço de automação Puppeteer...");
-      await onlineOfficeAutomationService.start();
-      console.log("✅ Serviço de automação Puppeteer iniciado com sucesso");
-    } catch (error) {
-      console.error("❌ Erro ao iniciar serviço de automação Puppeteer:", error);
-      // Não falhar o startup se a automação falhar
-    }
-  }
-  
-  // SEMPRE iniciar o serviço de renovação automática (funciona 24/7)
+  // Iniciar o serviço de renovação automática se a configuração estiver habilitada
   try {
-    // Garantir que a configuração existe
-    let config = await storage.getOfficeAutomationConfig();
-    if (!config) {
-      // Criar configuração padrão se não existir
-      config = await storage.createOfficeAutomationConfig({
-        isEnabled: true,
-        batchSize: 1,
-        intervalMinutes: 2,
-        singleGeneration: false,
-        renewalAdvanceTime: 30,
-        distributionMode: 'individual'
-      });
-      console.log("📝 Configuração de automação criada com valores padrão");
+    const config = await storage.getOfficeAutomationConfig();
+    if (config && config.isEnabled) {
+      autoRenewalService.start();
+      console.log("✅ Serviço de renovação automática iniciado");
+    } else {
+      console.log("⚠️ Serviço de renovação automática desabilitado na configuração");
     }
-    
-    // SEMPRE iniciar o serviço para funcionar 24/7
-    autoRenewalService.start();
-    console.log("🚀 Serviço de renovação automática iniciado (24/7)");
-    console.log(`⚙️ Configuração: Habilitado=${config.isEnabled}, Antecedência=${config.renewalAdvanceTime}min`);
   } catch (error) {
     console.error("❌ Erro ao iniciar serviço de renovação automática:", error);
-    // Tentar iniciar mesmo com erro na configuração
-    autoRenewalService.start();
-    console.log("⚠️ Serviço iniciado com configuração padrão após erro");
   }
   
   // Executar verificação imediatamente ao iniciar

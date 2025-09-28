@@ -632,17 +632,6 @@ export const extensionStatus = pgTable("extension_status", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Automation Status - status da automação Puppeteer no servidor
-export const automationStatus = pgTable("automation_status", {
-  id: serial("id").primaryKey(),
-  isActive: boolean("is_active").default(false),
-  isLoggedIn: boolean("is_logged_in").default(false),
-  currentUrl: text("current_url"),
-  lastHeartbeat: timestamp("last_heartbeat", { withTimezone: true }),
-  lastError: text("last_error"),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow()
-});
-
 // Discord Notifications Sent - rastreia notificações enviadas para evitar spam
 export const discordNotificationsSent = pgTable("discord_notifications_sent", {
   id: serial("id").primaryKey(),
@@ -734,12 +723,3 @@ export const insertNotificacaoRecorrenteSchema = createInsertSchema(notificacoes
 
 export type NotificacaoRecorrente = typeof notificacoesRecorrentes.$inferSelect;
 export type InsertNotificacaoRecorrente = z.infer<typeof insertNotificacaoRecorrenteSchema>;
-
-// Automation Status types
-export const insertAutomationStatusSchema = createInsertSchema(automationStatus).omit({
-  id: true,
-  updatedAt: true,
-});
-
-export type AutomationStatus = typeof automationStatus.$inferSelect;
-export type InsertAutomationStatus = z.infer<typeof insertAutomationStatusSchema>;

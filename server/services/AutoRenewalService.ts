@@ -1,9 +1,8 @@
 import { db } from '../db';
 import { storage } from '../storage';
-import { sistemas as sistemasTable, officeCredentials, pontos, clientes, automationStatus } from '@shared/schema';
+import { sistemas as sistemasTable, officeCredentials, pontos, clientes, extensionStatus } from '@shared/schema';
 import { sql, and, eq, lte } from 'drizzle-orm';
 import { discordNotificationService } from './DiscordNotificationService';
-import { onlineOfficeAutomationService } from './OnlineOfficeAutomationService';
 
 // Referência para o WebSocket Server para broadcast
 let wssRef: any = null;
@@ -100,10 +99,11 @@ export class AutoRenewalService {
         detalhes: { checkTime: this.lastCheckTime.toISOString() }
       });
       
-      // Verificar status da automação e notificar se houver problemas
+      // Verificar status da extensão e notificar se houver problemas
       try {
-        const status = await storage.getAutomationStatus();
-        if (status) {
+        const extensionStatusData = await db.select().from(extensionStatus).limit(1);
+        if (extensionStatusData.length > 0) {
+          const status = extensionStatusData[0];
           const now = new Date();
           const lastHeartbeat = status.lastHeartbeat ? new Date(status.lastHeartbeat) : null;
           const minutesSinceLastHeartbeat = lastHeartbeat ? 
@@ -111,24 +111,22 @@ export class AutoRenewalService {
           
           // Se não recebeu heartbeat há mais de 5 minutos, considera offline
           if (minutesSinceLastHeartbeat > 5 || !status.isActive || !status.isLoggedIn) {
-            console.log(`⚠️ Automação Puppeteer com problema - Última atividade: ${minutesSinceLastHeartbeat.toFixed(0)}min atrás`);
-            // Tentar reiniciar o serviço
-            console.log('🔄 Tentando reiniciar o serviço de automação...');
-            await onlineOfficeAutomationService.start();
+            console.log(`⚠️ Extensão com problema - Última atividade: ${minutesSinceLastHeartbeat.toFixed(0)}min atrás`);
+            await discordNotificationService.notifyExtensionOffline();
           }
           
           // Se está ativa mas travada no login
           if (status.isActive && status.isLoggedIn && status.currentUrl && status.currentUrl.includes('login')) {
-            console.log(`⚠️ Automação possivelmente travada no login`);
-            await discordNotificationService.notifyAutomationStuck();
+            console.log(`⚠️ Extensão possivelmente travada no login`);
+            await discordNotificationService.notifyExtensionStuck();
           }
         } else {
-          // Sem dados da automação - iniciar o serviço
-          console.log(`⚠️ Automação Puppeteer não inicializada - Iniciando...`);
-          await onlineOfficeAutomationService.start();
+          // Sem dados da extensão
+          console.log(`⚠️ Nenhum dado de status da extensão encontrado`);
+          await discordNotificationService.notifyExtensionOffline();
         }
       } catch (error) {
-        console.error('Erro ao verificar status da automação:', error);
+        console.error('Erro ao verificar status da extensão:', error);
       }
       
       // Limpar itens antigos da fila (mais de 1 hora)
@@ -471,7 +469,7 @@ export class AutoRenewalService {
   async renewSystem(sistema: any) {
     const traceId = `renewal_${sistema.systemId}_${Date.now()}`;
     try {
-      console.log(`🔄 [AutoRenewal] INICIANDO renovação via Puppeteer - TraceId: ${traceId}`);
+      console.log(`🔄 [AutoRenewal] INICIANDO renovação - TraceId: ${traceId}`);
       console.log(`  Sistema ID: ${sistema.id}`);
       console.log(`  Sistema SystemID: ${sistema.systemId}`);
       console.log(`  Username: ${sistema.username}`);
@@ -480,7 +478,7 @@ export class AutoRenewalService {
       await storage.createLog({
         nivel: 'info',
         origem: 'AutoRenewal',
-        mensagem: 'Iniciando renovação de sistema via Puppeteer',
+        mensagem: 'Iniciando renovação de sistema individual',
         detalhes: {
           traceId,
           sistemaId: sistema.id,
@@ -490,107 +488,134 @@ export class AutoRenewalService {
         }
       });
 
-      // Verificar se já está processando este sistema
-      if (this.isRenewing.has(sistema.systemId)) {
-        console.log(`⚠️ [AutoRenewal] Sistema ${sistema.systemId} já está sendo renovado [${traceId}]`);
-        return;
-      }
-
-      // Chamar diretamente o serviço Puppeteer para renovar
-      console.log(`🤖 [AutoRenewal] Chamando OnlineOfficeAutomationService para renovar [${traceId}]...`);
+      // 1. Verificar se já existe uma task pendente para este sistema
+      console.log(`🔍 [AutoRenewal] Verificando se já existe task pendente para o sistema ${sistema.id} [${traceId}]...`);
       
-      // Garantir que o serviço está inicializado
-      const status = await storage.getAutomationStatus();
-      if (!status || !status.isActive) {
-        console.log('🔄 Iniciando serviço de automação...');
-        await onlineOfficeAutomationService.start();
-        // Aguardar alguns segundos para o serviço inicializar
-        await new Promise(resolve => setTimeout(resolve, 5000));
-      }
+      const existingPendingTasks = await db
+        .select()
+        .from(officeCredentials)
+        .where(
+          and(
+            eq(officeCredentials.status, 'pending'),
+            eq(officeCredentials.sistemaId, sistema.id)
+          )
+        );
       
-      // Renovar o sistema
-      const result = await onlineOfficeAutomationService.renewSystem(
-        sistema.systemId,
-        sistema.username,
-        sistema.password || sistema.username // Usar username como senha se não tiver senha
-      );
-      
-      if (result.success) {
-        console.log(`✅ [AutoRenewal] Sistema ${sistema.systemId} renovado com sucesso [${traceId}]`);
-        console.log(`  Novo username: ${result.username}`);
-        console.log(`  Nova senha: ${result.password ? '***hidden***' : 'N/A'}`);
-        
-        // Atualizar o sistema no banco de dados
-        if (result.username && result.password) {
-          await storage.updateSistemaRenewal(
-            sistema.systemId,
-            result.username,
-            result.password,
-            traceId
-          );
-          
-          // Atualizar contador de renovações
-          await storage.updateSistemaRenewalStatus(
-            sistema.systemId,
-            {
-              lastRenewalAt: new Date(),
-              renewalCount: 1
-            }
-          );
-        }
+      if (existingPendingTasks.length > 0) {
+        console.log(`⚠️ [AutoRenewal] Já existe task pendente para o sistema ${sistema.id} [${traceId}]`);
+        console.log(`  Tasks encontradas: ${existingPendingTasks.length}`);
+        console.log(`  Task ID: ${existingPendingTasks[0].id}`);
+        console.log(`  Task Username: ${existingPendingTasks[0].username}`);
+        console.log(`  Task Criada em: ${existingPendingTasks[0].generatedAt}`);
         
         await storage.createLog({
           nivel: 'info',
           origem: 'AutoRenewal',
-          mensagem: 'Sistema renovado com sucesso via Puppeteer',
+          mensagem: 'Task de renovação já existe para este sistema - pulando criação',
           detalhes: {
             traceId,
             sistemaId: sistema.id,
             systemId: sistema.systemId,
-            newUsername: result.username
+            existingTaskId: existingPendingTasks[0].id,
+            existingTaskUsername: existingPendingTasks[0].username,
+            existingTasksCount: existingPendingTasks.length
           }
         });
         
-        // Notificar Discord sobre renovação bem-sucedida
-        await discordNotificationService.notifyRenewalSuccess(
-          sistema.systemId,
-          sistema.username,
-          result.username
-        );
-      } else {
-        console.error(`❌ [AutoRenewal] Erro ao renovar sistema ${sistema.systemId} [${traceId}]:`, result.error);
+        // Atualizar status na fila
+        const queueItem = this.renewalQueue.get(sistema.systemId);
+        if (queueItem) {
+          queueItem.status = 'completed';
+          queueItem.completedAt = new Date();
+        }
         
-        await storage.createLog({
-          nivel: 'error',
-          origem: 'AutoRenewal',
-          mensagem: 'Erro ao renovar sistema via Puppeteer',
-          detalhes: {
-            traceId,
-            sistemaId: sistema.id,
-            systemId: sistema.systemId,
-            error: result.error
-          }
-        });
+        // Agendar remoção da flag de renovação após 5 minutos
+        setTimeout(() => {
+          this.isRenewing.delete(sistema.systemId);
+          console.log(`🗑️ Flag de renovação removida para sistema ${sistema.systemId}`);
+        }, 5 * 60 * 1000);
         
-        // Notificar Discord sobre erro na renovação
-        await discordNotificationService.notifyRenewalError(
-          sistema.systemId,
-          sistema.username,
-          result.error || 'Erro desconhecido'
-        );
+        return; // Retornar sem criar nova task
       }
+
+      // 2. Criar task pendente no banco com sistemaId no metadata
+      console.log(`💾 [AutoRenewal] Nenhuma task pendente encontrada - criando nova task de renovação [${traceId}]...`);
+      
+      // IMPORTANTE: Usar as credenciais reais do sistema para a extensão poder fazer login
+      const taskData = {
+        username: sistema.username,  // Username real do sistema
+        password: sistema.password,  // Password real do sistema  
+        source: 'renewal',
+        status: 'pending',
+        generatedAt: new Date(),
+        sistemaId: sistema.id, // Adicionar sistemaId diretamente no registro
+        metadata: JSON.stringify({
+          sistemaId: sistema.id,
+          systemId: sistema.systemId,
+          originalUsername: sistema.username,
+          originalPassword: sistema.password,
+          currentExpiration: sistema.expiracao,
+          traceId: traceId
+        })
+      };
+      
+      console.log(`🔍 [AutoRenewal] Dados da task a criar [${traceId}]:`, {
+        ...taskData,
+        password: '***hidden***' // Ocultar senha no log
+      });
+      
+      const [task] = await db
+        .insert(officeCredentials)
+        .values(taskData)
+        .returning();
+
+      console.log(`✅ [AutoRenewal] Task criada com sucesso [${traceId}]:`);
+      console.log(`  Task ID: ${task.id}`);
+      console.log(`  Sistema ID: ${task.sistemaId}`);
+      console.log(`  Username da task: ${task.username}`);
+      
+      await storage.createLog({
+        nivel: 'info',
+        origem: 'AutoRenewal',
+        mensagem: 'Task de renovação criada com sucesso',
+        detalhes: {
+          traceId,
+          taskId: task.id,
+          sistemaId: task.sistemaId,
+          taskUsername: task.username
+        }
+      });
+
+      // 3. Marcar sistema como em renovação no banco
+      console.log(`📊 [AutoRenewal] Atualizando sistema no banco [${traceId}]...`);
+      
+      const updateResult = await db
+        .update(sistemasTable)
+        .set({
+          atualizadoEm: new Date()
+        })
+        .where(eq(sistemasTable.id, sistema.id))
+        .returning();
+
+      if (updateResult && updateResult.length > 0) {
+        console.log(`✅ [AutoRenewal] Sistema atualizado no banco [${traceId}]:`);
+        console.log(`  Timestamp atualizado`);
+        console.log(`  Task criada - aguardando processamento pela extensão`);
+      } else {
+        console.warn(`⚠️ [AutoRenewal] Sistema não retornou dados após update [${traceId}]`);
+      }
+      
+      console.log(`📝 [AutoRenewal] Task ${task.id} criada e aguardando extensão [${traceId}]`);
+      console.log(`🎯 [AutoRenewal] A extensão deverá processar a task e chamar updateSistemaRenewal`);
       
       // Atualizar status na fila
       const queueItem = this.renewalQueue.get(sistema.systemId);
       if (queueItem) {
-        queueItem.status = result.success ? 'completed' : 'error';
+        queueItem.status = 'completed';
         queueItem.completedAt = new Date();
-        if (!result.success) {
-          queueItem.error = result.error;
-        }
       }
 
-      // Agendar remoção da flag de renovação após 5 minutos
+      // 3. Agendar remoção da flag de renovação após 5 minutos
       setTimeout(() => {
         this.isRenewing.delete(sistema.systemId);
         console.log(`🗑️ Flag de renovação removida para sistema ${sistema.systemId}`);
