@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Auto Login IPTV",
+  "version": "1.1",
+  "description": "Login automático no site de IPTV com reCAPTCHA auto-mark",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["https://*.zip/*", "http://*/*", "https://www.google.com/*", "https://www.recaptcha.net/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://onlineoffice.zip/*", "http://onlineoffice.zip/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://www.google.com/recaptcha/*", "https://www.recaptcha.net/recaptcha/*"],
+      "js": ["recaptcha.js"],
+      "run_at": "document_end",
+      "all_frames": true
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+}

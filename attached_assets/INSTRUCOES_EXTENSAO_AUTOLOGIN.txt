@@ -1,0 +1,54 @@
+==============================================
+EXTENSÃO ATUALIZADA COM LOGIN AUTOMÁTICO
+==============================================
+
+FUNCIONALIDADES ADICIONADAS:
+-----------------------------
+✅ Login automático no site onlineoffice.zip
+✅ Preenchimento automático de usuário e senha
+✅ Click automático no reCAPTCHA
+✅ Click automático no botão de login após 3 segundos
+
+CREDENCIAIS CONFIGURADAS:
+-------------------------
+Usuário: gustavoprata17
+Senha: iptv102030
+
+COMO INSTALAR:
+--------------
+1. Extraia o arquivo "extensao_atualizada_com_autologin.zip"
+
+2. Abra o Chrome e acesse: chrome://extensions/
+
+3. Ative o "Modo do desenvolvedor" (canto superior direito)
+
+4. Clique em "Carregar sem compactação"
+
+5. Selecione a pasta "extensao/chrome-extension" que foi extraída
+
+6. A extensão será instalada e ativada automaticamente
+
+COMO USAR:
+----------
+1. Após instalar, acesse: https://onlineoffice.zip
+
+2. A extensão irá automaticamente:
+   - Preencher o usuário
+   - Preencher a senha  
+   - Marcar o reCAPTCHA
+   - Clicar no botão de login
+
+3. Aguarde alguns segundos para o login ser realizado
+
+OBSERVAÇÕES:
+------------
+- A extensão funciona em todas as páginas do onlineoffice.zip
+- O reCAPTCHA é marcado automaticamente após 1.5 segundos
+- O botão de login é clicado após 3 segundos
+- Mantém todas as funcionalidades anteriores da extensão
+
+ARQUIVO PARA DOWNLOAD:
+----------------------
+extensao_atualizada_com_autologin.zip
+
+==============================================
