@@ -24,21 +24,15 @@ export class DiscordNotificationService {
     this.enabled = enabled;
   }
 
-  private async sendToDiscord(content: string, embed?: any) {
+  private async sendToDiscord(content: string) {
     if (!this.enabled || !this.webhookUrl) {
       return false;
     }
 
     try {
-      const payload: any = {
-        username: 'Painel Office Bot',
-        avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png',
+      const payload = {
         content: content
       };
-
-      if (embed) {
-        payload.embeds = [embed];
-      }
 
       const response = await fetch(this.webhookUrl, {
         method: 'POST',
@@ -99,24 +93,9 @@ export class DiscordNotificationService {
       return false;
     }
 
-    const message = `🚨 **Sistema Prestes a Vencer**\n` +
-      `Sistema ID: ${systemId}\n` +
-      `Usuário: ${username}\n` +
-      `⏱️ Vence em: ${minutesUntilExpiry} minutos`;
+    const message = `⚠️ Sistema vencendo em ${minutesUntilExpiry} minutos`;
 
-    const embed = {
-      title: '⚠️ Alerta de Vencimento',
-      description: 'Um sistema está prestes a vencer!',
-      color: 0xFFA500, // Laranja
-      fields: [
-        { name: 'Sistema ID', value: systemId, inline: true },
-        { name: 'Usuário', value: username, inline: true },
-        { name: 'Tempo Restante', value: `${minutesUntilExpiry} minutos`, inline: true },
-      ],
-      timestamp: new Date().toISOString(),
-    };
-
-    const sent = await this.sendToDiscord(message, embed);
+    const sent = await this.sendToDiscord(message);
     
     if (sent) {
       // Registrar notificação com expiração de 6 horas
@@ -140,24 +119,9 @@ export class DiscordNotificationService {
       
       // Se não está ativa ou não está logada
       if (!extensionData || !extensionData.isActive || !extensionData.isLoggedIn) {
-        const message = `🔴 **Extensão Offline ou Não Logada**\n` +
-          `Status: ${!extensionData ? 'Sem dados' : (extensionData.isActive ? 'Ativa' : 'Inativa')}\n` +
-          `Login: ${extensionData?.isLoggedIn ? 'Sim' : 'Não'}\n` +
-          `⚠️ Sistemas próximos do vencimento não serão renovados!`;
+        const message = `🔴 Extensão offline`;
 
-        const embed = {
-          title: '🔴 Extensão com Problema',
-          description: 'A extensão não está funcionando corretamente',
-          color: 0xFF0000, // Vermelho
-          fields: [
-            { name: 'Status', value: extensionData?.isActive ? '✅ Ativa' : '❌ Inativa', inline: true },
-            { name: 'Login', value: extensionData?.isLoggedIn ? '✅ Logado' : '❌ Deslogado', inline: true },
-            { name: 'Última Atividade', value: extensionData?.lastHeartbeat ? new Date(extensionData.lastHeartbeat).toLocaleString('pt-BR') : 'Nunca', inline: false },
-          ],
-          timestamp: new Date().toISOString(),
-        };
-
-        const sent = await this.sendToDiscord(message, embed);
+        const sent = await this.sendToDiscord(message);
         
         if (sent) {
           // Registrar notificação com expiração de 30 minutos
@@ -187,24 +151,9 @@ export class DiscordNotificationService {
       if (extensionData && extensionData.isActive && extensionData.isLoggedIn) {
         // Verificar se está travada no login (URL contém login mas está marcada como logada)
         if (extensionData.currentUrl && extensionData.currentUrl.includes('login')) {
-          const message = `⚠️ **Extensão Travada no Login**\n` +
-            `URL Atual: ${extensionData.currentUrl}\n` +
-            `Status: Ativa mas possivelmente travada\n` +
-            `🔧 Por favor, verifique a extensão!`;
+          const message = `⚠️ Extensão travada no login`;
 
-          const embed = {
-            title: '⚠️ Extensão Pode Estar Travada',
-            description: 'A extensão está ativa mas pode estar travada na tela de login',
-            color: 0xFFFF00, // Amarelo
-            fields: [
-              { name: 'URL Atual', value: extensionData.currentUrl || 'Desconhecida', inline: false },
-              { name: 'Status', value: '✅ Ativa', inline: true },
-              { name: 'Login', value: '✅ Marcado como logado', inline: true },
-            ],
-            timestamp: new Date().toISOString(),
-          };
-
-          const sent = await this.sendToDiscord(message, embed);
+          const sent = await this.sendToDiscord(message);
           
           if (sent) {
             // Registrar notificação com expiração de 1 hora
@@ -228,25 +177,9 @@ export class DiscordNotificationService {
       return false;
     }
 
-    const message = `❌ **Sistema Vencido**\n` +
-      `Sistema ID: ${systemId}\n` +
-      `Usuário: ${username}\n` +
-      (clientName ? `Cliente: ${clientName}\n` : '') +
-      `💀 O sistema expirou!`;
+    const message = `❌ Sistema expirado`;
 
-    const embed = {
-      title: '❌ Sistema Expirado',
-      description: 'Um sistema acaba de vencer',
-      color: 0xFF0000, // Vermelho
-      fields: [
-        { name: 'Sistema ID', value: systemId, inline: true },
-        { name: 'Usuário', value: username, inline: true },
-        ...(clientName ? [{ name: 'Cliente', value: clientName, inline: true }] : []),
-      ],
-      timestamp: new Date().toISOString(),
-    };
-
-    const sent = await this.sendToDiscord(message, embed);
+    const sent = await this.sendToDiscord(message);
     
     if (sent) {
       // Registrar notificação com expiração de 24 horas
