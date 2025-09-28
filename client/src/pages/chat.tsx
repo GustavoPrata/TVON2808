@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { FixedSizeList as List } from 'react-window';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -1593,6 +1594,298 @@ export default function Chat() {
     return formatShortInBrazil(timestamp);
   };
 
+  // List height state for responsive sizing
+  const [listHeight, setListHeight] = useState(window.innerHeight - 200);
+  const listRef = useRef<any>(null);
+
+  // Update list height on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setListHeight(window.innerHeight - 200);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // ConversationRow component for virtualized list
+  const ConversationRow = memo(({ index, style, data }: { index: number; style: React.CSSProperties; data: any }) => {
+    const conversa = data.conversations[index];
+    const { tickets, selectedConversa, setSelectedConversa, showPhotosChat, toast, refetchConversas } = data;
+    
+    if (!conversa) return null;
+
+    const openTicket = tickets.find((ticket: any) => 
+      ticket.conversaId === conversa.id && ticket.status === 'aberto'
+    );
+
+    return (
+      <div style={style} className="px-2">
+        <div
+          className={cn(
+            "group relative p-3 rounded-lg cursor-pointer transition-all duration-200",
+            selectedConversa?.id === conversa.id 
+              ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 shadow-lg" 
+              : "hover:bg-slate-800/50 border border-transparent hover:border-slate-700"
+          )}
+        >
+          <div className="flex items-center gap-3" onClick={() => {
+            setSelectedConversa({
+              ...conversa,
+              hasOpenTicket: !!openTicket,
+              ticket: openTicket
+            });
+          }}>
+            {/* Avatar with Online Status */}
+            <div className="relative">
+              <Avatar className="w-12 h-12">
+                <AvatarImage 
+                  src={showPhotosChat && conversa.profilePicture ? conversa.profilePicture : defaultProfileIcon} 
+                  alt={conversa.nome || conversa.telefone}
+                  className="object-cover"
+                />
+                <AvatarFallback>
+                  <img 
+                    src={defaultProfileIcon} 
+                    alt="Default profile"
+                    className="object-cover w-full h-full"
+                  />
+                </AvatarFallback>
+              </Avatar>
+              
+              {/* Anúncio Indicator - Star at top left */}
+              {conversa.iniciadoPorAnuncio && (
+                <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 flex items-center justify-center shadow-lg">
+                  <Star className="w-3 h-3 text-white fill-white" />
+                </div>
+              )}
+              
+              {/* Cliente/Novo/Teste Status Indicator */}
+              <div className={cn(
+                "absolute -bottom-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white shadow-lg",
+                conversa.isTeste
+                  ? "bg-gradient-to-r from-blue-500 to-purple-600"
+                  : conversa.isCliente 
+                  ? "bg-gradient-to-r from-purple-500 to-purple-600" 
+                  : "bg-gradient-to-r from-green-500 to-green-600"
+              )}>
+                {conversa.isTeste ? 'T' : conversa.isCliente ? 'C' : 'N'}
+              </div>
+              
+              {/* Ticket Indicator - Orange dot with ticket icon */}
+              {conversa.hasOpenTicket && (
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
+                  <Ticket className="w-3 h-3 text-white" />
+                </div>
+              )}
+              
+              {/* Mode Indicator Icon */}
+              <div className={cn(
+                "absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-lg",
+                conversa.modoAtendimento === 'bot' 
+                  ? "bg-gradient-to-r from-blue-500 to-blue-600" 
+                  : "bg-gradient-to-r from-purple-500 to-purple-600"
+              )}>
+                {conversa.modoAtendimento === 'bot' ? (
+                  <Bot className="w-3 h-3 text-white" />
+                ) : (
+                  <User className="w-3 h-3 text-white" />
+                )}
+              </div>
+            </div>
+            
+            {/* Conversation Info */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col">
+                    <h4 className="font-semibold truncate text-slate-100">
+                      {(() => {
+                        // Se for cliente, usar nome do cliente salvo
+                        if (conversa.isCliente && conversa.clienteNome) {
+                          return conversa.clienteNome;
+                        }
+                        // Se tiver nome do WhatsApp e não for só número
+                        if (conversa.nome && conversa.nome !== conversa.telefone) {
+                          return conversa.nome;
+                        }
+                        // Se for só número, mostrar formatado
+                        return formatPhoneNumber(conversa.telefone);
+                      })()}
+                    </h4>
+                    <span className="text-xs text-slate-500">{formatPhoneNumber(conversa.telefone)}</span>
+                  </div>
+                  {conversa.isPinned && (
+                    <Pin className="w-3 h-3 text-blue-400" />
+                  )}
+                  {conversa.isMuted && (
+                    <VolumeX className="w-3 h-3 text-slate-500" />
+                  )}
+                </div>
+                <span className="text-xs text-slate-500">
+                  {conversa.dataUltimaMensagem && formatLastMessageDate(conversa.dataUltimaMensagem)}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {/* Last Message Preview */}
+                <p className="text-sm text-slate-400 truncate flex-1 flex items-center gap-1 overflow-hidden"
+                   style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                  {conversa.isTyping ? (
+                    <span className="text-blue-400 italic">digitando...</span>
+                  ) : (
+                    <>
+                      {/* Show checkmarks only when last message was sent by system */}
+                      {conversa.ultimaMensagem && conversa.ultimoRemetente === 'sistema' && (
+                        <span className="text-xs flex-shrink-0">
+                          <svg className="w-4 h-4 text-slate-500 inline" viewBox="0 0 16 11" fill="none">
+                            <path d="M1 5L5 9L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M5 5L9 9L15 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </span>
+                      )}
+                      {/* Show media type icon */}
+                      {conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text' && (
+                        <span className="flex-shrink-0">
+                          {conversa.tipoUltimaMensagem === 'image' && <Camera className="w-4 h-4 text-slate-400" />}
+                          {conversa.tipoUltimaMensagem === 'video' && <Video className="w-4 h-4 text-slate-400" />}
+                          {conversa.tipoUltimaMensagem === 'audio' && <Mic className="w-4 h-4 text-slate-400" />}
+                          {conversa.tipoUltimaMensagem === 'document' && <FileText className="w-4 h-4 text-slate-400" />}
+                          {conversa.tipoUltimaMensagem === 'sticker' && <Sparkles className="w-4 h-4 text-slate-400" />}
+                        </span>
+                      )}
+                      <span className="truncate">
+                        {(() => {
+                          if (!conversa.ultimaMensagem || conversa.ultimaMensagem === '') {
+                            return <span className="italic">Clique para iniciar conversa</span>;
+                          }
+                          
+                          // For media messages, show special formatting
+                          if (conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text') {
+                            try {
+                              const parsedMessage = JSON.parse(conversa.ultimaMensagem);
+                              
+                              switch (conversa.tipoUltimaMensagem) {
+                                case 'image':
+                                  return parsedMessage.caption ? `Foto: ${parsedMessage.caption}` : 'Foto';
+                                case 'video':
+                                  return parsedMessage.caption ? `Vídeo: ${parsedMessage.caption}` : 'Vídeo';
+                                case 'audio':
+                                  const duration = parsedMessage.duration || 0;
+                                  return `Áudio (${duration}s)`;
+                                case 'document':
+                                  const fileName = parsedMessage.fileName || 'arquivo';
+                                  return fileName;
+                                case 'sticker':
+                                  return 'Figurinha';
+                                default:
+                                  return conversa.ultimaMensagem;
+                              }
+                            } catch (e) {
+                              // If parsing fails, check for special media types
+                              if (conversa.tipoUltimaMensagem === 'audio') {
+                                return 'Áudio';
+                              } else if (conversa.tipoUltimaMensagem === 'image') {
+                                return 'Foto';
+                              } else if (conversa.tipoUltimaMensagem === 'video') {
+                                return 'Vídeo';
+                              } else if (conversa.tipoUltimaMensagem === 'document') {
+                                return 'Documento';
+                              } else if (conversa.tipoUltimaMensagem === 'sticker') {
+                                return 'Figurinha';
+                              }
+                              // Show raw message if not empty
+                              return conversa.ultimaMensagem || <span className="italic">Clique para iniciar conversa</span>;
+                            }
+                          }
+                          
+                          // For text messages, show as is
+                          return conversa.ultimaMensagem;
+                        })()}
+                      </span>
+                    </>
+                  )}
+                </p>
+                
+                {/* Unread Count */}
+                {conversa.mensagensNaoLidas > 0 && (
+                  <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs min-w-[20px] h-5 px-1.5">
+                    {conversa.mensagensNaoLidas > 99 ? '99+' : conversa.mensagensNaoLidas}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            
+            {/* Actions Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent 
+                align="end" 
+                className="bg-dark-card border-slate-600"
+                onCloseAutoFocus={(e) => e.preventDefault()}
+              >
+                <DropdownMenuItem 
+                  className="hover:bg-red-500/20 text-red-400"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (!conversa) return;
+                    
+                    // Ask for confirmation
+                    if (confirm(`Deseja apagar a conversa com ${conversa.nome || formatPhoneNumber(conversa.telefone)}?`)) {
+                      try {
+                        // Delete conversation
+                        await apiRequest('DELETE', `/api/conversas/${conversa.id}`);
+                        
+                        // If it's a client, also delete the client
+                        if (conversa.isCliente && conversa.clienteId) {
+                          await apiRequest('DELETE', `/api/clientes/${conversa.clienteId}`);
+                        }
+                        
+                        toast({
+                          title: "Conversa apagada",
+                          description: conversa.isCliente 
+                            ? "A conversa e o cliente foram removidos"
+                            : "A conversa foi removida",
+                        });
+                        
+                        // If this was the selected conversation, clear it
+                        if (selectedConversa?.id === conversa.id) {
+                          setSelectedConversa(null);
+                        }
+                        
+                        // Refresh list
+                        refetchConversas();
+                      } catch (error) {
+                        toast({
+                          title: "Erro ao apagar",
+                          description: "Não foi possível apagar a conversa",
+                          variant: "destructive",
+                        });
+                      }
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Apagar conversa
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
+    );
+  });
+
+  ConversationRow.displayName = 'ConversationRow';
+
   const formatPhoneNumber = (phone: string) => {
     // Remove all non-digits
     const digits = phone.replace(/\D/g, '');
@@ -1995,295 +2288,40 @@ export default function Chat() {
             )}
           </div>
         
-        <div className="flex-1 overflow-y-auto relative">
-          <div className="p-2 space-y-1 relative">
-            {!isConnected ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                <WifiOff className="w-12 h-12 mb-4" />
-                <p className="text-center">WhatsApp não conectado</p>
-                <p className="text-sm text-center mt-1">Clique em "Conectar WhatsApp" para começar</p>
-              </div>
-            ) : filteredConversas?.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                <MessageSquare className="w-12 h-12 mb-4" />
-                <p className="text-center">Nenhuma conversa encontrada</p>
-              </div>
-            ) : (
-              filteredConversas?.map((conversa: any) => (
-                <div key={conversa.id}>
-                  <div
-                    className={cn(
-                      "group relative p-3 rounded-lg cursor-pointer transition-all duration-200",
-                      selectedConversa?.id === conversa.id 
-                        ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 shadow-lg" 
-                        : "hover:bg-slate-800/50 border border-transparent hover:border-slate-700"
-                    )}
-                  >
-                    <div className="flex items-center gap-3" onClick={() => {
-                      // Include ticket information when selecting a conversation
-                      const openTicket = tickets.find((ticket: any) => 
-                        ticket.conversaId === conversa.id && ticket.status === 'aberto'
-                      );
-                      setSelectedConversa({
-                        ...conversa,
-                        hasOpenTicket: !!openTicket,
-                        ticket: openTicket
-                      });
-                    }}>
-                      {/* Avatar with Online Status */}
-                      <div className="relative">
-                        <Avatar className="w-12 h-12">
-                          <AvatarImage 
-                            src={showPhotosChat && conversa.profilePicture ? conversa.profilePicture : defaultProfileIcon} 
-                            alt={conversa.nome || conversa.telefone}
-                            className="object-cover"
-                          />
-                          <AvatarFallback>
-                            <img 
-                              src={defaultProfileIcon} 
-                              alt="Default profile"
-                              className="object-cover w-full h-full"
-                            />
-                          </AvatarFallback>
-                        </Avatar>
-                        
-                        {/* Anúncio Indicator - Star at top left */}
-                        {conversa.iniciadoPorAnuncio && (
-                          <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 flex items-center justify-center shadow-lg">
-                            <Star className="w-3 h-3 text-white fill-white" />
-                          </div>
-                        )}
-                        
-                        {/* Cliente/Novo/Teste Status Indicator */}
-                        <div className={cn(
-                          "absolute -bottom-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white shadow-lg",
-                          conversa.isTeste
-                            ? "bg-gradient-to-r from-blue-500 to-purple-600"
-                            : conversa.isCliente 
-                            ? "bg-gradient-to-r from-purple-500 to-purple-600" 
-                            : "bg-gradient-to-r from-green-500 to-green-600"
-                        )}>
-                          {conversa.isTeste ? 'T' : conversa.isCliente ? 'C' : 'N'}
-                        </div>
-                        
-                        {/* Ticket Indicator - Orange dot with ticket icon */}
-                        {conversa.hasOpenTicket && (
-                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
-                            <Ticket className="w-3 h-3 text-white" />
-                          </div>
-                        )}
-                        
-                        {/* Mode Indicator Icon */}
-                        <div className={cn(
-                          "absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-lg",
-                          conversa.modoAtendimento === 'bot' 
-                            ? "bg-gradient-to-r from-blue-500 to-blue-600" 
-                            : "bg-gradient-to-r from-purple-500 to-purple-600"
-                        )}>
-                          {conversa.modoAtendimento === 'bot' ? (
-                            <Bot className="w-3 h-3 text-white" />
-                          ) : (
-                            <User className="w-3 h-3 text-white" />
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Conversation Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <div className="flex flex-col">
-                              <h4 className="font-semibold truncate text-slate-100">
-                                {(() => {
-                                  // Se for cliente, usar nome do cliente salvo
-                                  if (conversa.isCliente && conversa.clienteNome) {
-                                    return conversa.clienteNome;
-                                  }
-                                  // Se tiver nome do WhatsApp e não for só número
-                                  if (conversa.nome && conversa.nome !== conversa.telefone) {
-                                    return conversa.nome;
-                                  }
-                                  // Se for só número, mostrar formatado
-                                  return formatPhoneNumber(conversa.telefone);
-                                })()}
-                              </h4>
-                              <span className="text-xs text-slate-500">{formatPhoneNumber(conversa.telefone)}</span>
-                            </div>
-                            {conversa.isPinned && (
-                              <Pin className="w-3 h-3 text-blue-400" />
-                            )}
-                            {conversa.isMuted && (
-                              <VolumeX className="w-3 h-3 text-slate-500" />
-                            )}
-                          </div>
-                          <span className="text-xs text-slate-500">
-                            {conversa.dataUltimaMensagem && formatLastMessageDate(conversa.dataUltimaMensagem)}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          {/* Last Message Preview */}
-                          <p className="text-sm text-slate-400 truncate flex-1 flex items-center gap-1 overflow-hidden"
-                             style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                            {conversa.isTyping ? (
-                              <span className="text-blue-400 italic">digitando...</span>
-                            ) : (
-                              <>
-                                {/* Show checkmarks only when last message was sent by system */}
-                                {conversa.ultimaMensagem && conversa.ultimoRemetente === 'sistema' && (
-                                  <span className="text-xs flex-shrink-0">
-                                    <svg className="w-4 h-4 text-slate-500 inline" viewBox="0 0 16 11" fill="none">
-                                      <path d="M1 5L5 9L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                      <path d="M5 5L9 9L15 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
-                                  </span>
-                                )}
-                                {/* Show media type icon */}
-                                {conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text' && (
-                                  <span className="flex-shrink-0">
-                                    {conversa.tipoUltimaMensagem === 'image' && <Camera className="w-4 h-4 text-slate-400" />}
-                                    {conversa.tipoUltimaMensagem === 'video' && <Video className="w-4 h-4 text-slate-400" />}
-                                    {conversa.tipoUltimaMensagem === 'audio' && <Mic className="w-4 h-4 text-slate-400" />}
-                                    {conversa.tipoUltimaMensagem === 'document' && <FileText className="w-4 h-4 text-slate-400" />}
-                                    {conversa.tipoUltimaMensagem === 'sticker' && <Sparkles className="w-4 h-4 text-slate-400" />}
-                                  </span>
-                                )}
-                                <span className="truncate">
-                                  {(() => {
-                                    if (!conversa.ultimaMensagem || conversa.ultimaMensagem === '') {
-                                      return <span className="italic">Clique para iniciar conversa</span>;
-                                    }
-                                    
-                                    // For media messages, show special formatting
-                                    if (conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text') {
-                                      try {
-                                        const parsedMessage = JSON.parse(conversa.ultimaMensagem);
-                                        
-                                        switch (conversa.tipoUltimaMensagem) {
-                                          case 'image':
-                                            return parsedMessage.caption ? `Foto: ${parsedMessage.caption}` : 'Foto';
-                                          case 'video':
-                                            return parsedMessage.caption ? `Vídeo: ${parsedMessage.caption}` : 'Vídeo';
-                                          case 'audio':
-                                            const duration = parsedMessage.duration || 0;
-                                            return `Áudio (${duration}s)`;
-                                          case 'document':
-                                            const fileName = parsedMessage.fileName || 'arquivo';
-                                            return fileName;
-                                          case 'sticker':
-                                            return 'Figurinha';
-                                          default:
-                                            return conversa.ultimaMensagem;
-                                        }
-                                      } catch (e) {
-                                        // If parsing fails, check for special media types
-                                        if (conversa.tipoUltimaMensagem === 'audio') {
-                                          return 'Áudio';
-                                        } else if (conversa.tipoUltimaMensagem === 'image') {
-                                          return 'Foto';
-                                        } else if (conversa.tipoUltimaMensagem === 'video') {
-                                          return 'Vídeo';
-                                        } else if (conversa.tipoUltimaMensagem === 'document') {
-                                          return 'Documento';
-                                        } else if (conversa.tipoUltimaMensagem === 'sticker') {
-                                          return 'Figurinha';
-                                        }
-                                        // Show raw message if not empty
-                                        return conversa.ultimaMensagem || <span className="italic">Clique para iniciar conversa</span>;
-                                      }
-                                    }
-                                    
-                                    // For text messages, show as is
-                                    return conversa.ultimaMensagem;
-                                  })()}
-                                </span>
-                              </>
-                            )}
-                          </p>
-                          
-                          {/* Unread Count */}
-                          {conversa.mensagensNaoLidas > 0 && (
-                            <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs min-w-[20px] h-5 px-1.5">
-                              {conversa.mensagensNaoLidas > 99 ? '99+' : conversa.mensagensNaoLidas}
-                            </Badge>
-                          )}
-                        </div>
-                        
-
-
-                      </div>
-                      
-                      {/* Actions Menu */}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent 
-                          align="end" 
-                          className="bg-dark-card border-slate-600"
-                          onCloseAutoFocus={(e) => e.preventDefault()}
-                        >
-                            <DropdownMenuItem 
-                              className="hover:bg-red-500/20 text-red-400"
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (!conversa) return;
-                                
-                                // Ask for confirmation
-                                if (confirm(`Deseja apagar a conversa com ${conversa.nome || formatPhoneNumber(conversa.telefone)}?`)) {
-                                  try {
-                                    // Delete conversation
-                                    await apiRequest('DELETE', `/api/conversas/${conversa.id}`);
-                                    
-                                    // If it's a client, also delete the client
-                                    if (conversa.isCliente && conversa.clienteId) {
-                                      await apiRequest('DELETE', `/api/clientes/${conversa.clienteId}`);
-                                    }
-                                    
-                                    toast({
-                                      title: "Conversa apagada",
-                                      description: conversa.isCliente 
-                                        ? "A conversa e o cliente foram removidos"
-                                        : "A conversa foi removida",
-                                    });
-                                    
-                                    // If this was the selected conversation, clear it
-                                    if (selectedConversa?.id === conversa.id) {
-                                      setSelectedConversa(null);
-                                    }
-                                    
-                                    // Refresh list
-                                    refetchConversas();
-                                  } catch (error) {
-                                    toast({
-                                      title: "Erro ao apagar",
-                                      description: "Não foi possível apagar a conversa",
-                                      variant: "destructive",
-                                    });
-                                  }
-                                }
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Apagar conversa
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+        <div className="flex-1 relative" style={{ height: 'calc(100% - 120px)' }}>
+          {!isConnected ? (
+            <div className="flex flex-col items-center justify-center h-64 text-slate-400 p-4">
+              <WifiOff className="w-12 h-12 mb-4" />
+              <p className="text-center">WhatsApp não conectado</p>
+              <p className="text-sm text-center mt-1">Clique em "Conectar WhatsApp" para começar</p>
+            </div>
+          ) : filteredConversas?.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64 text-slate-400 p-4">
+              <MessageSquare className="w-12 h-12 mb-4" />
+              <p className="text-center">Nenhuma conversa encontrada</p>
+            </div>
+          ) : (
+            <List
+              ref={listRef}
+              height={listHeight}
+              itemCount={filteredConversas?.length || 0}
+              itemSize={96}
+              width="100%"
+              itemData={{
+                conversations: filteredConversas,
+                tickets,
+                selectedConversa,
+                setSelectedConversa,
+                showPhotosChat,
+                toast,
+                refetchConversas
+              }}
+              className="scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent"
+            >
+              {ConversationRow}
+            </List>
+          )}
         </div>
-        
 
         </div>
 
