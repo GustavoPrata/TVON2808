@@ -1349,29 +1349,6 @@ export default function PainelOffice() {
         </div>
       </div>
 
-      {/* Toggle para filtrar sistemas */}
-      <div className="flex justify-center mb-3">
-        <button
-          onClick={() => setShowExpiredClients(!showExpiredClients)}
-          className={`
-            relative flex items-center w-14 h-7 rounded-full transition-all duration-300
-            ${showExpiredClients 
-              ? 'bg-red-600 hover:bg-red-700' 
-              : 'bg-gray-600 hover:bg-gray-700'
-            }
-          `}
-          data-testid="button-toggle-expired-filter"
-          title={showExpiredClients ? 'Mostrando sistemas com clientes vencidos' : 'Mostrando todos os sistemas'}
-        >
-          <div 
-            className={`
-              absolute w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300
-              ${showExpiredClients ? 'translate-x-8' : 'translate-x-1'}
-            `}
-          />
-        </button>
-      </div>
-
       {/* Main Content */}
       <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-y-auto">
         {/* Systems Management Table */}
@@ -1411,6 +1388,29 @@ export default function PainelOffice() {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                {/* Toggle para filtrar sistemas */}
+                <button
+                  onClick={() => setShowExpiredClients(!showExpiredClients)}
+                  className={`
+                    relative flex items-center w-12 h-6 rounded-full transition-all duration-300
+                    ${showExpiredClients 
+                      ? 'bg-red-600 hover:bg-red-700' 
+                      : 'bg-gray-600 hover:bg-gray-700'
+                    }
+                  `}
+                  data-testid="button-toggle-expired-filter"
+                  title={showExpiredClients ? 'Mostrando sistemas com clientes vencidos' : 'Mostrando sistemas sem clientes vencidos'}
+                >
+                  <div 
+                    className={`
+                      absolute w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-300
+                      ${showExpiredClients ? 'translate-x-7' : 'translate-x-1'}
+                    `}
+                  />
+                </button>
+                
+                <div className="w-px h-6 bg-slate-600" />
+                
                 <Button
                   onClick={() => {
                     refetchSystems();
