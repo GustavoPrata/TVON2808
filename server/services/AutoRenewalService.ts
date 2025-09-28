@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { storage } from '../storage';
-import { sistemas as sistemasTable, officeCredentials } from '@shared/schema';
+import { sistemas as sistemasTable, officeCredentials, pontos, clientes } from '@shared/schema';
 import { sql, and, eq, lte } from 'drizzle-orm';
 
 // Referência para o WebSocket Server para broadcast
@@ -197,6 +197,37 @@ export class AutoRenewalService {
         const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
         const isExpired = expiracaoDate <= now;
         
+        // VERIFICAR SE CLIENTE ESTÁ VENCIDO HÁ MAIS DE 2 DIAS
+        // Buscar pontos associados a este sistema
+        const pontosDoSistema = await db
+          .select({
+            clienteId: pontos.clienteId,
+            clienteVencimento: clientes.vencimento
+          })
+          .from(pontos)
+          .leftJoin(clientes, eq(pontos.clienteId, clientes.id))
+          .where(eq(pontos.sistemaId, sistema.id));
+        
+        // Verificar se algum cliente está vencido há mais de 2 dias
+        let clienteVencidoHaMuitoTempo = false;
+        for (const ponto of pontosDoSistema) {
+          if (ponto.clienteVencimento) {
+            const clienteVencimento = new Date(ponto.clienteVencimento);
+            const diasVencido = (now.getTime() - clienteVencimento.getTime()) / (1000 * 60 * 60 * 24);
+            
+            if (diasVencido > 2) {
+              console.log(`🚫 Sistema ${sistema.systemId} NÃO será renovado - Cliente vencido há ${diasVencido.toFixed(0)} dias`);
+              clienteVencidoHaMuitoTempo = true;
+              break;
+            }
+          }
+        }
+        
+        // Pular sistema se cliente está vencido há mais de 2 dias
+        if (clienteVencidoHaMuitoTempo) {
+          continue;
+        }
+        
         // APENAS adicionar se está vencido ou próximo do vencimento
         if (isExpired || minutosAteExpiracao <= renewalAdvanceMinutes) {
           // Adicionar ou atualizar na fila se não estiver processando
@@ -222,17 +253,49 @@ export class AutoRenewalService {
       
       // Filtrar sistemas que precisam de renovação
       console.log('\n🎯 Aplicando filtros de renovação...');
-      const sistemasParaRenovar = sistemasAutoRenew.filter(sistema => {
+      const sistemasParaRenovar = [];
+      
+      for (const sistema of sistemasAutoRenew) {
         // Verificar se já está sendo renovado
         if (this.isRenewing.has(sistema.systemId)) {
           console.log(`⏭️ Sistema ${sistema.systemId} (${sistema.username}) já está em processo de renovação`);
-          return false;
+          continue;
         }
 
         // Verificar se está vencido ou próximo do vencimento
         if (!sistema.expiracao) {
-          return false; // Pular sistemas sem data de expiração
+          continue; // Pular sistemas sem data de expiração
         }
+        
+        // VERIFICAR SE CLIENTE ESTÁ VENCIDO HÁ MAIS DE 2 DIAS (mesmo filtro da fila)
+        const pontosDoSistema = await db
+          .select({
+            clienteId: pontos.clienteId,
+            clienteVencimento: clientes.vencimento
+          })
+          .from(pontos)
+          .leftJoin(clientes, eq(pontos.clienteId, clientes.id))
+          .where(eq(pontos.sistemaId, sistema.id));
+        
+        let clienteVencidoHaMuitoTempo = false;
+        for (const ponto of pontosDoSistema) {
+          if (ponto.clienteVencimento) {
+            const clienteVencimento = new Date(ponto.clienteVencimento);
+            const diasVencido = (now.getTime() - clienteVencimento.getTime()) / (1000 * 60 * 60 * 24);
+            
+            if (diasVencido > 2) {
+              console.log(`🚫 Sistema ${sistema.systemId} NÃO será renovado - Cliente vencido há ${diasVencido.toFixed(0)} dias`);
+              clienteVencidoHaMuitoTempo = true;
+              break;
+            }
+          }
+        }
+        
+        // Pular sistema se cliente está vencido há mais de 2 dias
+        if (clienteVencidoHaMuitoTempo) {
+          continue;
+        }
+        
         const expiracaoDate = new Date(sistema.expiracao);
         const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
         const isExpired = expiracaoDate <= now;
@@ -240,18 +303,16 @@ export class AutoRenewalService {
         // SE ESTÁ VENCIDO, renovar imediatamente
         if (isExpired) {
           console.log(`🚨 Sistema ${sistema.systemId} (${sistema.username}) VENCIDO há ${Math.abs(minutosAteExpiracao).toFixed(0)} minutos - renovação IMEDIATA`);
-          return true;
+          sistemasParaRenovar.push(sistema);
         }
-        
         // Verificar se está próximo do vencimento (dentro do tempo configurado)
-        if (minutosAteExpiracao <= renewalAdvanceMinutes) {
+        else if (minutosAteExpiracao <= renewalAdvanceMinutes) {
           console.log(`⚠️ Sistema ${sistema.systemId} (${sistema.username}) próximo do vencimento - ${minutosAteExpiracao.toFixed(0)}min restantes`);
-          return true;
+          sistemasParaRenovar.push(sistema);
         } else {
           console.log(`✅ Sistema ${sistema.systemId} (${sistema.username}) ainda válido - ${(minutosAteExpiracao/60).toFixed(1)}h restantes`);
-          return false;
         }
-      });
+      }
       
       if (sistemasParaRenovar.length === 0) {
         console.log('✨ Nenhum sistema precisa de renovação no momento');
