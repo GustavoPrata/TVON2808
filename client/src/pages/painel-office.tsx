@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon, FileText, Download, Filter, Search, Trash, Eye, Info, Shuffle, Package, Network, Lock, Phone } from 'lucide-react';
+import { Monitor, Settings, Plus, Pencil, Trash2, Shield, RefreshCw, GripVertical, Loader2, Sparkles, X, Chrome, Play, Pause, Clock, Users, Activity, Zap, History, CheckCircle, Wifi, WifiOff, Timer, TrendingUp, Calendar, AlertTriangle, CalendarClock, ToggleLeft, ToggleRight, AlertCircle, Server, User, Key, CheckCircle2, XCircle, AlertTriangle as AlertIcon, FileText, Download, Filter, Search, Trash, Eye, Info, Shuffle, Package, Network, Lock, Phone, Bell } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { apiRequest, queryClient as qc } from '@/lib/queryClient';
@@ -395,7 +395,9 @@ export default function PainelOffice() {
     lastRunAt: null as Date | null,
     totalGenerated: 0,
     sessionGenerated: 0,
-    renewalAdvanceTime: 60
+    renewalAdvanceTime: 60,
+    discordWebhookUrl: '' as string | null,
+    discordNotificationsEnabled: false
   });
   const [isToggling, setIsToggling] = useState(false);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
@@ -551,7 +553,9 @@ export default function PainelOffice() {
         lastRunAt: configData.lastRunAt ? new Date(configData.lastRunAt) : null,
         totalGenerated: configData.totalGenerated || 0,
         sessionGenerated: configData.sessionGenerated || prev.sessionGenerated || 0,
-        renewalAdvanceTime: configData.renewalAdvanceTime || 60
+        renewalAdvanceTime: configData.renewalAdvanceTime || 60,
+        discordWebhookUrl: configData.discordWebhookUrl || '',
+        discordNotificationsEnabled: configData.discordNotificationsEnabled || false
       }));
     }
   }, [configData]);
@@ -1558,6 +1562,64 @@ export default function PainelOffice() {
                     />
                     <p className="text-xs text-slate-500 mt-1">0 = Desabilitado | Digite o tempo em minutos</p>
                   </div>
+
+                  {/* Discord Webhook Configuration */}
+                  <Separator className="my-3 border-slate-700" />
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm flex items-center gap-1">
+                        <Bell className="w-4 h-4 text-indigo-400" />
+                        Notificações Discord
+                      </Label>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAutomationConfig(prev => ({ 
+                          ...prev, 
+                          discordNotificationsEnabled: !prev.discordNotificationsEnabled 
+                        }))}
+                        className={automationConfig.discordNotificationsEnabled ? "text-green-400" : "text-slate-400"}
+                        data-testid="button-toggle-discord"
+                      >
+                        {automationConfig.discordNotificationsEnabled ? (
+                          <ToggleRight className="w-5 h-5" />
+                        ) : (
+                          <ToggleLeft className="w-5 h-5" />
+                        )}
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-xs text-slate-400">URL do Webhook Discord</Label>
+                      <Input
+                        type="url"
+                        value={automationConfig.discordWebhookUrl || ''}
+                        onChange={(e) => setAutomationConfig(prev => ({ 
+                          ...prev, 
+                          discordWebhookUrl: e.target.value 
+                        }))}
+                        placeholder="https://discord.com/api/webhooks/..."
+                        className="bg-slate-800 border-slate-700 text-sm"
+                        disabled={!automationConfig.discordNotificationsEnabled}
+                        data-testid="input-discord-webhook"
+                      />
+                      <p className="text-xs text-slate-500">
+                        {automationConfig.discordNotificationsEnabled ? (
+                          <>
+                            <span className="text-green-400">✓ Notificações ativadas</span> - Avisos quando:
+                            <ul className="mt-1 ml-4 list-disc list-inside">
+                              <li>Sistema estiver a 5min de vencer</li>
+                              <li>Sistema vencer</li>
+                              <li>Extensão offline ou com problema</li>
+                            </ul>
+                          </>
+                        ) : (
+                          <span className="text-slate-400">Notificações desativadas</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
                   
                   {/* Action Buttons */}
                   <div className="flex gap-2">
@@ -1567,14 +1629,16 @@ export default function PainelOffice() {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
-                            renewalAdvanceTime: automationConfig.renewalAdvanceTime
+                            renewalAdvanceTime: automationConfig.renewalAdvanceTime,
+                            discordWebhookUrl: automationConfig.discordWebhookUrl,
+                            discordNotificationsEnabled: automationConfig.discordNotificationsEnabled
                           })
                         });
                         
                         if (res.ok) {
                           toast({
                             title: "Configuração Salva",
-                            description: "Parâmetros de automação atualizados com sucesso",
+                            description: "Parâmetros de automação e Discord atualizados com sucesso",
                             variant: "default",
                           });
                         }

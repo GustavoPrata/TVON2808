@@ -8738,6 +8738,8 @@ Como posso ajudar você hoje?
         singleGeneration: z.boolean().optional(),
         renewalAdvanceTime: z.number().min(1).max(1440).optional(), // Tempo em minutos antes do vencimento
         distributionMode: z.enum(['individual', 'fixed-points']).optional(), // Modo de distribuição
+        discordWebhookUrl: z.string().nullable().optional(),
+        discordNotificationsEnabled: z.boolean().optional(),
       });
 
       const validated = schema.parse(req.body);
@@ -8747,6 +8749,16 @@ Como posso ajudar você hoje?
       
       // Atualizar configuração
       const config = await storage.updateOfficeAutomationConfig(validated);
+      
+      // Atualizar serviço de notificações Discord se as configurações mudaram
+      if (validated.discordWebhookUrl !== undefined || validated.discordNotificationsEnabled !== undefined) {
+        const { discordNotificationService } = await import('./services/DiscordNotificationService');
+        await discordNotificationService.updateConfig(
+          config.discordWebhookUrl,
+          config.discordNotificationsEnabled
+        );
+        console.log('🔔 Configurações do Discord atualizadas');
+      }
       
       // Gerenciar serviço de renovação automática se isEnabled mudou
       if (validated.isEnabled !== undefined && validated.isEnabled !== previousConfig.isEnabled) {

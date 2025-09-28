@@ -1,7 +1,8 @@
 import { db } from '../db';
 import { storage } from '../storage';
-import { sistemas as sistemasTable, officeCredentials, pontos, clientes } from '@shared/schema';
+import { sistemas as sistemasTable, officeCredentials, pontos, clientes, extensionStatus } from '@shared/schema';
 import { sql, and, eq, lte } from 'drizzle-orm';
+import { discordNotificationService } from './DiscordNotificationService';
 
 // Referência para o WebSocket Server para broadcast
 let wssRef: any = null;
@@ -97,6 +98,36 @@ export class AutoRenewalService {
         mensagem: 'Iniciando verificação de renovação automática',
         detalhes: { checkTime: this.lastCheckTime.toISOString() }
       });
+      
+      // Verificar status da extensão e notificar se houver problemas
+      try {
+        const extensionStatusData = await db.select().from(extensionStatus).limit(1);
+        if (extensionStatusData.length > 0) {
+          const status = extensionStatusData[0];
+          const now = new Date();
+          const lastHeartbeat = status.lastHeartbeat ? new Date(status.lastHeartbeat) : null;
+          const minutesSinceLastHeartbeat = lastHeartbeat ? 
+            (now.getTime() - lastHeartbeat.getTime()) / (1000 * 60) : 999;
+          
+          // Se não recebeu heartbeat há mais de 5 minutos, considera offline
+          if (minutesSinceLastHeartbeat > 5 || !status.isActive || !status.isLoggedIn) {
+            console.log(`⚠️ Extensão com problema - Última atividade: ${minutesSinceLastHeartbeat.toFixed(0)}min atrás`);
+            await discordNotificationService.notifyExtensionOffline();
+          }
+          
+          // Se está ativa mas travada no login
+          if (status.isActive && status.isLoggedIn && status.currentUrl && status.currentUrl.includes('login')) {
+            console.log(`⚠️ Extensão possivelmente travada no login`);
+            await discordNotificationService.notifyExtensionStuck();
+          }
+        } else {
+          // Sem dados da extensão
+          console.log(`⚠️ Nenhum dado de status da extensão encontrado`);
+          await discordNotificationService.notifyExtensionOffline();
+        }
+      } catch (error) {
+        console.error('Erro ao verificar status da extensão:', error);
+      }
       
       // Limpar itens antigos da fila (mais de 1 hora)
       this.cleanupQueue();
@@ -244,8 +275,14 @@ export class AutoRenewalService {
             
             if (isExpired) {
               console.log(`🚨 Sistema ${sistema.systemId} adicionado à fila - VENCIDO há ${Math.abs(minutosAteExpiracao).toFixed(0)} minutos`);
+              // Notificar Discord sobre sistema vencido
+              await discordNotificationService.notifySystemExpired(sistema.systemId, sistema.username);
             } else {
               console.log(`⚠️ Sistema ${sistema.systemId} adicionado à fila - ${minutosAteExpiracao.toFixed(0)}min até vencer`);
+              // Se está a 5 minutos ou menos de vencer, notificar Discord
+              if (minutosAteExpiracao <= 5) {
+                await discordNotificationService.notifySystemExpiring(sistema.systemId, sistema.username, Math.round(minutosAteExpiracao));
+              }
             }
           }
         }

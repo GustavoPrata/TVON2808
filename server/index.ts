@@ -177,6 +177,11 @@ app.use((req, res, next) => {
   // Importar e inicializar o serviço de renovação automática
   const { autoRenewalService } = await import("./services/AutoRenewalService");
   
+  // Importar e inicializar o serviço de notificações Discord
+  const { discordNotificationService } = await import("./services/DiscordNotificationService");
+  await discordNotificationService.initialize();
+  console.log("✅ Serviço de notificações Discord inicializado");
+  
   // Iniciar o serviço de renovação automática se a configuração estiver habilitada
   try {
     const config = await storage.getOfficeAutomationConfig();

@@ -568,6 +568,8 @@ export const officeAutomationConfig = pgTable("office_automation_config", {
   singleGeneration: boolean("single_generation").notNull().default(false),
   renewalAdvanceTime: integer("renewal_advance_time").notNull().default(60), // Tempo em minutos antes do vencimento para renovar
   distributionMode: varchar("distribution_mode", { length: 20 }).default("individual"), // 'individual' | 'fixed-points'
+  discordWebhookUrl: text("discord_webhook_url"),
+  discordNotificationsEnabled: boolean("discord_notifications_enabled").notNull().default(false),
   lastRunAt: timestamp("last_run_at"),
   totalGenerated: integer("total_generated").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -627,6 +629,17 @@ export const extensionStatus = pgTable("extension_status", {
   metadata: json("metadata"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Discord Notifications Sent - rastreia notificações enviadas para evitar spam
+export const discordNotificationsSent = pgTable("discord_notifications_sent", {
+  id: serial("id").primaryKey(),
+  notificationType: varchar("notification_type", { length: 50 }).notNull(), // 'system_expiring', 'extension_offline'
+  entityId: varchar("entity_id", { length: 100 }).notNull(), // systemId ou 'extension'
+  sentAt: timestamp("sent_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at"), // Quando a notificação expira e pode ser enviada novamente
+  message: text("message"),
+  metadata: json("metadata"),
 });
 
 // Schemas para Office Automation
