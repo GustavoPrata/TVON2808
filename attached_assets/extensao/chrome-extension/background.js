@@ -167,57 +167,59 @@ async function makeApiRequest(endpoint, method = 'GET', body = null) {
     'Accept': 'application/json'
   };
 
-  try {
-    await logger.debug(`🔄 Fazendo requisição para ${BACKEND_URL}${endpoint}`);
-    
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-          method,
-          headers,
-          body: body ? JSON.stringify(body) : null,
-          signal: AbortSignal.timeout(15000), // 15 segundos timeout
-          mode: 'cors',
-          credentials: 'include'
-        });
+  const maxAttempts = 3;
+  const retryableErrors = ['ECONNRESET', 'ETIMEDOUT', 'NetworkError', 'Failed to fetch'];
 
-        // Log detalhado da resposta
-        await logger.debug(`📥 Resposta recebida:`, {
-          status: response.status,
-          statusText: response.statusText,
-          url: response.url
-        });
+  for (let attempts = 0; attempts < maxAttempts; attempts++) {
+    try {
+      await logger.debug(`🔄 Fazendo requisição para ${BACKEND_URL}${endpoint}`);
+      
+      const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : null,
+        signal: AbortSignal.timeout(15000), // 15 segundos timeout
+        mode: 'cors',
+        credentials: 'include'
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          return {
-            success: true,
-            data,
-            server: baseUrl
-          };
-        } else {
-          const errorText = await response.text();
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-      } catch (error) {
-        await logger.error(`❌ Erro na requisição para ${baseUrl}:`, { 
-          error: error.message,
-          attempt: attempts + 1
-        });
+      // Log detalhado da resposta
+      await logger.debug(`📥 Resposta recebida:`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url
+      });
 
-        // Verifica se é um erro que merece retry
-        const shouldRetry = retryableErrors.some(e => error.message.includes(e));
-        
-        if (shouldRetry && attempts < maxAttempts - 1) {
-          attempts++;
-          // Espera exponencial entre tentativas
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempts)));
-          continue;
-        }
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          success: true,
+          data,
+          server: BACKEND_URL
+        };
+      } else {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+    } catch (error) {
+      await logger.error(`❌ Erro na requisição para ${BACKEND_URL}:`, { 
+        error: error.message,
+        attempt: attempts + 1
+      });
 
-        // Se chegou aqui, ou não é retryable ou acabaram as tentativas
-        if (attempts === maxAttempts - 1) {
-          await logger.error('❌ Todas as tentativas falharam para este servidor');
-          break; // Tenta próximo servidor
-        }
+      // Verifica se é um erro que merece retry
+      const shouldRetry = retryableErrors.some(e => error.message.includes(e));
+      
+      if (shouldRetry && attempts < maxAttempts - 1) {
+        // Espera exponencial entre tentativas
+        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempts)));
+        continue;
+      }
+
+      // Se chegou aqui, ou não é retryable ou acabaram as tentativas
+      if (attempts === maxAttempts - 1) {
+        await logger.error('❌ Todas as tentativas falharam');
+        throw error;
       }
     }
   }
@@ -961,22 +963,21 @@ async function checkForTasks() {
     } catch (error) {
       await logger.error('❌ Erro ao buscar/processar tarefa:', { error: error.message });
     }
-  
-  // Evita requisições muito frequentes
-  const now = Date.now();
-  if (now - lastStatus.lastCheck < 5000) {
-    await logger.debug('🚫 Checagem muito recente, aguardando...');
-    return;
-  }
-  lastStatus.lastCheck = now;
-  
-  // Garante que API_BASE está definido
-  if (!API_BASE) {
-    API_BASE = await getApiBase();
-    await logger.info(`🔗 Servidor API re-configurado: ${API_BASE}`);
-  }
-  
-  try {
+    
+    // Evita requisições muito frequentes
+    const now = Date.now();
+    if (now - lastStatus.lastCheck < 5000) {
+      await logger.debug('🚫 Checagem muito recente, aguardando...');
+      return;
+    }
+    lastStatus.lastCheck = now;
+    
+    // Garante que API_BASE está definido
+    if (!API_BASE) {
+      API_BASE = await getApiBase();
+      await logger.info(`🔗 Servidor API re-configurado: ${API_BASE}`);
+    }
+    
     // Log detalhado da URL sendo usada
     const fullUrl = `${API_BASE}/api/office/automation/next-task`;
     await logger.info(`🔍 Buscando tarefas em: ${fullUrl}`);
