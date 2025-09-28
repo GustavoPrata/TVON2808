@@ -704,10 +704,32 @@ export class DatabaseStorage implements IStorage {
       // Build base query
       let query = db.select().from(conversas);
       
-      // Apply cursor-based pagination
+      // Apply cursor-based pagination with composite key (timestamp, id)
       if (cursor) {
-        const cursorDate = new Date(cursor);
-        query = query.where(lte(conversas.dataUltimaMensagem, cursorDate));
+        // Parse composite cursor: "timestamp|id"
+        const [cursorTimestamp, cursorId] = cursor.split('|');
+        if (cursorTimestamp && cursorId) {
+          const cursorDate = new Date(cursorTimestamp);
+          const cursorIdNum = parseInt(cursorId, 10);
+          
+          // Use composite condition for deterministic pagination
+          // Fetch items where:
+          // 1. timestamp < cursor_timestamp OR
+          // 2. (timestamp = cursor_timestamp AND id < cursor_id)
+          query = query.where(
+            or(
+              sql`${conversas.dataUltimaMensagem} < ${cursorDate}`,
+              and(
+                sql`${conversas.dataUltimaMensagem} = ${cursorDate}`,
+                sql`${conversas.id} < ${cursorIdNum}`
+              )
+            )
+          );
+        } else {
+          // Fallback for old cursor format (backward compatibility)
+          const cursorDate = new Date(cursor);
+          query = query.where(lte(conversas.dataUltimaMensagem, cursorDate));
+        }
       }
       
       // Apply filter
@@ -746,8 +768,12 @@ export class DatabaseStorage implements IStorage {
         );
       }
       
-      // Order by last message date and apply limit (+1 to check if there are more results)
-      query = query.orderBy(desc(conversas.dataUltimaMensagem)).limit(limit + 1);
+      // Use composite ordering for deterministic pagination: (dataUltimaMensagem DESC, id DESC)
+      // This ensures stable ordering even when multiple conversations have the same timestamp
+      query = query.orderBy(
+        desc(conversas.dataUltimaMensagem),
+        desc(conversas.id)
+      ).limit(limit + 1);
       
       const result = await query;
       
@@ -756,10 +782,11 @@ export class DatabaseStorage implements IStorage {
       const items = result.slice(0, limit);
       
       if (result.length > limit) {
-        // There are more results, set the cursor to the last item's date
+        // There are more results, set the cursor to the last item's composite key
         const lastItem = items[items.length - 1];
-        if (lastItem.dataUltimaMensagem) {
-          nextCursor = lastItem.dataUltimaMensagem.toISOString();
+        if (lastItem.dataUltimaMensagem && lastItem.id) {
+          // Format cursor as "timestamp|id" for composite key
+          nextCursor = `${lastItem.dataUltimaMensagem.toISOString()}|${lastItem.id}`;
         }
       }
       
