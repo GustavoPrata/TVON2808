@@ -343,84 +343,171 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
   }
 });
 
-// Usa Chrome Alarms API para manter a extensão sempre ativa
+// Usa Chrome Alarms API para manter a extensão SEMPRE ativa (24/7)
 async function setupAlarms() {
-  // Remove alarme anterior se existir
-  chrome.alarms.clear('pollBackend', async () => {
-    // Cria novo alarme que dispara a cada 20 segundos (mais rápido para não perder timing)
-    chrome.alarms.create('pollBackend', {
-      periodInMinutes: 0.33, // 20 segundos
-      delayInMinutes: 0 // Começa imediatamente
-    });
-    await logger.info('⏰ Alarme configurado para polling automático a cada 20s');
+  // Limpa todos os alarmes anteriores
+  await chrome.alarms.clearAll();
+  
+  // Alarme principal - verifica tarefas a cada 15 segundos (mais agressivo)
+  chrome.alarms.create('pollBackend', {
+    periodInMinutes: 0.25, // 15 segundos
+    delayInMinutes: 0 // Começa imediatamente
   });
   
-  // Cria alarme adicional para verificação de status
-  chrome.alarms.create('checkStatus', {
-    periodInMinutes: 1, // A cada minuto
+  // Alarme de keep-alive - mantém extensão viva a cada 30 segundos
+  chrome.alarms.create('keepAlive', {
+    periodInMinutes: 0.5, // 30 segundos
     delayInMinutes: 0
   });
+  
+  // Alarme de verificação de aba - garante que sempre tem aba aberta
+  chrome.alarms.create('checkTab', {
+    periodInMinutes: 0.5, // 30 segundos
+    delayInMinutes: 0.1 // Começa em 6 segundos
+  });
+  
+  // Alarme de heartbeat - envia status ao backend a cada 30 segundos
+  chrome.alarms.create('heartbeat', {
+    periodInMinutes: 0.5, // 30 segundos  
+    delayInMinutes: 0.05 // Começa em 3 segundos
+  });
+  
+  await logger.info('⏰ Sistema de alarmes 24/7 configurado:');
+  await logger.info('  - Polling de tarefas: a cada 15s');
+  await logger.info('  - Keep-alive: a cada 30s');
+  await logger.info('  - Verificação de aba: a cada 30s');
+  await logger.info('  - Heartbeat: a cada 30s');
 }
 
-// Listener para os alarmes
+// Listener para os alarmes - Sistema 24/7
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'pollBackend') {
-    await logger.debug('⏰ Alarme disparado: checando tarefas...', { alarm: alarm.name });
-    await checkForTasks();
-  } else if (alarm.name === 'checkStatus') {
-    // Verifica se precisa abrir a aba do OnlineOffice
-    await ensureOfficeTabOpen();
+  await logger.debug(`⏰ Alarme disparado: ${alarm.name}`);
+  
+  switch(alarm.name) {
+    case 'pollBackend':
+      // Verifica tarefas no backend
+      await checkForTasks();
+      break;
+      
+    case 'keepAlive':
+      // Keep-alive para manter extensão ativa
+      await logger.debug('🔥 Keep-alive: Mantendo extensão ativa');
+      // Simples operação para manter service worker vivo
+      chrome.storage.local.set({ 
+        lastKeepAlive: new Date().toISOString() 
+      });
+      break;
+      
+    case 'checkTab':
+      // Garante que sempre tem aba aberta
+      await logger.debug('🔍 Verificando aba OnlineOffice...');
+      await ensureOfficeTabOpen(true);
+      break;
+      
+    case 'heartbeat':
+      // Envia heartbeat ao backend
+      await sendHeartbeat();
+      break;
+      
+    default:
+      await logger.debug(`⚠️ Alarme desconhecido: ${alarm.name}`);
   }
 });
 
-// Inicia quando o Chrome abre
+// Inicia quando o Chrome abre - Sistema 24/7
 chrome.runtime.onStartup.addListener(async () => {
-  await logger.info('📦 Chrome iniciado, configurando automação...');
+  await logger.info('📦 Chrome iniciado - Iniciando sistema 24/7...');
   // Reset de segurança no startup
   isProcessingTask = false;
   processingStartTime = null;
   await logger.info('🔄 Estado resetado no startup', { isProcessingTask: false });
+  
+  // Configura sistema 24/7
   await setupAlarms();
-  await checkForTasks(); // Checa imediatamente
-  await ensureOfficeTabOpen(); // Garante que a aba está aberta
+  await ensureOfficeTabOpen(true); // SEMPRE abre aba
+  await sendHeartbeat(); // Envia heartbeat inicial
+  await checkForTasks(); // Checa tarefas imediatamente
+  
+  await logger.info('✅ Sistema 24/7 iniciado com sucesso!');
 });
 
-// Inicia quando instalado/atualizado
+// Inicia quando instalado/atualizado - Sistema 24/7
 chrome.runtime.onInstalled.addListener(async () => {
-  await logger.info('🔧 Extensão instalada/atualizada, configurando automação...');
+  await logger.info('🔧 Extensão instalada/atualizada - Configurando sistema 24/7...');
   // Reset de segurança na instalação/atualização
   isProcessingTask = false;
   processingStartTime = null;
   await logger.info('🔄 Estado resetado na instalação/atualização', { isProcessingTask: false });
+  
+  // Configura sistema 24/7
   await setupAlarms();
-  await checkForTasks(); // Checa imediatamente
+  await ensureOfficeTabOpen(true); // SEMPRE abre aba
+  await sendHeartbeat(); // Envia heartbeat inicial
+  await checkForTasks(); // Checa tarefas imediatamente
+  
+  // Salva configuração de 24/7
+  await chrome.storage.local.set({
+    mode24_7: true,
+    installedAt: new Date().toISOString()
+  });
+  
+  await logger.info('✅ Sistema 24/7 configurado e ativado!');
 });
 
-// Inicia verificação imediata
+// Inicia verificação imediata - Sistema 24/7
 (async () => {
+  await logger.info('🚀 Inicializando sistema 24/7...');
   // Reset de segurança no início
   isProcessingTask = false;
   processingStartTime = null;
   await logger.info('🔄 Estado inicial resetado', { isProcessingTask: false });
+  
+  // Aguarda um pouco para garantir que tudo está carregado
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Configura sistema 24/7
   await setupAlarms();
-  await checkForTasks();
+  await ensureOfficeTabOpen(true); // SEMPRE abre aba
+  await sendHeartbeat(); // Envia heartbeat inicial
+  await checkForTasks(); // Checa tarefas imediatamente
+  
+  await logger.info('✅ Sistema 24/7 ativo e funcionando!');
 })();
 
-// Função para garantir que a aba do OnlineOffice está aberta
+// Função para garantir que a aba do OnlineOffice está SEMPRE aberta (24/7)
 async function ensureOfficeTabOpen(forceOpen = false) {
-  // Só abre se a automação está habilitada OU se forceOpen é true (quando há task)
-  if (!lastStatus.isEnabled && !forceOpen) return;
+  // SEMPRE mantém uma aba aberta para funcionar 24/7
+  // Remove a verificação de lastStatus.isEnabled para SEMPRE manter aba aberta
   
   const tabs = await chrome.tabs.query({
     url: ['*://onlineoffice.zip/*', '*://*.onlineoffice.zip/*']
   });
   
   if (tabs.length === 0) {
-    await logger.info('📂 Abrindo aba do OnlineOffice automaticamente...');
-    chrome.tabs.create({ 
+    await logger.info('📂 Abrindo aba do OnlineOffice automaticamente (24/7)...');
+    const newTab = await chrome.tabs.create({ 
       url: OFFICE_URL,
-      active: false // Abre em background
+      active: false, // Abre em background
+      pinned: true // Pina a aba para evitar fechamento acidental
     });
+    
+    // Adiciona listener para reabrir se fechada
+    chrome.tabs.onRemoved.addListener(async (tabId) => {
+      if (tabId === newTab.id) {
+        await logger.warn('⚠️ Aba OnlineOffice foi fechada! Reabrindo em 5 segundos...');
+        setTimeout(() => ensureOfficeTabOpen(true), 5000);
+      }
+    });
+    
+    return newTab;
+  } else {
+    // Se já existe aba, garante que está pinada
+    const tab = tabs[0];
+    if (!tab.pinned) {
+      await chrome.tabs.update(tab.id, { pinned: true });
+      await logger.info('📌 Aba OnlineOffice pinada para evitar fechamento');
+    }
+    return tab;
   }
 }
 
