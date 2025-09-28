@@ -101,8 +101,8 @@ export class DiscordNotificationService {
     const sent = await this.sendToDiscord(message);
     
     if (sent) {
-      // Registrar notificação com expiração de 6 horas
-      await this.recordNotification(notificationType, systemId, message, 360);
+      // Registrar notificação com expiração de 10 minutos
+      await this.recordNotification(notificationType, systemId, message, 10);
     }
 
     return sent;
@@ -133,8 +133,8 @@ export class DiscordNotificationService {
         console.log(`   Resultado do envio: ${sent ? '✅ Enviado' : '❌ Falhou'}`);
         
         if (sent) {
-          // Registrar notificação com expiração de 30 minutos
-          await this.recordNotification(notificationType, 'extension', message, 30);
+          // Registrar notificação com expiração de 2 minutos
+          await this.recordNotification(notificationType, 'extension', message, 2);
         }
 
         return sent;
@@ -165,8 +165,8 @@ export class DiscordNotificationService {
           const sent = await this.sendToDiscord(message);
           
           if (sent) {
-            // Registrar notificação com expiração de 1 hora
-            await this.recordNotification(notificationType, 'extension', message, 60);
+            // Registrar notificação com expiração de 2 minutos
+            await this.recordNotification(notificationType, 'extension', message, 2);
           }
 
           return sent;
@@ -191,8 +191,8 @@ export class DiscordNotificationService {
     const sent = await this.sendToDiscord(message);
     
     if (sent) {
-      // Registrar notificação com expiração de 24 horas
-      await this.recordNotification(notificationType, systemId, message, 1440);
+      // Registrar notificação com expiração de 30 minutos
+      await this.recordNotification(notificationType, systemId, message, 30);
     }
 
     return sent;
