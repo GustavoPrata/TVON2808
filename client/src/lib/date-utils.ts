@@ -1,4 +1,4 @@
-import { format as dateFnsFormat, formatDistanceToNow as dateFnsFormatDistance } from 'date-fns';
+import { format as dateFnsFormat, formatDistanceToNow as dateFnsFormatDistance, isToday, isYesterday, isThisWeek, startOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 
@@ -85,12 +85,25 @@ export function formatShortInBrazil(date: string | Date): string {
     const brazilDate = toZonedTime(dateObj, BRAZIL_TIMEZONE);
     const now = toZonedTime(new Date(), BRAZIL_TIMEZONE);
     
-    // Check if same day
-    if (brazilDate.toDateString() === now.toDateString()) {
+    // Se é hoje, mostra apenas o horário
+    if (isToday(brazilDate)) {
       return formatTimeInBrazil(date);
-    } else {
-      return formatInBrazilTime(date, 'dd/MM HH:mm');
     }
+    
+    // Se foi ontem, mostra "ontem"
+    if (isYesterday(brazilDate)) {
+      return `ontem ${formatTimeInBrazil(date)}`;
+    }
+    
+    // Se está na mesma semana, mostra o nome do dia
+    const startOfWeekDate = startOfWeek(now, { weekStartsOn: 0, locale: ptBR });
+    if (isThisWeek(brazilDate, { weekStartsOn: 0, locale: ptBR })) {
+      const dayName = dateFnsFormat(brazilDate, 'EEEE', { locale: ptBR });
+      return `${dayName} ${formatTimeInBrazil(date)}`;
+    }
+    
+    // Para datas mais antigas, mostra o formato padrão
+    return formatInBrazilTime(date, 'dd/MM HH:mm');
   } catch (error) {
     console.error('Error formatting short date in Brazil time:', error);
     return formatTimeInBrazil(date);
