@@ -569,6 +569,7 @@ export const officeAutomationConfig = pgTable("office_automation_config", {
   renewalAdvanceTime: integer("renewal_advance_time").notNull().default(60), // Tempo em minutos antes do vencimento para renovar
   distributionMode: varchar("distribution_mode", { length: 20 }).default("individual"), // 'individual' | 'fixed-points'
   discordWebhookUrl: text("discord_webhook_url"),
+  discordTicketsWebhookUrl: text("discord_tickets_webhook_url"), // Webhook separado para notificações de tickets
   discordNotificationsEnabled: boolean("discord_notifications_enabled").notNull().default(false),
   lastRunAt: timestamp("last_run_at"),
   totalGenerated: integer("total_generated").notNull().default(0),

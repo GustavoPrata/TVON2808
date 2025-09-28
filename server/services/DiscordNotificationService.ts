@@ -4,16 +4,18 @@ import { eq, and, gte } from 'drizzle-orm';
 import fetch from 'node-fetch';
 
 export class DiscordNotificationService {
-  private webhookUrl: string | null = null;
+  private systemWebhookUrl: string | null = null;
+  private ticketsWebhookUrl: string | null = null;
   private enabled: boolean = false;
 
   async initialize() {
     try {
       const config = await db.select().from(officeAutomationConfig).limit(1);
       if (config.length > 0) {
-        this.webhookUrl = config[0].discordWebhookUrl;
+        this.systemWebhookUrl = config[0].discordWebhookUrl;
+        this.ticketsWebhookUrl = config[0].discordTicketsWebhookUrl;
         this.enabled = config[0].discordNotificationsEnabled;
-        console.log(`🔔 Discord inicializado - Webhook: ${this.webhookUrl ? 'Configurado' : 'Não configurado'}, Habilitado: ${this.enabled}`);
+        console.log(`🔔 Discord inicializado - Webhook Sistemas: ${this.systemWebhookUrl ? 'Configurado' : 'Não configurado'}, Webhook Tickets: ${this.ticketsWebhookUrl ? 'Configurado' : 'Não configurado'}, Habilitado: ${this.enabled}`);
       } else {
         console.log('⚠️ Nenhuma configuração Discord encontrada');
       }
@@ -22,13 +24,20 @@ export class DiscordNotificationService {
     }
   }
 
-  async updateConfig(webhookUrl: string | null, enabled: boolean) {
-    this.webhookUrl = webhookUrl;
+  async updateConfig(systemWebhookUrl: string | null, ticketsWebhookUrl: string | null, enabled: boolean) {
+    this.systemWebhookUrl = systemWebhookUrl;
+    this.ticketsWebhookUrl = ticketsWebhookUrl;
     this.enabled = enabled;
   }
 
-  private async sendToDiscord(content: string) {
-    if (!this.enabled || !this.webhookUrl) {
+  private async sendToDiscord(content: string, useTicketsWebhook: boolean = false) {
+    if (!this.enabled) {
+      return false;
+    }
+    
+    const webhookUrl = useTicketsWebhook ? this.ticketsWebhookUrl : this.systemWebhookUrl;
+    
+    if (!webhookUrl) {
       return false;
     }
 
@@ -37,7 +46,7 @@ export class DiscordNotificationService {
         content: content
       };
 
-      const response = await fetch(this.webhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -199,12 +208,17 @@ export class DiscordNotificationService {
   }
 
   async notifyTicketOpened(clientName: string | null, ticketTitle: string) {
-    const notificationType = 'ticket_opened';
-    
     // Para tickets não usamos limitação de frequência, sempre enviamos
-    const message = `🎫 Novo Ticket Aberto\n👤 Cliente: ${clientName || 'Não identificado'}\n📋 ${ticketTitle}`;
+    // Formato simples de mensagem
+    const clientInfo = clientName || 'Não identificado';
+    const message = `🎫 Novo ticket: ${clientInfo} - ${ticketTitle}`;
 
-    const sent = await this.sendToDiscord(message);
+    // Usar webhook de tickets (segundo parâmetro true)
+    const sent = await this.sendToDiscord(message, true);
+    
+    if (sent) {
+      console.log(`🎫 Notificação de ticket enviada: ${clientInfo} - ${ticketTitle}`);
+    }
     
     return sent;
   }

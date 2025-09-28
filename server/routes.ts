@@ -8761,6 +8761,7 @@ Como posso ajudar você hoje?
         renewalAdvanceTime: z.number().min(1).max(1440).optional(), // Tempo em minutos antes do vencimento
         distributionMode: z.enum(['individual', 'fixed-points']).optional(), // Modo de distribuição
         discordWebhookUrl: z.string().nullable().optional(),
+        discordTicketsWebhookUrl: z.string().nullable().optional(), // Webhook separado para tickets
         discordNotificationsEnabled: z.boolean().optional(),
       });
 
@@ -8773,10 +8774,13 @@ Como posso ajudar você hoje?
       const config = await storage.updateOfficeAutomationConfig(validated);
       
       // Atualizar serviço de notificações Discord se as configurações mudaram
-      if (validated.discordWebhookUrl !== undefined || validated.discordNotificationsEnabled !== undefined) {
+      if (validated.discordWebhookUrl !== undefined || 
+          validated.discordTicketsWebhookUrl !== undefined || 
+          validated.discordNotificationsEnabled !== undefined) {
         const { discordNotificationService } = await import('./services/DiscordNotificationService');
         await discordNotificationService.updateConfig(
           config.discordWebhookUrl,
+          config.discordTicketsWebhookUrl,
           config.discordNotificationsEnabled
         );
         console.log('🔔 Configurações do Discord atualizadas');
