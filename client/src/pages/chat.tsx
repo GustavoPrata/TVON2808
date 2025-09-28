@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
-import { useQuery, useMutation, useInfiniteQuery } from '@tanstack/react-query';
+import { useState, useEffect, useRef } from 'react';
+import React from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -24,9 +25,7 @@ import { isToday, isYesterday, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatTimeInBrazil, formatShortInBrazil, formatDateTimeInBrazil } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
-import { getProfilePictureUrl } from '@/lib/profile-picture';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
@@ -99,8 +98,6 @@ interface ConversaWithDetails extends Conversa {
   mensagemLida?: boolean;
   metadados?: string | null;
   iniciadoPorAnuncio?: boolean;
-  atendimentoHumano?: boolean;
-  tipoUltimaMensagem?: string;
 }
 
 interface MessageStatus {
@@ -189,65 +186,17 @@ export default function Chat() {
   // WhatsApp Status Query
   const { data: whatsappStatus } = useQuery<WhatsAppStatus>({
     queryKey: ['/api/whatsapp/status'],
-    refetchInterval: 10000, // Check status every 10 seconds (reduced from 2s)
+    refetchInterval: 2000, // Check status every 2 seconds
   });
 
-  // Get conversations with client info using infinite query for pagination
-  const {
-    data: conversasInfiniteData,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    refetch: refetchConversas,
-    isLoading: isLoadingConversations
-  } = useInfiniteQuery<any, Error, any, string[], string | null>({
-    queryKey: ['/api/whatsapp/conversations', contactFilter, searchTerm],
-    queryFn: async ({ pageParam }) => {
-      const params = new URLSearchParams();
-      params.append('limit', '30');
-      if (pageParam) params.append('cursor', pageParam);
-      if (contactFilter) params.append('filter', contactFilter);
-      if (searchTerm) params.append('search', searchTerm);
-      
-      const response = await fetch(`/api/whatsapp/conversations?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch conversations');
-      return response.json();
-    },
-    initialPageParam: null,
-    getNextPageParam: (lastPage: any) => {
-      // Handle both new paginated format and old array format for backward compatibility
-      if (Array.isArray(lastPage)) {
-        return null; // Old format, no pagination
-      }
-      return lastPage.nextCursor || null;
-    },
+  // Get conversations with client info
+  const { data: conversas = [], refetch: refetchConversas } = useQuery<ConversaWithDetails[]>({
+    queryKey: ['/api/whatsapp/conversations'],
     refetchOnWindowFocus: true,
-    refetchInterval: 15000, // Auto-refresh every 15 seconds
-    staleTime: 30000, // Consider data stale after 30 seconds
-    gcTime: 300000, // Keep in cache for 5 minutes
+    refetchInterval: 5000, // Auto-refresh every 5 seconds
+    staleTime: 0,
+    gcTime: 0,
   });
-  
-  // Flatten all pages of conversations into a single array
-  const conversas: ConversaWithDetails[] = useMemo(() => {
-    if (!conversasInfiniteData?.pages) return [];
-    
-    return conversasInfiniteData.pages.flatMap((page: any) => {
-      // Handle both old array format and new paginated format
-      if (Array.isArray(page)) {
-        return page;
-      }
-      return page.conversations || [];
-    });
-  }, [conversasInfiniteData]);
-
-  // Get total unread count from the first page
-  const totalUnread = useMemo(() => {
-    const firstPage = conversasInfiniteData?.pages?.[0];
-    if (firstPage && !Array.isArray(firstPage)) {
-      return firstPage.totalUnread || 0;
-    }
-    return 0;
-  }, [conversasInfiniteData]);
 
   // Get sistemas for test creation
   const { data: sistemas } = useQuery({
@@ -260,10 +209,9 @@ export default function Chat() {
     refetchInterval: 5000, // Auto-refresh every 5 seconds
   });
 
-  // Fetch all clients for new chat dialog (only when needed)
+  // Fetch all clients for new chat dialog
   const { data: allClientes = [] } = useQuery<any[]>({
     queryKey: ['/api/clientes'],
-    enabled: showCreateClientDialog || showCreateTestDialog, // Only fetch when dialogs are open
   });
 
   // Get quick messages
@@ -633,63 +581,35 @@ export default function Chat() {
     
     // Handle new messages via WebSocket
     const handleNewMessage = (messageData: any) => {
-      // Update the conversation in the infinite query cache
+      // New message received - removed console logs
+      
+      // Update the conversation in the cache with new last message and timestamp
+      // Also move the conversation to the top of the list
       queryClient.setQueryData(
-        ['/api/whatsapp/conversations', contactFilter, searchTerm],
+        ['/api/whatsapp/conversations'],
         (oldData: any) => {
-          if (!oldData?.pages) return oldData;
+          if (!oldData) return [];
           
-          // Find and update the conversation across all pages
-          const updatedPages = oldData.pages.map((page: any, pageIndex: number) => {
-            // Handle both old array format and new paginated format
-            const isArrayFormat = Array.isArray(page);
-            const conversations = isArrayFormat ? page : (page.conversations || []);
-            
-            // Find the conversation in this page
-            const convIndex = conversations.findIndex((conv: any) => conv.id === messageData.conversaId);
-            
-            if (convIndex !== -1) {
-              // Update the conversation with new message data
-              const updatedConversation = {
-                ...conversations[convIndex],
-                ultimaMensagem: messageData.conteudo,
-                ultimoRemetente: messageData.remetente,
-                dataUltimaMensagem: messageData.timestamp || new Date().toISOString(),
-                tipoUltimaMensagem: messageData.tipo || 'text',
-                mensagensNaoLidas: messageData.remetente !== 'sistema' && 
-                  (!selectedConversa || selectedConversa.id !== messageData.conversaId) 
-                    ? (conversations[convIndex].mensagensNaoLidas || 0) + 1 
-                    : conversations[convIndex].mensagensNaoLidas
-              };
-              
-              // If this is the first page, move the conversation to the top
-              if (pageIndex === 0) {
-                const otherConversations = conversations.filter((conv: any) => conv.id !== messageData.conversaId);
-                const updatedConversations = [updatedConversation, ...otherConversations];
-                
-                return isArrayFormat ? updatedConversations : {
-                  ...page,
-                  conversations: updatedConversations
-                };
-              } else {
-                // Update in place if not on first page
-                const updatedConversations = [...conversations];
-                updatedConversations[convIndex] = updatedConversation;
-                
-                return isArrayFormat ? updatedConversations : {
-                  ...page,
-                  conversations: updatedConversations
-                };
-              }
-            }
-            
-            return page;
-          });
+          // Find the conversation that received the message
+          const updatedConversation = oldData.find((conv: any) => conv.id === messageData.conversaId);
+          if (!updatedConversation) return oldData;
           
-          return {
-            ...oldData,
-            pages: updatedPages
+          // Update the conversation with new message data
+          const updated = {
+            ...updatedConversation,
+            ultimaMensagem: messageData.conteudo,
+            ultimoRemetente: messageData.remetente,
+            dataUltimaMensagem: messageData.timestamp || new Date().toISOString(),
+            tipoUltimaMensagem: messageData.tipo || 'text',
+            mensagensNaoLidas: messageData.remetente !== 'sistema' && 
+              (!selectedConversa || selectedConversa.id !== messageData.conversaId) 
+                ? (updatedConversation.mensagensNaoLidas || 0) + 1 
+                : updatedConversation.mensagensNaoLidas
           };
+          
+          // Remove the conversation from its current position and add it to the top
+          const otherConversations = oldData.filter((conv: any) => conv.id !== messageData.conversaId);
+          return [updated, ...otherConversations];
         }
       );
       
@@ -1657,330 +1577,6 @@ export default function Chat() {
     return formatShortInBrazil(timestamp);
   };
 
-  // List height state for responsive sizing
-  const [listHeight, setListHeight] = useState(window.innerHeight - 200);
-  const listRef = useRef<any>(null);
-  const conversationListContainerRef = useRef<HTMLDivElement>(null);
-
-  // Update list height on window resize
-  useEffect(() => {
-    const handleResize = () => {
-      setListHeight(window.innerHeight - 200);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Handle infinite scrolling for conversations
-  const handleConversationScroll = useCallback(
-    ({ scrollDirection, scrollOffset, scrollUpdateWasRequested }: any) => {
-      // Only proceed if we're scrolling down and not already fetching
-      if (scrollDirection !== 'forward' || isFetchingNextPage) return;
-      
-      // Check if we're near the bottom (within 100px)
-      const list = listRef.current;
-      if (!list) return;
-      
-      const totalHeight = filteredConversas.length * 96; // 96px per item (itemSize)
-      const visibleHeight = listHeight;
-      const scrollPercentage = (scrollOffset + visibleHeight) / totalHeight;
-      
-      // Load more when we've scrolled past 80% of the list
-      if (scrollPercentage > 0.8 && hasNextPage && !isFetchingNextPage) {
-        fetchNextPage();
-      }
-    },
-    [filteredConversas.length, listHeight, hasNextPage, isFetchingNextPage, fetchNextPage]
-  );
-
-  // Variable size function for list items
-  const getItemSize = useCallback((index: number) => {
-    // Fixed size of 96px per conversation row
-    return 96;
-  }, []);
-
-  // ConversationRow component for virtualized list
-  const ConversationRow = memo(({ index, style, data }: { index: number; style: React.CSSProperties; data: any }) => {
-    const conversa = data.conversations[index];
-    const { tickets, selectedConversa, setSelectedConversa, showPhotosChat, toast, refetchConversas } = data;
-    
-    if (!conversa) return null;
-
-    const openTicket = tickets.find((ticket: any) => 
-      ticket.conversaId === conversa.id && ticket.status === 'aberto'
-    );
-
-    return (
-      <div style={style} className="px-2">
-        <div
-          className={cn(
-            "group relative p-3 rounded-lg cursor-pointer transition-all duration-200",
-            selectedConversa?.id === conversa.id 
-              ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 shadow-lg" 
-              : "hover:bg-slate-800/50 border border-transparent hover:border-slate-700"
-          )}
-        >
-          <div className="flex items-center gap-3" onClick={() => {
-            setSelectedConversa({
-              ...conversa,
-              hasOpenTicket: !!openTicket,
-              ticket: openTicket
-            });
-          }}>
-            {/* Avatar with Online Status */}
-            <div className="relative">
-              <Avatar className="w-12 h-12">
-                <AvatarImage 
-                  src={getProfilePictureUrl({
-                    profilePicture: conversa.profilePicture,
-                    showPhotosChat,
-                    size: 'medium'
-                  })}
-                  alt={conversa.nome || conversa.telefone}
-                  className="object-cover"
-                  loading="lazy"
-                  width={48}
-                  height={48}
-                />
-                <AvatarFallback className="animate-pulse">
-                  <Skeleton className="w-12 h-12 rounded-full" />
-                </AvatarFallback>
-              </Avatar>
-              
-              {/* Anúncio Indicator - Star at top left */}
-              {conversa.iniciadoPorAnuncio && (
-                <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 flex items-center justify-center shadow-lg">
-                  <Star className="w-3 h-3 text-white fill-white" />
-                </div>
-              )}
-              
-              {/* Cliente/Novo/Teste Status Indicator */}
-              <div className={cn(
-                "absolute -bottom-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white shadow-lg",
-                conversa.isTeste
-                  ? "bg-gradient-to-r from-blue-500 to-purple-600"
-                  : conversa.isCliente 
-                  ? "bg-gradient-to-r from-purple-500 to-purple-600" 
-                  : "bg-gradient-to-r from-green-500 to-green-600"
-              )}>
-                {conversa.isTeste ? 'T' : conversa.isCliente ? 'C' : 'N'}
-              </div>
-              
-              {/* Ticket Indicator - Orange dot with ticket icon */}
-              {conversa.hasOpenTicket && (
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
-                  <Ticket className="w-3 h-3 text-white" />
-                </div>
-              )}
-              
-              {/* Mode Indicator Icon */}
-              <div className={cn(
-                "absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-lg",
-                conversa.modoAtendimento === 'bot' 
-                  ? "bg-gradient-to-r from-blue-500 to-blue-600" 
-                  : "bg-gradient-to-r from-purple-500 to-purple-600"
-              )}>
-                {conversa.modoAtendimento === 'bot' ? (
-                  <Bot className="w-3 h-3 text-white" />
-                ) : (
-                  <User className="w-3 h-3 text-white" />
-                )}
-              </div>
-            </div>
-            
-            {/* Conversation Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <div className="flex flex-col">
-                    <h4 className="font-semibold truncate text-slate-100">
-                      {(() => {
-                        // Se for cliente, usar nome do cliente salvo
-                        if (conversa.isCliente && conversa.clienteNome) {
-                          return conversa.clienteNome;
-                        }
-                        // Se tiver nome do WhatsApp e não for só número
-                        if (conversa.nome && conversa.nome !== conversa.telefone) {
-                          return conversa.nome;
-                        }
-                        // Se for só número, mostrar formatado
-                        return formatPhoneNumber(conversa.telefone);
-                      })()}
-                    </h4>
-                    <span className="text-xs text-slate-500">{formatPhoneNumber(conversa.telefone)}</span>
-                  </div>
-                  {conversa.isPinned && (
-                    <Pin className="w-3 h-3 text-blue-400" />
-                  )}
-                  {conversa.isMuted && (
-                    <VolumeX className="w-3 h-3 text-slate-500" />
-                  )}
-                </div>
-                <span className="text-xs text-slate-500">
-                  {conversa.dataUltimaMensagem && formatLastMessageDate(conversa.dataUltimaMensagem)}
-                </span>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {/* Last Message Preview */}
-                <p className="text-sm text-slate-400 truncate flex-1 flex items-center gap-1 overflow-hidden"
-                   style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                  {conversa.isTyping ? (
-                    <span className="text-blue-400 italic">digitando...</span>
-                  ) : (
-                    <>
-                      {/* Show checkmarks only when last message was sent by system */}
-                      {conversa.ultimaMensagem && conversa.ultimoRemetente === 'sistema' && (
-                        <span className="text-xs flex-shrink-0">
-                          <svg className="w-4 h-4 text-slate-500 inline" viewBox="0 0 16 11" fill="none">
-                            <path d="M1 5L5 9L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M5 5L9 9L15 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </span>
-                      )}
-                      {/* Show media type icon */}
-                      {conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text' && (
-                        <span className="flex-shrink-0">
-                          {conversa.tipoUltimaMensagem === 'image' && <Camera className="w-4 h-4 text-slate-400" />}
-                          {conversa.tipoUltimaMensagem === 'video' && <Video className="w-4 h-4 text-slate-400" />}
-                          {conversa.tipoUltimaMensagem === 'audio' && <Mic className="w-4 h-4 text-slate-400" />}
-                          {conversa.tipoUltimaMensagem === 'document' && <FileText className="w-4 h-4 text-slate-400" />}
-                          {conversa.tipoUltimaMensagem === 'sticker' && <Sparkles className="w-4 h-4 text-slate-400" />}
-                        </span>
-                      )}
-                      <span className="truncate">
-                        {(() => {
-                          if (!conversa.ultimaMensagem || conversa.ultimaMensagem === '') {
-                            return <span className="italic">Clique para iniciar conversa</span>;
-                          }
-                          
-                          // For media messages, show special formatting
-                          if (conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text') {
-                            try {
-                              const parsedMessage = JSON.parse(conversa.ultimaMensagem);
-                              
-                              switch (conversa.tipoUltimaMensagem) {
-                                case 'image':
-                                  return parsedMessage.caption ? `Foto: ${parsedMessage.caption}` : 'Foto';
-                                case 'video':
-                                  return parsedMessage.caption ? `Vídeo: ${parsedMessage.caption}` : 'Vídeo';
-                                case 'audio':
-                                  const duration = parsedMessage.duration || 0;
-                                  return `Áudio (${duration}s)`;
-                                case 'document':
-                                  const fileName = parsedMessage.fileName || 'arquivo';
-                                  return fileName;
-                                case 'sticker':
-                                  return 'Figurinha';
-                                default:
-                                  return conversa.ultimaMensagem;
-                              }
-                            } catch (e) {
-                              // If parsing fails, check for special media types
-                              if (conversa.tipoUltimaMensagem === 'audio') {
-                                return 'Áudio';
-                              } else if (conversa.tipoUltimaMensagem === 'image') {
-                                return 'Foto';
-                              } else if (conversa.tipoUltimaMensagem === 'video') {
-                                return 'Vídeo';
-                              } else if (conversa.tipoUltimaMensagem === 'document') {
-                                return 'Documento';
-                              } else if (conversa.tipoUltimaMensagem === 'sticker') {
-                                return 'Figurinha';
-                              }
-                              // Show raw message if not empty
-                              return conversa.ultimaMensagem || <span className="italic">Clique para iniciar conversa</span>;
-                            }
-                          }
-                          
-                          // For text messages, show as is
-                          return conversa.ultimaMensagem;
-                        })()}
-                      </span>
-                    </>
-                  )}
-                </p>
-                
-                {/* Unread Count */}
-                {conversa.mensagensNaoLidas > 0 && (
-                  <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs min-w-[20px] h-5 px-1.5">
-                    {conversa.mensagensNaoLidas > 99 ? '99+' : conversa.mensagensNaoLidas}
-                  </Badge>
-                )}
-              </div>
-            </div>
-            
-            {/* Actions Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent 
-                align="end" 
-                className="bg-dark-card border-slate-600"
-                onCloseAutoFocus={(e) => e.preventDefault()}
-              >
-                <DropdownMenuItem 
-                  className="hover:bg-red-500/20 text-red-400"
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    if (!conversa) return;
-                    
-                    // Ask for confirmation
-                    if (confirm(`Deseja apagar a conversa com ${conversa.nome || formatPhoneNumber(conversa.telefone)}?`)) {
-                      try {
-                        // Delete conversation
-                        await apiRequest('DELETE', `/api/conversas/${conversa.id}`);
-                        
-                        // If it's a client, also delete the client
-                        if (conversa.isCliente && conversa.clienteId) {
-                          await apiRequest('DELETE', `/api/clientes/${conversa.clienteId}`);
-                        }
-                        
-                        toast({
-                          title: "Conversa apagada",
-                          description: conversa.isCliente 
-                            ? "A conversa e o cliente foram removidos"
-                            : "A conversa foi removida",
-                        });
-                        
-                        // If this was the selected conversation, clear it
-                        if (selectedConversa?.id === conversa.id) {
-                          setSelectedConversa(null);
-                        }
-                        
-                        // Refresh list
-                        refetchConversas();
-                      } catch (error) {
-                        toast({
-                          title: "Erro ao apagar",
-                          description: "Não foi possível apagar a conversa",
-                          variant: "destructive",
-                        });
-                      }
-                    }
-                  }}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Apagar conversa
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </div>
-    );
-  });
-
-  ConversationRow.displayName = 'ConversationRow';
-
   const formatPhoneNumber = (phone: string) => {
     // Remove all non-digits
     const digits = phone.replace(/\D/g, '');
@@ -2383,212 +1979,295 @@ export default function Chat() {
             )}
           </div>
         
-        <div className="flex-1 relative" style={{ height: 'calc(100% - 120px)' }}>
-          {!isConnected ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-400 p-4">
-              <WifiOff className="w-12 h-12 mb-4" />
-              <p className="text-center">WhatsApp não conectado</p>
-              <p className="text-sm text-center mt-1">Clique em "Conectar WhatsApp" para começar</p>
-            </div>
-          ) : filteredConversas?.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-slate-400 p-4">
-              <MessageSquare className="w-12 h-12 mb-4" />
-              <p className="text-center">Nenhuma conversa encontrada</p>
-            </div>
-          ) : (
-            <div className="relative h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent" 
-                 onScroll={handleConversationScroll}
-                 ref={listRef}>
-              <div className="space-y-1 p-2">
-                {filteredConversas?.map((conversa, index) => {
-                  const openTicket = tickets.find((ticket: any) => 
-                    ticket.conversaId === conversa.id && ticket.status === 'aberto'
-                  );
-                  
-                  return (
-                    <div
-                      key={conversa.id}
-                      className={cn(
-                        "group relative p-3 rounded-lg cursor-pointer transition-all duration-200",
-                        selectedConversa?.id === conversa.id 
-                          ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 shadow-lg" 
-                          : "hover:bg-slate-800/50 border border-transparent hover:border-slate-700"
-                      )}
-                    >
-                      <div className="flex items-center gap-3" onClick={() => {
-                        setSelectedConversa({
-                          ...conversa,
-                          hasOpenTicket: !!openTicket,
-                          ticket: openTicket
-                        });
-                      }}>
-                        {/* Avatar with Online Status */}
-                        <div className="relative">
-                          <Avatar className="w-12 h-12">
-                            <AvatarImage 
-                              src={getProfilePictureUrl({
-                                profilePicture: conversa.profilePicture,
-                                showPhotosChat,
-                                size: 'medium'
-                              })}
-                              alt={conversa.nome || conversa.telefone}
-                              className="object-cover"
-                              loading="lazy"
-                              width={48}
-                              height={48}
+        <div className="flex-1 overflow-y-auto relative">
+          <div className="p-2 space-y-1 relative">
+            {!isConnected ? (
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                <WifiOff className="w-12 h-12 mb-4" />
+                <p className="text-center">WhatsApp não conectado</p>
+                <p className="text-sm text-center mt-1">Clique em "Conectar WhatsApp" para começar</p>
+              </div>
+            ) : filteredConversas?.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                <MessageSquare className="w-12 h-12 mb-4" />
+                <p className="text-center">Nenhuma conversa encontrada</p>
+              </div>
+            ) : (
+              filteredConversas?.map((conversa: any) => (
+                <div key={conversa.id}>
+                  <div
+                    className={cn(
+                      "group relative p-3 rounded-lg cursor-pointer transition-all duration-200",
+                      selectedConversa?.id === conversa.id 
+                        ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 shadow-lg" 
+                        : "hover:bg-slate-800/50 border border-transparent hover:border-slate-700"
+                    )}
+                  >
+                    <div className="flex items-center gap-3" onClick={() => {
+                      // Include ticket information when selecting a conversation
+                      const openTicket = tickets.find((ticket: any) => 
+                        ticket.conversaId === conversa.id && ticket.status === 'aberto'
+                      );
+                      setSelectedConversa({
+                        ...conversa,
+                        hasOpenTicket: !!openTicket,
+                        ticket: openTicket
+                      });
+                    }}>
+                      {/* Avatar with Online Status */}
+                      <div className="relative">
+                        <Avatar className="w-12 h-12">
+                          <AvatarImage 
+                            src={showPhotosChat && conversa.profilePicture ? conversa.profilePicture : defaultProfileIcon} 
+                            alt={conversa.nome || conversa.telefone}
+                            className="object-cover"
+                          />
+                          <AvatarFallback>
+                            <img 
+                              src={defaultProfileIcon} 
+                              alt="Default profile"
+                              className="object-cover w-full h-full"
                             />
-                            <AvatarFallback className="animate-pulse">
-                              <Skeleton className="w-12 h-12 rounded-full" />
-                            </AvatarFallback>
-                          </Avatar>
-                          
-                          {/* Anúncio Indicator - Star at top left */}
-                          {conversa.iniciadoPorAnuncio && (
-                            <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 flex items-center justify-center shadow-lg">
-                              <Star className="w-3 h-3 text-white fill-white" />
-                            </div>
-                          )}
-                          
-                          {/* Cliente/Novo/Teste Status Indicator */}
-                          <div className={cn(
-                            "absolute -bottom-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white shadow-lg",
-                            conversa.isTeste
-                              ? "bg-gradient-to-r from-blue-500 to-purple-600"
-                              : conversa.isCliente 
-                              ? "bg-gradient-to-r from-purple-500 to-purple-600" 
-                              : "bg-gradient-to-r from-green-500 to-green-600"
-                          )}>
-                            {conversa.isTeste ? 'T' : conversa.isCliente ? 'C' : 'N'}
+                          </AvatarFallback>
+                        </Avatar>
+                        
+                        {/* Anúncio Indicator - Star at top left */}
+                        {conversa.iniciadoPorAnuncio && (
+                          <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 flex items-center justify-center shadow-lg">
+                            <Star className="w-3 h-3 text-white fill-white" />
                           </div>
-                          
-                          {/* Ticket Indicator - Orange dot with ticket icon */}
-                          {conversa.hasOpenTicket && (
-                            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
-                              <Ticket className="w-3 h-3 text-white" />
-                            </div>
-                          )}
-                          
-                          {/* Mode Indicator Icon */}
-                          <div className={cn(
-                            "absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-lg",
-                            conversa.atendimentoHumano 
-                              ? "bg-gradient-to-r from-green-500 to-emerald-500" 
-                              : "bg-gradient-to-r from-blue-500 to-cyan-500"
-                          )}>
-                            {conversa.atendimentoHumano ? (
-                              <User className="w-3 h-3 text-white" />
-                            ) : (
-                              <Bot className="w-3 h-3 text-white" />
-                            )}
-                          </div>
+                        )}
+                        
+                        {/* Cliente/Novo/Teste Status Indicator */}
+                        <div className={cn(
+                          "absolute -bottom-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white shadow-lg",
+                          conversa.isTeste
+                            ? "bg-gradient-to-r from-blue-500 to-purple-600"
+                            : conversa.isCliente 
+                            ? "bg-gradient-to-r from-purple-500 to-purple-600" 
+                            : "bg-gradient-to-r from-green-500 to-green-600"
+                        )}>
+                          {conversa.isTeste ? 'T' : conversa.isCliente ? 'C' : 'N'}
                         </div>
                         
-                        {/* Conversation Info */}
-                        <div className="flex-1 min-w-0">
-                          {/* Name and Time */}
-                          <div className="flex items-center justify-between mb-1">
-                            <h4 className="font-semibold text-white truncate text-sm">
-                              {conversa.nome || conversa.telefone}
-                            </h4>
-                            <div className="flex items-center gap-1">
-                              {!conversa.mensagemLida && conversa.ultimoRemetente === 'cliente' && (
-                                <Circle className="w-2 h-2 fill-blue-500 text-blue-500" />
-                              )}
-                              <time className="text-xs text-slate-400">
-                                {conversa.dataUltimaMensagem ? 
-                                  formatShortInBrazil(conversa.dataUltimaMensagem) : ''}
-                              </time>
-                            </div>
+                        {/* Ticket Indicator - Orange dot with ticket icon */}
+                        {conversa.hasOpenTicket && (
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
+                            <Ticket className="w-3 h-3 text-white" />
                           </div>
-                          
-                          {/* Last Message and Status */}
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1 min-w-0 flex-1">
-                              {conversa.ultimoRemetente === 'bot' && (
-                                <Bot className="w-3 h-3 text-blue-400 flex-shrink-0" />
-                              )}
-                              {conversa.ultimoRemetente === 'atendente' && (
-                                <User className="w-3 h-3 text-green-400 flex-shrink-0" />
-                              )}
-                              <span className="text-xs text-slate-400 truncate">
-                                {(() => {
-                                  if (!conversa.ultimaMensagem) {
-                                    return <span className="italic">Clique para iniciar conversa</span>;
-                                  }
-                                  
-                                  // For media messages, show special formatting
-                                  if (conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text') {
-                                    try {
-                                      const parsedMessage = JSON.parse(conversa.ultimaMensagem);
-                                      
-                                      switch (conversa.tipoUltimaMensagem) {
-                                        case 'image':
-                                          return parsedMessage.caption ? `Foto: ${parsedMessage.caption}` : 'Foto';
-                                        case 'video':
-                                          return parsedMessage.caption ? `Vídeo: ${parsedMessage.caption}` : 'Vídeo';
-                                        case 'audio':
-                                          const duration = parsedMessage.duration || 0;
-                                          return `Áudio (${duration}s)`;
-                                        case 'document':
-                                          const fileName = parsedMessage.fileName || 'arquivo';
-                                          return fileName;
-                                        case 'sticker':
-                                          return 'Figurinha';
-                                        default:
-                                          return conversa.ultimaMensagem;
-                                      }
-                                    } catch (e) {
-                                      // If parsing fails, check for special media types
-                                      if (conversa.tipoUltimaMensagem === 'audio') {
-                                        return 'Áudio';
-                                      } else if (conversa.tipoUltimaMensagem === 'image') {
-                                        return 'Foto';
-                                      } else if (conversa.tipoUltimaMensagem === 'video') {
-                                        return 'Vídeo';
-                                      } else if (conversa.tipoUltimaMensagem === 'document') {
-                                        return 'Documento';
-                                      } else if (conversa.tipoUltimaMensagem === 'sticker') {
-                                        return 'Figurinha';
-                                      }
-                                      // Show raw message if not empty
-                                      return conversa.ultimaMensagem || <span className="italic">Clique para iniciar conversa</span>;
-                                    }
-                                  }
-                                  
-                                  // For text messages, show as is
-                                  return conversa.ultimaMensagem;
-                                })()}
-                              </span>
-                            </div>
-                            
-                            {/* Unread Count */}
-                            {conversa.mensagensNaoLidas > 0 && (
-                              <Badge 
-                                className="ml-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs px-1.5 py-0.5 h-5 min-w-[20px] flex items-center justify-center"
-                              >
-                                {conversa.mensagensNaoLidas}
-                              </Badge>
-                            )}
-                          </div>
+                        )}
+                        
+                        {/* Mode Indicator Icon */}
+                        <div className={cn(
+                          "absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-lg",
+                          conversa.modoAtendimento === 'bot' 
+                            ? "bg-gradient-to-r from-blue-500 to-blue-600" 
+                            : "bg-gradient-to-r from-purple-500 to-purple-600"
+                        )}>
+                          {conversa.modoAtendimento === 'bot' ? (
+                            <Bot className="w-3 h-3 text-white" />
+                          ) : (
+                            <User className="w-3 h-3 text-white" />
+                          )}
                         </div>
                       </div>
+                      
+                      {/* Conversation Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <div className="flex flex-col">
+                              <h4 className="font-semibold truncate text-slate-100">
+                                {(() => {
+                                  // Se for cliente, usar nome do cliente salvo
+                                  if (conversa.isCliente && conversa.clienteNome) {
+                                    return conversa.clienteNome;
+                                  }
+                                  // Se tiver nome do WhatsApp e não for só número
+                                  if (conversa.nome && conversa.nome !== conversa.telefone) {
+                                    return conversa.nome;
+                                  }
+                                  // Se for só número, mostrar formatado
+                                  return formatPhoneNumber(conversa.telefone);
+                                })()}
+                              </h4>
+                              <span className="text-xs text-slate-500">{formatPhoneNumber(conversa.telefone)}</span>
+                            </div>
+                            {conversa.isPinned && (
+                              <Pin className="w-3 h-3 text-blue-400" />
+                            )}
+                            {conversa.isMuted && (
+                              <VolumeX className="w-3 h-3 text-slate-500" />
+                            )}
+                          </div>
+                          <span className="text-xs text-slate-500">
+                            {conversa.dataUltimaMensagem && formatLastMessageDate(conversa.dataUltimaMensagem)}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {/* Last Message Preview */}
+                          <p className="text-sm text-slate-400 truncate flex-1 flex items-center gap-1 overflow-hidden"
+                             style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                            {conversa.isTyping ? (
+                              <span className="text-blue-400 italic">digitando...</span>
+                            ) : (
+                              <>
+                                {/* Show checkmarks only when last message was sent by system */}
+                                {conversa.ultimaMensagem && conversa.ultimoRemetente === 'sistema' && (
+                                  <span className="text-xs flex-shrink-0">
+                                    <svg className="w-4 h-4 text-slate-500 inline" viewBox="0 0 16 11" fill="none">
+                                      <path d="M1 5L5 9L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                      <path d="M5 5L9 9L15 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                  </span>
+                                )}
+                                {/* Show media type icon */}
+                                {conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text' && (
+                                  <span className="flex-shrink-0">
+                                    {conversa.tipoUltimaMensagem === 'image' && <Camera className="w-4 h-4 text-slate-400" />}
+                                    {conversa.tipoUltimaMensagem === 'video' && <Video className="w-4 h-4 text-slate-400" />}
+                                    {conversa.tipoUltimaMensagem === 'audio' && <Mic className="w-4 h-4 text-slate-400" />}
+                                    {conversa.tipoUltimaMensagem === 'document' && <FileText className="w-4 h-4 text-slate-400" />}
+                                    {conversa.tipoUltimaMensagem === 'sticker' && <Sparkles className="w-4 h-4 text-slate-400" />}
+                                  </span>
+                                )}
+                                <span className="truncate">
+                                  {(() => {
+                                    if (!conversa.ultimaMensagem || conversa.ultimaMensagem === '') {
+                                      return <span className="italic">Clique para iniciar conversa</span>;
+                                    }
+                                    
+                                    // For media messages, show special formatting
+                                    if (conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text') {
+                                      try {
+                                        const parsedMessage = JSON.parse(conversa.ultimaMensagem);
+                                        
+                                        switch (conversa.tipoUltimaMensagem) {
+                                          case 'image':
+                                            return parsedMessage.caption ? `Foto: ${parsedMessage.caption}` : 'Foto';
+                                          case 'video':
+                                            return parsedMessage.caption ? `Vídeo: ${parsedMessage.caption}` : 'Vídeo';
+                                          case 'audio':
+                                            const duration = parsedMessage.duration || 0;
+                                            return `Áudio (${duration}s)`;
+                                          case 'document':
+                                            const fileName = parsedMessage.fileName || 'arquivo';
+                                            return fileName;
+                                          case 'sticker':
+                                            return 'Figurinha';
+                                          default:
+                                            return conversa.ultimaMensagem;
+                                        }
+                                      } catch (e) {
+                                        // If parsing fails, check for special media types
+                                        if (conversa.tipoUltimaMensagem === 'audio') {
+                                          return 'Áudio';
+                                        } else if (conversa.tipoUltimaMensagem === 'image') {
+                                          return 'Foto';
+                                        } else if (conversa.tipoUltimaMensagem === 'video') {
+                                          return 'Vídeo';
+                                        } else if (conversa.tipoUltimaMensagem === 'document') {
+                                          return 'Documento';
+                                        } else if (conversa.tipoUltimaMensagem === 'sticker') {
+                                          return 'Figurinha';
+                                        }
+                                        // Show raw message if not empty
+                                        return conversa.ultimaMensagem || <span className="italic">Clique para iniciar conversa</span>;
+                                      }
+                                    }
+                                    
+                                    // For text messages, show as is
+                                    return conversa.ultimaMensagem;
+                                  })()}
+                                </span>
+                              </>
+                            )}
+                          </p>
+                          
+                          {/* Unread Count */}
+                          {conversa.mensagensNaoLidas > 0 && (
+                            <Badge className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs min-w-[20px] h-5 px-1.5">
+                              {conversa.mensagensNaoLidas > 99 ? '99+' : conversa.mensagensNaoLidas}
+                            </Badge>
+                          )}
+                        </div>
+                        
+
+
+                      </div>
+                      
+                      {/* Actions Menu */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent 
+                          align="end" 
+                          className="bg-dark-card border-slate-600"
+                          onCloseAutoFocus={(e) => e.preventDefault()}
+                        >
+                            <DropdownMenuItem 
+                              className="hover:bg-red-500/20 text-red-400"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!conversa) return;
+                                
+                                // Ask for confirmation
+                                if (confirm(`Deseja apagar a conversa com ${conversa.nome || formatPhoneNumber(conversa.telefone)}?`)) {
+                                  try {
+                                    // Delete conversation
+                                    await apiRequest('DELETE', `/api/conversas/${conversa.id}`);
+                                    
+                                    // If it's a client, also delete the client
+                                    if (conversa.isCliente && conversa.clienteId) {
+                                      await apiRequest('DELETE', `/api/clientes/${conversa.clienteId}`);
+                                    }
+                                    
+                                    toast({
+                                      title: "Conversa apagada",
+                                      description: conversa.isCliente 
+                                        ? "A conversa e o cliente foram removidos"
+                                        : "A conversa foi removida",
+                                    });
+                                    
+                                    // If this was the selected conversation, clear it
+                                    if (selectedConversa?.id === conversa.id) {
+                                      setSelectedConversa(null);
+                                    }
+                                    
+                                    // Refresh list
+                                    refetchConversas();
+                                  } catch (error) {
+                                    toast({
+                                      title: "Erro ao apagar",
+                                      description: "Não foi possível apagar a conversa",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Apagar conversa
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
-                  );
-                })}
-              </div>
-              
-              {/* Loading indicator for pagination */}
-              {isFetchingNextPage && (
-                <div className="sticky bottom-0 left-0 right-0 p-2 bg-dark-surface/90 backdrop-blur-sm border-t border-slate-600">
-                  <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Carregando mais conversas...
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
+        
 
         </div>
 
@@ -2619,29 +2298,22 @@ export default function Chat() {
                   <Avatar 
                     className="w-12 h-12 cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={() => {
-                      const photo = getProfilePictureUrl({
-                        profilePicture: selectedConversa.profilePicture,
-                        showPhotosChat,
-                        size: 'medium'
-                      });
+                      const photo = showPhotosChat && selectedConversa.profilePicture ? selectedConversa.profilePicture : defaultProfileIcon;
                       setEnlargedPhoto(photo);
                       setShowPhotoEnlarged(true);
                     }}
                   >
                     <AvatarImage 
-                      src={getProfilePictureUrl({
-                        profilePicture: selectedConversa.profilePicture,
-                        showPhotosChat,
-                        size: 'medium'
-                      })}
+                      src={showPhotosChat && selectedConversa.profilePicture ? selectedConversa.profilePicture : defaultProfileIcon} 
                       alt={selectedConversa.nome || selectedConversa.telefone}
                       className="object-cover"
-                      loading="eager"
-                      width={48}
-                      height={48}
                     />
-                    <AvatarFallback className="animate-pulse">
-                      <Skeleton className="w-12 h-12 rounded-full" />
+                    <AvatarFallback>
+                      <img 
+                        src={defaultProfileIcon} 
+                        alt="Default profile"
+                        className="object-cover w-full h-full"
+                      />
                     </AvatarFallback>
                   </Avatar>
                   

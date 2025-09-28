@@ -3461,27 +3461,16 @@ Como posso ajudar você hoje?
     }
   });
 
-  // Get all WhatsApp conversations with client status (supports pagination)
+  // Get all WhatsApp conversations with client status
   app.get("/api/whatsapp/conversations", async (req, res) => {
     try {
-      // Extract pagination and filter parameters
-      const { limit = "30", cursor, filter, search } = req.query;
-      
-      // Use the new paginated method
-      const paginatedResult = await storage.getConversasPaginated({
-        limit: parseInt(limit as string),
-        cursor: cursor as string || null,
-        filter: filter as 'novos' | 'clientes' | 'testes' | undefined,
-        search: search as string || undefined,
-      });
+      // Get conversations with limit to avoid timeout
+      const { limit = 30 } = req.query; // Reduced limit for better performance
+      const conversas = await storage.getConversas(parseInt(limit as string));
 
       // Quick return if no conversations
-      if (!paginatedResult.items || paginatedResult.items.length === 0) {
-        return res.json({
-          conversations: [],
-          nextCursor: null,
-          totalUnread: 0,
-        });
+      if (!conversas || conversas.length === 0) {
+        return res.json([]);
       }
 
       // Get all tests once to avoid repeated queries
@@ -3494,8 +3483,8 @@ Como posso ajudar você hoje?
       const batchSize = 10;
       const conversasEnriquecidas = [];
       
-      for (let i = 0; i < paginatedResult.items.length; i += batchSize) {
-        const batch = paginatedResult.items.slice(i, i + batchSize);
+      for (let i = 0; i < conversas.length; i += batchSize) {
+        const batch = conversas.slice(i, i + batchSize);
         
         const enrichedBatch = await Promise.all(
           batch.map(async (conversa) => {
@@ -3550,12 +3539,7 @@ Como posso ajudar você hoje?
         conversasEnriquecidas.push(...enrichedBatch);
       }
 
-      // Return paginated response structure
-      res.json({
-        conversations: conversasEnriquecidas,
-        nextCursor: paginatedResult.nextCursor,
-        totalUnread: paginatedResult.totalUnread,
-      });
+      res.json(conversasEnriquecidas);
     } catch (error) {
       console.error("Error in /api/whatsapp/conversations:", error);
       res.status(500).json({ error: "Erro ao buscar conversas" });
