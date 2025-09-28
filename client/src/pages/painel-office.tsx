@@ -519,8 +519,23 @@ export default function PainelOffice() {
     });
   });
   
+  // Sistemas SEM clientes vencidos (para o modo normal)
+  const systemsWithoutExpiredClients = baseFilteredSystems.filter((system: System) => {
+    if (!system.clientesAtivos || system.clientesAtivos.length === 0) return true; // Sistema sem clientes é considerado "normal"
+    
+    // Retorna true apenas se NENHUM cliente está vencido
+    return !system.clientesAtivos.some(cliente => {
+      if (!cliente.vencimento) return false;
+      const vencimentoDate = typeof cliente.vencimento === 'string' 
+        ? new Date(cliente.vencimento) 
+        : cliente.vencimento;
+      return vencimentoDate < new Date();
+    });
+  });
+  
   // Aplicar filtro baseado no toggle
-  const filteredSystems = showExpiredClients ? systemsWithExpiredClients : baseFilteredSystems;
+  // OFF (cinza) = sistemas SEM clientes vencidos | ON (vermelho) = sistemas COM clientes vencidos
+  const filteredSystems = showExpiredClients ? systemsWithExpiredClients : systemsWithoutExpiredClients;
   
   // Sort filtered systems by system_id (numerical order)
   const systems = [...filteredSystems].sort((a, b) => {
