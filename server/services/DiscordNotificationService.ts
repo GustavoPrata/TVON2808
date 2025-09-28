@@ -32,16 +32,21 @@ export class DiscordNotificationService {
 
   private async sendToDiscord(content: string, useTicketsWebhook: boolean = false) {
     if (!this.enabled) {
+      console.log('❌ Discord desabilitado');
       return false;
     }
     
     const webhookUrl = useTicketsWebhook ? this.ticketsWebhookUrl : this.systemWebhookUrl;
     
     if (!webhookUrl) {
+      console.log(`❌ Webhook ${useTicketsWebhook ? 'tickets' : 'sistemas'} não configurado`);
       return false;
     }
 
     try {
+      console.log(`📤 Enviando para Discord ${useTicketsWebhook ? 'Tickets' : 'Sistemas'}:`, content);
+      console.log(`📌 Webhook URL: ${webhookUrl.substring(0, 50)}...`);
+      
       const payload = {
         content: content
       };
@@ -54,9 +59,16 @@ export class DiscordNotificationService {
         body: JSON.stringify(payload),
       });
 
+      console.log(`📬 Resposta Discord: Status ${response.status}, OK: ${response.ok}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Erro Discord: ${errorText}`);
+      }
+      
       return response.ok;
     } catch (error) {
-      console.error('Erro ao enviar notificação Discord:', error);
+      console.error('❌ Erro ao enviar notificação Discord:', error);
       return false;
     }
   }
@@ -142,8 +154,8 @@ export class DiscordNotificationService {
         console.log(`   Resultado do envio: ${sent ? '✅ Enviado' : '❌ Falhou'}`);
         
         if (sent) {
-          // Registrar notificação com expiração de 2 minutos
-          await this.recordNotification(notificationType, 'extension', message, 2);
+          // Registrar notificação com expiração de 5 minutos (aumentado de 2)
+          await this.recordNotification(notificationType, 'extension', message, 5);
         }
 
         return sent;
