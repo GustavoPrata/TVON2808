@@ -541,16 +541,28 @@ export class AutoRenewalService {
       // 2. Criar task pendente no banco com sistemaId no metadata
       console.log(`💾 [AutoRenewal] Nenhuma task pendente encontrada - criando nova task de renovação [${traceId}]...`);
       
+      // IMPORTANTE: Usar as credenciais reais do sistema para a extensão poder fazer login
       const taskData = {
-        username: `renovacao_${Date.now()}`,
-        password: 'pending',
+        username: sistema.username,  // Username real do sistema
+        password: sistema.password,  // Password real do sistema  
         source: 'renewal',
         status: 'pending',
         generatedAt: new Date(),
-        sistemaId: sistema.id // Adicionar sistemaId diretamente no registro
+        sistemaId: sistema.id, // Adicionar sistemaId diretamente no registro
+        metadata: JSON.stringify({
+          sistemaId: sistema.id,
+          systemId: sistema.systemId,
+          originalUsername: sistema.username,
+          originalPassword: sistema.password,
+          currentExpiration: sistema.expiracao,
+          traceId: traceId
+        })
       };
       
-      console.log(`🔍 [AutoRenewal] Dados da task a criar [${traceId}]:`, JSON.stringify(taskData, null, 2));
+      console.log(`🔍 [AutoRenewal] Dados da task a criar [${traceId}]:`, {
+        ...taskData,
+        password: '***hidden***' // Ocultar senha no log
+      });
       
       const [task] = await db
         .insert(officeCredentials)
