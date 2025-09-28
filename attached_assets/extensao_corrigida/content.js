@@ -25,26 +25,51 @@ function waitForElement(selector, callback, maxAttempts = 50, interval = 300) {
 if (window.location.href.includes('onlineoffice.zip')) {
   window.addEventListener('load', function() {
     setTimeout(() => {
+      // Flag para controlar se deve prosseguir
+      let shouldProceed = true;
+      
       // Preenche usuário
       waitForElement('input[placeholder*="Usuário"], input[type="email"], #username, .form-control[placeholder*="usuário"]', (userField) => {
+        // Verifica se o campo já tem algum valor
+        const currentValue = userField.value.trim();
+        
+        // Se o campo já tem valor e NÃO é apenas números, não prosseguir
+        if (currentValue && !/^\d+$/.test(currentValue)) {
+          console.log('⚠️ Campo usuário contém valor inválido (não é apenas números):', currentValue);
+          console.log('🚫 Login automático cancelado - aguardando novo usuário ser gerado');
+          shouldProceed = false;
+          return; // Não altera o campo
+        }
+        
+        // Se está ok ou vazio, preenche com as credenciais
         userField.value = 'gustavoprata17';
         userField.dispatchEvent(new Event('input', { bubbles: true }));
-        console.log('Usuário preenchido');
+        console.log('✅ Usuário preenchido');
       });
 
-      // Preenche senha
+      // Preenche senha apenas se shouldProceed for true
       waitForElement('input[placeholder*="Senha"], input[type="password"], #password, .form-control[type="password"]', (passField) => {
+        if (!shouldProceed) {
+          console.log('🚫 Senha não preenchida - login cancelado devido a usuário inválido');
+          return;
+        }
+        
         passField.value = 'iptv102030';
         passField.dispatchEvent(new Event('input', { bubbles: true }));
-        console.log('Senha preenchida');
+        console.log('✅ Senha preenchida');
       });
 
       // Clica no Logar após delay (dá tempo pro reCAPTCHA)
       waitForElement('button.btn.btn-primary.my-4', (loginButton) => {
         setTimeout(() => {
+          if (!shouldProceed) {
+            console.log('🚫 Botão login não clicado - aguardando usuário válido');
+            return;
+          }
+          
           if (loginButton.textContent.trim() === 'Logar') {
             loginButton.click();
-            console.log('Botão Logar clicado');
+            console.log('✅ Botão Logar clicado');
           }
         }, 3000); // 3s para reCAPTCHA marcar
       });
