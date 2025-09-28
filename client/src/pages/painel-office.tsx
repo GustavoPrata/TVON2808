@@ -397,7 +397,6 @@ export default function PainelOffice() {
     sessionGenerated: 0,
     renewalAdvanceTime: 60,
     discordWebhookUrl: '' as string | null,
-    discordTicketsWebhookUrl: '' as string | null,
     discordNotificationsEnabled: false
   });
   const [isToggling, setIsToggling] = useState(false);
@@ -556,7 +555,6 @@ export default function PainelOffice() {
         sessionGenerated: configData.sessionGenerated || prev.sessionGenerated || 0,
         renewalAdvanceTime: configData.renewalAdvanceTime || 60,
         discordWebhookUrl: configData.discordWebhookUrl || '',
-        discordTicketsWebhookUrl: configData.discordTicketsWebhookUrl || '',
         discordNotificationsEnabled: configData.discordNotificationsEnabled || false
       }));
     }
@@ -1593,7 +1591,7 @@ export default function PainelOffice() {
                     </div>
                     
                     <div className="space-y-2">
-                      <Label className="text-xs text-slate-400">Webhook de Sistemas (Avisos de vencimento/extensão)</Label>
+                      <Label className="text-xs text-slate-400">URL do Webhook Discord</Label>
                       <Input
                         type="url"
                         value={automationConfig.discordWebhookUrl || ''}
@@ -1606,29 +1604,17 @@ export default function PainelOffice() {
                         disabled={!automationConfig.discordNotificationsEnabled}
                         data-testid="input-discord-webhook"
                       />
-                      <p className="text-xs text-slate-500 mb-3">
-                        Recebe avisos quando: Sistema vencer, Extensão offline
-                      </p>
-                      
-                      <Label className="text-xs text-slate-400">Webhook de Tickets (Novos tickets abertos)</Label>
-                      <Input
-                        type="url"
-                        value={automationConfig.discordTicketsWebhookUrl || ''}
-                        onChange={(e) => setAutomationConfig(prev => ({ 
-                          ...prev, 
-                          discordTicketsWebhookUrl: e.target.value 
-                        }))}
-                        placeholder="https://discord.com/api/webhooks/..."
-                        className="bg-slate-800 border-slate-700 text-sm"
-                        disabled={!automationConfig.discordNotificationsEnabled}
-                        data-testid="input-discord-tickets-webhook"
-                      />
                       <p className="text-xs text-slate-500">
                         {automationConfig.discordNotificationsEnabled ? (
                           <>
-                            <span className="text-green-400">✓ Notificações ativadas</span>
-                            <div className="mt-1 text-xs text-slate-500">
-                              Recebe avisos quando novos tickets são abertos
+                            <span className="text-green-400">✓ Notificações ativadas</span> - Avisos quando:
+                            <ul className="mt-1 ml-4 list-disc list-inside">
+                              <li>Sistema estiver próximo do vencimento</li>
+                              <li>Sistema vencer</li>
+                              <li>Extensão offline ou com problema</li>
+                            </ul>
+                            <div className="mt-2 text-xs text-slate-400">
+                              💡 Para configurar notificações de tickets, acesse a página de Tickets
                             </div>
                           </>
                         ) : (
@@ -1648,7 +1634,6 @@ export default function PainelOffice() {
                           body: JSON.stringify({
                             renewalAdvanceTime: automationConfig.renewalAdvanceTime,
                             discordWebhookUrl: automationConfig.discordWebhookUrl,
-                            discordTicketsWebhookUrl: automationConfig.discordTicketsWebhookUrl,
                             discordNotificationsEnabled: automationConfig.discordNotificationsEnabled
                           })
                         });

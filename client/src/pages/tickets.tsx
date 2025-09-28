@@ -15,7 +15,7 @@ import {
   MessageSquare, CheckCircle, XCircle, Plus, Search, Filter, ChevronRight,
   TrendingUp, TrendingDown, BarChart3, Briefcase, AlertTriangle, Sparkles,
   PhoneCall, Mail, Hash, Clock3, Star, Archive, Trash2, ChevronUp, ChevronDown,
-  Loader2
+  Loader2, Settings, Bell, Save
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
@@ -29,6 +29,12 @@ export default function Tickets() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [showNewTicketDialog, setShowNewTicketDialog] = useState(false);
   const [showTicketDetails, setShowTicketDetails] = useState(false);
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const [discordConfig, setDiscordConfig] = useState({
+    webhookUrl: '',
+    enabled: false
+  });
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [newTicket, setNewTicket] = useState({
     titulo: '',
     descricao: '',
@@ -106,6 +112,53 @@ export default function Tickets() {
   const { data: clientes = [] } = useQuery<Cliente[]>({
     queryKey: ['/api/clientes'],
   });
+  
+  // Get Discord config
+  const { data: configData } = useQuery({
+    queryKey: ['/api/office/automation/config'],
+  });
+  
+  // Update Discord config state when data is loaded
+  React.useEffect(() => {
+    if (configData) {
+      setDiscordConfig({
+        webhookUrl: configData.discordTicketsWebhookUrl || '',
+        enabled: configData.discordNotificationsEnabled || false
+      });
+    }
+  }, [configData]);
+  
+  const handleSaveConfig = async () => {
+    setIsSavingConfig(true);
+    try {
+      const res = await fetch('/api/office/automation/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          discordTicketsWebhookUrl: discordConfig.webhookUrl,
+          discordNotificationsEnabled: discordConfig.enabled
+        })
+      });
+      
+      if (res.ok) {
+        toast({
+          title: "Configuração Salva",
+          description: "Webhook do Discord para tickets configurado com sucesso",
+          variant: "default",
+        });
+        setShowConfigDialog(false);
+        queryClient.invalidateQueries({ queryKey: ['/api/office/automation/config'] });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar a configuração",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
 
   // Filter tickets based on status and search term
   const filteredTickets = tickets?.filter(ticket => {
@@ -235,13 +288,23 @@ export default function Tickets() {
               </p>
             </div>
           </div>
-          <Button 
-            onClick={() => setShowNewTicketDialog(true)}
-            className="w-full md:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            <span className="text-sm md:text-base">Novo Ticket</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setShowConfigDialog(true)}
+              variant="outline"
+              className="w-auto bg-slate-800/50 border-slate-600 hover:bg-slate-700/50"
+            >
+              <Settings className="w-5 h-5 mr-2" />
+              <span className="text-sm md:text-base">Discord</span>
+            </Button>
+            <Button 
+              onClick={() => setShowNewTicketDialog(true)}
+              className="w-full md:w-auto bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 shadow-lg"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              <span className="text-sm md:text-base">Novo Ticket</span>
+            </Button>
+          </div>
         </div>
 
         {/* Statistics Cards */}
@@ -672,6 +735,99 @@ export default function Tickets() {
                 </>
               ) : (
                 'Criar Ticket'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Discord Webhook Configuration Dialog */}
+      <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
+        <DialogContent className="bg-slate-900 border border-slate-700 max-w-lg text-white">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <Bell className="w-5 h-5 text-purple-400" />
+              Configuração de Notificações Discord
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Configure o webhook do Discord para receber notificações quando novos tickets forem abertos
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="discord-enabled" className="flex items-center gap-2 text-white">
+                <Bell className="w-4 h-4 text-purple-400" />
+                Notificações Ativadas
+              </Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setDiscordConfig(prev => ({ 
+                  ...prev, 
+                  enabled: !prev.enabled 
+                }))}
+                className={discordConfig.enabled ? "text-green-400" : "text-slate-400"}
+              >
+                {discordConfig.enabled ? "Ativado" : "Desativado"}
+              </Button>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="webhook-url" className="text-white">
+                URL do Webhook para Tickets
+              </Label>
+              <Input
+                id="webhook-url"
+                type="url"
+                placeholder="https://discord.com/api/webhooks/..."
+                value={discordConfig.webhookUrl}
+                onChange={(e) => setDiscordConfig(prev => ({ 
+                  ...prev, 
+                  webhookUrl: e.target.value 
+                }))}
+                disabled={!discordConfig.enabled}
+                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-400"
+              />
+              <p className="text-xs text-slate-500">
+                {discordConfig.enabled ? (
+                  <>
+                    <span className="text-green-400">✓ Notificações ativadas</span>
+                    <br />
+                    Você receberá uma notificação no Discord sempre que um novo ticket for aberto.
+                    <br />
+                    Formato: 🎫 Novo ticket: [Cliente] - [Título]
+                  </>
+                ) : (
+                  <span className="text-slate-400">Ative as notificações para receber alertas de novos tickets</span>
+                )}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowConfigDialog(false)}
+              className="bg-slate-800 border-slate-700 hover:bg-slate-700 text-white"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveConfig}
+              disabled={isSavingConfig}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+            >
+              {isSavingConfig ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Salvar Configuração
+                </>
               )}
             </Button>
           </div>
