@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
-import React from 'react';
 import { useQuery, useMutation, useInfiniteQuery } from '@tanstack/react-query';
-import { FixedSizeList } from 'react-window';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -101,6 +99,8 @@ interface ConversaWithDetails extends Conversa {
   mensagemLida?: boolean;
   metadados?: string | null;
   iniciadoPorAnuncio?: boolean;
+  atendimentoHumano?: boolean;
+  tipoUltimaMensagem?: string;
 }
 
 interface MessageStatus {
@@ -200,9 +200,9 @@ export default function Chat() {
     isFetchingNextPage,
     refetch: refetchConversas,
     isLoading: isLoadingConversations
-  } = useInfiniteQuery({
+  } = useInfiniteQuery<any, Error, any, string[], string | null>({
     queryKey: ['/api/whatsapp/conversations', contactFilter, searchTerm],
-    queryFn: async ({ pageParam = null }) => {
+    queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams();
       params.append('limit', '30');
       if (pageParam) params.append('cursor', pageParam);
@@ -213,12 +213,13 @@ export default function Chat() {
       if (!response.ok) throw new Error('Failed to fetch conversations');
       return response.json();
     },
-    getNextPageParam: (lastPage) => {
+    initialPageParam: null,
+    getNextPageParam: (lastPage: any) => {
       // Handle both new paginated format and old array format for backward compatibility
       if (Array.isArray(lastPage)) {
-        return undefined; // Old format, no pagination
+        return null; // Old format, no pagination
       }
-      return lastPage.nextCursor || undefined;
+      return lastPage.nextCursor || null;
     },
     refetchOnWindowFocus: true,
     refetchInterval: 15000, // Auto-refresh every 15 seconds
@@ -230,7 +231,7 @@ export default function Chat() {
   const conversas: ConversaWithDetails[] = useMemo(() => {
     if (!conversasInfiniteData?.pages) return [];
     
-    return conversasInfiniteData.pages.flatMap(page => {
+    return conversasInfiniteData.pages.flatMap((page: any) => {
       // Handle both old array format and new paginated format
       if (Array.isArray(page)) {
         return page;
@@ -2395,31 +2396,190 @@ export default function Chat() {
               <p className="text-center">Nenhuma conversa encontrada</p>
             </div>
           ) : (
-            <div className="relative h-full">
-              <FixedSizeList
-                ref={listRef}
-                height={listHeight}
-                itemCount={filteredConversas?.length || 0}
-                itemSize={getItemSize}
-                width="100%"
-                itemData={{
-                  conversations: filteredConversas,
-                  tickets,
-                  selectedConversa,
-                  setSelectedConversa,
-                  showPhotosChat,
-                  toast,
-                  refetchConversas
-                }}
-                onScroll={handleConversationScroll}
-                className="scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent"
-              >
-                {ConversationRow}
-              </FixedSizeList>
+            <div className="relative h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent" 
+                 onScroll={handleConversationScroll}
+                 ref={listRef}>
+              <div className="space-y-1 p-2">
+                {filteredConversas?.map((conversa, index) => {
+                  const openTicket = tickets.find((ticket: any) => 
+                    ticket.conversaId === conversa.id && ticket.status === 'aberto'
+                  );
+                  
+                  return (
+                    <div
+                      key={conversa.id}
+                      className={cn(
+                        "group relative p-3 rounded-lg cursor-pointer transition-all duration-200",
+                        selectedConversa?.id === conversa.id 
+                          ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 shadow-lg" 
+                          : "hover:bg-slate-800/50 border border-transparent hover:border-slate-700"
+                      )}
+                    >
+                      <div className="flex items-center gap-3" onClick={() => {
+                        setSelectedConversa({
+                          ...conversa,
+                          hasOpenTicket: !!openTicket,
+                          ticket: openTicket
+                        });
+                      }}>
+                        {/* Avatar with Online Status */}
+                        <div className="relative">
+                          <Avatar className="w-12 h-12">
+                            <AvatarImage 
+                              src={getProfilePictureUrl({
+                                profilePicture: conversa.profilePicture,
+                                showPhotosChat,
+                                size: 'medium'
+                              })}
+                              alt={conversa.nome || conversa.telefone}
+                              className="object-cover"
+                              loading="lazy"
+                              width={48}
+                              height={48}
+                            />
+                            <AvatarFallback className="animate-pulse">
+                              <Skeleton className="w-12 h-12 rounded-full" />
+                            </AvatarFallback>
+                          </Avatar>
+                          
+                          {/* Anúncio Indicator - Star at top left */}
+                          {conversa.iniciadoPorAnuncio && (
+                            <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 flex items-center justify-center shadow-lg">
+                              <Star className="w-3 h-3 text-white fill-white" />
+                            </div>
+                          )}
+                          
+                          {/* Cliente/Novo/Teste Status Indicator */}
+                          <div className={cn(
+                            "absolute -bottom-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white shadow-lg",
+                            conversa.isTeste
+                              ? "bg-gradient-to-r from-blue-500 to-purple-600"
+                              : conversa.isCliente 
+                              ? "bg-gradient-to-r from-purple-500 to-purple-600" 
+                              : "bg-gradient-to-r from-green-500 to-green-600"
+                          )}>
+                            {conversa.isTeste ? 'T' : conversa.isCliente ? 'C' : 'N'}
+                          </div>
+                          
+                          {/* Ticket Indicator - Orange dot with ticket icon */}
+                          {conversa.hasOpenTicket && (
+                            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
+                              <Ticket className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                          
+                          {/* Mode Indicator Icon */}
+                          <div className={cn(
+                            "absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center shadow-lg",
+                            conversa.atendimentoHumano 
+                              ? "bg-gradient-to-r from-green-500 to-emerald-500" 
+                              : "bg-gradient-to-r from-blue-500 to-cyan-500"
+                          )}>
+                            {conversa.atendimentoHumano ? (
+                              <User className="w-3 h-3 text-white" />
+                            ) : (
+                              <Bot className="w-3 h-3 text-white" />
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Conversation Info */}
+                        <div className="flex-1 min-w-0">
+                          {/* Name and Time */}
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="font-semibold text-white truncate text-sm">
+                              {conversa.nome || conversa.telefone}
+                            </h4>
+                            <div className="flex items-center gap-1">
+                              {!conversa.mensagemLida && conversa.ultimoRemetente === 'cliente' && (
+                                <Circle className="w-2 h-2 fill-blue-500 text-blue-500" />
+                              )}
+                              <time className="text-xs text-slate-400">
+                                {conversa.dataUltimaMensagem ? 
+                                  formatShortInBrazil(conversa.dataUltimaMensagem) : ''}
+                              </time>
+                            </div>
+                          </div>
+                          
+                          {/* Last Message and Status */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1 min-w-0 flex-1">
+                              {conversa.ultimoRemetente === 'bot' && (
+                                <Bot className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                              )}
+                              {conversa.ultimoRemetente === 'atendente' && (
+                                <User className="w-3 h-3 text-green-400 flex-shrink-0" />
+                              )}
+                              <span className="text-xs text-slate-400 truncate">
+                                {(() => {
+                                  if (!conversa.ultimaMensagem) {
+                                    return <span className="italic">Clique para iniciar conversa</span>;
+                                  }
+                                  
+                                  // For media messages, show special formatting
+                                  if (conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text') {
+                                    try {
+                                      const parsedMessage = JSON.parse(conversa.ultimaMensagem);
+                                      
+                                      switch (conversa.tipoUltimaMensagem) {
+                                        case 'image':
+                                          return parsedMessage.caption ? `Foto: ${parsedMessage.caption}` : 'Foto';
+                                        case 'video':
+                                          return parsedMessage.caption ? `Vídeo: ${parsedMessage.caption}` : 'Vídeo';
+                                        case 'audio':
+                                          const duration = parsedMessage.duration || 0;
+                                          return `Áudio (${duration}s)`;
+                                        case 'document':
+                                          const fileName = parsedMessage.fileName || 'arquivo';
+                                          return fileName;
+                                        case 'sticker':
+                                          return 'Figurinha';
+                                        default:
+                                          return conversa.ultimaMensagem;
+                                      }
+                                    } catch (e) {
+                                      // If parsing fails, check for special media types
+                                      if (conversa.tipoUltimaMensagem === 'audio') {
+                                        return 'Áudio';
+                                      } else if (conversa.tipoUltimaMensagem === 'image') {
+                                        return 'Foto';
+                                      } else if (conversa.tipoUltimaMensagem === 'video') {
+                                        return 'Vídeo';
+                                      } else if (conversa.tipoUltimaMensagem === 'document') {
+                                        return 'Documento';
+                                      } else if (conversa.tipoUltimaMensagem === 'sticker') {
+                                        return 'Figurinha';
+                                      }
+                                      // Show raw message if not empty
+                                      return conversa.ultimaMensagem || <span className="italic">Clique para iniciar conversa</span>;
+                                    }
+                                  }
+                                  
+                                  // For text messages, show as is
+                                  return conversa.ultimaMensagem;
+                                })()}
+                              </span>
+                            </div>
+                            
+                            {/* Unread Count */}
+                            {conversa.mensagensNaoLidas > 0 && (
+                              <Badge 
+                                className="ml-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs px-1.5 py-0.5 h-5 min-w-[20px] flex items-center justify-center"
+                              >
+                                {conversa.mensagensNaoLidas}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
               
               {/* Loading indicator for pagination */}
               {isFetchingNextPage && (
-                <div className="absolute bottom-0 left-0 right-0 p-2 bg-dark-surface/90 backdrop-blur-sm border-t border-slate-600">
+                <div className="sticky bottom-0 left-0 right-0 p-2 bg-dark-surface/90 backdrop-blur-sm border-t border-slate-600">
                   <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Carregando mais conversas...
