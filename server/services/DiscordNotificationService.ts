@@ -13,6 +13,9 @@ export class DiscordNotificationService {
       if (config.length > 0) {
         this.webhookUrl = config[0].discordWebhookUrl;
         this.enabled = config[0].discordNotificationsEnabled;
+        console.log(`🔔 Discord inicializado - Webhook: ${this.webhookUrl ? 'Configurado' : 'Não configurado'}, Habilitado: ${this.enabled}`);
+      } else {
+        console.log('⚠️ Nenhuma configuração Discord encontrada');
       }
     } catch (error) {
       console.error('Erro ao inicializar serviço Discord:', error);
@@ -108,7 +111,12 @@ export class DiscordNotificationService {
   async notifyExtensionOffline() {
     const notificationType = 'extension_offline';
     
+    console.log(`🔔 Tentando enviar notificação Discord: Extensão offline`);
+    console.log(`   Webhook: ${this.webhookUrl ? 'Configurado' : 'Não configurado'}`);
+    console.log(`   Habilitado: ${this.enabled}`);
+    
     if (!await this.canSendNotification(notificationType, 'extension')) {
+      console.log(`   ⚠️ Notificação já enviada recentemente, ignorando...`);
       return false;
     }
 
@@ -122,6 +130,7 @@ export class DiscordNotificationService {
         const message = `🔴 Extensão offline`;
 
         const sent = await this.sendToDiscord(message);
+        console.log(`   Resultado do envio: ${sent ? '✅ Enviado' : '❌ Falhou'}`);
         
         if (sent) {
           // Registrar notificação com expiração de 30 minutos
