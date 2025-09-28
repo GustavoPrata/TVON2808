@@ -186,17 +186,32 @@ export default function Chat() {
   // WhatsApp Status Query
   const { data: whatsappStatus } = useQuery<WhatsAppStatus>({
     queryKey: ['/api/whatsapp/status'],
-    refetchInterval: 2000, // Check status every 2 seconds
+    refetchInterval: 10000, // Check status every 10 seconds (reduced from 2s)
   });
 
-  // Get conversations with client info
-  const { data: conversas = [], refetch: refetchConversas } = useQuery<ConversaWithDetails[]>({
-    queryKey: ['/api/whatsapp/conversations'],
+  // Get conversations with client info (with pagination support)
+  const { data: conversasResponse, refetch: refetchConversas } = useQuery({
+    queryKey: ['/api/whatsapp/conversations', contactFilter, searchTerm],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('limit', '30');
+      if (contactFilter) params.append('filter', contactFilter);
+      if (searchTerm) params.append('search', searchTerm);
+      
+      const response = await fetch(`/api/whatsapp/conversations?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch conversations');
+      return response.json();
+    },
     refetchOnWindowFocus: true,
-    refetchInterval: 5000, // Auto-refresh every 5 seconds
-    staleTime: 0,
-    gcTime: 0,
+    refetchInterval: 15000, // Auto-refresh every 15 seconds (reduced from 5s)
+    staleTime: 30000, // Consider data stale after 30 seconds
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
+  
+  // Extract conversations from the response (handles both old array format and new paginated format)
+  const conversas: ConversaWithDetails[] = Array.isArray(conversasResponse) 
+    ? conversasResponse 
+    : (conversasResponse?.conversations || []);
 
   // Get sistemas for test creation
   const { data: sistemas } = useQuery({
@@ -209,9 +224,10 @@ export default function Chat() {
     refetchInterval: 5000, // Auto-refresh every 5 seconds
   });
 
-  // Fetch all clients for new chat dialog
+  // Fetch all clients for new chat dialog (only when needed)
   const { data: allClientes = [] } = useQuery<any[]>({
     queryKey: ['/api/clientes'],
+    enabled: showCreateClientDialog || showCreateTestDialog, // Only fetch when dialogs are open
   });
 
   // Get quick messages

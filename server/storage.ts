@@ -124,6 +124,12 @@ export interface IStorage {
 
   // Conversas
   getConversas(): Promise<Conversa[]>;
+  getConversasPaginated(params: {
+    limit?: number;
+    cursor?: string | null;
+    filter?: 'novos' | 'clientes' | 'testes';
+    search?: string;
+  }): Promise<{ items: Conversa[]; nextCursor: string | null; totalUnread: number; }>;
   getConversaById(id: number): Promise<Conversa | undefined>;
   getConversaByTelefone(telefone: string): Promise<Conversa | undefined>;
   createConversa(conversa: InsertConversa): Promise<Conversa>;
@@ -683,6 +689,95 @@ export class DatabaseStorage implements IStorage {
       console.error('Error fetching conversas:', error);
       // Return empty array on error to avoid blocking the UI
       return [];
+    }
+  }
+
+  async getConversasPaginated(params: {
+    limit?: number;
+    cursor?: string | null;
+    filter?: 'novos' | 'clientes' | 'testes';
+    search?: string;
+  }): Promise<{ items: Conversa[]; nextCursor: string | null; totalUnread: number; }> {
+    try {
+      const { limit = 30, cursor, filter, search } = params;
+      
+      // Build base query
+      let query = db.select().from(conversas);
+      
+      // Apply cursor-based pagination
+      if (cursor) {
+        const cursorDate = new Date(cursor);
+        query = query.where(lte(conversas.dataUltimaMensagem, cursorDate));
+      }
+      
+      // Apply filter
+      if (filter === 'clientes') {
+        // Get all client phone numbers
+        const clientesData = await db.select({ telefone: clientes.telefone }).from(clientes);
+        const clientPhones = clientesData.map(c => c.telefone);
+        if (clientPhones.length > 0) {
+          query = query.where(sql`${conversas.telefone} = ANY(${clientPhones})`);
+        }
+      } else if (filter === 'testes') {
+        // Get all test phone numbers
+        const testesData = await db.select({ telefone: testes.telefone }).from(testes);
+        const testPhones = testesData.map(t => t.telefone);
+        if (testPhones.length > 0) {
+          query = query.where(sql`${conversas.telefone} = ANY(${testPhones})`);
+        }
+      } else if (filter === 'novos') {
+        // Novos: conversations not associated with clients or tests
+        const clientesData = await db.select({ telefone: clientes.telefone }).from(clientes);
+        const testesData = await db.select({ telefone: testes.telefone }).from(testes);
+        const excludePhones = [...clientesData.map(c => c.telefone), ...testesData.map(t => t.telefone)];
+        if (excludePhones.length > 0) {
+          query = query.where(sql`${conversas.telefone} NOT IN (${sql.join(excludePhones.map(p => sql`${p}`), sql`, `)})`);
+        }
+      }
+      
+      // Apply search filter
+      if (search) {
+        const searchTerm = `%${search}%`;
+        query = query.where(
+          or(
+            ilike(conversas.nome, searchTerm),
+            ilike(conversas.telefone, searchTerm)
+          )
+        );
+      }
+      
+      // Order by last message date and apply limit (+1 to check if there are more results)
+      query = query.orderBy(desc(conversas.dataUltimaMensagem)).limit(limit + 1);
+      
+      const result = await query;
+      
+      // Determine if there are more results
+      let nextCursor: string | null = null;
+      const items = result.slice(0, limit);
+      
+      if (result.length > limit) {
+        // There are more results, set the cursor to the last item's date
+        const lastItem = items[items.length - 1];
+        if (lastItem.dataUltimaMensagem) {
+          nextCursor = lastItem.dataUltimaMensagem.toISOString();
+        }
+      }
+      
+      // Count total unread messages across all conversations
+      const unreadResult = await db.select({
+        totalUnread: sql<number>`COALESCE(SUM(${conversas.mensagensNaoLidas}), 0)::integer`
+      }).from(conversas);
+      
+      const totalUnread = unreadResult[0]?.totalUnread || 0;
+      
+      return {
+        items,
+        nextCursor,
+        totalUnread
+      };
+    } catch (error) {
+      console.error('Error fetching paginated conversas:', error);
+      return { items: [], nextCursor: null, totalUnread: 0 };
     }
   }
 
