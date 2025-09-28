@@ -182,6 +182,22 @@ app.use((req, res, next) => {
   await discordNotificationService.initialize();
   console.log("✅ Serviço de notificações Discord inicializado");
   
+  // Importar e inicializar o serviço de automação Puppeteer
+  const { onlineOfficeAutomationService } = await import("./services/OnlineOfficeAutomationService");
+  
+  // Verificar se deve iniciar automação baseado na configuração
+  const config = await storage.getOfficeAutomationConfig();
+  if (config?.isEnabled) {
+    try {
+      console.log("🤖 Iniciando serviço de automação Puppeteer...");
+      await onlineOfficeAutomationService.start();
+      console.log("✅ Serviço de automação Puppeteer iniciado com sucesso");
+    } catch (error) {
+      console.error("❌ Erro ao iniciar serviço de automação Puppeteer:", error);
+      // Não falhar o startup se a automação falhar
+    }
+  }
+  
   // SEMPRE iniciar o serviço de renovação automática (funciona 24/7)
   try {
     // Garantir que a configuração existe

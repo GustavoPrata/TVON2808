@@ -10040,5 +10040,122 @@ Como posso ajudar você hoje?
     }
   });
 
+  // ========================================================================================
+  // PUPPETEER AUTOMATION ROUTES - Sistema de automação 100% servidor com Puppeteer headless
+  // ========================================================================================
+  
+  // GET /api/automation/status - Status do sistema de automação Puppeteer
+  app.get('/api/automation/status', async (req, res) => {
+    try {
+      const { onlineOfficeAutomationService } = await import('./services/OnlineOfficeAutomationService');
+      const status = await onlineOfficeAutomationService.getStatus();
+      const dbStatus = await storage.getAutomationStatus();
+      
+      res.json({
+        success: true,
+        service: status,
+        database: dbStatus
+      });
+    } catch (error) {
+      console.error('Erro ao obter status da automação:', error);
+      res.status(500).json({ error: 'Erro ao obter status da automação' });
+    }
+  });
+  
+  // POST /api/automation/start - Iniciar automação com Puppeteer
+  app.post('/api/automation/start', checkAuth, async (req, res) => {
+    try {
+      const { onlineOfficeAutomationService } = await import('./services/OnlineOfficeAutomationService');
+      
+      // Verificar se já está rodando
+      const status = await onlineOfficeAutomationService.getStatus();
+      if (status.isRunning) {
+        return res.json({ 
+          success: true, 
+          message: 'Automação já está em execução' 
+        });
+      }
+      
+      // Iniciar o serviço
+      await onlineOfficeAutomationService.start();
+      
+      res.json({ 
+        success: true, 
+        message: 'Automação iniciada com sucesso' 
+      });
+    } catch (error: any) {
+      console.error('Erro ao iniciar automação:', error);
+      res.status(500).json({ 
+        error: 'Erro ao iniciar automação', 
+        details: error.message 
+      });
+    }
+  });
+  
+  // POST /api/automation/stop - Parar automação Puppeteer
+  app.post('/api/automation/stop', checkAuth, async (req, res) => {
+    try {
+      const { onlineOfficeAutomationService } = await import('./services/OnlineOfficeAutomationService');
+      
+      // Verificar se está rodando
+      const status = await onlineOfficeAutomationService.getStatus();
+      if (!status.isRunning) {
+        return res.json({ 
+          success: true, 
+          message: 'Automação já está parada' 
+        });
+      }
+      
+      // Parar o serviço
+      await onlineOfficeAutomationService.stop();
+      
+      res.json({ 
+        success: true, 
+        message: 'Automação parada com sucesso' 
+      });
+    } catch (error: any) {
+      console.error('Erro ao parar automação:', error);
+      res.status(500).json({ 
+        error: 'Erro ao parar automação', 
+        details: error.message 
+      });
+    }
+  });
+  
+  // GET /api/automation/health - Health check do sistema de automação
+  app.get('/api/automation/health', async (req, res) => {
+    try {
+      const { onlineOfficeAutomationService } = await import('./services/OnlineOfficeAutomationService');
+      const status = await onlineOfficeAutomationService.getStatus();
+      const dbStatus = await storage.getAutomationStatus();
+      
+      const isHealthy = status.isRunning && 
+                       status.browserConnected && 
+                       dbStatus?.isLoggedIn === true;
+      
+      res.status(isHealthy ? 200 : 503).json({
+        healthy: isHealthy,
+        service: {
+          running: status.isRunning,
+          browserConnected: status.browserConnected,
+          queueSize: status.queueSize,
+          processing: status.isProcessingQueue
+        },
+        database: {
+          isActive: dbStatus?.isActive || false,
+          isLoggedIn: dbStatus?.isLoggedIn || false,
+          lastHeartbeat: dbStatus?.lastHeartbeat || null,
+          lastError: dbStatus?.lastError || null
+        }
+      });
+    } catch (error) {
+      console.error('Erro no health check:', error);
+      res.status(503).json({ 
+        healthy: false, 
+        error: 'Serviço indisponível' 
+      });
+    }
+  });
+
   return httpServer;
 }
