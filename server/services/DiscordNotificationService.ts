@@ -121,7 +121,7 @@ export class DiscordNotificationService {
     const notificationType = 'extension_offline';
     
     console.log(`🔔 Tentando enviar notificação Discord: Extensão offline`);
-    console.log(`   Webhook: ${this.webhookUrl ? 'Configurado' : 'Não configurado'}`);
+    console.log(`   Webhook: ${this.systemWebhookUrl ? 'Configurado' : 'Não configurado'}`);
     console.log(`   Habilitado: ${this.enabled}`);
     
     if (!await this.canSendNotification(notificationType, 'extension')) {
