@@ -2529,6 +2529,16 @@ export class WhatsAppService extends EventEmitter {
             prioridade: "alta"
           });
           
+          // Send Discord notification for new ticket
+          try {
+            const { discordNotificationService } = await import('./DiscordNotificationService');
+            const clientName = cliente?.nome || null;
+            await discordNotificationService.notifyTicketOpened(clientName, "Cliente com teste expirado");
+            console.log(`🎫 Notificação Discord enviada para ticket de teste expirado`);
+          } catch (error) {
+            console.error("Erro ao enviar notificação Discord para ticket de teste expirado:", error);
+          }
+          
           // Switch conversation to human mode
           await storage.updateConversa(conversa.id, { modoAtual: "humano" });
           
@@ -5299,7 +5309,7 @@ export class WhatsAppService extends EventEmitter {
   }
 
   private async createTicket(conversa: any, cliente: any, titulo: string) {
-    await storage.createTicket({
+    const ticket = await storage.createTicket({
       clienteId: cliente?.id,
       conversaId: conversa.id,
       titulo,
@@ -5308,6 +5318,18 @@ export class WhatsAppService extends EventEmitter {
       status: "aberto",
       prioridade: "media",
     });
+    
+    // Send Discord notification for new ticket
+    try {
+      const { discordNotificationService } = await import('./DiscordNotificationService');
+      const clientName = cliente?.nome || null;
+      await discordNotificationService.notifyTicketOpened(clientName, titulo);
+      console.log(`🎫 Notificação Discord enviada para ticket automático: ${titulo}`);
+    } catch (error) {
+      console.error("Erro ao enviar notificação Discord para ticket automático:", error);
+    }
+    
+    return ticket;
   }
 
   async checkIfNumberExists(phoneNumber: string): Promise<boolean> {
