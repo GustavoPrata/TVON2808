@@ -4065,17 +4065,14 @@ Como posso ajudar você hoje?
     try {
       console.log("Dados recebidos para criar teste:", req.body);
 
-      const apiUsername = `teste_${nanoid(8)}`;
-      const apiPassword = `pass_${nanoid(8)}`;
-
       // Ensure duracaoHoras is a number
       const duracaoHoras = Number(req.body.duracaoHoras);
 
       const testeData = {
         ...req.body,
         duracaoHoras,
-        apiUsername,
-        apiPassword,
+        apiUsername: '',  // Credenciais serao geradas manualmente
+        apiPassword: '',  // Credenciais serao geradas manualmente
         expiraEm: new Date(Date.now() + duracaoHoras * 60 * 60 * 1000),
       };
 
@@ -4105,34 +4102,7 @@ Como posso ajudar você hoje?
       // Create test in database
       const teste = await storage.createTeste(testeData);
 
-      // Create user in external API
-      try {
-        // Convert expiraEm to Unix timestamp
-        const expTimestamp = Math.floor(teste.expiraEm.getTime() / 1000);
-
-        const externalUser = await externalApiService.createUser({
-          username: teste.apiUsername,
-          password: teste.apiPassword,
-          exp_date: expTimestamp.toString(),
-          system: parseInt(sistema.systemId), // Use systemId field which is the API system_id
-          device_limit: 1,
-          device_mac: teste.mac,
-          device_key: teste.deviceKey,
-          device_model: teste.dispositivo,
-          app_name: teste.aplicativo,
-          user_type: "test",
-          is_active: true,
-        });
-
-        // Update test with API user ID
-        await storage.updateTeste(teste.id, { apiUserId: externalUser.id });
-        teste.apiUserId = externalUser.id;
-      } catch (apiError) {
-        console.error("Error creating user in external API:", apiError);
-        // Delete test if API creation fails
-        await storage.deleteTeste(teste.id);
-        throw apiError;
-      }
+      // Nao criar usuario na API externa - sera feito manualmente quando credenciais forem geradas
 
       // Broadcast new test event to all connected clients
       broadcastMessage("test_created", {
