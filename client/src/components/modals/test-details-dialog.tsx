@@ -34,7 +34,12 @@ import {
   AlertCircle,
   Settings,
   Link,
-  Activity
+  Activity,
+  Timer,
+  Phone,
+  Cpu,
+  Shield,
+  Zap
 } from 'lucide-react';
 
 interface TestDetailsDialogProps {
@@ -285,14 +290,14 @@ export function TestDetailsDialog({
   const getDeviceIcon = (device: string) => {
     switch (device) {
       case 'celular':
-        return <Smartphone className="w-4 h-4 text-purple-400" />;
+        return <Smartphone className="w-5 h-5" />;
       case 'smart_tv':
       case 'tv_box':
-        return <Tv className="w-4 h-4 text-purple-400" />;
+        return <Tv className="w-5 h-5" />;
       case 'notebook':
-        return <Laptop className="w-4 h-4 text-purple-400" />;
+        return <Laptop className="w-5 h-5" />;
       default:
-        return <Monitor className="w-4 h-4 text-purple-400" />;
+        return <Monitor className="w-5 h-5" />;
     }
   };
 
@@ -327,7 +332,7 @@ export function TestDetailsDialog({
   if (!test && isLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md bg-slate-900 border border-slate-700 text-white">
+        <DialogContent className="max-w-md bg-gradient-to-br from-slate-900 via-purple-900/10 to-slate-900 border border-purple-500/20 text-white">
           <div className="flex items-center justify-center py-12">
             <div className="flex flex-col items-center space-y-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
@@ -342,7 +347,7 @@ export function TestDetailsDialog({
   if (!test) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md bg-slate-900 border border-slate-700 text-white">
+        <DialogContent className="max-w-md bg-gradient-to-br from-slate-900 via-purple-900/10 to-slate-900 border border-purple-500/20 text-white">
           <DialogHeader>
             <DialogTitle className="text-center text-red-400 flex items-center justify-center gap-2">
               <AlertCircle className="w-5 h-5" />
@@ -359,85 +364,86 @@ export function TestDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[95vh] bg-slate-900 border border-slate-700 text-white overflow-y-auto shadow-2xl">
-        {/* Header moderno */}
-        <DialogHeader className="border-b border-slate-700/50 pb-6 mb-6">
+      <DialogContent className="max-w-4xl max-h-[90vh] bg-gradient-to-br from-slate-900 via-purple-900/10 to-slate-900 border border-purple-500/20 text-white overflow-y-auto shadow-2xl">
+        {/* Header Elegante */}
+        <DialogHeader className="border-b border-purple-500/20 pb-6 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="p-3 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-xl border border-purple-500/30">
-                <Activity className="w-6 h-6 text-purple-400" />
+              <div className="relative">
+                <div className="absolute inset-0 bg-purple-600 blur-xl opacity-50"></div>
+                <div className="relative p-3 bg-gradient-to-br from-purple-600 to-purple-700 rounded-2xl shadow-lg">
+                  <Zap className="w-7 h-7 text-white" />
+                </div>
               </div>
               <div>
-                <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                <DialogTitle className="text-2xl font-bold text-white">
                   Detalhes do Teste
                 </DialogTitle>
-                <p className="text-slate-400 text-sm mt-1">
-                  Gerenciar configurações e credenciais
+                <p className="text-purple-300 text-sm mt-1">
+                  Gerenciar configurações e informações
                 </p>
               </div>
             </div>
             
-            {/* Status Badge */}
-            <Badge 
-              variant={isExpired ? "destructive" : "default"}
-              className={cn(
-                "px-3 py-1 text-sm font-medium",
-                isExpired 
-                  ? "bg-red-500/20 text-red-400 border-red-500/30" 
-                  : "bg-green-500/20 text-green-400 border-green-500/30"
-              )}
-            >
-              <div className={cn(
-                "w-2 h-2 rounded-full mr-2",
-                isExpired ? "bg-red-400" : "bg-green-400"
-              )} />
-              {isExpired ? 'Expirado' : 'Ativo'}
-            </Badge>
+            {/* Status Badge Melhorado */}
+            <div className="flex items-center gap-3">
+              <Badge 
+                className={cn(
+                  "px-4 py-2 text-sm font-semibold shadow-lg",
+                  isExpired 
+                    ? "bg-gradient-to-r from-red-600 to-red-700 text-white border-0" 
+                    : "bg-gradient-to-r from-green-600 to-green-700 text-white border-0"
+                )}
+              >
+                <div className={cn(
+                  "w-2 h-2 rounded-full mr-2 animate-pulse",
+                  isExpired ? "bg-white" : "bg-white"
+                )} />
+                {isExpired ? 'Expirado' : 'Ativo'}
+              </Badge>
+            </div>
           </div>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Coluna 1 - Informações Básicas */}
-          <div className="lg:col-span-1 space-y-4">
-            {/* Card de Informações de Tempo */}
-            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2 text-purple-400">
-                  <Clock className="w-5 h-5" />
-                  Cronologia
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Coluna Esquerda - Informações Temporais e Contato */}
+          <div className="space-y-6">
+            {/* Card de Cronologia */}
+            <Card className="bg-white/5 border-purple-500/20 backdrop-blur-sm overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 pb-4">
+                <CardTitle className="text-lg flex items-center gap-2 text-white">
+                  <Clock className="w-5 h-5 text-purple-400" />
+                  Informações Temporais
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-green-400" />
-                    <span className="text-sm text-slate-300">Criado</span>
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex justify-between items-center p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-5 h-5 text-green-400" />
+                    <span className="text-sm font-medium text-slate-300">Criado em</span>
                   </div>
-                  <span className="text-xs font-mono text-white">
+                  <span className="text-sm font-mono text-white bg-black/30 px-3 py-1 rounded-lg">
                     {format(new Date(test.criadoEm), "dd/MM/yy HH:mm", { locale: ptBR })}
                   </span>
                 </div>
                 
-                <div className="p-3 bg-slate-800/30 rounded-lg">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <Clock className={cn("w-4 h-4", isExpired ? "text-red-400" : "text-orange-400")} />
-                      <span className="text-sm text-slate-300">Expira</span>
+                <div className="p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all">
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-3">
+                      <Clock className={cn("w-5 h-5", isExpired ? "text-red-400" : "text-orange-400")} />
+                      <span className="text-sm font-medium text-slate-300">Expira em</span>
                     </div>
-                    {isEditing && (
-                      <span className="text-xs text-slate-500">Editar data e hora</span>
-                    )}
                   </div>
                   {isEditing ? (
                     <Input
                       type="datetime-local"
                       value={editData.expiraEm}
                       onChange={(e) => setEditData(prev => ({ ...prev, expiraEm: e.target.value }))}
-                      className="bg-slate-700/50 border-slate-600 text-white h-10 w-full"
+                      className="bg-black/30 border-purple-500/30 text-white h-11 w-full rounded-lg"
                     />
                   ) : (
                     <span className={cn(
-                      "text-xs font-mono font-medium",
+                      "text-sm font-semibold bg-black/30 px-3 py-2 rounded-lg block text-center",
                       isExpired ? "text-red-400" : "text-orange-400"
                     )}>
                       {format(new Date(test.expiraEm), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
@@ -445,143 +451,143 @@ export function TestDetailsDialog({
                   )}
                 </div>
 
-                <div className="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-blue-400" />
-                    <span className="text-sm text-slate-300">Duração</span>
+                <div className="flex justify-between items-center p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all">
+                  <div className="flex items-center gap-3">
+                    <Timer className="w-5 h-5 text-blue-400" />
+                    <span className="text-sm font-medium text-slate-300">Duração Total</span>
                   </div>
-                  <span className="text-sm font-medium text-white">{test.duracaoHoras}h</span>
+                  <span className="text-lg font-bold text-white bg-gradient-to-r from-blue-600/30 to-purple-600/30 px-4 py-1 rounded-lg">
+                    {test.duracaoHoras}h
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
             {/* Card de Contato */}
-            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2 text-green-400">
-                  <User className="w-5 h-5" />
-                  Contato
+            <Card className="bg-white/5 border-purple-500/20 backdrop-blur-sm overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-green-600/20 to-blue-600/20 pb-4">
+                <CardTitle className="text-lg flex items-center gap-2 text-white">
+                  <Phone className="w-5 h-5 text-green-400" />
+                  Informações de Contato
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex justify-between items-center p-3 bg-slate-800/30 rounded-lg">
-                  <span className="text-sm text-slate-300">Telefone</span>
-                  <span className="font-mono text-white">{formatPhoneNumber(test.telefone)}</span>
+              <CardContent className="pt-4">
+                <div className="flex justify-between items-center p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all">
+                  <div className="flex items-center gap-3">
+                    <User className="w-5 h-5 text-green-400" />
+                    <span className="text-sm font-medium text-slate-300">Telefone</span>
+                  </div>
+                  <span className="font-mono text-white bg-black/30 px-3 py-1 rounded-lg">
+                    {formatPhoneNumber(test.telefone)}
+                  </span>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Coluna 2 - Configurações do Dispositivo */}
-          <div className="lg:col-span-1 space-y-4">
-            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2 text-purple-400">
-                  <Settings className="w-5 h-5" />
-                  Dispositivo
+          {/* Coluna Direita - Configurações do Dispositivo */}
+          <div className="space-y-6">
+            <Card className="bg-white/5 border-purple-500/20 backdrop-blur-sm overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 pb-4">
+                <CardTitle className="text-lg flex items-center gap-2 text-white">
+                  <Cpu className="w-5 h-5 text-blue-400" />
+                  Configuração do Dispositivo
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="pt-4 space-y-4">
                 {/* Aplicativo */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-400 font-medium">Aplicativo</label>
+                  <label className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Aplicativo</label>
                   {isEditing ? (
                     <Select
                       value={editData.aplicativo}
                       onValueChange={(value) => setEditData(prev => ({ ...prev, aplicativo: value }))}
                     >
-                      <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white h-10">
+                      <SelectTrigger className="bg-black/30 border-purple-500/30 text-white h-11 rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-700">
-                        <SelectItem value="ibo_pro" className="text-white hover:bg-slate-700">IBO Pro</SelectItem>
-                        <SelectItem value="ibo_player" className="text-white hover:bg-slate-700">IBO Player</SelectItem>
-                        <SelectItem value="shamel" className="text-white hover:bg-slate-700">Shamel</SelectItem>
+                      <SelectContent className="bg-slate-800 border-purple-500/30">
+                        <SelectItem value="ibo_pro" className="text-white hover:bg-purple-600/30">IBO Pro</SelectItem>
+                        <SelectItem value="ibo_player" className="text-white hover:bg-purple-600/30">IBO Player</SelectItem>
+                        <SelectItem value="shamel" className="text-white hover:bg-purple-600/30">Shamel</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
-                    <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Monitor className="w-4 h-4 text-purple-400" />
-                        <span className="text-white font-medium">{getAppLabel(test.aplicativo)}</span>
-                      </div>
+                    <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-lg">
+                      <Shield className="w-5 h-5 text-purple-400" />
+                      <span className="text-white font-semibold">{getAppLabel(test.aplicativo)}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Dispositivo */}
+                {/* Tipo de Dispositivo */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-400 font-medium">Tipo</label>
+                  <label className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Tipo de Dispositivo</label>
                   {isEditing ? (
                     <Select
                       value={editData.dispositivo}
                       onValueChange={(value) => setEditData(prev => ({ ...prev, dispositivo: value }))}
                     >
-                      <SelectTrigger className="bg-slate-700/50 border-slate-600 text-white h-10">
+                      <SelectTrigger className="bg-black/30 border-purple-500/30 text-white h-11 rounded-lg">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-700">
-                        <SelectItem value="celular" className="text-white hover:bg-slate-700">Celular</SelectItem>
-                        <SelectItem value="smart_tv" className="text-white hover:bg-slate-700">Smart TV</SelectItem>
-                        <SelectItem value="tv_box" className="text-white hover:bg-slate-700">TV Box</SelectItem>
-                        <SelectItem value="notebook" className="text-white hover:bg-slate-700">Notebook</SelectItem>
+                      <SelectContent className="bg-slate-800 border-purple-500/30">
+                        <SelectItem value="celular" className="text-white hover:bg-purple-600/30">Celular</SelectItem>
+                        <SelectItem value="smart_tv" className="text-white hover:bg-purple-600/30">Smart TV</SelectItem>
+                        <SelectItem value="tv_box" className="text-white hover:bg-purple-600/30">TV Box</SelectItem>
+                        <SelectItem value="notebook" className="text-white hover:bg-purple-600/30">Notebook</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (
-                    <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        {getDeviceIcon(test.dispositivo)}
-                        <span className="text-white font-medium">{getDeviceLabel(test.dispositivo)}</span>
-                      </div>
+                    <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg">
+                      {getDeviceIcon(test.dispositivo)}
+                      <span className="text-white font-semibold">{getDeviceLabel(test.dispositivo)}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Sistema (somente leitura) */}
+                {/* Sistema */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-400 font-medium">Sistema</label>
-                  <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg border border-slate-600/30">
-                    <div className="flex items-center gap-2">
-                      <Monitor className="w-4 h-4 text-blue-400" />
+                  <label className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Sistema Vinculado</label>
+                  <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg border border-purple-500/20">
+                    <div className="flex items-center gap-3">
+                      <Monitor className="w-5 h-5 text-cyan-400" />
                       <span className="text-white font-medium">
-                        {sistemas && Array.isArray(sistemas) && sistemas.find((s: any) => s.id === test.sistemaId)?.systemId ? 
-                          `Sistema ${sistemas.find((s: any) => s.id === test.sistemaId).systemId}` : 
-                          `Sistema ${test.sistemaId || 'N/A'}`
-                        }
+                        Sistema {test.sistemaId || 'N/A'}
                       </span>
                     </div>
-                    <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
-                      Somente leitura
+                    <Badge className="bg-purple-600/30 text-purple-300 border-purple-500/30">
+                      Fixo
                     </Badge>
                   </div>
                 </div>
 
                 {/* MAC Address */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-400 font-medium">MAC Address</label>
+                  <label className="text-xs font-semibold text-purple-300 uppercase tracking-wider">MAC Address</label>
                   {isEditing ? (
                     <Input
                       value={editData.mac}
                       onChange={(e) => handleMacChange(e.target.value)}
                       placeholder="00:00:00:00:00:00"
-                      className="bg-slate-700/50 border-slate-600 text-white font-mono h-10"
+                      className="bg-black/30 border-purple-500/30 text-white font-mono h-11 rounded-lg"
                       maxLength={17}
                       autoComplete="off"
                     />
                   ) : (
-                    <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Wifi className="w-4 h-4 text-cyan-400" />
-                        <span className="font-mono text-white text-sm">{test.mac || 'N/A'}</span>
+                    <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Wifi className="w-5 h-5 text-cyan-400" />
+                        <span className="font-mono text-white">{test.mac || 'Não configurado'}</span>
                       </div>
                       {test.mac && (
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-8 w-8 p-0 hover:bg-slate-700"
+                          className="h-8 w-8 p-0 hover:bg-purple-600/30"
                           onClick={() => copyToClipboard(test.mac, 'MAC')}
                         >
-                          <Copy className="w-3 h-3" />
+                          <Copy className="w-4 h-4 text-purple-400" />
                         </Button>
                       )}
                     </div>
@@ -590,199 +596,91 @@ export function TestDetailsDialog({
 
                 {/* Device Key */}
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-400 font-medium">Device Key</label>
+                  <label className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Device Key</label>
                   {isEditing ? (
                     <Input
                       value={editData.deviceKey}
                       onChange={(e) => setEditData(prev => ({ ...prev, deviceKey: e.target.value }))}
-                      placeholder="Device Key"
-                      className="bg-slate-700/50 border-slate-600 text-white font-mono h-10"
+                      placeholder="000000"
+                      className="bg-black/30 border-purple-500/30 text-white font-mono h-11 rounded-lg"
+                      maxLength={6}
+                      autoComplete="off"
                     />
                   ) : (
-                    <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <Hash className="w-4 h-4 text-yellow-400" />
-                        <span className="font-mono text-white text-sm">{test.deviceKey || 'N/A'}</span>
+                    <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Key className="w-5 h-5 text-yellow-400" />
+                        <span className="font-mono text-white">{test.deviceKey || 'Não configurado'}</span>
                       </div>
                       {test.deviceKey && (
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-8 w-8 p-0 hover:bg-slate-700"
+                          className="h-8 w-8 p-0 hover:bg-purple-600/30"
                           onClick={() => copyToClipboard(test.deviceKey, 'Device Key')}
                         >
-                          <Copy className="w-3 h-3" />
+                          <Copy className="w-4 h-4 text-purple-400" />
                         </Button>
                       )}
                     </div>
                   )}
                 </div>
-
               </CardContent>
             </Card>
           </div>
+        </div>
 
-          {/* Coluna 3 - Credenciais e Ações */}
-          <div className="lg:col-span-1 space-y-4">
-            {/* Card de Credenciais */}
-            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2 text-cyan-400">
-                  <Key className="w-5 h-5" />
-                  Credenciais
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Usuário */}
-                <div className="space-y-2">
-                  <label className="text-sm text-slate-400 font-medium">Usuário</label>
-                  <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
-                    <span className="font-mono text-white text-sm">{test.apiUsername}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 hover:bg-slate-700"
-                      onClick={() => copyToClipboard(test.apiUsername, 'Usuário')}
-                    >
-                      <Copy className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-                
-                {/* Senha */}
-                <div className="space-y-2">
-                  <label className="text-sm text-slate-400 font-medium">Senha</label>
-                  <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
-                    <span className="font-mono text-white text-sm">{test.apiPassword}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 hover:bg-slate-700"
-                      onClick={() => copyToClipboard(test.apiPassword, 'Senha')}
-                    >
-                      <Copy className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Card de Ações */}
-            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2 text-emerald-400">
-                  <Settings className="w-5 h-5" />
-                  Ações
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* Botões de Edição */}
-                {test?.status === 'deletado' ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-center p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-                      <div className="text-center">
-                        <AlertCircle className="w-6 h-6 text-red-400 mx-auto mb-2" />
-                        <p className="text-red-400 font-medium">Teste Deletado</p>
-                        <p className="text-sm text-red-300/70">Este teste não pode ser editado</p>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => {
-                        if (confirm('Tem certeza que deseja excluir este teste permanentemente do banco de dados? Esta ação não pode ser desfeita.')) {
-                          deleteMutation.mutate();
-                        }
-                      }}
-                      disabled={deleteMutation.isPending}
-                      className="w-full bg-red-600 hover:bg-red-700 text-white"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      {deleteMutation.isPending ? 'Excluindo...' : 'Excluir Definitivamente'}
-                    </Button>
-                  </div>
-                ) : isEditing ? (
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleSave}
-                      disabled={updateMutation.isPending}
-                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white h-10"
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      {updateMutation.isPending ? 'Salvando...' : 'Salvar'}
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setIsEditing(false);
-                        setEditData({
-                          mac: test.mac || '',
-                          deviceKey: test.deviceKey || '',
-                          aplicativo: test.aplicativo || '',
-                          dispositivo: test.dispositivo || '',
-                          expiraEm: test.expiraEm ? new Date(test.expiraEm).toISOString().slice(0, 16) : ''
-                        });
-                      }}
-                      variant="outline"
-                      className="border-slate-600 text-slate-300 hover:bg-slate-700 h-10"
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Cancelar
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    onClick={() => setIsEditing(true)}
-                    className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white h-10"
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Editar Teste
-                  </Button>
-                )}
-
-                {/* Ações de Streaming */}
-                {!isEditing && test?.status !== 'deletado' && (
-                  <>
-                    <Separator className="bg-slate-700/50" />
-                    
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        size="sm"
-                        className="bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white h-9"
-                        onClick={() => window.open(getStreamingUrl(test.aplicativo), '_blank')}
-                      >
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        Painel
-                      </Button>
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-slate-600 text-slate-300 hover:bg-slate-700 h-9"
-                        onClick={() => {
-                          const m3uLink = generateM3ULink(test.apiUsername, test.apiPassword);
-                          copyToClipboard(m3uLink, 'Link M3U');
-                        }}
-                      >
-                        <Link className="w-3 h-3 mr-1" />
-                        M3U
-                      </Button>
-                    </div>
-
-                    <Separator className="bg-slate-700/50" />
-
-                    {/* Botão Delete */}
-                    <Button
-                      onClick={handleDelete}
-                      disabled={deleteMutation.isPending}
-                      variant="destructive"
-                      className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white h-10"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      {deleteMutation.isPending ? 'Deletando...' : 'Deletar Teste'}
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+        {/* Ações - Design Melhorado */}
+        <div className="flex justify-between items-center mt-8 pt-6 border-t border-purple-500/20">
+          <div className="flex gap-3">
+            {!isEditing ? (
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 shadow-lg"
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Editar Teste
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={handleSave}
+                  disabled={updateMutation.isPending}
+                  className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 shadow-lg"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Salvar Alterações
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditData({
+                      mac: test.mac || '',
+                      deviceKey: test.deviceKey || '',
+                      aplicativo: test.aplicativo || '',
+                      dispositivo: test.dispositivo || '',
+                      expiraEm: test.expiraEm ? new Date(test.expiraEm).toISOString().slice(0, 16) : ''
+                    });
+                  }}
+                  variant="outline"
+                  className="border-purple-500/30 text-purple-300 hover:bg-purple-600/20"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Cancelar
+                </Button>
+              </>
+            )}
           </div>
+
+          <Button
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+            variant="destructive"
+            className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Deletar Teste
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
