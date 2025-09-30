@@ -1050,7 +1050,7 @@ export default function Promocoes() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
                                 <span className="font-semibold text-slate-100">
-                                  {cliente.nome || 'Cliente'}
+                                  {selectedFilter === 'testes' ? 'Cliente Teste' : (cliente.nome || 'Cliente')}
                                 </span>
                                 {matchesSearch && (
                                   <div className="p-1 bg-yellow-900/50 rounded border border-yellow-600/30">
