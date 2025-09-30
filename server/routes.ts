@@ -3592,7 +3592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           nome: cliente.nome,
           status: cliente.status,
           vencimento: cliente.vencimento,
-          tipoPromocao: isActive ? 'cliente' : 'cliente_teste',
+          tipoPromocao: 'cliente', // All clients (active or expired) should be marked as 'cliente'
           cpf_cnpj: null, // Not available in cliente table
           pontos: pontos.length,
           teste: false // This is a client, not a test-only user
@@ -3631,7 +3631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return nameA.localeCompare(nameB);
       });
       
-      console.log(`Returning ${results.length} total records (${results.filter(r => r.tipoPromocao === 'cliente').length} active clients, ${results.filter(r => r.tipoPromocao === 'cliente_teste').length} test/expired)`);
+      console.log(`Returning ${results.length} total records (${results.filter(r => r.tipoPromocao === 'cliente').length} clients, ${results.filter(r => r.tipoPromocao === 'cliente_teste').length} test-only users)`);
       
       // Log specific test phones to verify
       const testPhones = ['3599583024', '24999441920', '13132516564'];
