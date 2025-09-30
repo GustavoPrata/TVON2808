@@ -50,6 +50,7 @@ import {
   Search,
   MessageSquare,
   FileText,
+  Send,
 } from "lucide-react";
 import { insertCampaignTemplateSchema, type CampaignTemplate } from "@shared/schema";
 
@@ -128,8 +129,9 @@ type IconName = typeof AVAILABLE_ICONS[number];
 
 // Helper to render icon component
 const IconComponent = ({ name, className }: { name: string; className?: string }) => {
-  const Icon = Icons[name as keyof typeof Icons];
-  if (!Icon) return <Icons.FileText className={className} />;
+  const IconsObj = Icons as any;
+  const Icon = IconsObj[name];
+  if (!Icon || typeof Icon !== 'function') return <Icons.FileText className={className} />;
   return <Icon className={className} />;
 };
 
@@ -192,10 +194,7 @@ export default function TemplateEditor() {
   // Create template mutation
   const createMutation = useMutation({
     mutationFn: (data: z.infer<typeof insertCampaignTemplateSchema>) =>
-      apiRequest("/api/campaign-templates", {
-        method: "POST",
-        body: JSON.stringify(data),
-      }),
+      apiRequest("POST", "/api/campaign-templates", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/campaign-templates"] });
       toast({
@@ -217,10 +216,7 @@ export default function TemplateEditor() {
   // Update template mutation
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<z.infer<typeof insertCampaignTemplateSchema>> }) =>
-      apiRequest(`/api/campaign-templates/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-      }),
+      apiRequest("PUT", `/api/campaign-templates/${id}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/campaign-templates"] });
       toast({
@@ -241,9 +237,7 @@ export default function TemplateEditor() {
   // Delete template mutation
   const deleteMutation = useMutation({
     mutationFn: (id: number) =>
-      apiRequest(`/api/campaign-templates/${id}`, {
-        method: "DELETE",
-      }),
+      apiRequest("DELETE", `/api/campaign-templates/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/campaign-templates"] });
       toast({
@@ -499,8 +493,8 @@ export default function TemplateEditor() {
                                   onClick={() => setShowIconPicker(!showIconPicker)}
                                   data-testid="button-icon-picker"
                                 >
-                                  <IconComponent name={field.value} className="h-4 w-4 mr-2" />
-                                  {field.value}
+                                  <IconComponent name={field.value || "MessageSquare"} className="h-4 w-4 mr-2" />
+                                  {field.value || "MessageSquare"}
                                 </Button>
                                 
                                 {showIconPicker && (
@@ -549,7 +543,7 @@ export default function TemplateEditor() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Categoria</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || "geral"}>
                           <FormControl>
                             <SelectTrigger className="bg-slate-900 border-slate-800" data-testid="select-category">
                               <SelectValue placeholder="Selecione uma categoria" />
