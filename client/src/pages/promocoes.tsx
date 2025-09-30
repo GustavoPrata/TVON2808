@@ -790,29 +790,6 @@ export default function Promocoes() {
                     />
                   </div>
                 </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={selectAllFiltered}
-                    data-testid="button-select-all"
-                    className="flex-1 px-4 py-2 bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 rounded-lg transition-all group"
-                  >
-                    <span className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-300 group-hover:text-blue-500">
-                      <UserPlus className="w-4 h-4" />
-                      Selecionar Todos
-                    </span>
-                  </button>
-                  <button
-                    onClick={deselectAll}
-                    data-testid="button-deselect-all"
-                    className="flex-1 px-4 py-2 bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-lg transition-all group"
-                  >
-                    <span className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-300 group-hover:text-slate-100">
-                      <UserMinus className="w-4 h-4" />
-                      Limpar Seleção
-                    </span>
-                  </button>
-                </div>
               </div>
             </div>
 
@@ -827,6 +804,24 @@ export default function Promocoes() {
                     <h2 className="text-xl font-bold text-slate-100">
                       Clientes ({filteredClients.length})
                     </h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={selectAllFiltered}
+                      data-testid="button-select-all"
+                      className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 rounded-lg transition-all group"
+                      title="Selecionar Todos"
+                    >
+                      <CheckCircle className="w-5 h-5 text-slate-400 group-hover:text-blue-500" />
+                    </button>
+                    <button
+                      onClick={deselectAll}
+                      data-testid="button-deselect-all"
+                      className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-lg transition-all group"
+                      title="Limpar Seleção"
+                    >
+                      <XCircle className="w-5 h-5 text-slate-400 group-hover:text-slate-300" />
+                    </button>
                   </div>
                 </div>
               </div>
