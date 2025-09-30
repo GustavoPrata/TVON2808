@@ -207,6 +207,29 @@ Compartilhe agora!`,
   }
 };
 
+// Função para formatar número de telefone
+const formatPhoneNumber = (phone: string) => {
+  // Remove todos os caracteres não numéricos
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Remove o código do país 55 se existir
+  const withoutCountry = cleaned.startsWith('55') && cleaned.length > 11 
+    ? cleaned.substring(2) 
+    : cleaned;
+  
+  // Formata o número
+  if (withoutCountry.length === 11) {
+    // Celular: (11) 91234-5678
+    return `(${withoutCountry.substring(0, 2)}) ${withoutCountry.substring(2, 7)}-${withoutCountry.substring(7)}`;
+  } else if (withoutCountry.length === 10) {
+    // Fixo: (11) 1234-5678
+    return `(${withoutCountry.substring(0, 2)}) ${withoutCountry.substring(2, 6)}-${withoutCountry.substring(6)}`;
+  }
+  
+  // Retorna o número original se não conseguir formatar
+  return phone;
+};
+
 export default function Promocoes() {
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -1071,7 +1094,7 @@ export default function Promocoes() {
                               <div className="space-y-1">
                                 <div className="flex items-center gap-2 text-slate-400 text-sm">
                                   <Phone className="w-3.5 h-3.5" />
-                                  <span>{cliente.telefone}</span>
+                                  <span>{formatPhoneNumber(cliente.telefone)}</span>
                                 </div>
                                 {cliente.vencimento && (
                                   <div className="flex items-center gap-2 text-slate-400 text-sm">
