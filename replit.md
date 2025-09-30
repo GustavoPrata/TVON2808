@@ -46,6 +46,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
     - **Pricing Structure**: Configurable monthly, quarterly, semi-annual, and annual plans with progressive discounts.
     - **OnlineOffice IPTV Automation**: Advanced humanized automation using ghost-cursor, iframe integration, automatic credential generation, and manual fallback.
     - **IPTV Auto-Renewal System**: Comprehensive automatic renewal system with configurable advance time, individual system toggle, credential generation via Chrome extension, database field mapping, sequential queue processing, and integration with a task management system. Includes real-time queue visualization and extensive logging.
+    - **Promotional Mass Messaging System**: Complete bulk WhatsApp messaging system with customizable templates, advanced filtering by client status (active, expired, new), variable replacement system for personalized messages, real-time sending progress tracking, and manual client selection/deselection capabilities.
 
 ### Key Technical Decisions
 - **API Integration**: Direct integration with WhatsApp API and Woovi API.

@@ -30,6 +30,7 @@ import Indicacoes from "@/pages/indicacoes";
 import Ajuda from "@/pages/ajuda";
 import Anotacoes from "@/pages/anotacoes";
 import PainelOffice from "@/pages/painel-office";
+import Promocoes from "@/pages/promocoes";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import { Loader2 } from "lucide-react";
@@ -55,6 +56,7 @@ function Router() {
       <Route path="/ajuda" component={Ajuda} />
       <Route path="/anotacoes" component={Anotacoes} />
       <Route path="/painel-office" component={PainelOffice} />
+      <Route path="/promocoes" component={Promocoes} />
       <Route path="/logs" component={Logs} />
       <Route component={NotFound} />
     </Switch>

@@ -3342,6 +3342,166 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send bulk promotional messages
+  app.post("/api/promocoes/enviar", async (req, res) => {
+    try {
+      const { clients, message, delay = 2000 } = req.body;
+      
+      if (!clients || !Array.isArray(clients) || clients.length === 0) {
+        return res.status(400).json({ error: "Lista de clientes é obrigatória" });
+      }
+      
+      if (!message || typeof message !== 'string' || message.trim() === '') {
+        return res.status(400).json({ error: "Mensagem é obrigatória" });
+      }
+      
+      console.log(`📨 Iniciando envio em massa para ${clients.length} cliente(s)`);
+      
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as any[]
+      };
+      
+      // Process each client
+      for (let i = 0; i < clients.length; i++) {
+        const clientId = clients[i];
+        
+        try {
+          // Get client data
+          const cliente = await storage.getClienteById(clientId);
+          
+          if (!cliente) {
+            results.failed++;
+            results.errors.push({ clientId, error: "Cliente não encontrado" });
+            continue;
+          }
+          
+          if (!cliente.telefone) {
+            results.failed++;
+            results.errors.push({ clientId, error: "Cliente sem telefone" });
+            continue;
+          }
+          
+          // Process message variables
+          let processedMessage = message;
+          
+          // Replace variables with client data
+          processedMessage = processedMessage.replace(/{{nome}}/g, cliente.nome || 'Cliente');
+          processedMessage = processedMessage.replace(/{{telefone}}/g, cliente.telefone);
+          
+          if (cliente.vencimento) {
+            const vencimento = new Date(cliente.vencimento);
+            const hoje = new Date();
+            const diasVencido = Math.floor((hoje.getTime() - vencimento.getTime()) / (1000 * 60 * 60 * 24));
+            const diasParaVencer = Math.floor((vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+            
+            processedMessage = processedMessage.replace(/{{dias_vencido}}/g, diasVencido.toString());
+            processedMessage = processedMessage.replace(/{{dias_para_vencer}}/g, diasParaVencer.toString());
+            processedMessage = processedMessage.replace(/{{data_vencimento}}/g, vencimento.toLocaleDateString('pt-BR'));
+          }
+          
+          // Replace other variables with defaults
+          processedMessage = processedMessage.replace(/{{aplicativo}}/g, 'IBO Pro');
+          processedMessage = processedMessage.replace(/{{codigo_indicacao}}/g, cliente.telefone.slice(-4));
+          
+          // Send message via WhatsApp
+          console.log(`Enviando mensagem para ${cliente.nome || cliente.telefone}...`);
+          
+          // Check if conversation exists
+          let conversa = await storage.getConversaByTelefone(cliente.telefone);
+          
+          // If conversation doesn't exist, create it
+          if (!conversa) {
+            // Create conversation
+            conversa = await storage.createConversa({
+              telefone: cliente.telefone,
+              nome: cliente.nome || formatPhoneNumber(cliente.telefone),
+              ultimaMensagem: processedMessage,
+              status: "ativo",
+              modoAtendimento: "bot",
+              mensagensNaoLidas: 0,
+              ultimoRemetente: "sistema",
+              mensagemLida: true,
+              clienteId: cliente.id,
+              tipoUltimaMensagem: "text",
+              dataUltimaMensagem: new Date(),
+            });
+            
+            // Send WebSocket event for new conversation
+            broadcastMessage("conversation_created", {
+              conversaId: conversa.id,
+              conversa: conversa,
+            });
+          }
+          
+          // Send the message
+          const messageId = await whatsappService.sendMessage(cliente.telefone, processedMessage);
+          
+          if (messageId) {
+            // Save message to database
+            await storage.createMensagem({
+              conversaId: conversa.id,
+              conteudo: processedMessage,
+              remetente: "sistema",
+              timestamp: new Date(),
+              lida: true,
+              tipo: "text",
+              whatsappMessageId: messageId,
+            });
+            
+            // Update conversation
+            await storage.updateConversa(conversa.id, {
+              ultimaMensagem: processedMessage,
+              dataUltimaMensagem: new Date(),
+              ultimoRemetente: "sistema",
+              tipoUltimaMensagem: "text",
+            });
+            
+            results.success++;
+            console.log(`✅ Mensagem enviada para ${cliente.nome || cliente.telefone}`);
+          } else {
+            results.failed++;
+            results.errors.push({ 
+              clientId, 
+              name: cliente.nome,
+              phone: cliente.telefone,
+              error: "Falha ao enviar mensagem pelo WhatsApp" 
+            });
+            console.log(`❌ Falha ao enviar para ${cliente.nome || cliente.telefone}`);
+          }
+          
+          // Add delay between messages to avoid spam
+          if (i < clients.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+          
+        } catch (error: any) {
+          console.error(`Erro ao enviar mensagem para cliente ${clientId}:`, error);
+          results.failed++;
+          results.errors.push({ 
+            clientId, 
+            error: error.message || "Erro desconhecido" 
+          });
+        }
+      }
+      
+      console.log(`📊 Envio em massa concluído: ${results.success} sucesso, ${results.failed} falhas`);
+      
+      res.json({
+        success: true,
+        message: `Envio concluído: ${results.success} enviadas, ${results.failed} falharam`,
+        results
+      });
+      
+    } catch (error: any) {
+      console.error("Erro no envio em massa:", error);
+      res.status(500).json({ 
+        error: error.message || "Erro ao processar envio em massa" 
+      });
+    }
+  });
+
   // Test menu message endpoint
   app.post("/api/whatsapp/test-menu", async (req, res) => {
     try {

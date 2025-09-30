@@ -24,7 +24,8 @@ import {
   StickyNote,
   Activity,
   Workflow,
-  AlertTriangle
+  AlertTriangle,
+  Megaphone
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ const menuItems = [
   { path: '/', icon: TrendingUp, label: 'Dashboard' },
   { path: '/chat', icon: MessageSquare, label: 'Chat', badge: 'chat' },
   { path: '/tickets', icon: Ticket, label: 'Tickets', badge: 'tickets' },
+  { path: '/promocoes', icon: Megaphone, label: 'Promoções' },
   { path: '/vencimentos', icon: Calendar, label: 'Vencimentos' },
   { path: '/acessos', icon: Activity, label: 'Acessos' },
   { path: '/testes', icon: Monitor, label: 'Testes' },
