@@ -46,7 +46,10 @@ import {
   Plus,
   Mail,
   Phone,
-  User
+  User,
+  Star,
+  Rocket,
+  Heart
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -85,7 +88,8 @@ Olá, {{nome}}! Temos uma oferta imperdível para você!
 *Aproveite! Oferta por tempo limitado!*
 
 Digite *1* para contratar agora!`,
-    category: "promocao"
+    category: "promocao",
+    icon: Gift
   },
   clientes_vencidos: {
     title: "🔄 Renovação com Desconto",
@@ -104,7 +108,8 @@ Renove agora e ganhe *20% de desconto* no primeiro mês!
 *Não perca seus programas favoritos!*
 
 Digite *1* para renovar com desconto!`,
-    category: "renovacao"
+    category: "renovacao",
+    icon: RefreshCw
   },
   manutencao: {
     title: "🔧 Manutenção Programada",
@@ -123,7 +128,8 @@ Durante este período, o serviço poderá apresentar instabilidades.
 Agradecemos a compreensão! 🙏
 
 *TV ON - Sempre melhorando para você*`,
-    category: "aviso"
+    category: "aviso",
+    icon: AlertTriangle
   },
   boas_vindas: {
     title: "👋 Boas-vindas",
@@ -146,7 +152,8 @@ Sua conta foi ativada com sucesso! ✅
 Qualquer dúvida, estamos aqui!
 
 *Bom entretenimento!* 🍿📺`,
-    category: "boas_vindas"
+    category: "boas_vindas",
+    icon: Heart
   },
   cobranca_amigavel: {
     title: "💳 Lembrete de Pagamento",
@@ -165,7 +172,8 @@ Sua assinatura TV ON vence em {{dias_para_vencer}} dias ({{data_vencimento}}).
 
 Digite *1* para gerar seu pagamento
 Digite *2* para falar com atendente`,
-    category: "cobranca"
+    category: "cobranca",
+    icon: TrendingUp
   },
   indique_ganhe: {
     title: "🎁 Indique e Ganhe",
@@ -186,7 +194,8 @@ Que tal ganhar 1 MÊS GRÁTIS? 🎉
 Quanto mais amigos, mais meses grátis! 
 
 Compartilhe agora! 📲`,
-    category: "indicacao"
+    category: "indicacao",
+    icon: Zap
   }
 };
 
@@ -442,364 +451,454 @@ export default function Promocoes() {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            Central de Promoções
-          </h1>
-          <p className="text-slate-600 mt-1">
-            Envie mensagens promocionais em massa pelo WhatsApp
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="px-4 py-2">
-            <Users className="w-4 h-4 mr-2" />
-            {filteredClients.length} clientes filtrados
-          </Badge>
-          <Badge variant="outline" className="px-4 py-2 bg-purple-50 border-purple-300">
-            <CheckCircle className="w-4 h-4 mr-2 text-purple-600" />
-            {selectedClients.length} selecionados
-          </Badge>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Coluna Esquerda - Editor de Mensagem */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Templates */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-600" />
-                Templates de Mensagem
-              </CardTitle>
-              <CardDescription>
-                Escolha um template pronto ou crie sua própria mensagem
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {Object.entries(messageTemplates).map(([key, template]) => (
-                  <Button
-                    key={key}
-                    variant={selectedTemplate === key ? "default" : "outline"}
-                    className="justify-start h-auto py-3 px-4"
-                    onClick={() => applyTemplate(key)}
-                  >
-                    <div className="text-left">
-                      <div className="font-medium text-sm">{template.title}</div>
-                      <div className="text-xs text-slate-500 mt-1">{template.category}</div>
-                    </div>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Editor de Mensagem */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-blue-600" />
-                Mensagem
-              </CardTitle>
-              <CardDescription>
-                Personalize sua mensagem com variáveis dinâmicas
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/10 to-slate-900">
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 rounded-2xl p-8 shadow-2xl">
+          <div className="absolute inset-0 bg-black/20" />
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
               <div>
-                <Textarea
-                  placeholder="Digite sua mensagem aqui..."
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  className="min-h-[300px] font-mono text-sm"
-                />
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <span className="text-xs text-slate-500">Variáveis disponíveis:</span>
-                  {['{{nome}}', '{{telefone}}', '{{dias_vencido}}', '{{data_vencimento}}', '{{codigo_indicacao}}'].map(variable => (
-                    <Button
-                      key={variable}
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-xs font-mono"
-                      onClick={() => setMessage(prev => prev + ' ' + variable)}
-                    >
-                      <Copy className="w-3 h-3 mr-1" />
-                      {variable}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Variáveis Customizadas */}
-              {(selectedTemplate === 'manutencao') && (
-                <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
-                  <h4 className="text-sm font-medium">Configurar Variáveis</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs">Data Manutenção</Label>
-                      <Input
-                        type="date"
-                        value={messageVariables.data_manutencao}
-                        onChange={(e) => setMessageVariables(prev => ({ ...prev, data_manutencao: e.target.value }))}
-                        className="h-9"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Horário Início</Label>
-                      <Input
-                        type="time"
-                        value={messageVariables.horario_inicio}
-                        onChange={(e) => setMessageVariables(prev => ({ ...prev, horario_inicio: e.target.value }))}
-                        className="h-9"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Horário Fim</Label>
-                      <Input
-                        type="time"
-                        value={messageVariables.horario_fim}
-                        onChange={(e) => setMessageVariables(prev => ({ ...prev, horario_fim: e.target.value }))}
-                        className="h-9"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Duração (horas)</Label>
-                      <Input
-                        type="number"
-                        value={messageVariables.duracao}
-                        onChange={(e) => setMessageVariables(prev => ({ ...prev, duracao: e.target.value }))}
-                        className="h-9"
-                      />
-                    </div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                    <Megaphone className="w-8 h-8 text-white" />
                   </div>
+                  <h1 className="text-4xl font-bold text-white">
+                    Central de Promoções
+                  </h1>
                 </div>
-              )}
-
-              {/* Preview */}
-              <div className="border rounded-lg p-4 bg-slate-50">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-medium flex items-center gap-2">
-                    <Eye className="w-4 h-4" />
-                    Preview da Mensagem
-                  </h4>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPreviewMode(!previewMode)}
-                  >
-                    {previewMode ? 'Modo Edição' : 'Ver Preview'}
-                  </Button>
-                </div>
-                <div className="bg-white p-4 rounded-lg shadow-sm">
-                  <pre className="whitespace-pre-wrap text-sm font-sans">
-                    {processMessageVariables(message)}
-                  </pre>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Ações */}
-          <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-lg">Pronto para enviar?</h3>
-                  <p className="text-sm text-slate-600 mt-1">
-                    {selectedClients.length > 0 
-                      ? `${selectedClients.length} cliente(s) selecionado(s)` 
-                      : `${filteredClients.length} cliente(s) no filtro atual`}
-                  </p>
-                </div>
-                <Button
-                  size="lg"
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                  onClick={handleSendMessages}
-                  disabled={sendMessagesMutation.isPending}
-                >
-                  <Send className="w-5 h-5 mr-2" />
-                  {sendMessagesMutation.isPending ? 'Enviando...' : 'Enviar Mensagens'}
-                </Button>
+                <p className="text-white/90 text-lg mt-2">
+                  Envie mensagens promocionais em massa via WhatsApp com personalização inteligente
+                </p>
               </div>
               
-              {sendingProgress.status === 'sending' && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <span>Enviando mensagens...</span>
-                    <span>{sendingProgress.current}/{sendingProgress.total}</span>
+              <div className="flex flex-col gap-3">
+                <div className="bg-white/20 backdrop-blur-sm rounded-xl px-5 py-3 border border-white/30">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-white" />
+                    <span className="text-white font-semibold text-2xl">{filteredClients.length}</span>
+                    <span className="text-white/80">clientes</span>
                   </div>
-                  <div className="w-full bg-slate-200 rounded-full h-2">
-                    <div
-                      className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full transition-all"
-                      style={{ width: `${(sendingProgress.current / sendingProgress.total) * 100}%` }}
+                </div>
+                <div className="bg-white/20 backdrop-blur-sm rounded-xl px-5 py-3 border border-white/30">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-300" />
+                    <span className="text-white font-semibold text-2xl">{selectedClients.length}</span>
+                    <span className="text-white/80">selecionados</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Coluna Esquerda - Editor de Mensagem */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Templates */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 p-6 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
+                    <Sparkles className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">
+                      Templates de Campanhas
+                    </h2>
+                    <p className="text-white/70 text-sm mt-1">
+                      Escolha um template pronto ou crie sua própria mensagem
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {Object.entries(messageTemplates).map(([key, template]) => {
+                    const Icon = template.icon;
+                    const isSelected = selectedTemplate === key;
+                    
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => applyTemplate(key)}
+                        className={cn(
+                          "relative group overflow-hidden rounded-xl p-4 transition-all duration-300",
+                          isSelected
+                            ? "bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg scale-[1.02]"
+                            : "bg-white/10 hover:bg-white/20 border border-white/20 hover:border-purple-400"
+                        )}
+                      >
+                        <div className="relative z-10">
+                          <Icon className={cn(
+                            "w-8 h-8 mb-2",
+                            isSelected ? "text-white" : "text-purple-400"
+                          )} />
+                          <div className="text-left">
+                            <div className={cn(
+                              "font-semibold text-sm",
+                              isSelected ? "text-white" : "text-white/90"
+                            )}>
+                              {template.title}
+                            </div>
+                            <div className={cn(
+                              "text-xs mt-1 capitalize",
+                              isSelected ? "text-white/80" : "text-white/60"
+                            )}>
+                              {template.category.replace(/_/g, ' ')}
+                            </div>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <div className="absolute top-2 right-2">
+                            <CheckCircle className="w-5 h-5 text-white" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Editor de Mensagem */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 p-6 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
+                    <Edit className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">
+                      Composição da Mensagem
+                    </h2>
+                    <p className="text-white/70 text-sm mt-1">
+                      Personalize com variáveis dinâmicas para cada cliente
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <Textarea
+                    placeholder="Digite sua mensagem personalizada aqui..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    className="min-h-[280px] bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-purple-400/20 font-mono text-sm"
+                  />
+                  <div className="mt-4 p-4 bg-gradient-to-r from-purple-600/10 to-blue-600/10 rounded-xl border border-purple-500/20">
+                    <p className="text-xs font-semibold text-purple-300 mb-3 flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                      VARIÁVEIS DINÂMICAS
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {['{{nome}}', '{{telefone}}', '{{dias_vencido}}', '{{data_vencimento}}', '{{codigo_indicacao}}'].map(variable => (
+                        <button
+                          key={variable}
+                          onClick={() => setMessage(prev => prev + ' ' + variable)}
+                          className="px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 border border-purple-400/30 rounded-lg transition-all group"
+                        >
+                          <span className="text-xs font-mono text-purple-300 group-hover:text-purple-200">
+                            {variable}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Variáveis Customizadas */}
+                {(selectedTemplate === 'manutencao') && (
+                  <div className="p-4 bg-gradient-to-r from-orange-600/10 to-yellow-600/10 rounded-xl border border-orange-500/20">
+                    <h4 className="text-sm font-semibold text-orange-300 mb-4">CONFIGURAR VARIÁVEIS</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-orange-200">Data Manutenção</Label>
+                        <Input
+                          type="date"
+                          value={messageVariables.data_manutencao}
+                          onChange={(e) => setMessageVariables(prev => ({ ...prev, data_manutencao: e.target.value }))}
+                          className="h-9 bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-orange-200">Horário Início</Label>
+                        <Input
+                          type="time"
+                          value={messageVariables.horario_inicio}
+                          onChange={(e) => setMessageVariables(prev => ({ ...prev, horario_inicio: e.target.value }))}
+                          className="h-9 bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-orange-200">Horário Fim</Label>
+                        <Input
+                          type="time"
+                          value={messageVariables.horario_fim}
+                          onChange={(e) => setMessageVariables(prev => ({ ...prev, horario_fim: e.target.value }))}
+                          className="h-9 bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-orange-200">Duração (horas)</Label>
+                        <Input
+                          type="number"
+                          value={messageVariables.duracao}
+                          onChange={(e) => setMessageVariables(prev => ({ ...prev, duracao: e.target.value }))}
+                          className="h-9 bg-white/10 border-white/20 text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Preview */}
+                <div className="mt-6 p-4 bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-xl border border-green-500/20">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-green-400 flex items-center gap-2">
+                      <Eye className="w-4 h-4" />
+                      PREVIEW DA MENSAGEM
+                    </h4>
+                  </div>
+                  <div className="bg-black/30 backdrop-blur-sm p-4 rounded-lg border border-green-500/20">
+                    <pre className="whitespace-pre-wrap text-sm font-sans text-green-100">
+                      {processMessageVariables(message)}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Ações */}
+            <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 shadow-xl">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-90" />
+              <div className="absolute -top-5 -right-5 w-20 h-20 bg-white/10 rounded-full blur-2xl" />
+              <div className="absolute -bottom-5 -left-5 w-20 h-20 bg-white/10 rounded-full blur-2xl" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-xl text-white flex items-center gap-2">
+                      <Rocket className="w-6 h-6" />
+                      Pronto para Disparar?
+                    </h3>
+                    <p className="text-white/90 mt-2">
+                      {selectedClients.length > 0 
+                        ? `🎯 ${selectedClients.length} cliente(s) selecionado(s)` 
+                        : `📊 ${filteredClients.length} cliente(s) no filtro atual`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSendMessages}
+                    disabled={sendMessagesMutation.isPending}
+                    className="group relative px-8 py-4 bg-white/20 backdrop-blur-sm rounded-xl font-bold text-white border border-white/30 hover:bg-white/30 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                  >
+                    <span className="flex items-center gap-3">
+                      <Send className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                      {sendMessagesMutation.isPending ? 'Enviando...' : 'Enviar Mensagens'}
+                    </span>
+                  </button>
+                </div>
+                
+                {sendingProgress.status === 'sending' && (
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between text-sm mb-2 text-white">
+                      <span className="font-semibold">Progresso do Envio</span>
+                      <span className="font-bold">{sendingProgress.current}/{sendingProgress.total}</span>
+                    </div>
+                    <div className="w-full bg-white/20 backdrop-blur-sm rounded-full h-3 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-green-400 to-emerald-400 h-full rounded-full transition-all duration-500 shadow-lg"
+                        style={{ width: `${(sendingProgress.current / sendingProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Coluna Direita - Seleção de Clientes */}
+          <div className="space-y-6">
+            {/* Filtros */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl overflow-hidden">
+              <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 p-6 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
+                    <Target className="w-6 h-6 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-white">
+                    Seleção de Público
+                  </h2>
+                </div>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { value: 'todos', label: 'Todos', icon: Users, color: 'from-blue-500 to-cyan-500' },
+                    { value: 'ativos', label: 'Ativos', icon: CheckCircle, color: 'from-green-500 to-emerald-500' },
+                    { value: 'vencidos', label: 'Vencidos', icon: Clock, color: 'from-red-500 to-orange-500' },
+                    { value: 'vencidos_10_dias', label: 'Vencidos +10d', icon: AlertTriangle, color: 'from-yellow-500 to-orange-500' },
+                    { value: 'novos', label: 'Novos', icon: UserPlus, color: 'from-purple-500 to-pink-500' },
+                    { value: 'com_pontos', label: 'Com Pontos', icon: Zap, color: 'from-cyan-500 to-blue-500' },
+                  ].map(filter => {
+                    const Icon = filter.icon;
+                    const isSelected = selectedFilter === filter.value;
+                    return (
+                      <button
+                        key={filter.value}
+                        onClick={() => setSelectedFilter(filter.value)}
+                        className={cn(
+                          "relative group overflow-hidden rounded-xl p-4 transition-all duration-300",
+                          isSelected
+                            ? `bg-gradient-to-br ${filter.color} shadow-lg scale-[1.02]`
+                            : "bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30"
+                        )}
+                      >
+                        <Icon className={cn(
+                          "w-6 h-6 mb-2",
+                          isSelected ? "text-white" : "text-white/70"
+                        )} />
+                        <p className={cn(
+                          "text-sm font-semibold",
+                          isSelected ? "text-white" : "text-white/80"
+                        )}>
+                          {filter.label}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/50" />
+                    <Input
+                      placeholder="Buscar por nome, telefone ou CPF..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-green-400 focus:ring-green-400/20"
                     />
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Coluna Direita - Seleção de Clientes */}
-        <div className="space-y-6">
-          {/* Filtros */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="w-5 h-5 text-green-600" />
-                Filtros de Público
-              </CardTitle>
-              <CardDescription>
-                Selecione o público-alvo da campanha
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Filtro Principal</Label>
-                <Select value={selectedFilter} onValueChange={setSelectedFilter}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos os Clientes</SelectItem>
-                    <SelectItem value="ativos">Clientes Ativos</SelectItem>
-                    <SelectItem value="vencidos">Clientes Vencidos</SelectItem>
-                    <SelectItem value="vencidos_10_dias">Vencidos há mais de {customFilters.diasVencido} dias</SelectItem>
-                    <SelectItem value="novos">Clientes Novos (7 dias)</SelectItem>
-                    <SelectItem value="com_pontos">Clientes com Pontos</SelectItem>
-                    <SelectItem value="sem_pontos">Clientes sem Pontos</SelectItem>
-                    <SelectItem value="selecionados">Apenas Selecionados</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedFilter === 'vencidos_10_dias' && (
-                <div>
-                  <Label className="text-xs">Dias de vencimento</Label>
-                  <Input
-                    type="number"
-                    value={customFilters.diasVencido}
-                    onChange={(e) => setCustomFilters(prev => ({ ...prev, diasVencido: parseInt(e.target.value) || 10 }))}
-                    min="1"
-                    className="h-9"
-                  />
-                </div>
-              )}
-
-              <div>
-                <Label>Buscar Cliente</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    placeholder="Nome, telefone ou CPF..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+                <div className="flex gap-2">
+                  <button
+                    onClick={selectAllFiltered}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 border border-green-400/30 rounded-lg transition-all group"
+                  >
+                    <span className="flex items-center justify-center gap-2 text-sm font-semibold text-green-300 group-hover:text-green-200">
+                      <UserPlus className="w-4 h-4" />
+                      Selecionar Todos
+                    </span>
+                  </button>
+                  <button
+                    onClick={deselectAll}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30 border border-red-400/30 rounded-lg transition-all group"
+                  >
+                    <span className="flex items-center justify-center gap-2 text-sm font-semibold text-red-300 group-hover:text-red-200">
+                      <UserMinus className="w-4 h-4" />
+                      Limpar Seleção
+                    </span>
+                  </button>
                 </div>
               </div>
+            </div>
 
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={selectAllFiltered}
-                >
-                  <UserPlus className="w-4 h-4 mr-1" />
-                  Selecionar Todos
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={deselectAll}
-                >
-                  <UserMinus className="w-4 h-4 mr-1" />
-                  Limpar Seleção
-                </Button>
+            {/* Lista de Clientes */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 p-6 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
+                      <Users className="w-6 h-6 text-white" />
+                    </div>
+                    <h2 className="text-xl font-bold text-white">
+                      Clientes ({filteredClients.length})
+                    </h2>
+                  </div>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Lista de Clientes */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-orange-600" />
-                Clientes ({filteredClients.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[500px] pr-4">
-                <div className="space-y-2">
+              <ScrollArea className="h-[450px]">
+                <div className="p-4 space-y-2">
                   {isLoading ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
-                      <p className="text-sm text-slate-500 mt-2">Carregando clientes...</p>
+                    <div className="text-center py-12">
+                      <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-purple-400" />
+                      <p className="text-white/60">Carregando clientes...</p>
                     </div>
                   ) : filteredClients.length === 0 ? (
-                    <div className="text-center py-8">
-                      <UserX className="w-12 h-12 text-slate-300 mx-auto" />
-                      <p className="text-sm text-slate-500 mt-2">Nenhum cliente encontrado</p>
+                    <div className="text-center py-12">
+                      <UserX className="w-16 h-16 text-white/20 mx-auto mb-3" />
+                      <p className="text-white/60">Nenhum cliente encontrado</p>
+                      <p className="text-white/40 text-sm mt-1">Ajuste os filtros para ver mais resultados</p>
                     </div>
                   ) : (
-                    filteredClients.map((cliente: Cliente) => (
-                      <div
-                        key={cliente.id}
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer",
-                          selectedClients.includes(cliente.id)
-                            ? "bg-purple-50 border-purple-300"
-                            : "bg-white border-slate-200 hover:bg-slate-50"
-                        )}
-                        onClick={() => toggleClientSelection(cliente.id)}
-                      >
-                        <Checkbox
-                          checked={selectedClients.includes(cliente.id)}
-                          onCheckedChange={() => toggleClientSelection(cliente.id)}
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm">
-                              {cliente.nome || 'Sem nome'}
-                            </span>
-                            {cliente.status === 'ativo' ? (
-                              <Badge variant="outline" className="text-xs bg-green-50 border-green-200 text-green-700">
-                                Ativo
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-xs bg-red-50 border-red-200 text-red-700">
-                                Vencido
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-4 mt-1">
-                            <span className="text-xs text-slate-500 flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
-                              {cliente.telefone}
-                            </span>
-                            {cliente.vencimento && (
-                              <span className="text-xs text-slate-500 flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
-                                {format(new Date(cliente.vencimento), 'dd/MM')}
-                              </span>
-                            )}
+                    filteredClients.map((cliente: Cliente) => {
+                      const isSelected = selectedClients.includes(cliente.id);
+                      const isExpired = cliente.vencimento && new Date(cliente.vencimento) < new Date();
+                      
+                      return (
+                        <div
+                          key={cliente.id}
+                          onClick={() => toggleClientSelection(cliente.id)}
+                          className={cn(
+                            "relative p-4 rounded-xl cursor-pointer transition-all duration-200 border",
+                            isSelected
+                              ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-400/50 shadow-md"
+                              : "bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20"
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={cn(
+                              "mt-0.5 w-5 h-5 rounded border-2 transition-all flex items-center justify-center",
+                              isSelected
+                                ? "bg-gradient-to-r from-purple-500 to-pink-500 border-transparent"
+                                : "border-white/30 hover:border-white/50"
+                            )}>
+                              {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="font-semibold text-white">
+                                  {cliente.nome || 'Cliente'}
+                                </span>
+                                {cliente.status === 'ativo' && !isExpired && (
+                                  <span className="px-2 py-0.5 bg-green-500/20 text-green-300 text-xs font-semibold rounded-full border border-green-400/30">
+                                    ATIVO
+                                  </span>
+                                )}
+                                {isExpired && (
+                                  <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs font-semibold rounded-full border border-red-400/30">
+                                    VENCIDO
+                                  </span>
+                                )}
+                              </div>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-white/60 text-sm">
+                                  <Phone className="w-3.5 h-3.5" />
+                                  <span>{cliente.telefone}</span>
+                                </div>
+                                {cliente.vencimento && (
+                                  <div className="flex items-center gap-2 text-white/60 text-sm">
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    <span>
+                                      {format(new Date(cliente.vencimento), 'dd/MM/yyyy', { locale: ptBR })}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </ScrollArea>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
     </div>
