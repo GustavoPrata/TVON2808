@@ -1338,6 +1338,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all pontos in a single query
       const allPontos = await storage.getAllPontos();
       
+      // Get all testes in a single query
+      const allTestes = await storage.getTestes();
+      
       // Create a map of clienteId -> pontos for efficient lookup
       const pontosMap = new Map<number, typeof allPontos>();
       for (const ponto of allPontos) {
@@ -1346,8 +1349,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         pontosMap.get(ponto.clienteId)!.push(ponto);
       }
+      
+      // Create a map of telefone -> teste for efficient lookup  
+      const testesMap = new Map<string, typeof allTestes[0]>();
+      for (const teste of allTestes) {
+        // Get the most recent test for each phone number
+        const normalizedPhone = teste.telefone.replace(/\D/g, '');
+        if (!testesMap.has(normalizedPhone) || 
+            new Date(teste.criadoEm) > new Date(testesMap.get(normalizedPhone)!.criadoEm)) {
+          testesMap.set(normalizedPhone, teste);
+        }
+      }
 
-      // Calculate valorTotal for each client using the map
+      // Calculate valorTotal and add teste info for each client using the maps
       const clientesComValor = clientes.map(cliente => {
         const clientePontos = pontosMap.get(cliente.id) || [];
         const valorTotal = clientePontos.reduce((sum, ponto) => {
@@ -1355,9 +1369,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return sum + valor;
         }, 0);
         
+        // Find teste for this client's phone
+        const normalizedClientPhone = cliente.telefone.replace(/\D/g, '');
+        const teste = testesMap.get(normalizedClientPhone);
+        
         return {
           ...cliente,
-          valorTotal: valorTotal  // Return as number, not string
+          valorTotal: valorTotal,  // Return as number, not string
+          teste: teste || null,  // Include teste info if exists
+          pontos: clientePontos  // Include pontos array
         };
       });
 

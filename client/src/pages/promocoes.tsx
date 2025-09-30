@@ -65,6 +65,14 @@ interface Cliente {
   created_at: Date | string;
   notas?: string | null;
   pontos?: any[];
+  teste?: {
+    id: number;
+    telefone: string;
+    aplicativo: string;
+    criadoEm: Date | string;
+    expiraEm: Date | string;
+    status: string;
+  } | null;
 }
 
 // Templates predefinidos de mensagens
@@ -276,8 +284,15 @@ export default function Promocoes() {
           return dias <= 7;
         });
         break;
-      case 'com_pontos':
-        filtered = filtered.filter((c: Cliente) => c.pontos && c.pontos.length > 0);
+      case 'testes':
+        // Clientes que fizeram teste há mais de 1 dia mas não assinaram
+        filtered = filtered.filter((c: Cliente) => {
+          // Verificar se existe teste associado ao telefone
+          // E se o cliente não tem vencimento ou está vencido (não assinou)
+          return c.teste && c.teste.criadoEm && 
+                 new Date(c.teste.criadoEm) < new Date(Date.now() - 24 * 60 * 60 * 1000) && // Teste há mais de 1 dia
+                 (!c.vencimento || new Date(c.vencimento) < new Date()); // Sem assinatura ou vencido
+        });
         break;
       case 'sem_pontos':
         filtered = filtered.filter((c: Cliente) => !c.pontos || c.pontos.length === 0);
@@ -892,7 +907,7 @@ export default function Promocoes() {
                     { value: 'vencidos', label: 'Vencidos', icon: Clock },
                     { value: 'vencidos_10_dias', label: 'Vencidos +10d', icon: AlertTriangle },
                     { value: 'novos', label: 'Novos', icon: UserPlus },
-                    { value: 'com_pontos', label: 'Com Pontos', icon: Zap },
+                    { value: 'testes', label: 'Testes', icon: Zap },
                   ].map(filter => {
                     const Icon = filter.icon;
                     const isSelected = selectedFilter === filter.value;
