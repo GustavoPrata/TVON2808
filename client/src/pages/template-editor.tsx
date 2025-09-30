@@ -855,11 +855,15 @@ export default function TemplateEditor() {
             )}
           </div>
         </div>
-      </div>
+            </CardContent>
+          </Card>
 
-      {/* Right Side - Phone Preview */}
-      <div className="w-96 bg-slate-900/50 p-6 flex flex-col">
-        <h2 className="text-lg font-semibold text-white mb-4">Preview do WhatsApp</h2>
+          {/* Right Side - Phone Preview */}
+          <Card className="bg-slate-900 border-slate-800">
+            <CardHeader>
+              <CardTitle>Preview do WhatsApp</CardTitle>
+            </CardHeader>
+            <CardContent>
         
         {/* iPhone Frame */}
         <div className="flex-1 flex items-center justify-center">
@@ -943,6 +947,9 @@ export default function TemplateEditor() {
             )}
           </div>
         )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
