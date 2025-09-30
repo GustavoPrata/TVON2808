@@ -3,7 +3,7 @@ import {
   clientes, pontos, pagamentos, pagamentosManual, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
   avisosVencimento, configAvisos, anotacoes, notificacoesRecorrentes,
-  officeAutomationConfig, officeAutomationLogs, officeCredentials, extensionStatus,
+  officeAutomationConfig, officeAutomationLogs, officeCredentials, extensionStatus, campaignTemplates,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
@@ -20,7 +20,8 @@ import {
   type OfficeAutomationConfig, type InsertOfficeAutomationConfig,
   type OfficeAutomationLogs, type InsertOfficeAutomationLogs,
   type OfficeCredentials, type InsertOfficeCredentials,
-  type ExtensionStatus, type InsertExtensionStatus, type UpdateExtensionStatus
+  type ExtensionStatus, type InsertExtensionStatus, type UpdateExtensionStatus,
+  type CampaignTemplate, type InsertCampaignTemplate
 } from "@shared/schema";
 import { eq, desc, asc, sql, and, or, gte, lte, ilike, ne, count } from "drizzle-orm";
 
@@ -169,6 +170,15 @@ export interface IStorage {
   createLog(log: InsertLog): Promise<Log>;
   clearLogs(): Promise<void>;
   getPixLogs(limit?: number): Promise<Log[]>;
+  
+  // Campaign Templates
+  getCampaignTemplates(): Promise<CampaignTemplate[]>;
+  getCampaignTemplateById(id: number): Promise<CampaignTemplate | undefined>;
+  getCampaignTemplateByKey(key: string): Promise<CampaignTemplate | undefined>;
+  createCampaignTemplate(template: InsertCampaignTemplate): Promise<CampaignTemplate>;
+  updateCampaignTemplate(id: number, template: Partial<InsertCampaignTemplate>): Promise<CampaignTemplate>;
+  deleteCampaignTemplate(id: number): Promise<void>;
+  incrementTemplateUsage(id: number): Promise<void>;
 
   // Dashboard
   getDashboardStats(): Promise<{
@@ -1061,6 +1071,73 @@ export class DatabaseStorage implements IStorage {
       LIMIT ${limit}
     `);
     return result as any[];
+  }
+
+  // Campaign Templates CRUD
+  async getCampaignTemplates(): Promise<CampaignTemplate[]> {
+    const templates = await db
+      .select()
+      .from(campaignTemplates)
+      .where(eq(campaignTemplates.isActive, true))
+      .orderBy(asc(campaignTemplates.title));
+    return templates;
+  }
+
+  async getCampaignTemplateById(id: number): Promise<CampaignTemplate | undefined> {
+    const result = await db
+      .select()
+      .from(campaignTemplates)
+      .where(eq(campaignTemplates.id, id));
+    return result[0];
+  }
+
+  async getCampaignTemplateByKey(key: string): Promise<CampaignTemplate | undefined> {
+    const result = await db
+      .select()
+      .from(campaignTemplates)
+      .where(eq(campaignTemplates.key, key));
+    return result[0];
+  }
+
+  async createCampaignTemplate(template: InsertCampaignTemplate): Promise<CampaignTemplate> {
+    const result = await db
+      .insert(campaignTemplates)
+      .values({
+        ...template,
+        updatedAt: new Date()
+      })
+      .returning();
+    return result[0];
+  }
+
+  async updateCampaignTemplate(id: number, template: Partial<InsertCampaignTemplate>): Promise<CampaignTemplate> {
+    const result = await db
+      .update(campaignTemplates)
+      .set({
+        ...template,
+        updatedAt: new Date()
+      })
+      .where(eq(campaignTemplates.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteCampaignTemplate(id: number): Promise<void> {
+    // Soft delete by setting isActive to false
+    await db
+      .update(campaignTemplates)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(campaignTemplates.id, id));
+  }
+
+  async incrementTemplateUsage(id: number): Promise<void> {
+    await db
+      .update(campaignTemplates)
+      .set({
+        usageCount: sql`${campaignTemplates.usageCount} + 1`,
+        updatedAt: new Date()
+      })
+      .where(eq(campaignTemplates.id, id));
   }
 
   async getDashboardStats() {

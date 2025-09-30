@@ -264,6 +264,20 @@ export const integracoes = pgTable("integracoes", {
   ultimaAtualizacao: timestamp("ultima_atualizacao").defaultNow(),
 });
 
+// Campaign Templates
+export const campaignTemplates = pgTable("campaign_templates", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 100 }).notNull().unique(), // Template identifier
+  title: varchar("title", { length: 200 }).notNull(), // Template name
+  content: text("content").notNull(), // Message template content
+  icon: varchar("icon", { length: 50 }).notNull().default("MessageSquare"), // Lucide icon name
+  category: varchar("category", { length: 50 }).default("general"), // Template category
+  isActive: boolean("is_active").notNull().default(true), // Active status
+  usageCount: integer("usage_count").notNull().default(0), // Track usage for analytics
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Logs do sistema
 export const logs = pgTable("logs", {
   id: serial("id").primaryKey(),
@@ -337,6 +351,13 @@ export const insertIntegracaoSchema = createInsertSchema(integracoes).omit({
 export const insertLogSchema = createInsertSchema(logs).omit({
   id: true,
   timestamp: true,
+});
+
+export const insertCampaignTemplateSchema = createInsertSchema(campaignTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  usageCount: true,
 });
 
 // External API Systems table
@@ -414,6 +435,9 @@ export type InsertIntegracao = z.infer<typeof insertIntegracaoSchema>;
 
 export type Log = typeof logs.$inferSelect;
 export type InsertLog = z.infer<typeof insertLogSchema>;
+
+export type CampaignTemplate = typeof campaignTemplates.$inferSelect;
+export type InsertCampaignTemplate = z.infer<typeof insertCampaignTemplateSchema>;
 
 export type Sistema = typeof sistemas.$inferSelect;
 export type InsertSistema = z.infer<typeof insertSistemaSchema>;

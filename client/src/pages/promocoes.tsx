@@ -51,8 +51,11 @@ import {
   Rocket,
   Heart
 } from 'lucide-react';
+import * as Icons from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Link } from 'wouter';
+import { type CampaignTemplate } from '@shared/schema';
 
 interface Cliente {
   id: number;
@@ -76,136 +79,11 @@ interface Cliente {
   } | null;
 }
 
-// Templates predefinidos de mensagens
-const messageTemplates = {
-  promocao_geral: {
-    title: "Promoção Especial",
-    template: `*PROMOÇÃO ESPECIAL TV ON!*
-
-Olá, {{nome}}! Temos uma oferta imperdível para você!
-
-*APENAS HOJE:*
-• Plano Mensal: de R$ 35,00 por *R$ 29,90*
-• Plano Trimestral: de R$ 90,00 por *R$ 79,90*
-• Plano Semestral: de R$ 160,00 por *R$ 139,90*
-
-Mais de 100.000 conteúdos
-Filmes e Séries atualizados
-Todos os jogos ao vivo
-Canais infantis
-
-*Aproveite! Oferta por tempo limitado!*
-
-Digite *1* para contratar agora!`,
-    category: "promocao",
-    icon: Gift
-  },
-  clientes_vencidos: {
-    title: "Renovação com Desconto",
-    template: `Olá {{nome}}!
-
-Notamos que sua assinatura TV ON está vencida há {{dias_vencido}} dias.
-
-*OFERTA ESPECIAL DE RETORNO:*
-Renove agora e ganhe *20% de desconto* no primeiro mês!
-
-Benefícios:
-• Acesso imediato após pagamento
-• Suporte 24/7
-• Sem taxa de reativação
-
-*Não perca seus programas favoritos!*
-
-Digite *1* para renovar com desconto!`,
-    category: "renovacao",
-    icon: RefreshCw
-  },
-  manutencao: {
-    title: "Manutenção Programada",
-    template: `*AVISO DE MANUTENÇÃO*
-
-Prezado cliente {{nome}},
-
-Informamos que realizaremos uma manutenção em nossos servidores:
-
-Data: {{data_manutencao}}
-Horário: {{horario_inicio}} às {{horario_fim}}
-Duração estimada: {{duracao}} horas
-
-Durante este período, o serviço poderá apresentar instabilidades.
-
-Agradecemos a compreensão!
-
-*TV ON - Sempre melhorando para você*`,
-    category: "aviso",
-    icon: AlertTriangle
-  },
-  boas_vindas: {
-    title: "Boas-vindas",
-    template: `Olá {{nome}}!
-
-*Seja muito bem-vindo(a) à TV ON!*
-
-Sua conta foi ativada com sucesso!
-
-*Como acessar:*
-1. Baixe o app {{aplicativo}}
-2. Use suas credenciais enviadas
-3. Aproveite todo o conteúdo!
-
-*Dicas:*
-• Configure seus favoritos
-• Explore nossas categorias
-• Ative as notificações
-
-Qualquer dúvida, estamos aqui!
-
-*Bom entretenimento!*`,
-    category: "boas_vindas",
-    icon: Heart
-  },
-  cobranca_amigavel: {
-    title: "Lembrete de Pagamento",
-    template: `Olá {{nome}}!
-
-Este é um lembrete amigável:
-
-Sua assinatura TV ON vence em {{dias_para_vencer}} dias ({{data_vencimento}}).
-
-*Formas de pagamento:*
-• PIX (pagamento instantâneo)
-• Cartão de crédito
-• Boleto bancário
-
-*Evite interrupções no seu serviço!*
-
-Digite *1* para gerar seu pagamento
-Digite *2* para falar com atendente`,
-    category: "cobranca",
-    icon: TrendingUp
-  },
-  indique_ganhe: {
-    title: "Indique e Ganhe",
-    template: `*PROGRAMA INDIQUE E GANHE!*
-
-Olá {{nome}}!
-
-Que tal ganhar 1 MÊS GRÁTIS?
-
-É simples:
-1. Indique um amigo
-2. Ele assina qualquer plano
-3. Vocês DOIS ganham 30 dias grátis!
-
-*Seu código de indicação:* {{codigo_indicacao}}
-
-*Sem limite de indicações!*
-Quanto mais amigos, mais meses grátis! 
-
-Compartilhe agora!`,
-    category: "indicacao",
-    icon: Zap
-  }
+// Helper to render icon component
+const IconComponent = ({ name, className }: { name: string; className?: string }) => {
+  const Icon = Icons[name as keyof typeof Icons];
+  if (!Icon) return <Icons.MessageSquare className={className} />;
+  return <Icon className={className} />;
 };
 
 // Função para formatar número de telefone
@@ -263,6 +141,11 @@ export default function Promocoes() {
       if (!response.ok) throw new Error('Erro ao buscar clientes');
       return response.json();
     }
+  });
+
+  // Buscar templates
+  const { data: templates = [], isLoading: isLoadingTemplates } = useQuery<CampaignTemplate[]>({
+    queryKey: ['/api/campaign-templates'],
   });
 
   // Primeiro aplica os filtros para obter a lista base
@@ -510,18 +393,25 @@ export default function Promocoes() {
   };
 
   // Função para aplicar template
-  const applyTemplate = (templateKey: string) => {
-    const template = messageTemplates[templateKey as keyof typeof messageTemplates];
+  const applyTemplate = (templateId: number) => {
+    const template = templates.find(t => t.id === templateId);
     if (template) {
-      setMessage(template.template);
-      setSelectedTemplate(templateKey);
+      setMessage(template.content);
+      setSelectedTemplate(templateId.toString());
       
-      // Auto-selecionar filtro baseado no template
-      if (templateKey === 'clientes_vencidos') {
+      // Auto-selecionar filtro baseado no template key
+      if (template.key === 'clientes_vencidos') {
         setSelectedFilter('vencidos_10_dias');
-      } else if (templateKey === 'boas_vindas') {
+      } else if (template.key === 'boas_vindas') {
         setSelectedFilter('novos');
       }
+      
+      // Track template usage
+      apiRequest(`/api/campaign-templates/${templateId}/usage`, {
+        method: 'POST',
+      }).catch(error => {
+        console.error('Failed to track template usage:', error);
+      });
     }
   };
 
@@ -652,50 +542,73 @@ export default function Promocoes() {
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {Object.entries(messageTemplates).map(([key, template]) => {
-                    const Icon = template.icon;
-                    const isSelected = selectedTemplate === key;
-                    
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => applyTemplate(key)}
-                        data-testid={`template-${key}`}
-                        className={cn(
-                          "relative group overflow-hidden rounded-lg p-4 transition-all duration-200",
-                          isSelected
-                            ? "bg-slate-800 ring-2 ring-blue-500 shadow-lg"
-                            : "bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600"
-                        )}
-                      >
-                        <div className="relative z-10">
-                          <Icon className={cn(
-                            "w-8 h-8 mb-2",
-                            isSelected ? "text-blue-500" : "text-slate-400"
-                          )} />
-                          <div className="text-left">
-                            <div className={cn(
-                              "font-semibold text-sm",
-                              isSelected ? "text-slate-100" : "text-slate-300"
-                            )}>
-                              {template.title}
-                            </div>
-                            <div className={cn(
-                              "text-xs mt-1 capitalize",
-                              isSelected ? "text-slate-400" : "text-slate-500"
-                            )}>
-                              {template.category.replace(/_/g, ' ')}
+                  {isLoadingTemplates ? (
+                    <div className="col-span-full text-center py-8 text-slate-400">
+                      Carregando templates...
+                    </div>
+                  ) : templates.length === 0 ? (
+                    <div className="col-span-full text-center py-8">
+                      <p className="text-slate-400 mb-4">Nenhum template disponível</p>
+                      <Link href="/template-editor">
+                        <Button className="bg-blue-600 hover:bg-blue-700">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Criar Template
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    templates.map((template) => {
+                      const isSelected = selectedTemplate === template.id.toString();
+                      
+                      return (
+                        <button
+                          key={template.id}
+                          onClick={() => applyTemplate(template.id)}
+                          data-testid={`template-${template.key}`}
+                          className={cn(
+                            "relative group overflow-hidden rounded-lg p-4 transition-all duration-200",
+                            isSelected
+                              ? "bg-slate-800 ring-2 ring-blue-500 shadow-lg"
+                              : "bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600"
+                          )}
+                        >
+                          <div className="relative z-10">
+                            <IconComponent 
+                              name={template.icon}
+                              className={cn(
+                                "w-8 h-8 mb-2",
+                                isSelected ? "text-blue-500" : "text-slate-400"
+                              )} 
+                            />
+                            <div className="text-left">
+                              <div className={cn(
+                                "font-semibold text-sm",
+                                isSelected ? "text-slate-100" : "text-slate-300"
+                              )}>
+                                {template.title}
+                              </div>
+                              <div className={cn(
+                                "text-xs mt-1 capitalize",
+                                isSelected ? "text-slate-400" : "text-slate-500"
+                              )}>
+                                {template.category?.replace(/_/g, ' ') || 'geral'}
+                              </div>
+                              {template.usageCount > 0 && (
+                                <div className="text-xs mt-1 text-slate-600">
+                                  Usado {template.usageCount}x
+                                </div>
+                              )}
                             </div>
                           </div>
-                        </div>
-                        {isSelected && (
-                          <div className="absolute top-2 right-2">
-                            <CheckCircle className="w-5 h-5 text-blue-500" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
+                          {isSelected && (
+                            <div className="absolute top-2 right-2">
+                              <CheckCircle className="w-5 h-5 text-blue-500" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>

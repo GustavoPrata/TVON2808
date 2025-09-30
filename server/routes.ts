@@ -22,6 +22,7 @@ import {
   insertBotConfigSchema,
   insertNotificacaoConfigSchema,
   insertIntegracaoSchema,
+  insertCampaignTemplateSchema,
   sistemas,
   pontos,
   testes,
@@ -1314,6 +1315,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating indicacao:", error);
       res.status(500).json({ error: "Erro ao criar indicação" });
+    }
+  });
+
+  // Campaign Templates Routes
+  app.get("/api/campaign-templates", async (req, res) => {
+    try {
+      const templates = await storage.getCampaignTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching campaign templates:", error);
+      res.status(500).json({ error: "Erro ao buscar templates de campanhas" });
+    }
+  });
+
+  app.get("/api/campaign-templates/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const template = await storage.getCampaignTemplateById(id);
+      if (!template) {
+        return res.status(404).json({ error: "Template não encontrado" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching campaign template:", error);
+      res.status(500).json({ error: "Erro ao buscar template" });
+    }
+  });
+
+  app.post("/api/campaign-templates", async (req, res) => {
+    try {
+      const validation = insertCampaignTemplateSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors });
+      }
+      
+      const template = await storage.createCampaignTemplate(validation.data);
+      res.json(template);
+    } catch (error) {
+      console.error("Error creating campaign template:", error);
+      res.status(500).json({ error: "Erro ao criar template" });
+    }
+  });
+
+  app.put("/api/campaign-templates/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validation = insertCampaignTemplateSchema.partial().safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors });
+      }
+      
+      const template = await storage.updateCampaignTemplate(id, validation.data);
+      if (!template) {
+        return res.status(404).json({ error: "Template não encontrado" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating campaign template:", error);
+      res.status(500).json({ error: "Erro ao atualizar template" });
+    }
+  });
+
+  app.delete("/api/campaign-templates/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteCampaignTemplate(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting campaign template:", error);
+      res.status(500).json({ error: "Erro ao deletar template" });
+    }
+  });
+
+  // Track template usage
+  app.post("/api/campaign-templates/:id/usage", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.incrementTemplateUsage(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error tracking template usage:", error);
+      res.status(500).json({ error: "Erro ao registrar uso do template" });
     }
   });
 

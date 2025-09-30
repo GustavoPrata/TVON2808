@@ -31,6 +31,7 @@ import Ajuda from "@/pages/ajuda";
 import Anotacoes from "@/pages/anotacoes";
 import PainelOffice from "@/pages/painel-office";
 import Promocoes from "@/pages/promocoes";
+import TemplateEditor from "@/pages/template-editor";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import { Loader2 } from "lucide-react";
@@ -57,6 +58,7 @@ function Router() {
       <Route path="/anotacoes" component={Anotacoes} />
       <Route path="/painel-office" component={PainelOffice} />
       <Route path="/promocoes" component={Promocoes} />
+      <Route path="/template-editor" component={TemplateEditor} />
       <Route path="/logs" component={Logs} />
       <Route component={NotFound} />
     </Switch>
