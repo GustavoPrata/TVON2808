@@ -1340,6 +1340,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get all testes in a single query
       const allTestes = await storage.getTestes();
+      console.log('🔍 Total de testes encontrados:', allTestes.length);
+      if (allTestes.length > 0) {
+        console.log('📱 Exemplo de teste:', {
+          telefone: allTestes[0].telefone,
+          criadoEm: allTestes[0].criadoEm,
+          status: allTestes[0].status
+        });
+      }
       
       // Create a map of clienteId -> pontos for efficient lookup
       const pontosMap = new Map<number, typeof allPontos>();
@@ -1354,7 +1362,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const testesMap = new Map<string, typeof allTestes[0]>();
       for (const teste of allTestes) {
         // Get the most recent test for each phone number
-        const normalizedPhone = teste.telefone.replace(/\D/g, '');
+        let normalizedPhone = teste.telefone.replace(/\D/g, '');
+        
+        // Remove leading 55 if present and phone is long enough
+        if (normalizedPhone.startsWith('55') && normalizedPhone.length > 11) {
+          normalizedPhone = normalizedPhone.substring(2);
+        }
+        
         if (!testesMap.has(normalizedPhone) || 
             new Date(teste.criadoEm) > new Date(testesMap.get(normalizedPhone)!.criadoEm)) {
           testesMap.set(normalizedPhone, teste);
@@ -1370,7 +1384,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }, 0);
         
         // Find teste for this client's phone
-        const normalizedClientPhone = cliente.telefone.replace(/\D/g, '');
+        let normalizedClientPhone = cliente.telefone.replace(/\D/g, '');
+        
+        // Remove leading 55 if present and phone is long enough  
+        if (normalizedClientPhone.startsWith('55') && normalizedClientPhone.length > 11) {
+          normalizedClientPhone = normalizedClientPhone.substring(2);
+        }
+        
         const teste = testesMap.get(normalizedClientPhone);
         
         return {
@@ -1381,6 +1401,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
+      // Debug: verificar alguns clientes com teste
+      const clientesComTeste = clientesComValor.filter(c => c.teste || c.ultimo_teste_gratis);
+      if (clientesComTeste.length > 0) {
+        console.log('📊 Clientes com teste encontrados:', clientesComTeste.length);
+        console.log('🔍 Exemplo:', {
+          nome: clientesComTeste[0].nome,
+          telefone: clientesComTeste[0].telefone,
+          teste: clientesComTeste[0].teste ? 'SIM' : 'NÃO',
+          ultimo_teste_gratis: clientesComTeste[0].ultimo_teste_gratis || 'NULO'
+        });
+      }
+      
       res.json(clientesComValor);
     } catch (error) {
       console.error("Erro ao buscar clientes:", error);

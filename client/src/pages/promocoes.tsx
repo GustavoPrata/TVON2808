@@ -237,7 +237,20 @@ export default function Promocoes() {
     queryFn: async () => {
       const response = await fetch('/api/clientes');
       if (!response.ok) throw new Error('Erro ao buscar clientes');
-      return response.json();
+      const data = await response.json();
+      console.log('📱 Clientes recebidos:', data.length, 'clientes');
+      if (data.length > 0) {
+        const clientesComTeste = data.filter((c: any) => c.teste || c.ultimo_teste_gratis);
+        console.log('🧪 Clientes com teste:', clientesComTeste.length);
+        if (clientesComTeste.length > 0) {
+          console.log('Exemplo de cliente com teste:', {
+            nome: clientesComTeste[0].nome,
+            ultimo_teste_gratis: clientesComTeste[0].ultimo_teste_gratis,
+            teste: clientesComTeste[0].teste
+          });
+        }
+      }
+      return data;
     }
   });
 
@@ -287,11 +300,20 @@ export default function Promocoes() {
       case 'testes':
         // Clientes que fizeram teste há mais de 1 dia mas não assinaram
         filtered = filtered.filter((c: Cliente) => {
-          // Verificar se existe teste associado ao telefone
-          // E se o cliente não tem vencimento ou está vencido (não assinou)
-          return c.teste && c.teste.criadoEm && 
-                 new Date(c.teste.criadoEm) < new Date(Date.now() - 24 * 60 * 60 * 1000) && // Teste há mais de 1 dia
-                 (!c.vencimento || new Date(c.vencimento) < new Date()); // Sem assinatura ou vencido
+          // Usar ultimo_teste_gratis como fonte primária ou teste.criadoEm como fallback
+          const testeDate = c.teste?.criadoEm 
+            ? new Date(c.teste.criadoEm) 
+            : (c.ultimo_teste_gratis ? new Date(c.ultimo_teste_gratis) : null);
+          
+          if (!testeDate) return false;
+          
+          // Verificar se o teste foi há mais de 24 horas
+          const overADay = testeDate.getTime() < Date.now() - 24 * 60 * 60 * 1000;
+          
+          // Verificar se não tem assinatura ativa
+          const noActiveSub = !c.vencimento || new Date(c.vencimento) < new Date();
+          
+          return overADay && noActiveSub;
         });
         break;
       case 'sem_pontos':
