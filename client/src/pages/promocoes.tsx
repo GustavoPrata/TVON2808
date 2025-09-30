@@ -451,43 +451,38 @@ export default function Promocoes() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/10 to-slate-900">
+    <div className="min-h-screen bg-slate-950">
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-pink-600 to-orange-600 rounded-2xl p-8 shadow-2xl">
-          <div className="absolute inset-0 bg-black/20" />
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
-          <div className="relative z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
-                    <Megaphone className="w-8 h-8 text-white" />
-                  </div>
-                  <h1 className="text-4xl font-bold text-white">
-                    Central de Promoções
-                  </h1>
+        <div className="bg-slate-950 rounded-lg border border-slate-800 p-8 shadow-lg" data-testid="header-promocoes">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+                  <Megaphone className="w-8 h-8 text-blue-500" data-testid="icon-megaphone" />
                 </div>
-                <p className="text-white/90 text-lg mt-2">
-                  Envie mensagens promocionais em massa via WhatsApp com personalização inteligente
-                </p>
+                <h1 className="text-3xl font-bold text-slate-100">
+                  Central de Promoções
+                </h1>
               </div>
-              
-              <div className="flex flex-col gap-3">
-                <div className="bg-white/20 backdrop-blur-sm rounded-xl px-5 py-3 border border-white/30">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-white" />
-                    <span className="text-white font-semibold text-2xl">{filteredClients.length}</span>
-                    <span className="text-white/80">clientes</span>
-                  </div>
+              <p className="text-slate-400 text-base mt-2">
+                Envie mensagens promocionais em massa via WhatsApp
+              </p>
+            </div>
+            
+            <div className="flex flex-col gap-3">
+              <div className="bg-slate-900 rounded-lg px-5 py-3 border border-slate-800">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-slate-400" />
+                  <span className="text-slate-100 font-semibold text-xl">{filteredClients.length}</span>
+                  <span className="text-slate-400">clientes</span>
                 </div>
-                <div className="bg-white/20 backdrop-blur-sm rounded-xl px-5 py-3 border border-white/30">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-300" />
-                    <span className="text-white font-semibold text-2xl">{selectedClients.length}</span>
-                    <span className="text-white/80">selecionados</span>
-                  </div>
+              </div>
+              <div className="bg-slate-900 rounded-lg px-5 py-3 border border-slate-800">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-5 h-5 text-blue-500" />
+                  <span className="text-slate-100 font-semibold text-xl">{selectedClients.length}</span>
+                  <span className="text-slate-400">selecionados</span>
                 </div>
               </div>
             </div>
@@ -499,17 +494,17 @@ export default function Promocoes() {
           {/* Coluna Esquerda - Editor de Mensagem */}
           <div className="lg:col-span-2 space-y-6">
             {/* Templates */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 p-6 border-b border-white/10">
+            <div className="bg-slate-900 rounded-lg border border-slate-800 shadow-lg overflow-hidden">
+              <div className="bg-slate-950 p-6 border-b border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
-                    <Sparkles className="w-6 h-6 text-white" />
+                  <div className="p-2 bg-slate-900 rounded-lg border border-slate-800">
+                    <Sparkles className="w-6 h-6 text-blue-500" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white">
+                    <h2 className="text-xl font-bold text-slate-100">
                       Templates de Campanhas
                     </h2>
-                    <p className="text-white/70 text-sm mt-1">
+                    <p className="text-slate-400 text-sm mt-1">
                       Escolha um template pronto ou crie sua própria mensagem
                     </p>
                   </div>
@@ -525,28 +520,29 @@ export default function Promocoes() {
                       <button
                         key={key}
                         onClick={() => applyTemplate(key)}
+                        data-testid={`template-${key}`}
                         className={cn(
-                          "relative group overflow-hidden rounded-xl p-4 transition-all duration-300",
+                          "relative group overflow-hidden rounded-lg p-4 transition-all duration-200",
                           isSelected
-                            ? "bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg scale-[1.02]"
-                            : "bg-white/10 hover:bg-white/20 border border-white/20 hover:border-purple-400"
+                            ? "bg-slate-800 ring-2 ring-blue-500 shadow-lg"
+                            : "bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600"
                         )}
                       >
                         <div className="relative z-10">
                           <Icon className={cn(
                             "w-8 h-8 mb-2",
-                            isSelected ? "text-white" : "text-purple-400"
+                            isSelected ? "text-blue-500" : "text-slate-400"
                           )} />
                           <div className="text-left">
                             <div className={cn(
                               "font-semibold text-sm",
-                              isSelected ? "text-white" : "text-white/90"
+                              isSelected ? "text-slate-100" : "text-slate-300"
                             )}>
                               {template.title}
                             </div>
                             <div className={cn(
                               "text-xs mt-1 capitalize",
-                              isSelected ? "text-white/80" : "text-white/60"
+                              isSelected ? "text-slate-400" : "text-slate-500"
                             )}>
                               {template.category.replace(/_/g, ' ')}
                             </div>
@@ -554,7 +550,7 @@ export default function Promocoes() {
                         </div>
                         {isSelected && (
                           <div className="absolute top-2 right-2">
-                            <CheckCircle className="w-5 h-5 text-white" />
+                            <CheckCircle className="w-5 h-5 text-blue-500" />
                           </div>
                         )}
                       </button>
@@ -565,17 +561,17 @@ export default function Promocoes() {
             </div>
 
             {/* Editor de Mensagem */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 p-6 border-b border-white/10">
+            <div className="bg-slate-900 rounded-lg border border-slate-800 shadow-lg overflow-hidden">
+              <div className="bg-slate-950 p-6 border-b border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
-                    <Edit className="w-6 h-6 text-white" />
+                  <div className="p-2 bg-slate-900 rounded-lg border border-slate-800">
+                    <Edit className="w-6 h-6 text-blue-500" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white">
+                    <h2 className="text-xl font-bold text-slate-100">
                       Composição da Mensagem
                     </h2>
-                    <p className="text-white/70 text-sm mt-1">
+                    <p className="text-slate-400 text-sm mt-1">
                       Personalize com variáveis dinâmicas para cada cliente
                     </p>
                   </div>
@@ -587,10 +583,11 @@ export default function Promocoes() {
                     placeholder="Digite sua mensagem personalizada aqui..."
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    className="min-h-[280px] bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-purple-400/20 font-mono text-sm"
+                    data-testid="textarea-message"
+                    className="min-h-[280px] bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/20 font-mono text-sm"
                   />
-                  <div className="mt-4 p-4 bg-gradient-to-r from-purple-600/10 to-blue-600/10 rounded-xl border border-purple-500/20">
-                    <p className="text-xs font-semibold text-purple-300 mb-3 flex items-center gap-2">
+                  <div className="mt-4 p-4 bg-slate-950 rounded-lg border border-slate-800">
+                    <p className="text-xs font-semibold text-slate-300 mb-3 flex items-center gap-2">
                       <Zap className="w-4 h-4" />
                       VARIÁVEIS DINÂMICAS
                     </p>
@@ -599,9 +596,10 @@ export default function Promocoes() {
                         <button
                           key={variable}
                           onClick={() => setMessage(prev => prev + ' ' + variable)}
-                          className="px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 border border-purple-400/30 rounded-lg transition-all group"
+                          data-testid={`variable-${variable.replace(/[{}]/g, '')}`}
+                          className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 rounded-lg transition-all group"
                         >
-                          <span className="text-xs font-mono text-purple-300 group-hover:text-purple-200">
+                          <span className="text-xs font-mono text-slate-400 group-hover:text-blue-500">
                             {variable}
                           </span>
                         </button>
@@ -612,43 +610,47 @@ export default function Promocoes() {
 
                 {/* Variáveis Customizadas */}
                 {(selectedTemplate === 'manutencao') && (
-                  <div className="p-4 bg-gradient-to-r from-orange-600/10 to-yellow-600/10 rounded-xl border border-orange-500/20">
-                    <h4 className="text-sm font-semibold text-orange-300 mb-4">CONFIGURAR VARIÁVEIS</h4>
+                  <div className="p-4 bg-slate-950 rounded-lg border border-slate-800">
+                    <h4 className="text-sm font-semibold text-slate-300 mb-4">CONFIGURAR VARIÁVEIS</h4>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <Label className="text-xs text-orange-200">Data Manutenção</Label>
+                        <Label className="text-xs text-slate-400">Data Manutenção</Label>
                         <Input
                           type="date"
                           value={messageVariables.data_manutencao}
                           onChange={(e) => setMessageVariables(prev => ({ ...prev, data_manutencao: e.target.value }))}
-                          className="h-9 bg-white/10 border-white/20 text-white"
+                          data-testid="input-data-manutencao"
+                          className="h-9 bg-slate-950 border-slate-700 text-slate-100 focus:border-blue-500"
                         />
                       </div>
                       <div>
-                        <Label className="text-xs text-orange-200">Horário Início</Label>
+                        <Label className="text-xs text-slate-400">Horário Início</Label>
                         <Input
                           type="time"
                           value={messageVariables.horario_inicio}
                           onChange={(e) => setMessageVariables(prev => ({ ...prev, horario_inicio: e.target.value }))}
-                          className="h-9 bg-white/10 border-white/20 text-white"
+                          data-testid="input-horario-inicio"
+                          className="h-9 bg-slate-950 border-slate-700 text-slate-100 focus:border-blue-500"
                         />
                       </div>
                       <div>
-                        <Label className="text-xs text-orange-200">Horário Fim</Label>
+                        <Label className="text-xs text-slate-400">Horário Fim</Label>
                         <Input
                           type="time"
                           value={messageVariables.horario_fim}
                           onChange={(e) => setMessageVariables(prev => ({ ...prev, horario_fim: e.target.value }))}
-                          className="h-9 bg-white/10 border-white/20 text-white"
+                          data-testid="input-horario-fim"
+                          className="h-9 bg-slate-950 border-slate-700 text-slate-100 focus:border-blue-500"
                         />
                       </div>
                       <div>
-                        <Label className="text-xs text-orange-200">Duração (horas)</Label>
+                        <Label className="text-xs text-slate-400">Duração (horas)</Label>
                         <Input
                           type="number"
                           value={messageVariables.duracao}
                           onChange={(e) => setMessageVariables(prev => ({ ...prev, duracao: e.target.value }))}
-                          className="h-9 bg-white/10 border-white/20 text-white"
+                          data-testid="input-duracao"
+                          className="h-9 bg-slate-950 border-slate-700 text-slate-100 focus:border-blue-500"
                         />
                       </div>
                     </div>
@@ -656,15 +658,15 @@ export default function Promocoes() {
                 )}
 
                 {/* Preview */}
-                <div className="mt-6 p-4 bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-xl border border-green-500/20">
+                <div className="mt-6 p-4 bg-slate-950 rounded-lg border border-slate-800">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-green-400 flex items-center gap-2">
+                    <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
                       <Eye className="w-4 h-4" />
                       PREVIEW DA MENSAGEM
                     </h4>
                   </div>
-                  <div className="bg-black/30 backdrop-blur-sm p-4 rounded-lg border border-green-500/20">
-                    <pre className="whitespace-pre-wrap text-sm font-sans text-green-100">
+                  <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
+                    <pre className="whitespace-pre-wrap text-sm font-sans text-slate-100">
                       {processMessageVariables(message)}
                     </pre>
                   </div>
@@ -673,63 +675,59 @@ export default function Promocoes() {
             </div>
 
             {/* Ações */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl p-6 shadow-xl">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-90" />
-              <div className="absolute -top-5 -right-5 w-20 h-20 bg-white/10 rounded-full blur-2xl" />
-              <div className="absolute -bottom-5 -left-5 w-20 h-20 bg-white/10 rounded-full blur-2xl" />
-              <div className="relative z-10">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-xl text-white flex items-center gap-2">
-                      <Rocket className="w-6 h-6" />
-                      Pronto para Disparar?
-                    </h3>
-                    <p className="text-white/90 mt-2">
-                      {selectedClients.length > 0 
-                        ? `🎯 ${selectedClients.length} cliente(s) selecionado(s)` 
-                        : `📊 ${filteredClients.length} cliente(s) no filtro atual`}
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleSendMessages}
-                    disabled={sendMessagesMutation.isPending}
-                    className="group relative px-8 py-4 bg-white/20 backdrop-blur-sm rounded-xl font-bold text-white border border-white/30 hover:bg-white/30 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-                  >
-                    <span className="flex items-center gap-3">
-                      <Send className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                      {sendMessagesMutation.isPending ? 'Enviando...' : 'Enviar Mensagens'}
-                    </span>
-                  </button>
+            <div className="bg-slate-900 rounded-lg border border-slate-800 p-6 shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-xl text-slate-100 flex items-center gap-2">
+                    <Rocket className="w-6 h-6 text-blue-500" />
+                    Pronto para Disparar?
+                  </h3>
+                  <p className="text-slate-400 mt-2">
+                    {selectedClients.length > 0 
+                      ? `${selectedClients.length} cliente(s) selecionado(s)` 
+                      : `${filteredClients.length} cliente(s) no filtro atual`}
+                  </p>
                 </div>
-                
-                {sendingProgress.status === 'sending' && (
-                  <div className="mt-6">
-                    <div className="flex items-center justify-between text-sm mb-2 text-white">
-                      <span className="font-semibold">Progresso do Envio</span>
-                      <span className="font-bold">{sendingProgress.current}/{sendingProgress.total}</span>
-                    </div>
-                    <div className="w-full bg-white/20 backdrop-blur-sm rounded-full h-3 overflow-hidden">
-                      <div
-                        className="bg-gradient-to-r from-green-400 to-emerald-400 h-full rounded-full transition-all duration-500 shadow-lg"
-                        style={{ width: `${(sendingProgress.current / sendingProgress.total) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
+                <button
+                  onClick={handleSendMessages}
+                  disabled={sendMessagesMutation.isPending}
+                  data-testid="button-send-messages"
+                  className="px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="flex items-center gap-2">
+                    <Send className="w-5 h-5" />
+                    {sendMessagesMutation.isPending ? 'Enviando...' : 'Enviar Mensagens'}
+                  </span>
+                </button>
               </div>
+              
+              {sendingProgress.status === 'sending' && (
+                <div className="mt-6">
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="font-semibold text-slate-300">Progresso do Envio</span>
+                    <span className="font-bold text-slate-100">{sendingProgress.current}/{sendingProgress.total}</span>
+                  </div>
+                  <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+                    <div
+                      className="bg-blue-600 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${(sendingProgress.current / sendingProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Coluna Direita - Seleção de Clientes */}
           <div className="space-y-6">
             {/* Filtros */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 p-6 border-b border-white/10">
+            <div className="bg-slate-900 rounded-lg border border-slate-800 shadow-lg overflow-hidden">
+              <div className="bg-slate-950 p-6 border-b border-slate-800">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg">
-                    <Target className="w-6 h-6 text-white" />
+                  <div className="p-2 bg-slate-900 rounded-lg border border-slate-800">
+                    <Target className="w-6 h-6 text-blue-500" />
                   </div>
-                  <h2 className="text-xl font-bold text-white">
+                  <h2 className="text-xl font-bold text-slate-100">
                     Seleção de Público
                   </h2>
                 </div>
@@ -750,20 +748,21 @@ export default function Promocoes() {
                       <button
                         key={filter.value}
                         onClick={() => setSelectedFilter(filter.value)}
+                        data-testid={`filter-${filter.value}`}
                         className={cn(
-                          "relative group overflow-hidden rounded-xl p-4 transition-all duration-300",
+                          "relative group overflow-hidden rounded-lg p-4 transition-all duration-200",
                           isSelected
-                            ? `bg-gradient-to-br ${filter.color} shadow-lg scale-[1.02]`
-                            : "bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30"
+                            ? "bg-slate-800 ring-2 ring-blue-500 shadow-lg"
+                            : "bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600"
                         )}
                       >
                         <Icon className={cn(
                           "w-6 h-6 mb-2",
-                          isSelected ? "text-white" : "text-white/70"
+                          isSelected ? "text-blue-500" : "text-slate-400"
                         )} />
                         <p className={cn(
                           "text-sm font-semibold",
-                          isSelected ? "text-white" : "text-white/80"
+                          isSelected ? "text-slate-100" : "text-slate-300"
                         )}>
                           {filter.label}
                         </p>
@@ -779,7 +778,8 @@ export default function Promocoes() {
                       placeholder="Buscar por nome, telefone ou CPF..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-green-400 focus:ring-green-400/20"
+                      data-testid="input-search"
+                      className="pl-10 bg-slate-950 border-slate-700 text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/20"
                     />
                   </div>
                 </div>
@@ -787,18 +787,20 @@ export default function Promocoes() {
                 <div className="flex gap-2">
                   <button
                     onClick={selectAllFiltered}
-                    className="flex-1 px-4 py-2 bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 border border-green-400/30 rounded-lg transition-all group"
+                    data-testid="button-select-all"
+                    className="flex-1 px-4 py-2 bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 rounded-lg transition-all group"
                   >
-                    <span className="flex items-center justify-center gap-2 text-sm font-semibold text-green-300 group-hover:text-green-200">
+                    <span className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-300 group-hover:text-blue-500">
                       <UserPlus className="w-4 h-4" />
                       Selecionar Todos
                     </span>
                   </button>
                   <button
                     onClick={deselectAll}
-                    className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500/20 to-orange-500/20 hover:from-red-500/30 hover:to-orange-500/30 border border-red-400/30 rounded-lg transition-all group"
+                    data-testid="button-deselect-all"
+                    className="flex-1 px-4 py-2 bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-slate-600 rounded-lg transition-all group"
                   >
-                    <span className="flex items-center justify-center gap-2 text-sm font-semibold text-red-300 group-hover:text-red-200">
+                    <span className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-300 group-hover:text-slate-100">
                       <UserMinus className="w-4 h-4" />
                       Limpar Seleção
                     </span>
@@ -808,14 +810,14 @@ export default function Promocoes() {
             </div>
 
             {/* Lista de Clientes */}
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-xl overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 p-6 border-b border-white/10">
+            <div className="bg-slate-900 rounded-lg border border-slate-800 shadow-lg overflow-hidden">
+              <div className="bg-slate-950 p-6 border-b border-slate-800">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
-                      <Users className="w-6 h-6 text-white" />
+                    <div className="p-2 bg-slate-900 rounded-lg border border-slate-800">
+                      <Users className="w-6 h-6 text-blue-500" />
                     </div>
-                    <h2 className="text-xl font-bold text-white">
+                    <h2 className="text-xl font-bold text-slate-100">
                       Clientes ({filteredClients.length})
                     </h2>
                   </div>
@@ -825,14 +827,14 @@ export default function Promocoes() {
                 <div className="p-4 space-y-2">
                   {isLoading ? (
                     <div className="text-center py-12">
-                      <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-purple-400" />
-                      <p className="text-white/60">Carregando clientes...</p>
+                      <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-500" />
+                      <p className="text-slate-400">Carregando clientes...</p>
                     </div>
                   ) : filteredClients.length === 0 ? (
                     <div className="text-center py-12">
-                      <UserX className="w-16 h-16 text-white/20 mx-auto mb-3" />
-                      <p className="text-white/60">Nenhum cliente encontrado</p>
-                      <p className="text-white/40 text-sm mt-1">Ajuste os filtros para ver mais resultados</p>
+                      <UserX className="w-16 h-16 text-slate-700 mx-auto mb-3" />
+                      <p className="text-slate-400">Nenhum cliente encontrado</p>
+                      <p className="text-slate-500 text-sm mt-1">Ajuste os filtros para ver mais resultados</p>
                     </div>
                   ) : (
                     filteredClients.map((cliente: Cliente) => {
@@ -843,45 +845,46 @@ export default function Promocoes() {
                         <div
                           key={cliente.id}
                           onClick={() => toggleClientSelection(cliente.id)}
+                          data-testid={`client-card-${cliente.id}`}
                           className={cn(
-                            "relative p-4 rounded-xl cursor-pointer transition-all duration-200 border",
+                            "relative p-4 rounded-lg cursor-pointer transition-all duration-200 border",
                             isSelected
-                              ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-400/50 shadow-md"
-                              : "bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20"
+                              ? "bg-slate-800 border-blue-500 ring-1 ring-blue-500 shadow-md"
+                              : "bg-slate-950 hover:bg-slate-800 border-slate-700 hover:border-slate-600"
                           )}
                         >
                           <div className="flex items-start gap-3">
                             <div className={cn(
                               "mt-0.5 w-5 h-5 rounded border-2 transition-all flex items-center justify-center",
                               isSelected
-                                ? "bg-gradient-to-r from-purple-500 to-pink-500 border-transparent"
-                                : "border-white/30 hover:border-white/50"
+                                ? "bg-blue-600 border-blue-600"
+                                : "border-slate-600 hover:border-slate-500"
                             )}>
                               {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="font-semibold text-white">
+                                <span className="font-semibold text-slate-100">
                                   {cliente.nome || 'Cliente'}
                                 </span>
                                 {cliente.status === 'ativo' && !isExpired && (
-                                  <span className="px-2 py-0.5 bg-green-500/20 text-green-300 text-xs font-semibold rounded-full border border-green-400/30">
+                                  <span className="px-2 py-0.5 bg-slate-800 text-blue-400 text-xs font-semibold rounded border border-slate-700">
                                     ATIVO
                                   </span>
                                 )}
                                 {isExpired && (
-                                  <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs font-semibold rounded-full border border-red-400/30">
+                                  <span className="px-2 py-0.5 bg-slate-800 text-slate-400 text-xs font-semibold rounded border border-slate-700">
                                     VENCIDO
                                   </span>
                                 )}
                               </div>
                               <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-white/60 text-sm">
+                                <div className="flex items-center gap-2 text-slate-400 text-sm">
                                   <Phone className="w-3.5 h-3.5" />
                                   <span>{cliente.telefone}</span>
                                 </div>
                                 {cliente.vencimento && (
-                                  <div className="flex items-center gap-2 text-white/60 text-sm">
+                                  <div className="flex items-center gap-2 text-slate-400 text-sm">
                                     <Calendar className="w-3.5 h-3.5" />
                                     <span>
                                       {format(new Date(cliente.vencimento), 'dd/MM/yyyy', { locale: ptBR })}
