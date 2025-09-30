@@ -38,6 +38,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
     - **System Management**: Manages individual service points ("pontos") and overall system data from a local database.
     - **Recurring Expiration Notifications**: Configurable system for notifying expired clients.
     - **Applications Management (APPs)**: Interface for viewing registered applications with filtering capabilities.
+    - **Editable Campaign Templates**: Complete system for managing promotional message templates with full CRUD operations, icon selection from lucide-react library, live WhatsApp preview with iPhone-style interface, variable substitution system, and usage analytics tracking. Accessible via /template-editor route.
     - **Referral System ("Indique e Ganhe")**: Clients earn free months via phone number-based referral codes with automatic validation and WhatsApp notifications.
     - **Ticket Management System**: Automatically pins conversations with open tickets, visual indicators, and mode switching (human/bot).
     - **Bot Test Feature**: Allows sending test messages as if from the client to evaluate bot responses, accessible above PIX billing in chat sidebar.
