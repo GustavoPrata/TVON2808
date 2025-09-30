@@ -664,18 +664,63 @@ export default function Promocoes() {
                   </div>
                 )}
 
-                {/* Preview */}
-                <div className="mt-6 p-4 bg-slate-950 rounded-lg border border-slate-800">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                      <Eye className="w-4 h-4" />
-                      PREVIEW DA MENSAGEM
-                    </h4>
-                  </div>
-                  <div className="bg-slate-900 p-4 rounded-lg border border-slate-700">
-                    <pre className="whitespace-pre-wrap text-sm font-sans text-slate-100">
-                      {processMessageVariables(message)}
-                    </pre>
+                {/* Preview WhatsApp Mobile */}
+                <div className="mt-6">
+                  <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
+                    <Phone className="w-4 h-4" />
+                    PREVIEW WHATSAPP
+                  </h4>
+                  <div className="mx-auto max-w-[360px]">
+                    {/* Mockup do celular */}
+                    <div className="bg-slate-800 rounded-[2.5rem] p-2 shadow-2xl">
+                      <div className="bg-slate-900 rounded-[2rem] p-1">
+                        {/* Tela do celular */}
+                        <div className="bg-[#0b141a] rounded-[1.75rem] overflow-hidden">
+                          {/* Header do WhatsApp */}
+                          <div className="bg-[#202c33] px-4 py-3 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-600" />
+                            <div className="flex-1">
+                              <p className="text-white text-sm font-medium">TV ON</p>
+                              <p className="text-[#8696a0] text-xs">online</p>
+                            </div>
+                            <div className="flex gap-4">
+                              <Phone className="w-5 h-5 text-[#8696a0]" />
+                              <Search className="w-5 h-5 text-[#8696a0]" />
+                            </div>
+                          </div>
+                          
+                          {/* Área de mensagens */}
+                          <div className="h-[400px] overflow-y-auto bg-[#0b141a] p-4" style={{
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23182229' fill-opacity='0.4'%3E%3Cpath d='M0 0h20v20H0z M20 20h20v20H20z'/%3E%3C/g%3E%3C/svg%3E")`,
+                            backgroundSize: '40px 40px'
+                          }}>
+                            {/* Mensagem do sistema */}
+                            <div className="flex justify-start mb-2">
+                              <div className="max-w-[85%]">
+                                <div className="bg-[#202c33] rounded-lg rounded-tl-none p-3 shadow-sm">
+                                  <pre className="whitespace-pre-wrap text-[13px] text-white font-sans leading-relaxed">
+                                    {processMessageVariables(message) || 'Digite sua mensagem...'}
+                                  </pre>
+                                  <div className="flex items-center justify-end gap-1 mt-1">
+                                    <span className="text-[10px] text-[#8696a0]">agora</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Input área (decorativa) */}
+                          <div className="bg-[#202c33] px-4 py-2 flex items-center gap-3">
+                            <div className="flex-1 bg-[#2a3942] rounded-full px-4 py-2">
+                              <p className="text-[#8696a0] text-sm">Mensagem</p>
+                            </div>
+                            <div className="w-10 h-10 bg-[#00a884] rounded-full flex items-center justify-center">
+                              <Send className="w-5 h-5 text-white" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
