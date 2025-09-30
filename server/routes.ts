@@ -3540,6 +3540,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to normalize phone number for comparison
+  function normalizePhoneForComparison(phone: string | null | undefined): string {
+    if (!phone) return '';
+    // Remove all non-digit characters
+    let normalized = phone.replace(/\D/g, '');
+    // Remove leading 55 (Brazil code) if the number has more than 11 digits
+    if (normalized.startsWith('55') && normalized.length > 11) {
+      normalized = normalized.substring(2);
+    }
+    return normalized;
+  }
+
+  // Get all clients and tests for promotions
+  app.get("/api/promocoes/clientes", async (req, res) => {
+    try {
+      console.log('📋 Fetching clients and tests for promotions...');
+      
+      // Fetch all clients
+      const allClientes = await storage.getClientes();
+      console.log(`Found ${allClientes.length} clients`);
+      
+      // Fetch all tests  
+      const allTestes = await storage.getTestes();
+      console.log(`Found ${allTestes.length} tests`);
+      
+      // Get current date for comparison
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      // Create a map to track processed phone numbers
+      const processedPhones = new Set<string>();
+      const results: any[] = [];
+      
+      // Process clients first
+      for (const cliente of allClientes) {
+        const normalizedPhone = normalizePhoneForComparison(cliente.telefone);
+        if (!normalizedPhone) continue;
+        
+        processedPhones.add(normalizedPhone);
+        
+        // Check if client is active (vencimento > today)
+        const isActive = cliente.vencimento && new Date(cliente.vencimento) > today;
+        
+        // Get pontos for this client
+        const pontos = await storage.getPontosByClienteId(cliente.id);
+        
+        results.push({
+          id: cliente.id,
+          telefone: cliente.telefone,
+          nome: cliente.nome,
+          status: cliente.status,
+          vencimento: cliente.vencimento,
+          tipoPromocao: isActive ? 'cliente' : 'cliente_teste',
+          cpf_cnpj: null, // Not available in cliente table
+          pontos: pontos.length,
+          teste: false // This is a client, not a test-only user
+        });
+      }
+      
+      // Process tests - only add if not already in clients
+      for (const teste of allTestes) {
+        const normalizedPhone = normalizePhoneForComparison(teste.telefone);
+        if (!normalizedPhone) continue;
+        
+        // Check if this phone is already in clients
+        if (!processedPhones.has(normalizedPhone)) {
+          processedPhones.add(normalizedPhone);
+          
+          results.push({
+            id: teste.id,
+            telefone: teste.telefone,
+            nome: formatPhoneNumber(teste.telefone), // Tests don't have a nome field, use formatted phone
+            status: teste.status,
+            vencimento: teste.expiraEm, // Use expiraEm instead of vencimento for tests
+            tipoPromocao: 'cliente_teste', // Test users are always cliente_teste
+            cpf_cnpj: null, // Tests don't have cpf_cnpj
+            pontos: 0, // Tests don't have pontos
+            teste: true // This is a test-only user
+          });
+        } else {
+          console.log(`Test phone ${teste.telefone} already exists in clients, skipping`);
+        }
+      }
+      
+      // Sort results by name
+      results.sort((a, b) => {
+        const nameA = a.nome || '';
+        const nameB = b.nome || '';
+        return nameA.localeCompare(nameB);
+      });
+      
+      console.log(`Returning ${results.length} total records (${results.filter(r => r.tipoPromocao === 'cliente').length} active clients, ${results.filter(r => r.tipoPromocao === 'cliente_teste').length} test/expired)`);
+      
+      // Log specific test phones to verify
+      const testPhones = ['3599583024', '24999441920', '13132516564'];
+      for (const phone of testPhones) {
+        const found = results.find(r => normalizePhoneForComparison(r.telefone) === normalizePhoneForComparison(phone));
+        if (found) {
+          console.log(`✅ Found test phone ${phone}: ${found.nome} (${found.tipoPromocao})`);
+        } else {
+          console.log(`❌ Test phone ${phone} not found in results`);
+        }
+      }
+      
+      res.json(results);
+    } catch (error) {
+      console.error('Error fetching promocoes/clientes:', error);
+      res.status(500).json({ error: 'Failed to fetch promotion clients' });
+    }
+  });
+
   // Test menu message endpoint
   app.post("/api/whatsapp/test-menu", async (req, res) => {
     try {
