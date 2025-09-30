@@ -376,6 +376,83 @@ export default function Promocoes() {
     return processed;
   };
 
+  // Função para formatar texto com estilos do WhatsApp
+  const formatWhatsAppText = (text: string) => {
+    if (!text) return <span>Digite sua mensagem...</span>;
+    
+    // Divide o texto em linhas para processar cada uma
+    const lines = text.split('\n');
+    
+    return lines.map((line, lineIndex) => {
+      // Array para armazenar os elementos formatados
+      const parts: React.ReactNode[] = [];
+      let currentIndex = 0;
+      
+      // Regex para encontrar formatações do WhatsApp (negrito, itálico, tachado, mono)
+      const formatRegex = /(\*[^*\n]+\*)|(_[^_\n]+_)|(~[^~\n]+~)|(`[^`\n]+`)/g;
+      let match;
+      
+      while ((match = formatRegex.exec(line)) !== null) {
+        // Adiciona texto antes da formatação
+        if (match.index > currentIndex) {
+          parts.push(line.substring(currentIndex, match.index));
+        }
+        
+        const matchedText = match[0];
+        const innerText = matchedText.substring(1, matchedText.length - 1);
+        
+        // Aplica o estilo baseado no tipo de formatação
+        if (matchedText.startsWith('*') && matchedText.endsWith('*')) {
+          // Negrito
+          parts.push(
+            <span key={`bold-${lineIndex}-${match.index}`} className="font-bold">
+              {innerText}
+            </span>
+          );
+        } else if (matchedText.startsWith('_') && matchedText.endsWith('_')) {
+          // Itálico
+          parts.push(
+            <span key={`italic-${lineIndex}-${match.index}`} className="italic">
+              {innerText}
+            </span>
+          );
+        } else if (matchedText.startsWith('~') && matchedText.endsWith('~')) {
+          // Tachado
+          parts.push(
+            <span key={`strike-${lineIndex}-${match.index}`} className="line-through">
+              {innerText}
+            </span>
+          );
+        } else if (matchedText.startsWith('`') && matchedText.endsWith('`')) {
+          // Monoespaçado
+          parts.push(
+            <span key={`mono-${lineIndex}-${match.index}`} className="font-mono bg-[#0b1317] px-1 rounded text-xs">
+              {innerText}
+            </span>
+          );
+        }
+        
+        currentIndex = match.index + matchedText.length;
+      }
+      
+      // Adiciona o texto restante da linha
+      if (currentIndex < line.length) {
+        parts.push(line.substring(currentIndex));
+      }
+      
+      // Se a linha está vazia, adiciona um espaço para manter a altura
+      if (parts.length === 0 && line.length === 0) {
+        return <div key={`line-${lineIndex}`}>&nbsp;</div>;
+      }
+      
+      return (
+        <div key={`line-${lineIndex}`}>
+          {parts.length > 0 ? parts : line}
+        </div>
+      );
+    });
+  };
+
   // Função para aplicar template
   const applyTemplate = (templateKey: string) => {
     const template = messageTemplates[templateKey as keyof typeof messageTemplates];
@@ -698,9 +775,9 @@ export default function Promocoes() {
                             <div className="flex justify-start mb-2">
                               <div className="max-w-[85%]">
                                 <div className="bg-[#202c33] rounded-lg rounded-tl-none p-3 shadow-sm">
-                                  <pre className="whitespace-pre-wrap text-[13px] text-white font-sans leading-relaxed">
-                                    {processMessageVariables(message) || 'Digite sua mensagem...'}
-                                  </pre>
+                                  <div className="whitespace-pre-wrap text-[13px] text-white font-sans leading-relaxed">
+                                    {formatWhatsAppText(processMessageVariables(message))}
+                                  </div>
                                   <div className="flex items-center justify-end gap-1 mt-1">
                                     <span className="text-[10px] text-[#8696a0]">agora</span>
                                   </div>
