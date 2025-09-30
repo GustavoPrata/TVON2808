@@ -288,23 +288,21 @@ export default function Promocoes() {
     return filtered;
   };
 
-  // Depois aplica a busca dentro dos resultados filtrados
+  // Retorna todos os clientes filtrados (sem aplicar busca)
   const getFilteredClients = () => {
-    let filtered = getFilteredByStatus();
+    return getFilteredByStatus();
+  };
+
+  // Verifica se um cliente corresponde ao termo de busca
+  const clientMatchesSearch = (cliente: Cliente) => {
+    if (!searchTerm) return false;
     
-    // Pesquisa dentro dos resultados já filtrados
-    if (searchTerm) {
-      filtered = filtered.filter((c: Cliente) => {
-        const termo = searchTerm.toLowerCase();
-        return (
-          c.telefone.toLowerCase().includes(termo) ||
-          (c.nome && c.nome.toLowerCase().includes(termo)) ||
-          (c.cpf_cnpj && c.cpf_cnpj.includes(termo))
-        );
-      });
-    }
-    
-    return filtered;
+    const termo = searchTerm.toLowerCase();
+    return (
+      cliente.telefone.toLowerCase().includes(termo) ||
+      (cliente.nome && cliente.nome.toLowerCase().includes(termo)) ||
+      (cliente.cpf_cnpj && cliente.cpf_cnpj.toLowerCase().includes(termo))
+    );
   };
 
   const filteredClients = getFilteredClients();
@@ -970,6 +968,7 @@ export default function Promocoes() {
                     filteredClients.map((cliente: Cliente) => {
                       const isSelected = selectedClients.includes(cliente.id);
                       const isExpired = cliente.vencimento && new Date(cliente.vencimento) < new Date();
+                      const matchesSearch = clientMatchesSearch(cliente);
                       
                       return (
                         <div
@@ -980,6 +979,8 @@ export default function Promocoes() {
                             "relative p-4 rounded-lg cursor-pointer transition-all duration-200 border",
                             isSelected
                               ? "bg-slate-800 border-blue-500 ring-1 ring-blue-500 shadow-md"
+                              : matchesSearch
+                              ? "bg-slate-900 border-yellow-600/50 ring-1 ring-yellow-600/30" // Destaca quem corresponde à busca
                               : "bg-slate-950 hover:bg-slate-800 border-slate-700 hover:border-slate-600"
                           )}
                         >
@@ -997,6 +998,12 @@ export default function Promocoes() {
                                 <span className="font-semibold text-slate-100">
                                   {cliente.nome || 'Cliente'}
                                 </span>
+                                {matchesSearch && (
+                                  <span className="px-2 py-0.5 bg-yellow-900/50 text-yellow-400 text-xs font-semibold rounded border border-yellow-600/30">
+                                    <Search className="w-3 h-3 inline mr-1" />
+                                    ENCONTRADO
+                                  </span>
+                                )}
                                 {cliente.status === 'ativo' && !isExpired && (
                                   <span className="px-2 py-0.5 bg-slate-800 text-blue-400 text-xs font-semibold rounded border border-slate-700">
                                     ATIVO
