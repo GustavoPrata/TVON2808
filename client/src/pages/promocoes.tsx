@@ -231,13 +231,13 @@ export default function Promocoes() {
     }
   });
 
-  // Filtrar clientes baseado nas configurações
-  const getFilteredClients = () => {
+  // Primeiro aplica os filtros para obter a lista base
+  const getFilteredByStatus = () => {
     if (!clientesData) return [];
     
     let filtered = [...clientesData];
     
-    // Filtro principal
+    // Aplica apenas o filtro de status/categoria
     switch (selectedFilter) {
       case 'ativos':
         filtered = filtered.filter((c: Cliente) => {
@@ -285,7 +285,14 @@ export default function Promocoes() {
         break;
     }
     
-    // Busca por termo
+    return filtered;
+  };
+
+  // Depois aplica a busca dentro dos resultados filtrados
+  const getFilteredClients = () => {
+    let filtered = getFilteredByStatus();
+    
+    // Pesquisa dentro dos resultados já filtrados
     if (searchTerm) {
       filtered = filtered.filter((c: Cliente) => {
         const termo = searchTerm.toLowerCase();
