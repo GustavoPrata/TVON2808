@@ -2223,19 +2223,15 @@ export default function Chat() {
                                 // Ask for confirmation
                                 if (confirm(`Deseja apagar a conversa com ${conversa.nome || formatPhoneNumber(conversa.telefone)}?`)) {
                                   try {
-                                    // Delete conversation
+                                    // Delete conversation and messages only (NOT the client)
                                     await apiRequest('DELETE', `/api/conversas/${conversa.id}`);
                                     
-                                    // If it's a client, also delete the client
-                                    if (conversa.isCliente && conversa.clienteId) {
-                                      await apiRequest('DELETE', `/api/clientes/${conversa.clienteId}`);
-                                    }
+                                    // NOTE: We do NOT delete the client data anymore - only the conversation
+                                    // The client remains in the system for historical records
                                     
                                     toast({
                                       title: "Conversa apagada",
-                                      description: conversa.isCliente 
-                                        ? "A conversa e o cliente foram removidos"
-                                        : "A conversa foi removida",
+                                      description: "A conversa e as mensagens foram removidas",
                                     });
                                     
                                     // If this was the selected conversation, clear it
