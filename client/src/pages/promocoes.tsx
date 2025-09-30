@@ -1010,10 +1010,9 @@ export default function Promocoes() {
                                   {cliente.nome || 'Cliente'}
                                 </span>
                                 {matchesSearch && (
-                                  <span className="px-2 py-0.5 bg-yellow-900/50 text-yellow-400 text-xs font-semibold rounded border border-yellow-600/30">
-                                    <Search className="w-3 h-3 inline mr-1" />
-                                    ENCONTRADO
-                                  </span>
+                                  <div className="p-1 bg-yellow-900/50 rounded border border-yellow-600/30">
+                                    <Search className="w-3.5 h-3.5 text-yellow-400" />
+                                  </div>
                                 )}
                                 {cliente.status === 'ativo' && !isExpired && (
                                   <span className="px-2 py-0.5 bg-slate-800 text-blue-400 text-xs font-semibold rounded border border-slate-700">
