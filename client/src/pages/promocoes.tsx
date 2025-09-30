@@ -14,6 +14,22 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { 
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Send,
   Users,
@@ -133,6 +149,8 @@ export default function Promocoes() {
     duracao: '4'
   });
   const [sendingProgress, setSendingProgress] = useState({ current: 0, total: 0, status: 'idle' });
+  const [mobileActiveTab, setMobileActiveTab] = useState('templates'); // Mobile tab state
+  const [showFilterSheet, setShowFilterSheet] = useState(false); // Mobile filter sheet state
 
   // Buscar clientes
   const { data: clientesData, isLoading } = useQuery({
@@ -481,45 +499,479 @@ export default function Promocoes() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-slate-950 rounded-lg border border-slate-800 p-8 shadow-lg" data-testid="header-promocoes">
-          <div className="flex items-center justify-between">
+      <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
+        {/* Header - Responsivo */}
+        <div className="bg-slate-950 rounded-lg border border-slate-800 p-4 sm:p-6 md:p-8 shadow-lg" data-testid="header-promocoes">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
-                  <Megaphone className="w-8 h-8 text-blue-500" data-testid="icon-megaphone" />
+              <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                <div className="p-2 sm:p-3 bg-slate-900 rounded-lg border border-slate-800">
+                  <Megaphone className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" data-testid="icon-megaphone" />
                 </div>
-                <h1 className="text-3xl font-bold text-slate-100">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-100">
                   Central de Promoções
                 </h1>
               </div>
-              <p className="text-slate-400 text-base mt-2">
+              <p className="text-slate-400 text-sm sm:text-base mt-1 sm:mt-2">
                 Envie mensagens promocionais em massa via WhatsApp
               </p>
             </div>
             
-            <div className="flex flex-col gap-3">
-              <div className="bg-slate-900 rounded-lg px-5 py-3 border border-slate-800">
+            <div className="flex flex-row md:flex-col gap-2 sm:gap-3">
+              <div className="flex-1 md:flex-none bg-slate-900 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-3 border border-slate-800">
                 <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-slate-400" />
-                  <span className="text-slate-100 font-semibold text-xl">{filteredClients.length}</span>
-                  <span className="text-slate-400">clientes</span>
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+                  <span className="text-slate-100 font-semibold text-lg sm:text-xl">{filteredClients.length}</span>
+                  <span className="text-slate-400 text-sm sm:text-base">clientes</span>
                 </div>
               </div>
-              <div className="bg-slate-900 rounded-lg px-5 py-3 border border-slate-800">
+              <div className="flex-1 md:flex-none bg-slate-900 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-3 border border-slate-800">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-blue-500" />
-                  <span className="text-slate-100 font-semibold text-xl">{selectedClients.length}</span>
-                  <span className="text-slate-400">selecionados</span>
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
+                  <span className="text-slate-100 font-semibold text-lg sm:text-xl">{selectedClients.length}</span>
+                  <span className="text-slate-400 text-sm sm:text-base">selecionados</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Mobile Tabs Layout */}
+        <div className="block lg:hidden">
+          <Tabs value={mobileActiveTab} onValueChange={setMobileActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-4 bg-slate-900 border-slate-800">
+              <TabsTrigger value="templates" data-testid="tab-templates" className="text-xs sm:text-sm data-[state=active]:bg-slate-800 data-[state=active]:text-blue-500">
+                <Sparkles className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Templates</span>
+              </TabsTrigger>
+              <TabsTrigger value="editor" data-testid="tab-editor" className="text-xs sm:text-sm data-[state=active]:bg-slate-800 data-[state=active]:text-blue-500">
+                <Edit className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Editor</span>
+              </TabsTrigger>
+              <TabsTrigger value="preview" data-testid="tab-preview" className="text-xs sm:text-sm data-[state=active]:bg-slate-800 data-[state=active]:text-blue-500">
+                <Eye className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Preview</span>
+              </TabsTrigger>
+              <TabsTrigger value="clientes" data-testid="tab-clientes" className="text-xs sm:text-sm data-[state=active]:bg-slate-800 data-[state=active]:text-blue-500">
+                <Users className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Clientes</span>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Tab Content - Templates */}
+            <TabsContent value="templates" className="mt-4 space-y-4">
+              <div className="bg-slate-900 rounded-lg border border-slate-800 shadow-lg overflow-hidden">
+                <div className="bg-slate-950 p-4 border-b border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-slate-900 rounded-lg border border-slate-800">
+                        <Sparkles className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-100">Templates</h2>
+                        <p className="text-slate-400 text-xs">Escolha um template</p>
+                      </div>
+                    </div>
+                    <Link href="/template-editor">
+                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                        <Edit className="mr-1 h-3 w-3" />
+                        Editar
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    {isLoadingTemplates ? (
+                      <div className="col-span-full text-center py-8 text-slate-400">
+                        Carregando templates...
+                      </div>
+                    ) : templates.length === 0 ? (
+                      <div className="col-span-full text-center py-8">
+                        <p className="text-slate-400 mb-4">Nenhum template disponível</p>
+                        <Link href="/template-editor">
+                          <Button className="bg-blue-600 hover:bg-blue-700">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Criar Template
+                          </Button>
+                        </Link>
+                      </div>
+                    ) : (
+                      templates.map((template) => {
+                        const isSelected = selectedTemplate === template.id.toString();
+                        
+                        return (
+                          <button
+                            key={template.id}
+                            onClick={() => applyTemplate(template.id)}
+                            data-testid={`template-${template.key}`}
+                            className={cn(
+                              "relative group overflow-hidden rounded-lg p-3 transition-all duration-200 min-h-[80px]",
+                              isSelected
+                                ? "bg-slate-800 ring-2 ring-blue-500 shadow-lg"
+                                : "bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-slate-600"
+                            )}
+                          >
+                            <div className="relative z-10">
+                              <IconComponent 
+                                name={template.icon}
+                                className={cn(
+                                  "w-6 h-6 mb-1",
+                                  isSelected ? "text-blue-500" : "text-slate-400"
+                                )} 
+                              />
+                              <div className="text-left">
+                                <div className={cn(
+                                  "font-semibold text-xs",
+                                  isSelected ? "text-slate-100" : "text-slate-300"
+                                )}>
+                                  {template.title}
+                                </div>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <div className="absolute top-1 right-1">
+                                <CheckCircle className="w-4 h-4 text-blue-500" />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Tab Content - Editor */}
+            <TabsContent value="editor" className="mt-4 space-y-4">
+              <div className="bg-slate-900 rounded-lg border border-slate-800 shadow-lg overflow-hidden">
+                <div className="bg-slate-950 p-4 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-slate-900 rounded-lg border border-slate-800">
+                      <Edit className="w-5 h-5 text-blue-500" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-100">Composição</h2>
+                      <p className="text-slate-400 text-xs">Personalize sua mensagem</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 space-y-4">
+                  <Textarea
+                    placeholder="Digite sua mensagem personalizada aqui..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    data-testid="textarea-message-mobile"
+                    className="min-h-[200px] bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/20 font-mono text-sm"
+                  />
+                  <div className="p-3 bg-slate-950 rounded-lg border border-slate-800">
+                    <p className="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                      VARIÁVEIS DINÂMICAS
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {['{{nome}}', '{{telefone}}', '{{dias_vencido}}', '{{data_vencimento}}', '{{codigo_indicacao}}'].map(variable => (
+                        <button
+                          key={variable}
+                          onClick={() => setMessage(prev => prev + ' ' + variable)}
+                          data-testid={`variable-${variable.replace(/[{}]/g, '')}-mobile`}
+                          className="px-2 py-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 rounded-lg transition-all group"
+                        >
+                          <span className="text-xs font-mono text-slate-400 group-hover:text-blue-500">
+                            {variable}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Tab Content - Preview */}
+            <TabsContent value="preview" className="mt-4">
+              <div className="bg-slate-900 rounded-lg border border-slate-800 shadow-lg overflow-hidden">
+                <div className="bg-slate-950 p-4 border-b border-slate-800">
+                  <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                    <Phone className="w-5 h-5 text-blue-500" />
+                    Preview WhatsApp
+                  </h2>
+                </div>
+                <div className="p-4">
+                  <div className="mx-auto max-w-[320px]">
+                    <div className="bg-slate-800 rounded-[2rem] p-2 shadow-xl">
+                      <div className="bg-slate-900 rounded-[1.5rem] p-1">
+                        <div className="bg-[#0b141a] rounded-[1.25rem] overflow-hidden">
+                          <div className="bg-[#202c33] px-3 py-2 flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-slate-600" />
+                            <div className="flex-1">
+                              <p className="text-white text-xs font-medium">TV ON</p>
+                              <p className="text-[#8696a0] text-[10px]">online</p>
+                            </div>
+                          </div>
+                          <div className="h-[300px] overflow-y-auto bg-[#0b141a] p-3" style={{
+                            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23182229' fill-opacity='0.4'%3E%3Cpath d='M0 0h20v20H0z M20 20h20v20H20z'/%3E%3C/g%3E%3C/svg%3E")`,
+                            backgroundSize: '40px 40px'
+                          }}>
+                            <div className="flex justify-start mb-2">
+                              <div className="max-w-[85%]">
+                                <div className="bg-[#202c33] rounded-lg rounded-tl-none p-2 shadow-sm">
+                                  <div className="whitespace-pre-wrap text-[11px] text-white font-sans leading-relaxed">
+                                    {formatWhatsAppText(processMessageVariables(message))}
+                                  </div>
+                                  <div className="flex items-center justify-end gap-1 mt-1">
+                                    <span className="text-[9px] text-[#8696a0]">agora</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Tab Content - Clientes */}
+            <TabsContent value="clientes" className="mt-4 space-y-4">
+              <div className="bg-slate-900 rounded-lg border border-slate-800 shadow-lg overflow-hidden">
+                <div className="bg-slate-950 p-4 border-b border-slate-800">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+                        <Users className="w-5 h-5 text-blue-500" />
+                        Clientes ({filteredClients.length})
+                      </h2>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={selectAllFiltered}
+                          data-testid="button-select-all-mobile"
+                          className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg"
+                        >
+                          <CheckCircle className="w-4 h-4 text-slate-400" />
+                        </button>
+                        <button
+                          onClick={deselectAll}
+                          data-testid="button-deselect-all-mobile"
+                          className="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-lg"
+                        >
+                          <XCircle className="w-4 h-4 text-slate-400" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Mobile Filter Sheet */}
+                    <Sheet open={showFilterSheet} onOpenChange={setShowFilterSheet}>
+                      <SheetTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          className="w-full bg-slate-900 border-slate-700 text-slate-100 hover:bg-slate-800 hover:border-slate-600"
+                          data-testid="button-filter-mobile"
+                        >
+                          <Filter className="w-4 h-4 mr-2" />
+                          <span className="flex-1 text-left">
+                            {selectedFilter === 'todos' && 'Todos os Clientes'}
+                            {selectedFilter === 'ativos' && 'Clientes Ativos'}
+                            {selectedFilter === 'vencidos' && 'Clientes Vencidos'}
+                            {selectedFilter === 'vencidos_10_dias' && 'Vencidos +10 dias'}
+                            {selectedFilter === 'novos' && 'Novos Clientes'}
+                            {selectedFilter === 'testes' && 'Clientes Teste'}
+                            {selectedFilter === 'sem_pontos' && 'Sem Pontos'}
+                            {selectedFilter === 'selecionados' && 'Selecionados'}
+                          </span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent side="bottom" className="bg-slate-900 border-slate-800" data-testid="sheet-filters">
+                        <SheetHeader>
+                          <SheetTitle className="text-slate-100">Filtrar Clientes</SheetTitle>
+                          <SheetDescription className="text-slate-400">
+                            Selecione um filtro para segmentar seus clientes
+                          </SheetDescription>
+                        </SheetHeader>
+                        <div className="grid grid-cols-2 gap-3 py-4">
+                          {[
+                            { value: 'todos', label: 'Todos', icon: Users, color: 'slate' },
+                            { value: 'ativos', label: 'Ativos', icon: CheckCircle, color: 'blue' },
+                            { value: 'vencidos', label: 'Vencidos', icon: Clock, color: 'slate' },
+                            { value: 'vencidos_10_dias', label: 'Vencidos +10d', icon: AlertTriangle, color: 'yellow' },
+                            { value: 'novos', label: 'Novos', icon: UserPlus, color: 'green' },
+                            { value: 'testes', label: 'Testes', icon: Zap, color: 'purple' },
+                            { value: 'sem_pontos', label: 'Sem Pontos', icon: UserMinus, color: 'red' },
+                            { value: 'selecionados', label: 'Selecionados', icon: Target, color: 'slate' }
+                          ].map(filter => {
+                            const Icon = filter.icon;
+                            const isSelected = selectedFilter === filter.value;
+                            const isDisabled = filter.value === 'selecionados' && selectedClients.length === 0;
+                            
+                            return (
+                              <button
+                                key={filter.value}
+                                onClick={() => {
+                                  if (!isDisabled) {
+                                    setSelectedFilter(filter.value);
+                                    setShowFilterSheet(false);
+                                  }
+                                }}
+                                disabled={isDisabled}
+                                data-testid={`filter-${filter.value}-sheet`}
+                                className={cn(
+                                  "relative group rounded-lg p-3 transition-all duration-200 text-left",
+                                  isSelected
+                                    ? "bg-slate-800 ring-2 ring-blue-500 shadow-lg"
+                                    : "bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-slate-600",
+                                  isDisabled && "opacity-50 cursor-not-allowed"
+                                )}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Icon className={cn(
+                                    "w-5 h-5",
+                                    filter.color === 'blue' && "text-blue-500",
+                                    filter.color === 'yellow' && "text-yellow-500",
+                                    filter.color === 'green' && "text-green-500",
+                                    filter.color === 'purple' && "text-purple-500",
+                                    filter.color === 'red' && "text-red-500",
+                                    filter.color === 'slate' && "text-slate-400"
+                                  )} />
+                                  <div>
+                                    <p className={cn(
+                                      "text-sm font-semibold",
+                                      isSelected ? "text-slate-100" : "text-slate-300"
+                                    )}>
+                                      {filter.label}
+                                    </p>
+                                    {filter.value === 'selecionados' && (
+                                      <p className="text-xs text-slate-500">({selectedClients.length})</p>
+                                    )}
+                                  </div>
+                                </div>
+                                {isSelected && (
+                                  <div className="absolute top-2 right-2">
+                                    <CheckCircle className="w-4 h-4 text-blue-500" />
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </SheetContent>
+                    </Sheet>
+                    
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500" />
+                      <Input
+                        placeholder="Buscar cliente..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        data-testid="input-search-mobile"
+                        className="pl-10 bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <ScrollArea className="h-[calc(100vh-380px)]">
+                  <div className="p-3 space-y-2">
+                    {isLoading ? (
+                      <div className="text-center py-8">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" />
+                        <p className="text-slate-400 text-sm">Carregando clientes...</p>
+                      </div>
+                    ) : filteredClients.length === 0 ? (
+                      <div className="text-center py-8">
+                        <UserX className="w-12 h-12 text-slate-700 mx-auto mb-2" />
+                        <p className="text-slate-400 text-sm">Nenhum cliente encontrado</p>
+                      </div>
+                    ) : (
+                      filteredClients.map((cliente: Cliente) => {
+                        const isSelected = selectedClients.includes(cliente.id);
+                        const isExpired = cliente.vencimento && new Date(cliente.vencimento) < new Date();
+                        const matchesSearch = clientMatchesSearch(cliente);
+                        
+                        return (
+                          <div
+                            key={cliente.id}
+                            ref={(el) => { clientRefs.current[cliente.id] = el }}
+                            onClick={() => toggleClientSelection(cliente.id)}
+                            data-testid={`client-card-mobile-${cliente.id}`}
+                            className={cn(
+                              "relative p-3 rounded-lg cursor-pointer transition-all duration-200 border",
+                              isSelected
+                                ? "bg-slate-800 border-blue-500 ring-1 ring-blue-500 shadow-md"
+                                : matchesSearch
+                                ? "bg-slate-900 border-yellow-600/50 ring-1 ring-yellow-600/30"
+                                : "bg-slate-950 hover:bg-slate-800 border-slate-700 hover:border-slate-600"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "w-5 h-5 rounded border-2 transition-all flex items-center justify-center flex-shrink-0",
+                                isSelected
+                                  ? "bg-blue-600 border-blue-600"
+                                  : "border-slate-600 hover:border-slate-500"
+                              )}>
+                                {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-semibold text-slate-100 text-sm truncate">
+                                    {cliente.nome || 'Cliente'}
+                                  </span>
+                                  {cliente.status === 'ativo' && !isExpired && (
+                                    <span className="px-1.5 py-0.5 bg-slate-800 text-blue-400 text-[10px] font-semibold rounded">
+                                      ATIVO
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-slate-400 text-xs">
+                                  <Phone className="w-3 h-3" />
+                                  <span>{formatPhoneNumber(cliente.telefone)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          {/* Fixed Bottom Button - Mobile */}
+          <div className="fixed bottom-0 left-0 right-0 bg-slate-950 border-t border-slate-800 p-4 z-50">
+            <button
+              onClick={handleSendMessages}
+              disabled={sendMessagesMutation.isPending}
+              data-testid="button-send-messages-mobile"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <Send className="w-5 h-5" />
+              {sendMessagesMutation.isPending ? 'Enviando...' : `Enviar para ${selectedClients.length > 0 ? selectedClients.length : filteredClients.length} cliente(s)`}
+            </button>
+            
+            {sendingProgress.status === 'sending' && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-slate-400">Progresso</span>
+                  <span className="text-slate-100 font-bold">{sendingProgress.current}/{sendingProgress.total}</span>
+                </div>
+                <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-blue-600 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${(sendingProgress.current / sendingProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Layout */}
+        <div className="hidden lg:grid lg:grid-cols-3 gap-6">
           {/* Coluna Esquerda - Editor de Mensagem */}
           <div className="lg:col-span-2 space-y-6">
             {/* Templates */}
@@ -548,13 +1000,13 @@ export default function Promocoes() {
                 </div>
               </div>
               <div className="p-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   {isLoadingTemplates ? (
-                    <div className="col-span-full text-center py-8 text-slate-400">
+                    <div className="col-span-full text-center py-12 text-slate-400">
                       Carregando templates...
                     </div>
                   ) : templates.length === 0 ? (
-                    <div className="col-span-full text-center py-8">
+                    <div className="col-span-full text-center py-12">
                       <p className="text-slate-400 mb-4">Nenhum template disponível</p>
                       <Link href="/template-editor">
                         <Button className="bg-blue-600 hover:bg-blue-700">
@@ -573,10 +1025,10 @@ export default function Promocoes() {
                           onClick={() => applyTemplate(template.id)}
                           data-testid={`template-${template.key}`}
                           className={cn(
-                            "relative group overflow-hidden rounded-lg p-4 transition-all duration-200",
+                            "relative group overflow-hidden rounded-lg p-4 transition-all duration-200 min-h-[120px]",
                             isSelected
                               ? "bg-slate-800 ring-2 ring-blue-500 shadow-lg"
-                              : "bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600"
+                              : "bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-slate-600"
                           )}
                         >
                           <div className="relative z-10">
@@ -589,16 +1041,17 @@ export default function Promocoes() {
                             />
                             <div className="text-left">
                               <div className={cn(
-                                "font-semibold text-sm",
+                                "font-semibold text-sm mb-1",
                                 isSelected ? "text-slate-100" : "text-slate-300"
                               )}>
                                 {template.title}
                               </div>
-                              {template.usageCount > 0 && (
-                                <div className="text-xs mt-1 text-slate-600">
-                                  Usado {template.usageCount}x
-                                </div>
-                              )}
+                              <div className={cn(
+                                "text-xs",
+                                isSelected ? "text-slate-300" : "text-slate-500"
+                              )}>
+                                {template.description}
+                              </div>
                             </div>
                           </div>
                           {isSelected && (
