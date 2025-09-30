@@ -182,7 +182,6 @@ export default function TemplateEditor() {
       title: "",
       content: "",
       icon: "MessageSquare",
-      category: "geral",
       isActive: true,
     },
   });
@@ -264,7 +263,6 @@ export default function TemplateEditor() {
       title: template.title,
       content: template.content,
       icon: template.icon,
-      category: template.category || "geral",
       isActive: template.isActive,
     });
     setIsEditing(true);
@@ -278,7 +276,6 @@ export default function TemplateEditor() {
       title: "",
       content: "",
       icon: "MessageSquare",
-      category: "geral",
       isActive: true,
     });
     setIsEditing(true);
@@ -381,16 +378,13 @@ export default function TemplateEditor() {
                           <div className="text-sm text-slate-400 mt-1 line-clamp-2">
                             {template.content.substring(0, 50)}...
                           </div>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
-                              {template.category}
-                            </span>
-                            {template.usageCount > 0 && (
+                          {template.usageCount > 0 && (
+                            <div className="mt-2">
                               <span className="text-xs text-slate-500">
                                 Usado {template.usageCount}x
                               </span>
-                            )}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </button>
@@ -536,32 +530,6 @@ export default function TemplateEditor() {
                       )}
                     />
                   </div>
-
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Categoria</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || "geral"}>
-                          <FormControl>
-                            <SelectTrigger className="bg-slate-900 border-slate-800" data-testid="select-category">
-                              <SelectValue placeholder="Selecione uma categoria" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="geral">Geral</SelectItem>
-                            <SelectItem value="promocional">Promocional</SelectItem>
-                            <SelectItem value="cobranca">Cobrança</SelectItem>
-                            <SelectItem value="manutencao">Manutenção</SelectItem>
-                            <SelectItem value="boas-vindas">Boas-vindas</SelectItem>
-                            <SelectItem value="indicacao">Indicação</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
 
                   <div>
                     <FormLabel>Variáveis Disponíveis</FormLabel>

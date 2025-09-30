@@ -81,8 +81,9 @@ interface Cliente {
 
 // Helper to render icon component
 const IconComponent = ({ name, className }: { name: string; className?: string }) => {
-  const Icon = Icons[name as keyof typeof Icons];
-  if (!Icon) return <Icons.MessageSquare className={className} />;
+  const IconsObj = Icons as any;
+  const Icon = IconsObj[name];
+  if (!Icon || typeof Icon !== 'function') return <Icons.MessageSquare className={className} />;
   return <Icon className={className} />;
 };
 
@@ -407,9 +408,7 @@ export default function Promocoes() {
       }
       
       // Track template usage
-      apiRequest(`/api/campaign-templates/${templateId}/usage`, {
-        method: 'POST',
-      }).catch(error => {
+      apiRequest('POST', `/api/campaign-templates/${templateId}/usage`).catch(error => {
         console.error('Failed to track template usage:', error);
       });
     }
@@ -594,12 +593,6 @@ export default function Promocoes() {
                                 isSelected ? "text-slate-100" : "text-slate-300"
                               )}>
                                 {template.title}
-                              </div>
-                              <div className={cn(
-                                "text-xs mt-1 capitalize",
-                                isSelected ? "text-slate-400" : "text-slate-500"
-                              )}>
-                                {template.category?.replace(/_/g, ' ') || 'geral'}
                               </div>
                               {template.usageCount > 0 && (
                                 <div className="text-xs mt-1 text-slate-600">
