@@ -237,20 +237,7 @@ export default function Promocoes() {
     queryFn: async () => {
       const response = await fetch('/api/clientes');
       if (!response.ok) throw new Error('Erro ao buscar clientes');
-      const data = await response.json();
-      console.log('📱 Clientes recebidos:', data.length, 'clientes');
-      if (data.length > 0) {
-        const clientesComTeste = data.filter((c: any) => c.teste || c.ultimo_teste_gratis);
-        console.log('🧪 Clientes com teste:', clientesComTeste.length);
-        if (clientesComTeste.length > 0) {
-          console.log('Exemplo de cliente com teste:', {
-            nome: clientesComTeste[0].nome,
-            ultimo_teste_gratis: clientesComTeste[0].ultimo_teste_gratis,
-            teste: clientesComTeste[0].teste
-          });
-        }
-      }
-      return data;
+      return response.json();
     }
   });
 

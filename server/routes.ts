@@ -1340,14 +1340,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get all testes in a single query
       const allTestes = await storage.getTestes();
-      console.log('🔍 Total de testes encontrados:', allTestes.length);
-      if (allTestes.length > 0) {
-        console.log('📱 Exemplo de teste:', {
-          telefone: allTestes[0].telefone,
-          criadoEm: allTestes[0].criadoEm,
-          status: allTestes[0].status
-        });
-      }
       
       // Create a map of clienteId -> pontos for efficient lookup
       const pontosMap = new Map<number, typeof allPontos>();
@@ -1401,18 +1393,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
-      // Debug: verificar alguns clientes com teste
-      const clientesComTeste = clientesComValor.filter(c => c.teste || c.ultimo_teste_gratis);
-      if (clientesComTeste.length > 0) {
-        console.log('📊 Clientes com teste encontrados:', clientesComTeste.length);
-        console.log('🔍 Exemplo:', {
-          nome: clientesComTeste[0].nome,
-          telefone: clientesComTeste[0].telefone,
-          teste: clientesComTeste[0].teste ? 'SIM' : 'NÃO',
-          ultimo_teste_gratis: clientesComTeste[0].ultimo_teste_gratis || 'NULO'
-        });
-      }
-      
       res.json(clientesComValor);
     } catch (error) {
       console.error("Erro ao buscar clientes:", error);
