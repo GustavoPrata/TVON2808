@@ -526,18 +526,26 @@ export default function Promocoes() {
             {/* Templates */}
             <div className="bg-slate-900 rounded-lg border border-slate-800 shadow-lg overflow-hidden">
               <div className="bg-slate-950 p-6 border-b border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-slate-900 rounded-lg border border-slate-800">
-                    <Sparkles className="w-6 h-6 text-blue-500" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-slate-900 rounded-lg border border-slate-800">
+                      <Sparkles className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-100">
+                        Templates de Campanhas
+                      </h2>
+                      <p className="text-slate-400 text-sm mt-1">
+                        Escolha um template pronto ou crie sua própria mensagem
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-100">
-                      Templates de Campanhas
-                    </h2>
-                    <p className="text-slate-400 text-sm mt-1">
-                      Escolha um template pronto ou crie sua própria mensagem
-                    </p>
-                  </div>
+                  <Link href="/template-editor">
+                    <Button className="bg-blue-600 hover:bg-blue-700">
+                      <Edit className="mr-2 h-4 w-4" />
+                      Editar Templates
+                    </Button>
+                  </Link>
                 </div>
               </div>
               <div className="p-6">
