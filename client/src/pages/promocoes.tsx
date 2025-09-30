@@ -899,26 +899,13 @@ export default function Promocoes() {
                     );
                   })}
                 </div>
-
-                <div className="mt-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/50" />
-                    <Input
-                      placeholder="Buscar por nome, telefone ou CPF..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      data-testid="input-search"
-                      className="pl-10 bg-slate-950 border-slate-700 text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/20"
-                    />
-                  </div>
-                </div>
               </div>
             </div>
 
             {/* Lista de Clientes */}
             <div className="bg-slate-900 rounded-lg border border-slate-800 shadow-lg overflow-hidden">
               <div className="bg-slate-950 p-6 border-b border-slate-800">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-slate-900 rounded-lg border border-slate-800">
                       <Users className="w-6 h-6 text-blue-500" />
@@ -945,6 +932,18 @@ export default function Promocoes() {
                       <XCircle className="w-5 h-5 text-slate-400 group-hover:text-slate-300" />
                     </button>
                   </div>
+                </div>
+                
+                {/* Campo de busca */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Input
+                    placeholder="Nome ou número..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    data-testid="input-search"
+                    className="pl-10 bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:ring-blue-500/20"
+                  />
                 </div>
               </div>
               <ScrollArea className="h-[450px]">
