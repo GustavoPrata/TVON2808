@@ -3405,8 +3405,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           processedMessage = processedMessage.replace(/{{aplicativo}}/g, 'IBO Pro');
           processedMessage = processedMessage.replace(/{{codigo_indicacao}}/g, cliente.telefone.slice(-4));
           
+          // Normalizar telefone para formato WhatsApp (adicionar 55 se necessário)
+          let telefoneWhatsApp = cliente.telefone.replace(/\D/g, ''); // Remove não-dígitos
+          if (!telefoneWhatsApp.startsWith('55')) {
+            telefoneWhatsApp = '55' + telefoneWhatsApp;
+          }
+          
           // Send message via WhatsApp
-          console.log(`Enviando mensagem para ${cliente.nome || cliente.telefone}...`);
+          console.log(`Enviando mensagem para ${cliente.nome || cliente.telefone} (${telefoneWhatsApp})...`);
           
           // Check if conversation exists
           let conversa = await storage.getConversaByTelefone(cliente.telefone);
@@ -3435,8 +3441,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
           
-          // Send the message
-          const messageId = await whatsappService.sendMessage(cliente.telefone, processedMessage);
+          // Send the message (usando o telefone normalizado com código 55)
+          const messageId = await whatsappService.sendMessage(telefoneWhatsApp, processedMessage);
           
           if (messageId) {
             // Save message to database
