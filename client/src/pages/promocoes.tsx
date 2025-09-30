@@ -308,22 +308,17 @@ export default function Promocoes() {
         });
         break;
       case 'testes':
-        // Clientes que fizeram teste há mais de 1 dia mas não assinaram
+        // Mostrar pessoas que estão em testes mas NÃO são clientes ativos
+        // Cliente com teste ativo é cliente normal, não "Cliente Teste"
         filtered = filtered.filter((c: Cliente) => {
-          // Usar ultimo_teste_gratis como fonte primária ou teste.criadoEm como fallback
-          const testeDate = c.teste?.criadoEm 
-            ? new Date(c.teste.criadoEm) 
-            : (c.ultimo_teste_gratis ? new Date(c.ultimo_teste_gratis) : null);
+          // Verificar se tem teste associado
+          const hasTeste = c.teste !== null && c.teste !== undefined;
           
-          if (!testeDate) return false;
+          // Verificar se NÃO tem assinatura ativa (não é cliente)
+          const notActiveClient = !c.vencimento || new Date(c.vencimento) < new Date();
           
-          // Verificar se o teste foi há mais de 24 horas
-          const overADay = testeDate.getTime() < Date.now() - 24 * 60 * 60 * 1000;
-          
-          // Verificar se não tem assinatura ativa
-          const noActiveSub = !c.vencimento || new Date(c.vencimento) < new Date();
-          
-          return overADay && noActiveSub;
+          // É "Cliente Teste" se tem teste E não é cliente ativo
+          return hasTeste && notActiveClient;
         });
         break;
       case 'sem_pontos':
@@ -1085,7 +1080,7 @@ export default function Promocoes() {
                                     ATIVO
                                   </span>
                                 )}
-                                {isExpired && (
+                                {isExpired && selectedFilter !== 'testes' && (
                                   <span className="px-2 py-0.5 bg-slate-800 text-slate-400 text-xs font-semibold rounded border border-slate-700">
                                     VENCIDO
                                   </span>
