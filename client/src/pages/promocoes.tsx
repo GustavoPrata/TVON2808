@@ -65,6 +65,7 @@ interface Cliente {
   created_at: Date | string;
   notas?: string | null;
   pontos?: any[];
+  tipoPromocao?: 'cliente' | 'cliente_teste';
   teste?: {
     id: number;
     telefone: string;
@@ -256,9 +257,9 @@ export default function Promocoes() {
 
   // Buscar clientes
   const { data: clientesData, isLoading } = useQuery({
-    queryKey: ['/api/clientes'],
+    queryKey: ['/api/promocoes/clientes'],
     queryFn: async () => {
-      const response = await fetch('/api/clientes');
+      const response = await fetch('/api/promocoes/clientes');
       if (!response.ok) throw new Error('Erro ao buscar clientes');
       return response.json();
     }
@@ -308,18 +309,8 @@ export default function Promocoes() {
         });
         break;
       case 'testes':
-        // Mostrar pessoas que estão em testes mas NÃO são clientes ativos
-        // Cliente com teste ativo é cliente normal, não "Cliente Teste"
-        filtered = filtered.filter((c: Cliente) => {
-          // Verificar se tem teste associado
-          const hasTeste = c.teste !== null && c.teste !== undefined;
-          
-          // Verificar se NÃO tem assinatura ativa (não é cliente)
-          const notActiveClient = !c.vencimento || new Date(c.vencimento) < new Date();
-          
-          // É "Cliente Teste" se tem teste E não é cliente ativo
-          return hasTeste && notActiveClient;
-        });
+        // Filtrar clientes que são marcados como 'cliente_teste'
+        filtered = filtered.filter((c: Cliente) => c.tipoPromocao === 'cliente_teste');
         break;
       case 'sem_pontos':
         filtered = filtered.filter((c: Cliente) => !c.pontos || c.pontos.length === 0);
