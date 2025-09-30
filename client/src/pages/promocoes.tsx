@@ -499,37 +499,66 @@ export default function Promocoes() {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
-        {/* Header - Responsivo */}
-        <div className="bg-slate-950 rounded-lg border border-slate-800 p-4 sm:p-6 md:p-8 shadow-lg" data-testid="header-promocoes">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+        {/* Header simplificado */}
+        <div className="mb-6">
+          <div className="flex justify-between items-start mb-4">
             <div>
-              <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                <div className="p-2 sm:p-3 bg-slate-900 rounded-lg border border-slate-800">
-                  <Megaphone className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" data-testid="icon-megaphone" />
-                </div>
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-100">
-                  Central de Promoções
-                </h1>
-              </div>
-              <p className="text-slate-400 text-sm sm:text-base mt-1 sm:mt-2">
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-100 mb-2">
+                Central de Promoções
+              </h1>
+              <p className="text-slate-400">
                 Envie mensagens promocionais em massa via WhatsApp
               </p>
             </div>
-            
-            <div className="flex flex-row md:flex-col gap-2 sm:gap-3">
-              <div className="flex-1 md:flex-none bg-slate-900 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-3 border border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
-                  <span className="text-slate-100 font-semibold text-lg sm:text-xl">{filteredClients.length}</span>
-                  <span className="text-slate-400 text-sm sm:text-base">clientes</span>
+            <Link href="/template-editor">
+              <Button variant="outline" className="hidden lg:flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                Editar Templates
+              </Button>
+            </Link>
+          </div>
+          
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+              <div className="flex items-center gap-3">
+                <Users className="w-5 h-5 text-blue-400" />
+                <div>
+                  <p className="text-2xl font-bold text-slate-100">{filteredClients.length}</p>
+                  <p className="text-xs text-slate-400">Clientes</p>
                 </div>
               </div>
-              <div className="flex-1 md:flex-none bg-slate-900 rounded-lg px-3 sm:px-4 md:px-5 py-2 sm:py-3 border border-slate-800">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
-                  <span className="text-slate-100 font-semibold text-lg sm:text-xl">{selectedClients.length}</span>
-                  <span className="text-slate-400 text-sm sm:text-base">selecionados</span>
+            </div>
+            
+            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+              <div className="flex items-center gap-3">
+                <Target className="w-5 h-5 text-green-400" />
+                <div>
+                  <p className="text-2xl font-bold text-slate-100">{selectedClients.length}</p>
+                  <p className="text-xs text-slate-400">Selecionados</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+              <div className="flex items-center gap-3">
+                <Filter className="w-5 h-5 text-purple-400" />
+                <div>
+                  <p className="text-lg font-bold text-slate-100">{selectedFilter}</p>
+                  <p className="text-xs text-slate-400">Filtro ativo</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
+              <div className="flex items-center gap-3">
+                <MessageSquare className="w-5 h-5 text-yellow-400" />
+                <div>
+                  <p className="text-lg font-bold text-slate-100">
+                    {selectedTemplate ? templates.find(t => t.id === parseInt(selectedTemplate))?.title?.substring(0, 12) : "Nenhum"}
+                  </p>
+                  <p className="text-xs text-slate-400">Template</p>
                 </div>
               </div>
             </div>

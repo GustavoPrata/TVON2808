@@ -23,7 +23,8 @@ import {
   Activity,
   Workflow,
   AlertTriangle,
-  X
+  X,
+  Megaphone
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ const menuItems = [
   { path: '/apps', icon: Router, label: 'APPs' },
   { path: '/painel-office', icon: Monitor, label: 'Painel Office' },
   { path: '/indicacoes', icon: UserPlus, label: 'Indicações' },
+  { path: '/promocoes', icon: Megaphone, label: 'Promoções' },
   { path: '/ajuda', icon: HelpCircle, label: 'Ajuda' },
   { path: '/anotacoes', icon: StickyNote, label: 'Anotações' },
   { path: '/whatsapp-settings', icon: Smartphone, label: 'WhatsApp Config' },

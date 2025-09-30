@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,7 +84,7 @@ import {
   XCircle,
   AlertTriangle,
   Settings,
-
+  ArrowLeft,
   Wrench,
   Shield,
   Lock,
@@ -375,15 +376,28 @@ export default function TemplateEditor() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-64px)] bg-slate-950">
-      {/* Left Side - Template List & Editor */}
-      <div className="flex-1 flex flex-col border-r border-slate-800">
-        <div className="p-4 border-b border-slate-800">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-white">Editor de Templates</h1>
+    <div className="min-h-screen bg-slate-950">
+      <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
+        {/* Header simplificado */}
+        <div className="mb-6">
+          <Link href="/promocoes">
+            <Button variant="ghost" size="sm" className="mb-4">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Voltar para Promoções
+            </Button>
+          </Link>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-100 mb-2">
+                Editor de Templates
+              </h1>
+              <p className="text-slate-400">
+                Crie e edite templates para suas campanhas
+              </p>
+            </div>
             <Button
               onClick={startNewTemplate}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 hidden lg:flex"
               data-testid="button-new-template"
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -392,9 +406,207 @@ export default function TemplateEditor() {
           </div>
         </div>
 
-        <div className="flex-1 flex">
-          {/* Template List */}
-          <div className="w-80 border-r border-slate-800 bg-slate-900/50">
+        {/* Mobile Layout - Tabs */}
+        <div className="block lg:hidden">
+          <Tabs defaultValue="templates" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 bg-slate-900 border border-slate-800">
+              <TabsTrigger value="templates" data-testid="tab-templates-editor" className="data-[state=active]:bg-slate-800">
+                Templates
+              </TabsTrigger>
+              <TabsTrigger value="editor" data-testid="tab-editor-editor" className="data-[state=active]:bg-slate-800">
+                Editor
+              </TabsTrigger>
+              <TabsTrigger value="preview" data-testid="tab-preview-editor" className="data-[state=active]:bg-slate-800">
+                Preview
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Tab Content - Templates List */}
+            <TabsContent value="templates" className="mt-4">
+              <Card className="bg-slate-900 border-slate-800">
+                <CardHeader className="flex flex-row justify-between items-center">
+                  <CardTitle>Templates Disponíveis</CardTitle>
+                  <Button
+                    onClick={startNewTemplate}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 lg:hidden"
+                    data-testid="button-new-template-mobile"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Novo
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {isLoading ? (
+                      <div className="text-slate-400 text-center py-8">Carregando templates...</div>
+                    ) : templates.length === 0 ? (
+                      <div className="text-slate-400 text-center py-8">Nenhum template encontrado</div>
+                    ) : (
+                      templates.map((template) => (
+                        <button
+                          key={template.id}
+                          onClick={() => loadTemplate(template)}
+                          className={`w-full p-3 rounded-lg border transition-all text-left ${
+                            selectedTemplate?.id === template.id
+                              ? "bg-blue-900/20 border-blue-600"
+                              : "bg-slate-950 border-slate-800 hover:border-slate-700"
+                          }`}
+                          data-testid={`button-template-mobile-${template.id}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <IconComponent
+                              name={template.icon}
+                              className="h-5 w-5 text-blue-400 mt-0.5"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-white truncate">{template.title}</div>
+                              <div className="text-sm text-slate-400 mt-1 line-clamp-2">
+                                {template.content.substring(0, 50)}...
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab Content - Editor */}
+            <TabsContent value="editor" className="mt-4">
+              <Card className="bg-slate-900 border-slate-800">
+                <CardContent className="pt-6">
+                  {isEditing ? (
+                    <Form {...form}>
+                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <div className="flex justify-between items-center mb-4">
+                          <h2 className="text-xl font-semibold text-white">
+                            {selectedTemplate ? "Editar Template" : "Novo Template"}
+                          </h2>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsEditing(false)}
+                              data-testid="button-cancel-mobile"
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Cancelar
+                            </Button>
+                            <Button
+                              type="submit"
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700"
+                              disabled={createMutation.isPending || updateMutation.isPending}
+                              data-testid="button-save-mobile"
+                            >
+                              <Save className="h-4 w-4 mr-1" />
+                              Salvar
+                            </Button>
+                          </div>
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="title"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Título do Template</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  placeholder="Ex: Promoção Especial"
+                                  className="bg-slate-950 border-slate-800"
+                                  data-testid="input-title-mobile"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="content"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Conteúdo da Mensagem</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  {...field}
+                                  rows={8}
+                                  placeholder="Digite o conteúdo do template aqui..."
+                                  className="bg-slate-950 border-slate-800 font-mono"
+                                  data-testid="textarea-content-mobile"
+                                />
+                              </FormControl>
+                              <div className="flex justify-between mt-2">
+                                <span className="text-xs text-slate-400">
+                                  Use *texto* para negrito e _texto_ para itálico
+                                </span>
+                                <span className="text-xs text-slate-400">
+                                  {field.value?.length || 0} caracteres
+                                </span>
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </form>
+                    </Form>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                      <MessageSquare className="h-16 w-16 mb-4 opacity-50" />
+                      <p className="text-lg">Selecione um template para editar</p>
+                      <p className="text-sm mt-2">ou crie um novo template</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Tab Content - Preview */}
+            <TabsContent value="preview" className="mt-4">
+              <Card className="bg-slate-900 border-slate-800">
+                <CardHeader>
+                  <CardTitle>Preview do WhatsApp</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-center">
+                    <div className="w-full max-w-sm">
+                      <div className="bg-slate-950 rounded-lg p-4">
+                        <div className="bg-green-900 text-white p-3 rounded-lg rounded-tr-sm">
+                          <div className="whitespace-pre-wrap break-words text-sm">
+                            {formatWhatsAppMessage(watchedContent || "Digite sua mensagem...")}
+                          </div>
+                          <div className="flex items-center justify-end gap-1 mt-1">
+                            <span className="text-xs text-green-300">9:41 AM</span>
+                            <CheckCheck className="h-3 w-3 text-blue-400" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Desktop Layout - Split Screen */}
+        <div className="hidden lg:grid lg:grid-cols-2 gap-6">
+          {/* Left Side - Templates and Editor */}
+          <Card className="bg-slate-900 border-slate-800">
+            <CardHeader>
+              <CardTitle>Templates e Editor</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="flex h-[600px]">
+                {/* Template List */}
+                <div className="w-80 border-r border-slate-800 bg-slate-900/50">
             <div className="p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Search className="h-4 w-4 text-slate-400" />
