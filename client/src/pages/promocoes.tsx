@@ -1013,7 +1013,7 @@ export default function Promocoes() {
                   />
                 </div>
               </div>
-              <ScrollArea className="h-[600px]">
+              <ScrollArea className="h-[calc(100vh-280px)]">
                 <div className="p-4 space-y-2">
                   {isLoading ? (
                     <div className="text-center py-12">
