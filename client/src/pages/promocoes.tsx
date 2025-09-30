@@ -70,20 +70,20 @@ interface Cliente {
 // Templates predefinidos de mensagens
 const messageTemplates = {
   promocao_geral: {
-    title: "🎉 Promoção Especial",
-    template: `🎉 *PROMOÇÃO ESPECIAL TV ON!* 🎉
+    title: "Promoção Especial",
+    template: `*PROMOÇÃO ESPECIAL TV ON!*
 
 Olá, {{nome}}! Temos uma oferta imperdível para você!
 
-🔥 *APENAS HOJE:*
-✅ Plano Mensal: de R$ 35,00 por *R$ 29,90*
-✅ Plano Trimestral: de R$ 90,00 por *R$ 79,90*
-✅ Plano Semestral: de R$ 160,00 por *R$ 139,90*
+*APENAS HOJE:*
+• Plano Mensal: de R$ 35,00 por *R$ 29,90*
+• Plano Trimestral: de R$ 90,00 por *R$ 79,90*
+• Plano Semestral: de R$ 160,00 por *R$ 139,90*
 
-📺 Mais de 100.000 conteúdos
-🎬 Filmes e Séries atualizados
-⚽ Todos os jogos ao vivo
-🎮 Canais infantis
+Mais de 100.000 conteúdos
+Filmes e Séries atualizados
+Todos os jogos ao vivo
+Canais infantis
 
 *Aproveite! Oferta por tempo limitado!*
 
@@ -92,15 +92,15 @@ Digite *1* para contratar agora!`,
     icon: Gift
   },
   clientes_vencidos: {
-    title: "🔄 Renovação com Desconto",
-    template: `Olá {{nome}}! 👋
+    title: "Renovação com Desconto",
+    template: `Olá {{nome}}!
 
 Notamos que sua assinatura TV ON está vencida há {{dias_vencido}} dias.
 
-🎁 *OFERTA ESPECIAL DE RETORNO:*
+*OFERTA ESPECIAL DE RETORNO:*
 Renove agora e ganhe *20% de desconto* no primeiro mês!
 
-✨ Benefícios:
+Benefícios:
 • Acesso imediato após pagamento
 • Suporte 24/7
 • Sem taxa de reativação
@@ -112,58 +112,58 @@ Digite *1* para renovar com desconto!`,
     icon: RefreshCw
   },
   manutencao: {
-    title: "🔧 Manutenção Programada",
-    template: `⚠️ *AVISO DE MANUTENÇÃO* ⚠️
+    title: "Manutenção Programada",
+    template: `*AVISO DE MANUTENÇÃO*
 
 Prezado cliente {{nome}},
 
 Informamos que realizaremos uma manutenção em nossos servidores:
 
-📅 Data: {{data_manutencao}}
-🕐 Horário: {{horario_inicio}} às {{horario_fim}}
-⏱️ Duração estimada: {{duracao}} horas
+Data: {{data_manutencao}}
+Horário: {{horario_inicio}} às {{horario_fim}}
+Duração estimada: {{duracao}} horas
 
 Durante este período, o serviço poderá apresentar instabilidades.
 
-Agradecemos a compreensão! 🙏
+Agradecemos a compreensão!
 
 *TV ON - Sempre melhorando para você*`,
     category: "aviso",
     icon: AlertTriangle
   },
   boas_vindas: {
-    title: "👋 Boas-vindas",
-    template: `Olá {{nome}}! 🎉
+    title: "Boas-vindas",
+    template: `Olá {{nome}}!
 
 *Seja muito bem-vindo(a) à TV ON!*
 
-Sua conta foi ativada com sucesso! ✅
+Sua conta foi ativada com sucesso!
 
-📱 *Como acessar:*
+*Como acessar:*
 1. Baixe o app {{aplicativo}}
 2. Use suas credenciais enviadas
 3. Aproveite todo o conteúdo!
 
-💡 *Dicas:*
+*Dicas:*
 • Configure seus favoritos
 • Explore nossas categorias
 • Ative as notificações
 
 Qualquer dúvida, estamos aqui!
 
-*Bom entretenimento!* 🍿📺`,
+*Bom entretenimento!*`,
     category: "boas_vindas",
     icon: Heart
   },
   cobranca_amigavel: {
-    title: "💳 Lembrete de Pagamento",
-    template: `Olá {{nome}}! 😊
+    title: "Lembrete de Pagamento",
+    template: `Olá {{nome}}!
 
 Este é um lembrete amigável:
 
 Sua assinatura TV ON vence em {{dias_para_vencer}} dias ({{data_vencimento}}).
 
-💳 *Formas de pagamento:*
+*Formas de pagamento:*
 • PIX (pagamento instantâneo)
 • Cartão de crédito
 • Boleto bancário
@@ -176,24 +176,24 @@ Digite *2* para falar com atendente`,
     icon: TrendingUp
   },
   indique_ganhe: {
-    title: "🎁 Indique e Ganhe",
-    template: `🎁 *PROGRAMA INDIQUE E GANHE!* 🎁
+    title: "Indique e Ganhe",
+    template: `*PROGRAMA INDIQUE E GANHE!*
 
 Olá {{nome}}!
 
-Que tal ganhar 1 MÊS GRÁTIS? 🎉
+Que tal ganhar 1 MÊS GRÁTIS?
 
 É simples:
-1️⃣ Indique um amigo
-2️⃣ Ele assina qualquer plano
-3️⃣ Vocês DOIS ganham 30 dias grátis!
+1. Indique um amigo
+2. Ele assina qualquer plano
+3. Vocês DOIS ganham 30 dias grátis!
 
-📱 *Seu código de indicação:* {{codigo_indicacao}}
+*Seu código de indicação:* {{codigo_indicacao}}
 
 *Sem limite de indicações!*
 Quanto mais amigos, mais meses grátis! 
 
-Compartilhe agora! 📲`,
+Compartilhe agora!`,
     category: "indicacao",
     icon: Zap
   }
