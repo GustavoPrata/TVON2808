@@ -854,19 +854,19 @@ export default function TemplateEditor() {
               </div>
             )}
           </div>
-        </div>
-            </CardContent>
-          </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Right Side - Phone Preview */}
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader>
-              <CardTitle>Preview do WhatsApp</CardTitle>
-            </CardHeader>
-            <CardContent>
-        
-        {/* iPhone Frame */}
-        <div className="flex-1 flex items-center justify-center">
+            {/* Right Side - Phone Preview */}
+            <Card className="bg-slate-900 border-slate-800 h-fit">
+              <CardHeader>
+                <CardTitle>Preview do WhatsApp</CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="h-[650px] flex flex-col">
+                  {/* iPhone Frame */}
+                  <div className="flex-1 flex items-center justify-center">
           <div className="relative">
             {/* Phone Frame */}
             <div className="w-80 h-[600px] bg-black rounded-[3rem] p-3 shadow-2xl border border-slate-800">
@@ -931,26 +931,27 @@ export default function TemplateEditor() {
           </div>
         </div>
 
-        {/* Character Counter */}
-        {isEditing && (
-          <div className="mt-4 p-4 bg-slate-900 rounded-lg">
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-slate-400">Contador de Caracteres</span>
-              <span className={`font-mono ${(watchedContent?.length || 0) > 4096 ? "text-red-400" : "text-green-400"}`}>
-                {watchedContent?.length || 0} / 4096
-              </span>
-            </div>
-            {(watchedContent?.length || 0) > 4096 && (
-              <p className="text-xs text-red-400 mt-2">
-                Mensagem muito longa para WhatsApp
-              </p>
-            )}
+                  {/* Character Counter */}
+                  {isEditing && (
+                    <div className="mt-4 p-4 bg-slate-900 rounded-lg">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-slate-400">Contador de Caracteres</span>
+                        <span className={`font-mono ${(watchedContent?.length || 0) > 4096 ? "text-red-400" : "text-green-400"}`}>
+                          {watchedContent?.length || 0} / 4096
+                        </span>
+                      </div>
+                      {(watchedContent?.length || 0) > 4096 && (
+                        <p className="text-xs text-red-400 mt-2">
+                          Mensagem muito longa para WhatsApp
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        )}
-            </CardContent>
-          </Card>
         </div>
       </div>
-    </div>
-  );
+    );
 }
