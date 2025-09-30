@@ -240,7 +240,14 @@ export default function Promocoes() {
     // Filtro principal
     switch (selectedFilter) {
       case 'ativos':
-        filtered = filtered.filter((c: Cliente) => c.status === 'ativo');
+        filtered = filtered.filter((c: Cliente) => {
+          // Ativo significa status ativo E não vencido
+          if (c.status !== 'ativo') return false;
+          if (!c.vencimento) return true; // Se não tem vencimento, considera ativo
+          const vencimento = new Date(c.vencimento);
+          const hoje = new Date();
+          return vencimento >= hoje; // Ativo se ainda não venceu
+        });
         break;
       case 'vencidos':
         filtered = filtered.filter((c: Cliente) => {
