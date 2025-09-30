@@ -869,12 +869,12 @@ export default function Promocoes() {
               <div className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { value: 'todos', label: 'Todos', icon: Users, color: 'from-blue-500 to-cyan-500' },
-                    { value: 'ativos', label: 'Ativos', icon: CheckCircle, color: 'from-green-500 to-emerald-500' },
-                    { value: 'vencidos', label: 'Vencidos', icon: Clock, color: 'from-red-500 to-orange-500' },
-                    { value: 'vencidos_10_dias', label: 'Vencidos +10d', icon: AlertTriangle, color: 'from-yellow-500 to-orange-500' },
-                    { value: 'novos', label: 'Novos', icon: UserPlus, color: 'from-purple-500 to-pink-500' },
-                    { value: 'com_pontos', label: 'Com Pontos', icon: Zap, color: 'from-cyan-500 to-blue-500' },
+                    { value: 'todos', label: 'Todos', icon: Users },
+                    { value: 'ativos', label: 'Ativos', icon: CheckCircle },
+                    { value: 'vencidos', label: 'Vencidos', icon: Clock },
+                    { value: 'vencidos_10_dias', label: 'Vencidos +10d', icon: AlertTriangle },
+                    { value: 'novos', label: 'Novos', icon: UserPlus },
+                    { value: 'com_pontos', label: 'Com Pontos', icon: Zap },
                   ].map(filter => {
                     const Icon = filter.icon;
                     const isSelected = selectedFilter === filter.value;
@@ -884,22 +884,33 @@ export default function Promocoes() {
                         onClick={() => setSelectedFilter(filter.value)}
                         data-testid={`filter-${filter.value}`}
                         className={cn(
-                          "relative group overflow-hidden rounded-lg p-4 transition-all duration-200",
+                          "relative group rounded-lg p-4 transition-all duration-200 text-left",
                           isSelected
                             ? "bg-slate-800 ring-2 ring-blue-500 shadow-lg"
-                            : "bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-slate-600"
+                            : "bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-slate-600"
                         )}
                       >
-                        <Icon className={cn(
-                          "w-6 h-6 mb-2",
-                          isSelected ? "text-blue-500" : "text-slate-400"
-                        )} />
-                        <p className={cn(
-                          "text-sm font-semibold",
-                          isSelected ? "text-slate-100" : "text-slate-300"
-                        )}>
-                          {filter.label}
-                        </p>
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "p-2 rounded-lg flex items-center justify-center",
+                            isSelected 
+                              ? "bg-blue-500/20" 
+                              : "bg-slate-800 group-hover:bg-slate-700"
+                          )}>
+                            <Icon className={cn(
+                              "w-5 h-5",
+                              isSelected ? "text-blue-400" : "text-slate-400 group-hover:text-slate-300"
+                            )} />
+                          </div>
+                          <div>
+                            <p className={cn(
+                              "text-sm font-semibold",
+                              isSelected ? "text-slate-100" : "text-slate-300 group-hover:text-slate-100"
+                            )}>
+                              {filter.label}
+                            </p>
+                          </div>
+                        </div>
                       </button>
                     );
                   })}
