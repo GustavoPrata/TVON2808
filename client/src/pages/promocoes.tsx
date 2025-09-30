@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -201,6 +201,8 @@ Compartilhe agora! 📲`,
 
 export default function Promocoes() {
   const { toast } = useToast();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const clientRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [message, setMessage] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('todos');
@@ -306,6 +308,22 @@ export default function Promocoes() {
   };
 
   const filteredClients = getFilteredClients();
+
+  // Scroll automático para o primeiro resultado encontrado
+  useEffect(() => {
+    if (searchTerm && filteredClients.length > 0) {
+      // Encontra o primeiro cliente que corresponde à busca
+      const firstMatch = filteredClients.find(c => clientMatchesSearch(c));
+      
+      if (firstMatch && clientRefs.current[firstMatch.id]) {
+        // Faz scroll suave até o elemento
+        clientRefs.current[firstMatch.id]?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    }
+  }, [searchTerm]);
 
   // Mutation para enviar mensagens
   const sendMessagesMutation = useMutation({
@@ -984,6 +1002,7 @@ export default function Promocoes() {
                       return (
                         <div
                           key={cliente.id}
+                          ref={(el) => { clientRefs.current[cliente.id] = el }}
                           onClick={() => toggleClientSelection(cliente.id)}
                           data-testid={`client-card-${cliente.id}`}
                           className={cn(
