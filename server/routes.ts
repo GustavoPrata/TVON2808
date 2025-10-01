@@ -2845,6 +2845,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Endpoint para buscar status de uma mensagem específica
+  app.get("/api/mensagens/:id/status", async (req, res) => {
+    try {
+      const messageId = parseInt(req.params.id);
+      
+      const message = await storage.getMensagemById(messageId);
+      
+      if (!message) {
+        return res.status(404).json({ error: "Mensagem não encontrada" });
+      }
+      
+      res.json({
+        id: message.id,
+        status: message.status,
+        readTimestamp: message.readTimestamp,
+        deliveryTimestamp: message.deliveryTimestamp,
+        remetente: message.remetente
+      });
+    } catch (error) {
+      console.error("Erro ao buscar status da mensagem:", error);
+      res.status(500).json({ error: "Erro ao buscar status da mensagem" });
+    }
+  });
+
+  // Endpoint para atualizar status de uma mensagem
+  app.put("/api/mensagens/:id/status", async (req, res) => {
+    try {
+      const messageId = parseInt(req.params.id);
+      const { status, readTimestamp, deliveryTimestamp } = req.body;
+      
+      const updateData: any = {};
+      
+      if (status !== undefined) updateData.status = status;
+      if (readTimestamp !== undefined) updateData.readTimestamp = readTimestamp;
+      if (deliveryTimestamp !== undefined) updateData.deliveryTimestamp = deliveryTimestamp;
+      
+      // Mark as read if status is 4 or 5
+      if (status === 4 || status === 5) {
+        updateData.lida = true;
+      }
+      
+      const updatedMessage = await storage.updateMensagem(messageId, updateData);
+      
+      if (!updatedMessage) {
+        return res.status(404).json({ error: "Mensagem não encontrada" });
+      }
+      
+      res.json(updatedMessage);
+    } catch (error) {
+      console.error("Erro ao atualizar status da mensagem:", error);
+      res.status(500).json({ error: "Erro ao atualizar status da mensagem" });
+    }
+  });
+
   // Tickets
   app.get("/api/tickets", async (req, res) => {
     try {

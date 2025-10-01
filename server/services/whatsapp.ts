@@ -247,7 +247,7 @@ export class WhatsAppService extends EventEmitter {
             await this.handleMessageDelete(key);
           }
           // Check if message content was edited
-          else if (updateData?.message) {
+          else if (updateData?.message && !updateData?.status) {
             console.log("Message edit detected - message object exists");
             await this.handleMessageEdit(key, updateData);
           }
@@ -256,9 +256,42 @@ export class WhatsAppService extends EventEmitter {
             console.log("Message revoked detected");
             await this.handleMessageDelete(key);
           }
+          // Check for status updates (delivery/read receipts)
+          else if (updateData?.status) {
+            console.log("Message status update detected:", updateData.status);
+            await this.handleMessageStatusUpdate(key, updateData.status);
+          }
           // Log any other type of update
           else {
             console.log("Other type of update, not edit or delete");
+          }
+        }
+      });
+
+      // Handle message receipt updates (read receipts from other users)
+      this.sock.ev.on("message-receipt.update", async (receipts) => {
+        console.log("=== MESSAGE-RECEIPT.UPDATE EVENT RECEIVED ===");
+        console.log("Number of receipts:", receipts.length);
+        console.log("Full receipts data:", JSON.stringify(receipts, null, 2));
+
+        for (const receipt of receipts) {
+          const { key, receipt: receiptData } = receipt;
+          
+          console.log("Receipt details:", {
+            messageId: key?.id,
+            remoteJid: key?.remoteJid,
+            readTimestamp: receiptData?.readTimestamp,
+            deliveryTimestamp: receiptData?.deliveryTimestamp,
+            playedTimestamp: receiptData?.playedTimestamp,
+          });
+
+          // Update message status based on receipt
+          if (receiptData?.readTimestamp) {
+            await this.handleMessageStatusUpdate(key, 4, new Date(receiptData.readTimestamp * 1000));
+          } else if (receiptData?.deliveryTimestamp) {
+            await this.handleMessageStatusUpdate(key, 3, new Date(receiptData.deliveryTimestamp * 1000));
+          } else if (receiptData?.playedTimestamp) {
+            await this.handleMessageStatusUpdate(key, 5, new Date(receiptData.playedTimestamp * 1000));
           }
         }
       });
@@ -372,6 +405,68 @@ export class WhatsAppService extends EventEmitter {
       }
     } catch (error) {
       console.error("Error handling message delete:", error);
+    }
+  }
+
+  private async handleMessageStatusUpdate(key: any, status: number, timestamp?: Date) {
+    console.log("=== HANDLING MESSAGE STATUS UPDATE ===");
+    console.log("Key:", JSON.stringify(key, null, 2));
+    console.log("Status:", status);
+    console.log("Timestamp:", timestamp);
+
+    const whatsappMessageId = key.id;
+    const phone = extractPhoneFromJid(key.remoteJid);
+
+    if (!whatsappMessageId || !phone) return;
+
+    try {
+      // Find conversation and existing message
+      const conversa = await storage.getConversaByTelefone(phone);
+      if (!conversa) return;
+
+      const mensagens = await storage.getMensagensByConversaId(conversa.id);
+      const existingMessage = mensagens.find(
+        (msg) => msg.whatsappMessageId === whatsappMessageId,
+      );
+
+      if (existingMessage) {
+        console.log("Updating message status:", {
+          messageId: existingMessage.id,
+          status: status,
+          timestamp: timestamp,
+        });
+
+        // Map Baileys status to our status
+        // Baileys: 1=PENDING, 2=SERVER_ACK, 3=DELIVERY_ACK, 4=READ, 5=PLAYED
+        const updateData: any = { status };
+        
+        // Add timestamps based on status
+        if (status === 3) { // Delivered
+          updateData.deliveryTimestamp = timestamp || new Date();
+        } else if (status === 4) { // Read
+          updateData.readTimestamp = timestamp || new Date();
+          updateData.lida = true;
+        } else if (status === 5) { // Played (for audio/video)
+          updateData.readTimestamp = timestamp || new Date();
+          updateData.lida = true;
+        }
+
+        // Update the message status in database
+        await storage.updateMensagem(existingMessage.id, updateData);
+
+        // Emit status update event for WebSocket clients
+        this.emit("message_status_updated", {
+          messageId: existingMessage.id,
+          conversaId: conversa.id,
+          status: status,
+          readTimestamp: updateData.readTimestamp,
+          deliveryTimestamp: updateData.deliveryTimestamp,
+        });
+
+        console.log("Message status update processed successfully");
+      }
+    } catch (error) {
+      console.error("Error handling message status update:", error);
     }
   }
 
@@ -987,8 +1082,9 @@ export class WhatsAppService extends EventEmitter {
         // Add a small delay before marking as read
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        // Send read receipt
-        await this.sock.readMessages([messageKey]);
+        // Send read receipt using sendReadReceipt (correct Baileys method)
+        // For groups, use participant; for individual chats, use undefined
+        await this.sock.sendReadReceipt(jid, participant || undefined, [message.key.id]);
 
         console.log(
           "Message auto-marked as read successfully:",

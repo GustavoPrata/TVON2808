@@ -978,6 +978,26 @@ export default function Chat() {
       }
     };
 
+    // Handler for message status updates (read receipts)
+    const handleMessageStatusUpdate = (data: any) => {
+      console.log('Message status update received:', data);
+      
+      if (selectedConversa && data.conversaId === selectedConversa.id) {
+        // Update the specific message status in the messages list
+        setAllMessages((prev) => prev.map(msg => {
+          if (msg.id === data.messageId) {
+            return {
+              ...msg,
+              status: data.status,
+              readTimestamp: data.readTimestamp || msg.readTimestamp,
+              deliveryTimestamp: data.deliveryTimestamp || msg.deliveryTimestamp
+            };
+          }
+          return msg;
+        }));
+      }
+    };
+
     // Registering handler for whatsapp_message
     onMessage('whatsapp_message', handleNewMessage);
     onMessage('message_sent', handleMessageSent);
@@ -988,6 +1008,7 @@ export default function Chat() {
     onMessage('message_deleted', handleMessageDeleted);
     onMessage('message_edited', handleMessageEdited);
     onMessage('message_reaction', handleMessageReaction);
+    onMessage('message_status_updated', handleMessageStatusUpdate);
     onMessage('conversation_updated', handleConversationUpdated);
     onMessage('conversation_created', handleConversationCreated);
     onMessage('ticket_auto_closed', handleTicketAutoClosed);
@@ -1003,6 +1024,7 @@ export default function Chat() {
       offMessage('message_deleted');
       offMessage('message_edited');
       offMessage('message_reaction');
+      offMessage('message_status_updated');
       offMessage('conversation_updated');
       offMessage('conversation_created');
       offMessage('ticket_auto_closed');
@@ -2850,11 +2872,10 @@ export default function Chat() {
                             message={{
                               ...mensagem,
                               tipo: mensagem.tipo || 'text',
-                              status: mensagem.remetente === 'sistema' ? {
-                                sent: true,
-                                delivered: mensagem.entregue || false,
-                                read: mensagem.lida || false
-                              } : undefined,
+                              // Use numeric status field directly from message
+                              status: mensagem.status,
+                              readTimestamp: mensagem.readTimestamp,
+                              deliveryTimestamp: mensagem.deliveryTimestamp,
                               isReply: mensagem.metadados?.reply ? true : false,
                               replyTo: mensagem.metadados?.reply
                             }}

@@ -10,6 +10,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ImageViewer } from './ImageViewer';
@@ -24,11 +30,9 @@ interface MessageBubbleProps {
     tipo?: string;
     mediaUrl?: string;
     metadados?: any;
-    status?: {
-      sent?: boolean;
-      delivered?: boolean;
-      read?: boolean;
-    };
+    status?: number; // 1=pendente, 2=servidor, 3=entregue, 4=lida, 5=tocada
+    readTimestamp?: string | null;
+    deliveryTimestamp?: string | null;
     isReply?: boolean;
     replyTo?: {
       content: string;
@@ -120,18 +124,51 @@ export function MessageBubble({
   const renderStatus = () => {
     if (!isOwn) return null;
     
-    if (!message.status?.sent) {
+    // Status: 1=pendente, 2=servidor, 3=entregue, 4=lida, 5=tocada
+    if (!message.status || message.status === 1) {
+      // Pendente
       return <Clock className="w-3 h-3 text-slate-400" />;
     }
     
-    if (message.status?.read) {
-      return <CheckCheck className="w-3 h-3 text-blue-400" />;
+    if (message.status === 4 || message.status === 5) {
+      // Lida ou tocada (áudio/vídeo)
+      const readTime = message.readTimestamp ? formatTime(message.readTimestamp) : null;
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <CheckCheck className="w-3 h-3 text-blue-400" />
+            </TooltipTrigger>
+            {readTime && (
+              <TooltipContent side="left" className="bg-slate-800 text-slate-200 border-slate-700">
+                <p className="text-xs">Lida às {readTime}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      );
     }
     
-    if (message.status?.delivered) {
-      return <CheckCheck className="w-3 h-3 text-slate-400" />;
+    if (message.status === 3) {
+      // Entregue
+      const deliveryTime = message.deliveryTimestamp ? formatTime(message.deliveryTimestamp) : null;
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <CheckCheck className="w-3 h-3 text-slate-400" />
+            </TooltipTrigger>
+            {deliveryTime && (
+              <TooltipContent side="left" className="bg-slate-800 text-slate-200 border-slate-700">
+                <p className="text-xs">Entregue às {deliveryTime}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      );
     }
     
+    // Status 2 = servidor (enviada)
     return <Check className="w-3 h-3 text-slate-400" />;
   };
 
