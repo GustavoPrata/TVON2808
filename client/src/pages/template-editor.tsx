@@ -376,80 +376,76 @@ export default function TemplateEditor() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
-        {/* Header simplificado */}
-        <div className="mb-6">
-          <Link href="/promocoes">
-            <Button variant="ghost" size="sm" className="mb-4">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar para Promoções
-            </Button>
-          </Link>
-          <div className="flex justify-between items-start">
+    <div className="h-screen w-screen overflow-hidden bg-slate-950">
+      <div className="flex h-full flex-col">
+        {/* Header sticky fino */}
+        <div className="h-14 sticky top-0 z-50 bg-slate-950/80 backdrop-blur border-b border-slate-800 px-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/promocoes">
+              <Button variant="ghost" size="lg" className="hover:bg-slate-800/50">
+                <ArrowLeft className="mr-2 h-5 w-5" />
+                <span className="text-base">Voltar</span>
+              </Button>
+            </Link>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-slate-100 mb-2">
-                Editor de Templates
-              </h1>
-              <p className="text-slate-400">
-                Crie e edite templates para suas campanhas
-              </p>
+              <h1 className="text-xl font-bold text-slate-100">Editor de Templates</h1>
             </div>
-            <Button
-              onClick={startNewTemplate}
-              className="bg-blue-600 hover:bg-blue-700 hidden lg:flex"
-              data-testid="button-new-template"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Template
-            </Button>
           </div>
+          <Button
+            onClick={startNewTemplate}
+            size="lg"
+            className="bg-blue-600 hover:bg-blue-700 shadow-xl hidden lg:flex"
+            data-testid="button-new-template"
+          >
+            <Plus className="mr-2 h-5 w-5" />
+            <span className="text-base">Novo Template</span>
+          </Button>
         </div>
 
-        {/* Mobile Layout - Tabs */}
-        <div className="block lg:hidden">
-          <Tabs defaultValue="templates" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-slate-900 border border-slate-800">
-              <TabsTrigger value="templates" data-testid="tab-templates-editor" className="data-[state=active]:bg-slate-800">
+        {/* Mobile Layout - Tabs ocupando tela toda */}
+        <div className="flex-1 min-h-0 block lg:hidden">
+          <Tabs defaultValue="templates" className="h-full flex flex-col">
+            <TabsList className="grid w-full grid-cols-3 bg-slate-900 border-b border-slate-800 rounded-none h-14">
+              <TabsTrigger value="templates" data-testid="tab-templates-editor" className="data-[state=active]:bg-slate-800 h-full text-base">
                 Templates
               </TabsTrigger>
-              <TabsTrigger value="editor" data-testid="tab-editor-editor" className="data-[state=active]:bg-slate-800">
+              <TabsTrigger value="editor" data-testid="tab-editor-editor" className="data-[state=active]:bg-slate-800 h-full text-base">
                 Editor
               </TabsTrigger>
-              <TabsTrigger value="preview" data-testid="tab-preview-editor" className="data-[state=active]:bg-slate-800">
+              <TabsTrigger value="preview" data-testid="tab-preview-editor" className="data-[state=active]:bg-slate-800 h-full text-base">
                 Preview
               </TabsTrigger>
             </TabsList>
 
             {/* Tab Content - Templates List */}
-            <TabsContent value="templates" className="mt-4">
-              <Card className="bg-slate-900 border-slate-800">
-                <CardHeader className="flex flex-row justify-between items-center">
-                  <CardTitle>Templates Disponíveis</CardTitle>
+            <TabsContent value="templates" className="flex-1 min-h-0 overflow-hidden">
+              <div className="h-full bg-slate-900/70">
+                <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur">
+                  <h2 className="text-xl font-bold text-white">Templates</h2>
                   <Button
                     onClick={startNewTemplate}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 lg:hidden"
+                    size="lg"
+                    className="bg-blue-600 hover:bg-blue-700"
                     data-testid="button-new-template-mobile"
                   >
-                    <Plus className="mr-2 h-4 w-4" />
+                    <Plus className="mr-2 h-5 w-5" />
                     Novo
                   </Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
+                </div>
+                <ScrollArea className="h-[calc(100%-80px)]">
+                  <div className="p-4 space-y-3">
                     {isLoading ? (
-                      <div className="text-slate-400 text-center py-8">Carregando templates...</div>
+                      <div className="text-slate-400 text-center py-8 text-base">Carregando templates...</div>
                     ) : templates.length === 0 ? (
-                      <div className="text-slate-400 text-center py-8">Nenhum template encontrado</div>
+                      <div className="text-slate-400 text-center py-8 text-base">Nenhum template encontrado</div>
                     ) : (
                       templates.map((template) => (
                         <button
                           key={template.id}
                           onClick={() => loadTemplate(template)}
-                          className={`w-full p-4 rounded-lg border transition-all duration-200 text-left hover:shadow-lg ${
+                          className={`w-full min-h-[72px] p-4 rounded-xl border transition-all duration-200 text-left shadow-lg hover:shadow-xl ${
                             selectedTemplate?.id === template.id
-                              ? "bg-gradient-to-r from-blue-900/30 to-blue-800/20 border-blue-600 shadow-md"
+                              ? "bg-gradient-to-r from-blue-900/30 to-blue-800/20 border-blue-600"
                               : "bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900/70"
                           }`}
                           data-testid={`button-template-mobile-${template.id}`}
@@ -457,10 +453,10 @@ export default function TemplateEditor() {
                           <div className="flex items-start gap-3">
                             <IconComponent
                               name={template.icon}
-                              className="h-5 w-5 text-blue-400 mt-0.5"
+                              className="h-6 w-6 text-blue-400 mt-0.5"
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium text-white truncate">{template.title}</div>
+                              <div className="font-medium text-white text-base truncate">{template.title}</div>
                               <div className="text-sm text-slate-400 mt-1 line-clamp-2">
                                 {template.content.substring(0, 50)}...
                               </div>
@@ -470,183 +466,175 @@ export default function TemplateEditor() {
                       ))
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </ScrollArea>
+              </div>
             </TabsContent>
 
             {/* Tab Content - Editor */}
-            <TabsContent value="editor" className="mt-4">
-              <Card className="bg-slate-900 border-slate-800">
-                <CardContent className="pt-6">
-                  {isEditing ? (
-                    <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <div className="flex justify-between items-center mb-4">
-                          <h2 className="text-xl font-semibold text-white">
-                            {selectedTemplate ? "Editar Template" : "Novo Template"}
-                          </h2>
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setIsEditing(false)}
-                              data-testid="button-cancel-mobile"
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Cancelar
-                            </Button>
-                            <Button
-                              type="submit"
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700"
-                              disabled={createMutation.isPending || updateMutation.isPending}
-                              data-testid="button-save-mobile"
-                            >
-                              <Save className="h-4 w-4 mr-1" />
-                              Salvar
-                            </Button>
-                          </div>
-                        </div>
-
-                        <FormField
-                          control={form.control}
-                          name="title"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Título do Template</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="Ex: Promoção Especial"
-                                  className="bg-slate-950 border-slate-800"
-                                  data-testid="input-title-mobile"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="content"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Conteúdo da Mensagem</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  {...field}
-                                  rows={12}
-                                  placeholder="Digite o conteúdo do template aqui..."
-                                  className="bg-slate-950 border-slate-800 font-mono text-sm resize-none"
-                                  data-testid="textarea-content-mobile"
-                                />
-                              </FormControl>
-                              <div className="flex justify-between mt-2">
-                                <span className="text-xs text-slate-400">
-                                  Use *texto* para negrito e _texto_ para itálico
-                                </span>
-                                <span className="text-xs text-slate-400">
-                                  {field.value?.length || 0} caracteres
-                                </span>
-                              </div>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </form>
-                    </Form>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                      <MessageSquare className="h-16 w-16 mb-4 opacity-50" />
-                      <p className="text-lg">Selecione um template para editar</p>
-                      <p className="text-sm mt-2">ou crie um novo template</p>
+            <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden">
+              <div className="h-full bg-slate-900/70">
+                {isEditing ? (
+                  <div className="h-full flex flex-col">
+                    <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur">
+                      <h2 className="text-xl font-bold text-white">
+                        {selectedTemplate ? "Editar" : "Novo"}
+                      </h2>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="lg"
+                          onClick={() => setIsEditing(false)}
+                          data-testid="button-cancel-mobile"
+                        >
+                          <X className="h-5 w-5" />
+                        </Button>
+                        <Button
+                          onClick={form.handleSubmit(onSubmit)}
+                          size="lg"
+                          className="bg-blue-600 hover:bg-blue-700"
+                          disabled={createMutation.isPending || updateMutation.isPending}
+                          data-testid="button-save-mobile"
+                        >
+                          <Save className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                    <div className="flex-1 min-h-0 overflow-y-auto p-4">
+                      <Form {...form}>
+                        <form className="space-y-4">
+                          <FormField
+                            control={form.control}
+                            name="title"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-base">Título do Template</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder="Ex: Promoção Especial"
+                                    className="h-12 text-base bg-slate-950 border-slate-800"
+                                    data-testid="input-title-mobile"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="content"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-base">Conteúdo da Mensagem</FormLabel>
+                                <FormControl>
+                                  <Textarea
+                                    {...field}
+                                    rows={15}
+                                    placeholder="Digite o conteúdo do template aqui..."
+                                    className="bg-slate-950 border-slate-800 text-base resize-none"
+                                    data-testid="textarea-content-mobile"
+                                  />
+                                </FormControl>
+                                <div className="flex justify-between mt-2">
+                                  <span className="text-sm text-slate-400">
+                                    Use *texto* para negrito e _texto_ para itálico
+                                  </span>
+                                  <span className="text-sm text-slate-400">
+                                    {field.value?.length || 0} / 4096
+                                  </span>
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </form>
+                      </Form>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+                    <MessageSquare className="h-20 w-20 mb-4 opacity-50" />
+                    <p className="text-xl">Selecione um template para editar</p>
+                    <p className="text-base mt-2">ou crie um novo template</p>
+                  </div>
+                )}
+              </div>
             </TabsContent>
 
             {/* Tab Content - Preview */}
-            <TabsContent value="preview" className="mt-4">
-              <Card className="bg-slate-900 border-slate-800">
-                <CardHeader>
-                  <CardTitle>Preview do WhatsApp</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-center min-h-[400px]">
-                    <div className="w-full max-w-sm">
-                      <div className="bg-gradient-to-b from-slate-950 to-slate-900 rounded-2xl p-6 shadow-xl">
-                        <div className="bg-gradient-to-br from-green-900 to-green-800 text-white p-4 rounded-lg rounded-tr-sm shadow-md">
-                          <div className="whitespace-pre-wrap break-words text-sm">
-                            {formatWhatsAppMessage(watchedContent || "Digite sua mensagem...")}
-                          </div>
-                          <div className="flex items-center justify-end gap-1 mt-1">
-                            <span className="text-xs text-green-300">9:41 AM</span>
-                            <CheckCheck className="h-3 w-3 text-blue-400" />
-                          </div>
+            <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden">
+              <div className="h-full bg-slate-900/70 p-4 flex flex-col">
+                <h2 className="text-xl font-bold text-white mb-4">Preview do WhatsApp</h2>
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="w-full max-w-sm">
+                    <div className="bg-gradient-to-b from-slate-950 to-slate-900 rounded-2xl p-6 shadow-2xl">
+                      <div className="bg-gradient-to-br from-green-900 to-green-800 text-white p-5 rounded-xl rounded-tr-sm shadow-xl">
+                        <div className="whitespace-pre-wrap break-words text-base">
+                          {formatWhatsAppMessage(watchedContent || "Digite sua mensagem...")}
+                        </div>
+                        <div className="flex items-center justify-end gap-1 mt-2">
+                          <span className="text-sm text-green-300">9:41 AM</span>
+                          <CheckCheck className="h-4 w-4 text-blue-400" />
                         </div>
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
         </div>
 
-        {/* Desktop Layout - Split Screen */}
-        <div className="hidden lg:grid lg:grid-cols-[55%_45%] gap-6">
-          {/* Left Side - Templates and Editor */}
-          <Card className="bg-gradient-to-b from-slate-900 to-slate-900/95 border-slate-800 overflow-hidden transition-all duration-300 hover:shadow-xl">
-            <CardHeader className="bg-slate-900/50 backdrop-blur-sm border-b border-slate-800">
-              <CardTitle className="text-xl text-slate-100">Templates e Editor</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="flex min-h-[700px] max-h-[800px]">
-                {/* Template List */}
-                <div className="w-[320px] border-r border-slate-800 bg-slate-950/50 backdrop-blur-sm">
-            <div className="p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Search className="h-4 w-4 text-slate-400" />
+        {/* Desktop Layout - Grid de 3 Colunas FULLSCREEN */}
+        <div className="hidden lg:grid grid-cols-[340px_1fr_440px] gap-3 p-3 h-full overflow-hidden">
+          
+          {/* Painel 1: Lista de Templates (340px fixo) */}
+          <div className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70">
+            {/* Barra de busca STICKY no topo */}
+            <div className="sticky top-0 z-10 p-3 border-b border-slate-800 bg-slate-900/90 backdrop-blur">
+              <div className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-slate-400" />
                 <Input
                   placeholder="Buscar templates..."
-                  className="bg-slate-900 border-slate-800"
+                  className="h-10 text-base bg-slate-950 border-slate-700"
                   data-testid="input-search-templates"
                 />
               </div>
             </div>
-            <ScrollArea className="h-[calc(100%-100px)]">
-              <div className="p-4 pt-2 space-y-3">
+            
+            {/* Lista scrollável */}
+            <ScrollArea className="h-[calc(100%-68px)]">
+              <div className="p-3 space-y-2">
                 {isLoading ? (
-                  <div className="text-slate-400 text-center py-8">Carregando templates...</div>
+                  <div className="text-slate-400 text-center py-8 text-base">Carregando templates...</div>
                 ) : templates.length === 0 ? (
-                  <div className="text-slate-400 text-center py-8">Nenhum template encontrado</div>
+                  <div className="text-slate-400 text-center py-8 text-base">Nenhum template encontrado</div>
                 ) : (
                   templates.map((template) => (
                     <button
                       key={template.id}
                       onClick={() => loadTemplate(template)}
-                      className={`w-full p-4 rounded-lg border transition-all duration-200 text-left hover:shadow-lg ${
+                      className={`w-full min-h-[56px] p-4 rounded-xl border transition-all duration-200 text-left hover:shadow-xl ${
                         selectedTemplate?.id === template.id
-                          ? "bg-gradient-to-r from-blue-900/30 to-blue-800/20 border-blue-600 shadow-md"
-                          : "bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900/70"
+                          ? "bg-gradient-to-r from-blue-900/30 to-blue-800/20 border-blue-600 shadow-xl"
+                          : "bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/50"
                       }`}
                       data-testid={`button-template-${template.id}`}
                     >
                       <div className="flex items-start gap-3">
                         <IconComponent
                           name={template.icon}
-                          className="h-5 w-5 text-blue-400 mt-0.5"
+                          className="h-6 w-6 text-blue-400 mt-0.5"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-white truncate">{template.title}</div>
+                          <div className="font-medium text-white text-base truncate">{template.title}</div>
                           <div className="text-sm text-slate-400 mt-1 line-clamp-2">
-                            {template.content.substring(0, 50)}...
+                            {template.content.substring(0, 40)}...
                           </div>
                           {template.usageCount > 0 && (
-                            <div className="mt-2">
+                            <div className="mt-1">
                               <span className="text-xs text-slate-500">
                                 Usado {template.usageCount}x
                               </span>
@@ -661,110 +649,117 @@ export default function TemplateEditor() {
             </ScrollArea>
           </div>
 
-          {/* Editor */}
-          <div className="flex-1 p-6 bg-slate-950/30 overflow-y-auto">
-            {isEditing ? (
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-white">
-                      {selectedTemplate ? "Editar Template" : "Novo Template"}
-                    </h2>
-                    <div className="flex gap-2">
-                      {selectedTemplate && (
-                        <>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={duplicateTemplate}
-                            data-testid="button-duplicate"
-                          >
-                            <Copy className="h-4 w-4 mr-1" />
-                            Duplicar
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteMutation.mutate(selectedTemplate.id)}
-                            className="text-red-400 hover:text-red-300"
-                            data-testid="button-delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
+          {/* Painel 2: Editor Central (flex-grow) */}
+          <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-900/70">
+            {/* Barra de ações STICKY */}
+            <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur">
+              <h3 className="text-xl font-bold text-white">
+                {isEditing ? (selectedTemplate ? "Editando Template" : "Novo Template") : "Editor"}
+              </h3>
+              {isEditing && (
+                <div className="flex gap-2">
+                  {selectedTemplate && (
+                    <>
                       <Button
                         type="button"
                         variant="outline"
-                        size="sm"
-                        onClick={() => setIsEditing(false)}
-                        data-testid="button-cancel"
+                        size="lg"
+                        onClick={duplicateTemplate}
+                        data-testid="button-duplicate"
+                        className="shadow-xl"
                       >
-                        <X className="h-4 w-4 mr-1" />
-                        Cancelar
+                        <Copy className="h-5 w-5 mr-2" />
+                        Duplicar
                       </Button>
                       <Button
-                        type="submit"
-                        size="sm"
-                        className="bg-blue-600 hover:bg-blue-700"
-                        disabled={createMutation.isPending || updateMutation.isPending}
-                        data-testid="button-save"
+                        type="button"
+                        variant="outline"
+                        size="lg"
+                        onClick={() => deleteMutation.mutate(selectedTemplate.id)}
+                        className="text-red-400 hover:text-red-300 shadow-xl"
+                        data-testid="button-delete"
                       >
-                        <Save className="h-4 w-4 mr-1" />
-                        Salvar
+                        <Trash2 className="h-5 w-5" />
                       </Button>
-                    </div>
-                  </div>
+                    </>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={() => setIsEditing(false)}
+                    data-testid="button-cancel"
+                    className="shadow-xl"
+                  >
+                    <X className="h-5 w-5 mr-2" />
+                    <span className="text-base">Cancelar (Esc)</span>
+                  </Button>
+                  <Button
+                    onClick={form.handleSubmit(onSubmit)}
+                    size="lg"
+                    className="bg-blue-600 hover:bg-blue-700 shadow-xl"
+                    disabled={createMutation.isPending || updateMutation.isPending}
+                    data-testid="button-save"
+                  >
+                    <Save className="h-5 w-5 mr-2" />
+                    <span className="text-base">Salvar (Ctrl+S)</span>
+                  </Button>
+                </div>
+              )}
+            </div>
+            
+            {/* Formulário flexível */}
+            {isEditing ? (
+              <div className="flex-1 min-h-0 flex flex-col p-4 overflow-y-auto">
+                <Form {...form}>
+                  <form className="flex flex-col h-full">
+                    {/* Grid de campos superiores */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <FormField
+                        control={form.control}
+                        name="title"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-base">Título</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                placeholder="Ex: Promoção Especial"
+                                className="h-12 text-base bg-slate-950 border-slate-700"
+                                data-testid="input-title"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="title"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Título do Template</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              placeholder="Ex: Promoção Especial"
-                              className="bg-slate-900 border-slate-800"
-                              data-testid="input-title"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="icon"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Ícone</FormLabel>
-                          <FormControl>
-                            <div className="flex gap-2">
-                              <div className="flex-1 relative">
+                      <FormField
+                        control={form.control}
+                        name="icon"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-base">Ícone</FormLabel>
+                            <FormControl>
+                              <div className="relative">
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  className="w-full justify-start bg-slate-900 border-slate-800"
+                                  className="w-full h-12 justify-start text-base bg-slate-950 border-slate-700"
                                   onClick={() => setShowIconPicker(!showIconPicker)}
                                   data-testid="button-icon-picker"
                                 >
-                                  <IconComponent name={field.value || "MessageSquare"} className="h-4 w-4 mr-2" />
+                                  <IconComponent name={field.value || "MessageSquare"} className="h-6 w-6 mr-2" />
                                   {field.value || "MessageSquare"}
                                 </Button>
                                 
                                 {showIconPicker && (
-                                  <div className="absolute top-full mt-2 p-4 bg-slate-900 border border-slate-800 rounded-lg z-50 w-80">
+                                  <div className="absolute top-full mt-2 p-4 bg-slate-900 border border-slate-800 rounded-xl z-50 w-80 shadow-2xl">
                                     <Input
                                       placeholder="Buscar ícone..."
                                       value={searchIcon}
                                       onChange={(e) => setSearchIcon(e.target.value)}
-                                      className="mb-3 bg-slate-800 border-slate-700"
+                                      className="mb-3 h-10 bg-slate-800 border-slate-700"
                                       data-testid="input-search-icon"
                                     />
                                     <ScrollArea className="h-48">
@@ -778,11 +773,11 @@ export default function TemplateEditor() {
                                               setShowIconPicker(false);
                                               setSearchIcon("");
                                             }}
-                                            className="p-2 hover:bg-slate-800 rounded"
+                                            className="p-3 hover:bg-slate-800 rounded-lg"
                                             title={iconName}
                                             data-testid={`button-icon-${iconName}`}
                                           >
-                                            <IconComponent name={iconName} className="h-5 w-5" />
+                                            <IconComponent name={iconName} className="h-6 w-6" />
                                           </button>
                                         ))}
                                       </div>
@@ -790,168 +785,149 @@ export default function TemplateEditor() {
                                   </div>
                                 )}
                               </div>
-                            </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    {/* Barra de variáveis */}
+                    <div className="p-3 bg-slate-950/50 rounded-lg mb-4">
+                      <Label className="text-base mb-2 block">Variáveis Disponíveis</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.keys(SAMPLE_DATA).map((variable) => (
+                          <Button
+                            key={variable}
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => insertVariable(variable)}
+                            className="h-9 text-base shadow-lg"
+                            data-testid={`button-variable-${variable}`}
+                          >
+                            {`{{${variable}}}`}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Textarea FLEXÍVEL ocupando TODO espaço restante */}
+                    <FormField
+                      control={form.control}
+                      name="content"
+                      render={({ field }) => (
+                        <FormItem className="flex-1 flex flex-col">
+                          <FormLabel className="text-base">Conteúdo da Mensagem</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              placeholder="Digite o conteúdo do template aqui..."
+                              className="flex-1 resize-none text-base leading-6 bg-slate-950/70 border-slate-700 p-4"
+                              data-testid="textarea-content"
+                            />
                           </FormControl>
+                          <div className="flex justify-between mt-2">
+                            <span className="text-sm text-slate-500">
+                              Use *texto* para negrito e _texto_ para itálico
+                            </span>
+                            <span className="text-sm text-slate-500">
+                              {field.value?.length || 0} / 4096
+                            </span>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
-
-                  <div>
-                    <FormLabel>Variáveis Disponíveis</FormLabel>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {Object.keys(SAMPLE_DATA).map((variable) => (
-                        <Button
-                          key={variable}
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => insertVariable(variable)}
-                          className="text-xs"
-                          data-testid={`button-variable-${variable}`}
-                        >
-                          {`{{${variable}}}`}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="content"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Conteúdo da Mensagem</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            {...field}
-                            rows={14}
-                            placeholder="Digite o conteúdo do template aqui..."
-                            className="bg-slate-950 border-slate-800 font-mono text-sm resize-none min-h-[350px]"
-                            data-testid="textarea-content"
-                          />
-                        </FormControl>
-                        <div className="flex justify-between mt-2">
-                          <span className="text-xs text-slate-400">
-                            Use *texto* para negrito e _texto_ para itálico
-                          </span>
-                          <span className="text-xs text-slate-400">
-                            {field.value?.length || 0} caracteres
-                          </span>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </form>
-              </Form>
+                  </form>
+                </Form>
+              </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                <MessageSquare className="h-16 w-16 mb-4 opacity-50" />
-                <p className="text-lg">Selecione um template para editar</p>
-                <p className="text-sm mt-2">ou crie um novo template</p>
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-400">
+                <MessageSquare className="h-20 w-20 mb-4 opacity-50" />
+                <p className="text-xl">Selecione um template para editar</p>
+                <p className="text-base mt-2">ou crie um novo template</p>
               </div>
             )}
           </div>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Right Side - Phone Preview */}
-            <Card className="bg-gradient-to-b from-slate-900 to-slate-900/95 border-slate-800 h-fit transition-all duration-300 hover:shadow-xl">
-              <CardHeader className="bg-slate-900/50 backdrop-blur-sm border-b border-slate-800">
-                <CardTitle className="text-xl text-slate-100">Preview do WhatsApp</CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 bg-slate-950/30">
-                <div className="h-[700px] flex flex-col">
-                  {/* iPhone Frame */}
-                  <div className="flex-1 flex items-center justify-center">
-          <div className="relative transform scale-95 hover:scale-100 transition-transform duration-300">
-            {/* Phone Frame */}
-            <div className="w-[340px] h-[680px] bg-gradient-to-b from-slate-900 to-black rounded-[3rem] p-3 shadow-2xl border border-slate-700/50">
-              <div className="w-full h-full bg-slate-950 rounded-[2.5rem] overflow-hidden relative">
-                {/* Status Bar */}
-                <div className="h-8 bg-slate-900 flex items-center justify-between px-6 text-xs text-slate-400">
-                  <span>9:41 AM</span>
-                  <div className="flex gap-1">
-                    <div className="w-4 h-3 bg-slate-400 rounded-sm"></div>
-                    <div className="w-1 h-3 bg-slate-400 rounded-sm"></div>
-                    <div className="w-4 h-3 bg-slate-400 rounded-sm"></div>
+          {/* Painel 3: Preview WhatsApp (440px fixo) */}
+          <div className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70 p-4">
+            {/* Controle de Zoom opcional */}
+            <div className="flex justify-center mb-4">
+              <Select defaultValue="1.0">
+                <SelectTrigger className="w-32 h-10 bg-slate-950 border-slate-700">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.8">80%</SelectItem>
+                  <SelectItem value="1.0">100%</SelectItem>
+                  <SelectItem value="1.2">120%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* iPhone MAIOR centralizado */}
+            <div className="h-[calc(100%-56px)] flex items-center justify-center">
+              <div className="aspect-[9/19.5] w-full max-w-[420px] rounded-[32px] border-2 border-slate-700 bg-gradient-to-b from-slate-950 to-slate-900 shadow-2xl p-5">
+                <div className="h-full bg-slate-950 rounded-[24px] overflow-hidden relative">
+                  {/* Status Bar */}
+                  <div className="h-8 bg-slate-900 flex items-center justify-between px-6 text-xs text-slate-400">
+                    <span>9:41 AM</span>
+                    <div className="flex gap-1">
+                      <div className="w-4 h-3 bg-slate-400 rounded-sm"></div>
+                      <div className="w-1 h-3 bg-slate-400 rounded-sm"></div>
+                      <div className="w-4 h-3 bg-slate-400 rounded-sm"></div>
+                    </div>
                   </div>
-                </div>
 
-                {/* WhatsApp Header */}
-                <div className="h-14 bg-green-900 flex items-center px-4 gap-3">
-                  <div className="w-9 h-9 rounded-full bg-slate-700"></div>
-                  <div className="flex-1">
-                    <div className="text-white font-medium">Sua Empresa</div>
-                    <div className="text-xs text-green-300">online</div>
+                  {/* WhatsApp Header */}
+                  <div className="h-14 bg-green-900 flex items-center px-4 gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-700"></div>
+                    <div className="flex-1">
+                      <div className="text-white font-medium text-base">Sua Empresa</div>
+                      <div className="text-sm text-green-300">online</div>
+                    </div>
                   </div>
-                </div>
 
-                {/* Chat Area */}
-                <div className="h-[calc(100%-112px)] bg-gradient-to-b from-slate-950 to-slate-900 p-4 overflow-y-auto">
-                  {/* Message Bubble */}
-                  {(watchedContent || isEditing) && (
-                    <div className="flex justify-end mb-2">
-                      <div className="max-w-[85%] bg-green-900 text-white p-3 rounded-lg rounded-tr-sm">
-                        <div className="whitespace-pre-wrap break-words text-sm">
-                          {formatWhatsAppMessage(watchedContent || "Digite sua mensagem...")}
-                        </div>
-                        <div className="flex items-center justify-end gap-1 mt-1">
-                          <span className="text-xs text-green-300">9:41 AM</span>
-                          <CheckCheck className="h-3 w-3 text-blue-400" />
+                  {/* Chat Area */}
+                  <div className="h-[calc(100%-144px)] bg-gradient-to-b from-slate-950 to-slate-900 p-4 overflow-y-auto">
+                    {(watchedContent || isEditing) && (
+                      <div className="flex justify-end mb-2">
+                        <div className="max-w-[85%] bg-gradient-to-br from-green-900 to-green-800 text-white p-4 rounded-xl rounded-tr-sm shadow-xl">
+                          <div className="whitespace-pre-wrap break-words text-base">
+                            {formatWhatsAppMessage(watchedContent || "Digite sua mensagem...")}
+                          </div>
+                          <div className="flex items-center justify-end gap-1 mt-2">
+                            <span className="text-sm text-green-300">9:41 AM</span>
+                            <CheckCheck className="h-4 w-4 text-blue-400" />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {!watchedContent && !isEditing && (
-                    <div className="text-center text-slate-500 text-sm mt-20">
-                      O preview da mensagem aparecerá aqui
-                    </div>
-                  )}
-                </div>
-
-                {/* Input Area */}
-                <div className="h-14 bg-slate-900 flex items-center px-4 gap-2">
-                  <div className="flex-1 h-9 bg-slate-800 rounded-full px-4 flex items-center">
-                    <span className="text-slate-400 text-sm">Mensagem</span>
+                    {!watchedContent && !isEditing && (
+                      <div className="text-center text-slate-500 text-base mt-20">
+                        O preview da mensagem aparecerá aqui
+                      </div>
+                    )}
                   </div>
-                  <div className="w-9 h-9 bg-green-600 rounded-full flex items-center justify-center">
-                    <Send className="h-4 w-4 text-white" />
+
+                  {/* Input Area */}
+                  <div className="h-16 bg-slate-900 flex items-center px-4 gap-2">
+                    <div className="flex-1 h-11 bg-slate-800 rounded-full px-4 flex items-center">
+                      <span className="text-slate-400 text-base">Mensagem</span>
+                    </div>
+                    <div className="w-11 h-11 bg-green-600 rounded-full flex items-center justify-center shadow-xl">
+                      <Send className="h-5 w-5 text-white" />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* iPhone Notch */}
-            <div className="absolute top-5 left-1/2 transform -translate-x-1/2 w-32 h-6 bg-black rounded-full"></div>
-          </div>
-        </div>
-
-                  {/* Character Counter */}
-                  {isEditing && (
-                    <div className="mt-4 p-4 bg-slate-900 rounded-lg">
-                      <div className="flex justify-between items-center text-sm">
-                        <span className="text-slate-400">Contador de Caracteres</span>
-                        <span className={`font-mono ${(watchedContent?.length || 0) > 4096 ? "text-red-400" : "text-green-400"}`}>
-                          {watchedContent?.length || 0} / 4096
-                        </span>
-                      </div>
-                      {(watchedContent?.length || 0) > 4096 && (
-                        <p className="text-xs text-red-400 mt-2">
-                          Mensagem muito longa para WhatsApp
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>
-    );
+    </div>
+  );
 }
