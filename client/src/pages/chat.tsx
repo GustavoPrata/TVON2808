@@ -978,26 +978,6 @@ export default function Chat() {
       }
     };
 
-    // Handler for message status updates (read receipts)
-    const handleMessageStatusUpdate = (data: any) => {
-      console.log('Message status update received:', data);
-      
-      if (selectedConversa && data.conversaId === selectedConversa.id) {
-        // Update the specific message status in the messages list
-        setAllMessages((prev) => prev.map(msg => {
-          if (msg.id === data.messageId) {
-            return {
-              ...msg,
-              status: data.status,
-              readTimestamp: data.readTimestamp || msg.readTimestamp,
-              deliveryTimestamp: data.deliveryTimestamp || msg.deliveryTimestamp
-            };
-          }
-          return msg;
-        }));
-      }
-    };
-
     // Registering handler for whatsapp_message
     onMessage('whatsapp_message', handleNewMessage);
     onMessage('message_sent', handleMessageSent);
@@ -1008,7 +988,6 @@ export default function Chat() {
     onMessage('message_deleted', handleMessageDeleted);
     onMessage('message_edited', handleMessageEdited);
     onMessage('message_reaction', handleMessageReaction);
-    onMessage('message_status_updated', handleMessageStatusUpdate);
     onMessage('conversation_updated', handleConversationUpdated);
     onMessage('conversation_created', handleConversationCreated);
     onMessage('ticket_auto_closed', handleTicketAutoClosed);
@@ -1024,7 +1003,6 @@ export default function Chat() {
       offMessage('message_deleted');
       offMessage('message_edited');
       offMessage('message_reaction');
-      offMessage('message_status_updated');
       offMessage('conversation_updated');
       offMessage('conversation_created');
       offMessage('ticket_auto_closed');
@@ -1169,22 +1147,6 @@ export default function Chat() {
   // Update allMessages when initial messages are loaded
   useEffect(() => {
     if (mensagens && Array.isArray(mensagens)) {
-      console.log('=== FRONTEND MESSAGE STATUS DEBUG ===');
-      console.log(`Received ${mensagens.length} messages from backend`);
-      
-      // Log the first 5 messages to debug status
-      mensagens.slice(0, 5).forEach((msg: any, index: number) => {
-        console.log(`Message ${index + 1}:`, {
-          id: msg.id,
-          status: msg.status,
-          readTimestamp: msg.readTimestamp,
-          deliveryTimestamp: msg.deliveryTimestamp,
-          remetente: msg.remetente,
-          content: msg.conteudo?.substring(0, 30) + '...'
-        });
-      });
-      console.log('=== END FRONTEND MESSAGE STATUS DEBUG ===');
-      
       // Initial messages loaded - mensagens comes directly from React Query
       // Remove duplicates by checking unique IDs
       const uniqueMessages = mensagens.filter((msg: any, index: number, self: any[]) => {
@@ -2888,14 +2850,15 @@ export default function Chat() {
                             message={{
                               ...mensagem,
                               tipo: mensagem.tipo || 'text',
-                              // Use numeric status field directly from message
-                              status: mensagem.status,
-                              readTimestamp: mensagem.readTimestamp,
-                              deliveryTimestamp: mensagem.deliveryTimestamp,
+                              status: mensagem.remetente === 'sistema' ? {
+                                sent: true,
+                                delivered: mensagem.entregue || false,
+                                read: mensagem.lida || false
+                              } : undefined,
                               isReply: mensagem.metadados?.reply ? true : false,
                               replyTo: mensagem.metadados?.reply
                             }}
-                            isOwn={mensagem.remetente === 'sistema' || mensagem.remetente === 'bot'}
+                            isOwn={mensagem.remetente === 'sistema'}
                             contactName={selectedConversa.nome || selectedConversa.clienteNome || selectedConversa.telefone}
                             showAvatar={mensagem.remetente !== 'sistema' && isLastInGroup}
                             isFirstInGroup={isFirstInGroup}

@@ -78,13 +78,7 @@ function extractPhoneFromJid(jid: string | undefined): string {
   }
   
   // Remove any WhatsApp suffixes (@s.whatsapp.net, @g.us, @lid, etc.)
-  let phone = jid.split('@')[0] || "";
-  
-  // Handle business/group JIDs that have format "number:code@s.whatsapp.net"
-  // We need to extract just the phone number part before the colon
-  if (phone.includes(':')) {
-    phone = phone.split(':')[0];
-  }
+  const phone = jid.split('@')[0] || "";
   
   // Clean up any non-digit characters that might remain
   return phone.replace(/[^0-9]/g, '');
@@ -219,27 +213,27 @@ export class WhatsAppService extends EventEmitter {
 
       // Handle message updates (edits, deletes, etc)
       this.sock.ev.on("messages.update", async (updates) => {
-        console.log("🔄 === MESSAGES.UPDATE EVENT RECEIVED ===");
-        console.log("📊 Number of updates:", updates.length);
-        console.log("📝 Full updates data:", JSON.stringify(updates, null, 2));
+        console.log("=== MESSAGES.UPDATE EVENT RECEIVED ===");
+        console.log("Number of updates:", updates.length);
+        console.log("Full updates data:", JSON.stringify(updates, null, 2));
 
         for (const update of updates) {
-          console.log("🔍 === PROCESSING SINGLE UPDATE ===");
-          console.log("📦 Update object:", JSON.stringify(update, null, 2));
-          console.log("🔑 Has key?", !!update.key);
-          console.log("📝 Has update?", !!update.update);
+          console.log("=== PROCESSING SINGLE UPDATE ===");
+          console.log("Update object:", JSON.stringify(update, null, 2));
+          console.log("Has key?", !!update.key);
+          console.log("Has update?", !!update.update);
 
           const { key, update: updateData } = update;
 
-          console.log("🔑 Key details:", {
+          console.log("Key details:", {
             id: key?.id,
             remoteJid: key?.remoteJid,
             fromMe: key?.fromMe,
           });
 
-          console.log("📊 Update data:", {
+          console.log("Update data:", {
             hasMessage: !!updateData?.message,
-            hasStatus: updateData?.status !== undefined ? updateData.status : 'undefined',
+            hasStatus: !!updateData?.status,
             messageStubType: updateData?.messageStubType,
             messageIsNull: updateData?.message === null,
           });
@@ -249,123 +243,22 @@ export class WhatsAppService extends EventEmitter {
             updateData?.message === null ||
             updateData?.messageStubType === 1
           ) {
-            console.log("🗑️ Message deleted detected");
+            console.log("Message deleted detected");
             await this.handleMessageDelete(key);
           }
           // Check if message content was edited
-          else if (updateData?.message && !updateData?.status) {
-            console.log("✏️ Message edit detected - message object exists");
+          else if (updateData?.message) {
+            console.log("Message edit detected - message object exists");
             await this.handleMessageEdit(key, updateData);
           }
           // Check for message revoked
           else if (updateData?.messageStubType === 1) {
-            console.log("🚫 Message revoked detected");
+            console.log("Message revoked detected");
             await this.handleMessageDelete(key);
-          }
-          // Check for status updates (delivery/read receipts)
-          else if (updateData?.status !== undefined) {
-            console.log("📬 Message status update detected. Baileys status:", updateData.status);
-            
-            // IMPORTANT: Correct mapping from Baileys to our system
-            // Baileys status values:
-            // 0 = ERROR
-            // 1 = PENDING  
-            // 2 = SERVER_ACK (sent to WhatsApp server)
-            // 3 = DELIVERY_ACK (delivered to recipient)
-            // 4 = READ (read by recipient)
-            // 5 = PLAYED (for audio/video)
-            
-            // Our system status values:
-            // 1 = pendente (pending)
-            // 2 = servidor (sent to server)
-            // 3 = entregue (delivered)
-            // 4 = lida (read)
-            
-            let ourStatus = 1; // Default to pending
-            
-            // Only process updates for our own messages (fromMe === true)
-            if (key?.fromMe === true) {
-              console.log("✅ Processing status update for our message (fromMe=true)");
-              console.log("📌 WhatsApp Message ID:", key?.id);
-              
-              switch(updateData.status) {
-                case 0: // ERROR
-                  ourStatus = 1; // Map to pendente
-                  console.log("❌ Baileys status 0 (ERROR) → our status 1 (pendente)");
-                  break;
-                case 1: // PENDING
-                  ourStatus = 1; // Keep as pendente
-                  console.log("⏳ Baileys status 1 (PENDING) → our status 1 (pendente)");
-                  break;
-                case 2: // SERVER_ACK
-                  ourStatus = 2; // Map to servidor
-                  console.log("☁️ Baileys status 2 (SERVER_ACK) → our status 2 (servidor)");
-                  break;
-                case 3: // DELIVERY_ACK
-                  ourStatus = 3; // Map to entregue
-                  console.log("✅ Baileys status 3 (DELIVERY_ACK) → our status 3 (entregue)");
-                  break;
-                case 4: // READ
-                  ourStatus = 4; // Map to lida
-                  console.log("👁️ Baileys status 4 (READ) → our status 4 (lida)");
-                  break;
-                case 5: // PLAYED
-                  ourStatus = 4; // Map to lida (for audio/video)
-                  console.log("▶️ Baileys status 5 (PLAYED) → our status 4 (lida)");
-                  break;
-                default:
-                  console.log("⚠️ Unknown Baileys status:", updateData.status);
-                  ourStatus = updateData.status;
-              }
-              
-              console.log(`📊 Final mapping: Baileys ${updateData.status} → Our ${ourStatus}`);
-              await this.handleMessageStatusUpdate(key, ourStatus);
-            } else {
-              console.log("⏭️ Ignoring status update for received message (fromMe=false)");
-            }
           }
           // Log any other type of update
           else {
-            console.log("❓ Other type of update, not edit or delete");
-          }
-        }
-      });
-
-      // Handle message receipt updates (read receipts from other users)
-      this.sock.ev.on("message-receipt.update", async (receipts) => {
-        console.log("📨 === MESSAGE-RECEIPT.UPDATE EVENT RECEIVED ===");
-        console.log("📊 Number of receipts:", receipts.length);
-        console.log("📝 Full receipts data:", JSON.stringify(receipts, null, 2));
-
-        for (const receipt of receipts) {
-          const { key, receipt: receiptData } = receipt;
-          
-          console.log("📋 Receipt details:", {
-            messageId: key?.id,
-            remoteJid: key?.remoteJid,
-            fromMe: key?.fromMe,
-            readTimestamp: receiptData?.readTimestamp,
-            deliveryTimestamp: receiptData?.deliveryTimestamp,
-            playedTimestamp: receiptData?.playedTimestamp,
-          });
-
-          // Only process receipts for messages we sent (fromMe: true)
-          if (key?.fromMe === true) {
-            console.log("✅ Processing receipt for our message (fromMe=true)");
-            
-            // Update message status based on receipt
-            if (receiptData?.readTimestamp) {
-              console.log("👁️ Read receipt received, updating to status 4 (lida)");
-              await this.handleMessageStatusUpdate(key, 4, new Date(receiptData.readTimestamp * 1000));
-            } else if (receiptData?.deliveryTimestamp) {
-              console.log("📬 Delivery receipt received, updating to status 3 (entregue)");
-              await this.handleMessageStatusUpdate(key, 3, new Date(receiptData.deliveryTimestamp * 1000));
-            } else if (receiptData?.playedTimestamp) {
-              console.log("▶️ Played receipt received, updating to status 4 (lida)");
-              await this.handleMessageStatusUpdate(key, 4, new Date(receiptData.playedTimestamp * 1000));
-            }
-          } else {
-            console.log("⏭️ Ignoring receipt for received message (fromMe=false)");
+            console.log("Other type of update, not edit or delete");
           }
         }
       });
@@ -479,119 +372,6 @@ export class WhatsAppService extends EventEmitter {
       }
     } catch (error) {
       console.error("Error handling message delete:", error);
-    }
-  }
-
-  private async handleMessageStatusUpdate(key: any, status: number, timestamp?: Date) {
-    console.log("🔄 === HANDLING MESSAGE STATUS UPDATE ===");
-    console.log("🔑 Key:", JSON.stringify(key, null, 2));
-    console.log("📊 New Status:", status);
-    console.log("⏰ Timestamp:", timestamp);
-
-    const whatsappMessageId = key.id;
-    const phone = extractPhoneFromJid(key.remoteJid);
-
-    console.log("📱 Phone extracted:", phone);
-    console.log("🆔 WhatsApp Message ID:", whatsappMessageId);
-
-    if (!whatsappMessageId || !phone) {
-      console.log("⚠️ Missing whatsappMessageId or phone, skipping status update");
-      return;
-    }
-
-    try {
-      // Find conversation and existing message
-      const conversa = await storage.getConversaByTelefone(phone);
-      if (!conversa) {
-        console.log("⚠️ Conversation not found for phone:", phone);
-        return;
-      }
-
-      console.log("💬 Found conversation ID:", conversa.id);
-
-      const mensagens = await storage.getMensagensByConversaId(conversa.id);
-      console.log(`📋 Found ${mensagens.length} messages in conversation`);
-      
-      const existingMessage = mensagens.find(
-        (msg) => msg.whatsappMessageId === whatsappMessageId,
-      );
-
-      if (existingMessage) {
-        console.log("✅ Found message to update!");
-        console.log("📝 Current message state:", {
-          messageId: existingMessage.id,
-          currentStatus: existingMessage.status,
-          newStatus: status,
-          whatsappMessageId: existingMessage.whatsappMessageId,
-        });
-
-        // Only update if status is actually changing
-        if (existingMessage.status === status) {
-          console.log("⏭️ Status unchanged, skipping update");
-          return;
-        }
-
-        // IMPORTANT: Always include status in the update data
-        const updateData: any = { 
-          status: status // SEMPRE atualizar o status
-        };
-        
-        // Add timestamps based on status
-        if (status === 2) { // Server ACK
-          console.log("☁️ Setting status to 2 (servidor)");
-        } else if (status === 3) { // Delivered
-          updateData.deliveryTimestamp = timestamp || new Date();
-          console.log("📬 Setting delivery timestamp and status 3 (entregue)");
-        } else if (status === 4) { // Read
-          updateData.readTimestamp = timestamp || new Date();
-          updateData.lida = true;
-          // Se não tiver deliveryTimestamp, adicionar também
-          if (!existingMessage.deliveryTimestamp) {
-            updateData.deliveryTimestamp = timestamp || new Date();
-          }
-          console.log("👁️ Setting read timestamp, lida=true and status 4 (lida)");
-        }
-
-        console.log("📝 Update data to be saved:", updateData);
-
-        // Update the message status in database
-        const updatedMessage = await storage.updateMensagem(existingMessage.id, updateData);
-        
-        console.log("✅ Database update successful!");
-        console.log("📊 Updated message state:", {
-          messageId: updatedMessage.id,
-          oldStatus: existingMessage.status,
-          newStatus: updatedMessage.status,
-          statusChanged: existingMessage.status !== updatedMessage.status
-        });
-
-        // Prepare event data with more details
-        const eventData = {
-          messageId: existingMessage.id,
-          conversaId: conversa.id,
-          status: status,
-          readTimestamp: updateData.readTimestamp,
-          deliveryTimestamp: updateData.deliveryTimestamp,
-          phone: phone,
-          whatsappMessageId: whatsappMessageId,
-          previousStatus: existingMessage.status,
-        };
-
-        console.log("📤 Emitting message_status_updated event to WebSocket clients");
-        console.log("📊 Event data:", JSON.stringify(eventData, null, 2));
-        
-        // Emit status update event for WebSocket clients
-        this.emit("message_status_updated", eventData);
-
-        console.log("✅ Message status update completed successfully!");
-      } else {
-        console.log("⚠️ Message not found in database!");
-        console.log("🔍 Looking for WhatsApp ID:", whatsappMessageId);
-        console.log("📋 Available message IDs:", mensagens.map(m => m.whatsappMessageId));
-      }
-    } catch (error) {
-      console.error("❌ Error handling message status update:", error);
-      console.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
     }
   }
 
@@ -1207,9 +987,8 @@ export class WhatsAppService extends EventEmitter {
         // Add a small delay before marking as read
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        // Send read receipt using sendReadReceipt (correct Baileys method)
-        // For groups, use participant; for individual chats, use undefined
-        await this.sock.sendReadReceipt(jid, participant || undefined, [message.key.id]);
+        // Send read receipt
+        await this.sock.readMessages([messageKey]);
 
         console.log(
           "Message auto-marked as read successfully:",
@@ -5620,10 +5399,7 @@ export class WhatsAppService extends EventEmitter {
         throw sendError;
       }
 
-      console.log("📤 Message sent successfully!");
-      console.log("📌 Message key:", result?.key);
-      console.log("🔑 WhatsApp Message ID:", result?.key?.id);
-      console.log("👤 Sent to:", to);
+      console.log("Message sent result:", result?.key);
 
       // Get or create conversation using the mutex-protected method to prevent duplicates
       let conversa = await this.getOrCreateConversation(to, undefined, {
@@ -5638,26 +5414,14 @@ export class WhatsAppService extends EventEmitter {
       const whatsappMessageId = result?.key?.id || null;
       
       if (!skipSaveMessage) {
-        console.log("💾 Saving message to database...");
-        console.log("📊 Initial status: 2 (servidor)");
-        
         const savedMessage = await storage.createMensagem({
           conversaId: conversa.id,
           conteudo: message,
           tipo: "text",
           remetente: "sistema",
           lida: true,
-          status: 2, // Status 2 = servidor (enviada com sucesso)
           metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
           whatsappMessageId: whatsappMessageId, // Also save as whatsappMessageId field
-        });
-        
-        console.log("✅ Message saved with ID:", savedMessage.id);
-        console.log("📊 Message details:", {
-          id: savedMessage.id,
-          whatsappMessageId: savedMessage.whatsappMessageId,
-          status: savedMessage.status,
-          conversaId: savedMessage.conversaId
         });
 
         // Update conversation last message
@@ -5782,7 +5546,6 @@ export class WhatsAppService extends EventEmitter {
           tipo: "image",
           remetente: "sistema",
           lida: true,
-          status: 2, // Status 2 = servidor (enviada com sucesso)
           mediaUrl: relativeMediaUrl,
           metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
           whatsappMessageId: whatsappMessageId, // Also save as whatsappMessageId field
@@ -5884,7 +5647,6 @@ export class WhatsAppService extends EventEmitter {
         tipo: "text",
         remetente: "sistema",
         lida: true,
-        status: 2, // Status 2 = servidor (enviada com sucesso)
         metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
       });
 
@@ -5982,7 +5744,6 @@ export class WhatsAppService extends EventEmitter {
         tipo: "text",
         remetente: "sistema",
         lida: true,
-        status: 2, // Status 2 = servidor (enviada com sucesso)
         metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
       });
 

@@ -200,10 +200,6 @@ export const mensagens = pgTable("mensagens", {
   editada: boolean("editada").default(false), // Se a mensagem foi editada
   editadaEm: timestamp("editada_em"), // Quando foi editada
   whatsappMessageId: text("whatsapp_message_id"), // ID da mensagem no WhatsApp
-  // Campos para read receipts e status de entrega
-  status: integer("status").notNull().default(1), // 1=pendente, 2=servidor, 3=entregue, 4=lida, 5=tocada (para áudio/vídeo)
-  readTimestamp: timestamp("read_timestamp"), // Quando foi lida
-  deliveryTimestamp: timestamp("delivery_timestamp"), // Quando foi entregue
 });
 
 // Tickets de suporte

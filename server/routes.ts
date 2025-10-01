@@ -549,51 +549,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
-
-  // Endpoint de teste para enviar mensagem e verificar mapeamento de status
-  // TEMPORÁRIO: Removido checkAuth apenas para teste
-  app.post("/api/test-whatsapp-status", async (req, res) => {
-    try {
-      const { telefone, mensagem } = req.body;
-
-      if (!telefone || !mensagem) {
-        return res.status(400).json({
-          error: "Telefone e mensagem são obrigatórios"
-        });
-      }
-
-      console.log("🧪 === TESTE DE STATUS DO WHATSAPP ===");
-      console.log("📱 Telefone:", telefone);
-      console.log("💬 Mensagem:", mensagem);
-
-      // Enviar mensagem através do WhatsApp service
-      const messageId = await whatsappService.sendMessage(telefone, mensagem);
-
-      if (!messageId) {
-        return res.status(500).json({
-          error: "Falha ao enviar mensagem"
-        });
-      }
-
-      console.log("✅ Mensagem enviada com sucesso!");
-      console.log("🆔 WhatsApp Message ID:", messageId);
-
-      res.json({
-        success: true,
-        whatsappMessageId: messageId,
-        telefone: telefone,
-        mensagem: mensagem,
-        info: "Verifique os logs do servidor para acompanhar as atualizações de status"
-      });
-      
-    } catch (error: any) {
-      console.error("❌ Erro ao enviar mensagem de teste:", error);
-      return res.status(500).json({
-        error: "Erro ao enviar mensagem de teste",
-        details: error.message
-      });
-    }
-  });
   
   const httpServer = createServer(app);
 
@@ -641,14 +596,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   whatsappService.on("message_edited", (messageData) => {
     console.log("Message edited event received:", messageData);
     broadcastMessage("message_edited", messageData);
-  });
-
-  // Listen for message status updated events (read receipts)
-  whatsappService.on("message_status_updated", (messageData) => {
-    console.log("📨 MESSAGE STATUS UPDATED event received:", JSON.stringify(messageData, null, 2));
-    console.log("🔌 Broadcasting to", clientsSet.size, "WebSocket clients");
-    broadcastMessage("message_status_updated", messageData);
-    console.log("✅ Message status update broadcast completed");
   });
 
   // Helper function to broadcast messages to all connected clients
@@ -2898,60 +2845,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Endpoint para buscar status de uma mensagem específica
-  app.get("/api/mensagens/:id/status", async (req, res) => {
-    try {
-      const messageId = parseInt(req.params.id);
-      
-      const message = await storage.getMensagemById(messageId);
-      
-      if (!message) {
-        return res.status(404).json({ error: "Mensagem não encontrada" });
-      }
-      
-      res.json({
-        id: message.id,
-        status: message.status,
-        readTimestamp: message.readTimestamp,
-        deliveryTimestamp: message.deliveryTimestamp,
-        remetente: message.remetente
-      });
-    } catch (error) {
-      console.error("Erro ao buscar status da mensagem:", error);
-      res.status(500).json({ error: "Erro ao buscar status da mensagem" });
-    }
-  });
-
-  // Endpoint para atualizar status de uma mensagem
-  app.put("/api/mensagens/:id/status", async (req, res) => {
-    try {
-      const messageId = parseInt(req.params.id);
-      const { status, readTimestamp, deliveryTimestamp } = req.body;
-      
-      const updateData: any = {};
-      
-      if (status !== undefined) updateData.status = status;
-      if (readTimestamp !== undefined) updateData.readTimestamp = readTimestamp;
-      if (deliveryTimestamp !== undefined) updateData.deliveryTimestamp = deliveryTimestamp;
-      
-      // Mark as read if status is 4 or 5
-      if (status === 4 || status === 5) {
-        updateData.lida = true;
-      }
-      
-      const updatedMessage = await storage.updateMensagem(messageId, updateData);
-      
-      if (!updatedMessage) {
-        return res.status(404).json({ error: "Mensagem não encontrada" });
-      }
-      
-      res.json(updatedMessage);
-    } catch (error) {
-      console.error("Erro ao atualizar status da mensagem:", error);
-      res.status(500).json({ error: "Erro ao atualizar status da mensagem" });
-    }
-  });
-
   // Tickets
   app.get("/api/tickets", async (req, res) => {
     try {
@@ -4101,20 +3994,6 @@ Como posso ajudar você hoje?
       const messagesArray = messages || [];
 
       console.log(`Retrieved ${messagesArray.length} messages from database`);
-      
-      // Log the status of messages to debug
-      console.log('=== MESSAGE STATUS DEBUG ===');
-      messagesArray.slice(0, 5).forEach((msg, index) => {
-        console.log(`Message ${index + 1}:`, {
-          id: msg.id,
-          status: msg.status,
-          readTimestamp: msg.readTimestamp,
-          deliveryTimestamp: msg.deliveryTimestamp,
-          remetente: msg.remetente,
-          content: msg.conteudo?.substring(0, 30) + '...'
-        });
-      });
-      console.log('=== END MESSAGE STATUS DEBUG ===');
 
       // Reverse messages to show oldest first (since we fetch newest first from DB)
       const reversedMessages = messagesArray.reverse();
