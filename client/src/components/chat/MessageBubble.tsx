@@ -75,18 +75,6 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const [showImageViewer, setShowImageViewer] = useState(false);
   
-  // Debug log for message status
-  React.useEffect(() => {
-    if (isOwn && message.status) {
-      console.log('=== MessageBubble STATUS DEBUG ===', {
-        messageId: message.id,
-        status: message.status,
-        readTimestamp: message.readTimestamp,
-        deliveryTimestamp: message.deliveryTimestamp,
-        content: message.conteudo?.substring(0, 20) + '...'
-      });
-    }
-  }, [message.status, message.readTimestamp, message.deliveryTimestamp, isOwn, message.id, message.conteudo]);
   
   // Check if message can be edited (within 14.5 minutes)
   const canEditMessage = () => {

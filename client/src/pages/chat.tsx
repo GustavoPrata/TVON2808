@@ -2895,7 +2895,7 @@ export default function Chat() {
                               isReply: mensagem.metadados?.reply ? true : false,
                               replyTo: mensagem.metadados?.reply
                             }}
-                            isOwn={mensagem.remetente === 'sistema'}
+                            isOwn={mensagem.remetente === 'sistema' || mensagem.remetente === 'bot'}
                             contactName={selectedConversa.nome || selectedConversa.clienteNome || selectedConversa.telefone}
                             showAvatar={mensagem.remetente !== 'sistema' && isLastInGroup}
                             isFirstInGroup={isFirstInGroup}
