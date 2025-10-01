@@ -454,16 +454,24 @@ export class WhatsAppService extends EventEmitter {
         // Update the message status in database
         await storage.updateMensagem(existingMessage.id, updateData);
 
-        // Emit status update event for WebSocket clients
-        this.emit("message_status_updated", {
+        // Prepare event data with more details
+        const eventData = {
           messageId: existingMessage.id,
           conversaId: conversa.id,
           status: status,
           readTimestamp: updateData.readTimestamp,
           deliveryTimestamp: updateData.deliveryTimestamp,
-        });
+          phone: phone,
+          whatsappMessageId: whatsappMessageId,
+          previousStatus: existingMessage.status,
+        };
 
-        console.log("Message status update processed successfully");
+        console.log("📤 EMITTING message_status_updated event:", JSON.stringify(eventData, null, 2));
+        
+        // Emit status update event for WebSocket clients
+        this.emit("message_status_updated", eventData);
+
+        console.log("✅ Message status update processed successfully - Event emitted");
       }
     } catch (error) {
       console.error("Error handling message status update:", error);

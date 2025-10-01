@@ -598,6 +598,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     broadcastMessage("message_edited", messageData);
   });
 
+  // Listen for message status updated events (read receipts)
+  whatsappService.on("message_status_updated", (messageData) => {
+    console.log("📨 MESSAGE STATUS UPDATED event received:", JSON.stringify(messageData, null, 2));
+    console.log("🔌 Broadcasting to", clientsSet.size, "WebSocket clients");
+    broadcastMessage("message_status_updated", messageData);
+    console.log("✅ Message status update broadcast completed");
+  });
+
   // Helper function to broadcast messages to all connected clients
   const broadcastMessage = (type: string, data: any) => {
     const message = JSON.stringify({ type, data });
