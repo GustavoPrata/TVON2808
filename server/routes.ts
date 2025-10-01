@@ -549,6 +549,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Endpoint de teste para enviar mensagem e verificar mapeamento de status
+  // TEMPORÁRIO: Removido checkAuth apenas para teste
+  app.post("/api/test-whatsapp-status", async (req, res) => {
+    try {
+      const { telefone, mensagem } = req.body;
+
+      if (!telefone || !mensagem) {
+        return res.status(400).json({
+          error: "Telefone e mensagem são obrigatórios"
+        });
+      }
+
+      console.log("🧪 === TESTE DE STATUS DO WHATSAPP ===");
+      console.log("📱 Telefone:", telefone);
+      console.log("💬 Mensagem:", mensagem);
+
+      // Enviar mensagem através do WhatsApp service
+      const messageId = await whatsappService.sendMessage(telefone, mensagem);
+
+      if (!messageId) {
+        return res.status(500).json({
+          error: "Falha ao enviar mensagem"
+        });
+      }
+
+      console.log("✅ Mensagem enviada com sucesso!");
+      console.log("🆔 WhatsApp Message ID:", messageId);
+
+      res.json({
+        success: true,
+        whatsappMessageId: messageId,
+        telefone: telefone,
+        mensagem: mensagem,
+        info: "Verifique os logs do servidor para acompanhar as atualizações de status"
+      });
+      
+    } catch (error: any) {
+      console.error("❌ Erro ao enviar mensagem de teste:", error);
+      return res.status(500).json({
+        error: "Erro ao enviar mensagem de teste",
+        details: error.message
+      });
+    }
+  });
   
   const httpServer = createServer(app);
 
