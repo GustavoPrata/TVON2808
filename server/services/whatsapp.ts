@@ -417,12 +417,18 @@ export class WhatsAppService extends EventEmitter {
     const whatsappMessageId = key.id;
     const phone = extractPhoneFromJid(key.remoteJid);
 
-    if (!whatsappMessageId || !phone) return;
+    if (!whatsappMessageId || !phone) {
+      console.log("⚠️ Missing whatsappMessageId or phone, skipping status update");
+      return;
+    }
 
     try {
       // Find conversation and existing message
       const conversa = await storage.getConversaByTelefone(phone);
-      if (!conversa) return;
+      if (!conversa) {
+        console.log("⚠️ Conversation not found for phone:", phone);
+        return;
+      }
 
       const mensagens = await storage.getMensagensByConversaId(conversa.id);
       const existingMessage = mensagens.find(
@@ -430,29 +436,52 @@ export class WhatsAppService extends EventEmitter {
       );
 
       if (existingMessage) {
-        console.log("Updating message status:", {
+        console.log("📝 Found existing message to update:", {
           messageId: existingMessage.id,
-          status: status,
+          currentStatus: existingMessage.status,
+          newStatus: status,
           timestamp: timestamp,
         });
 
         // Map Baileys status to our status
         // Baileys: 1=PENDING, 2=SERVER_ACK, 3=DELIVERY_ACK, 4=READ, 5=PLAYED
-        const updateData: any = { status };
+        // IMPORTANT: Always include status in the update data
+        const updateData: any = { 
+          status: status // SEMPRE atualizar o status
+        };
         
         // Add timestamps based on status
         if (status === 3) { // Delivered
           updateData.deliveryTimestamp = timestamp || new Date();
+          console.log("✅ Setting delivery timestamp and status 3");
         } else if (status === 4) { // Read
           updateData.readTimestamp = timestamp || new Date();
           updateData.lida = true;
+          // Se não tiver deliveryTimestamp, adicionar também
+          if (!existingMessage.deliveryTimestamp) {
+            updateData.deliveryTimestamp = timestamp || new Date();
+          }
+          console.log("✅ Setting read timestamp, lida=true and status 4");
         } else if (status === 5) { // Played (for audio/video)
           updateData.readTimestamp = timestamp || new Date();
           updateData.lida = true;
+          updateData.status = 4; // Map PLAYED to READ status
+          // Se não tiver deliveryTimestamp, adicionar também
+          if (!existingMessage.deliveryTimestamp) {
+            updateData.deliveryTimestamp = timestamp || new Date();
+          }
+          console.log("✅ Setting played as read (status 4)");
         }
 
         // Update the message status in database
-        await storage.updateMensagem(existingMessage.id, updateData);
+        const updatedMessage = await storage.updateMensagem(existingMessage.id, updateData);
+        
+        console.log("✅ Message status updated successfully:", {
+          messageId: existingMessage.id,
+          oldStatus: existingMessage.status,
+          newStatus: updatedMessage.status,
+          updateData: updateData
+        });
 
         // Prepare event data with more details
         const eventData = {

@@ -4056,6 +4056,20 @@ Como posso ajudar você hoje?
       const messagesArray = messages || [];
 
       console.log(`Retrieved ${messagesArray.length} messages from database`);
+      
+      // Log the status of messages to debug
+      console.log('=== MESSAGE STATUS DEBUG ===');
+      messagesArray.slice(0, 5).forEach((msg, index) => {
+        console.log(`Message ${index + 1}:`, {
+          id: msg.id,
+          status: msg.status,
+          readTimestamp: msg.readTimestamp,
+          deliveryTimestamp: msg.deliveryTimestamp,
+          remetente: msg.remetente,
+          content: msg.conteudo?.substring(0, 30) + '...'
+        });
+      });
+      console.log('=== END MESSAGE STATUS DEBUG ===');
 
       // Reverse messages to show oldest first (since we fetch newest first from DB)
       const reversedMessages = messagesArray.reverse();

@@ -1169,6 +1169,22 @@ export default function Chat() {
   // Update allMessages when initial messages are loaded
   useEffect(() => {
     if (mensagens && Array.isArray(mensagens)) {
+      console.log('=== FRONTEND MESSAGE STATUS DEBUG ===');
+      console.log(`Received ${mensagens.length} messages from backend`);
+      
+      // Log the first 5 messages to debug status
+      mensagens.slice(0, 5).forEach((msg: any, index: number) => {
+        console.log(`Message ${index + 1}:`, {
+          id: msg.id,
+          status: msg.status,
+          readTimestamp: msg.readTimestamp,
+          deliveryTimestamp: msg.deliveryTimestamp,
+          remetente: msg.remetente,
+          content: msg.conteudo?.substring(0, 30) + '...'
+        });
+      });
+      console.log('=== END FRONTEND MESSAGE STATUS DEBUG ===');
+      
       // Initial messages loaded - mensagens comes directly from React Query
       // Remove duplicates by checking unique IDs
       const uniqueMessages = mensagens.filter((msg: any, index: number, self: any[]) => {
