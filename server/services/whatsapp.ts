@@ -259,7 +259,34 @@ export class WhatsAppService extends EventEmitter {
           // Check for status updates (delivery/read receipts)
           else if (updateData?.status) {
             console.log("Message status update detected:", updateData.status);
-            await this.handleMessageStatusUpdate(key, updateData.status);
+            
+            // Map Baileys status to our system status
+            // Baileys: 1=pending, 2=delivered, 3=read
+            // Our system: 1=pendente, 2=servidor, 3=entregue, 4=lida
+            let ourStatus = updateData.status;
+            
+            // Only process updates for our own messages (fromMe === true)
+            if (key?.fromMe === true) {
+              console.log("Processing status update for our message (fromMe=true)");
+              
+              if (updateData.status === 2) {
+                // Baileys DELIVERY_ACK (2) → our status 3 (entregue)
+                ourStatus = 3;
+                console.log("Mapping Baileys status 2 (delivered) to our status 3 (entregue)");
+              } else if (updateData.status === 3) {
+                // Baileys READ (3) → our status 4 (lida)
+                ourStatus = 4;
+                console.log("Mapping Baileys status 3 (read) to our status 4 (lida)");
+              } else if (updateData.status === 1) {
+                // Baileys PENDING (1) → our status 2 (servidor) when sent successfully
+                ourStatus = 2;
+                console.log("Mapping Baileys status 1 (pending) to our status 2 (servidor)");
+              }
+              
+              await this.handleMessageStatusUpdate(key, ourStatus);
+            } else {
+              console.log("Ignoring status update for received message (fromMe=false)");
+            }
           }
           // Log any other type of update
           else {
@@ -5553,6 +5580,7 @@ export class WhatsAppService extends EventEmitter {
           tipo: "text",
           remetente: "sistema",
           lida: true,
+          status: 2, // Status 2 = servidor (enviada com sucesso)
           metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
           whatsappMessageId: whatsappMessageId, // Also save as whatsappMessageId field
         });
@@ -5679,6 +5707,7 @@ export class WhatsAppService extends EventEmitter {
           tipo: "image",
           remetente: "sistema",
           lida: true,
+          status: 2, // Status 2 = servidor (enviada com sucesso)
           mediaUrl: relativeMediaUrl,
           metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
           whatsappMessageId: whatsappMessageId, // Also save as whatsappMessageId field
@@ -5780,6 +5809,7 @@ export class WhatsAppService extends EventEmitter {
         tipo: "text",
         remetente: "sistema",
         lida: true,
+        status: 2, // Status 2 = servidor (enviada com sucesso)
         metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
       });
 
@@ -5877,6 +5907,7 @@ export class WhatsAppService extends EventEmitter {
         tipo: "text",
         remetente: "sistema",
         lida: true,
+        status: 2, // Status 2 = servidor (enviada com sucesso)
         metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
       });
 
