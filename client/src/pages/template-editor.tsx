@@ -447,10 +447,10 @@ export default function TemplateEditor() {
                         <button
                           key={template.id}
                           onClick={() => loadTemplate(template)}
-                          className={`w-full p-3 rounded-lg border transition-all text-left ${
+                          className={`w-full p-4 rounded-lg border transition-all duration-200 text-left hover:shadow-lg ${
                             selectedTemplate?.id === template.id
-                              ? "bg-blue-900/20 border-blue-600"
-                              : "bg-slate-950 border-slate-800 hover:border-slate-700"
+                              ? "bg-gradient-to-r from-blue-900/30 to-blue-800/20 border-blue-600 shadow-md"
+                              : "bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900/70"
                           }`}
                           data-testid={`button-template-mobile-${template.id}`}
                         >
@@ -537,9 +537,9 @@ export default function TemplateEditor() {
                               <FormControl>
                                 <Textarea
                                   {...field}
-                                  rows={8}
+                                  rows={12}
                                   placeholder="Digite o conteúdo do template aqui..."
-                                  className="bg-slate-950 border-slate-800 font-mono"
+                                  className="bg-slate-950 border-slate-800 font-mono text-sm resize-none"
                                   data-testid="textarea-content-mobile"
                                 />
                               </FormControl>
@@ -575,10 +575,10 @@ export default function TemplateEditor() {
                   <CardTitle>Preview do WhatsApp</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-center">
+                  <div className="flex items-center justify-center min-h-[400px]">
                     <div className="w-full max-w-sm">
-                      <div className="bg-slate-950 rounded-lg p-4">
-                        <div className="bg-green-900 text-white p-3 rounded-lg rounded-tr-sm">
+                      <div className="bg-gradient-to-b from-slate-950 to-slate-900 rounded-2xl p-6 shadow-xl">
+                        <div className="bg-gradient-to-br from-green-900 to-green-800 text-white p-4 rounded-lg rounded-tr-sm shadow-md">
                           <div className="whitespace-pre-wrap break-words text-sm">
                             {formatWhatsAppMessage(watchedContent || "Digite sua mensagem...")}
                           </div>
@@ -597,16 +597,16 @@ export default function TemplateEditor() {
         </div>
 
         {/* Desktop Layout - Split Screen */}
-        <div className="hidden lg:grid lg:grid-cols-2 gap-6">
+        <div className="hidden lg:grid lg:grid-cols-[55%_45%] gap-6">
           {/* Left Side - Templates and Editor */}
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader>
-              <CardTitle>Templates e Editor</CardTitle>
+          <Card className="bg-gradient-to-b from-slate-900 to-slate-900/95 border-slate-800 overflow-hidden transition-all duration-300 hover:shadow-xl">
+            <CardHeader className="bg-slate-900/50 backdrop-blur-sm border-b border-slate-800">
+              <CardTitle className="text-xl text-slate-100">Templates e Editor</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="flex h-[600px]">
+              <div className="flex min-h-[700px] max-h-[800px]">
                 {/* Template List */}
-                <div className="w-80 border-r border-slate-800 bg-slate-900/50">
+                <div className="w-[320px] border-r border-slate-800 bg-slate-950/50 backdrop-blur-sm">
             <div className="p-4">
               <div className="flex items-center gap-2 mb-4">
                 <Search className="h-4 w-4 text-slate-400" />
@@ -617,8 +617,8 @@ export default function TemplateEditor() {
                 />
               </div>
             </div>
-            <ScrollArea className="h-[calc(100%-80px)]">
-              <div className="p-4 space-y-2">
+            <ScrollArea className="h-[calc(100%-100px)]">
+              <div className="p-4 pt-2 space-y-3">
                 {isLoading ? (
                   <div className="text-slate-400 text-center py-8">Carregando templates...</div>
                 ) : templates.length === 0 ? (
@@ -628,10 +628,10 @@ export default function TemplateEditor() {
                     <button
                       key={template.id}
                       onClick={() => loadTemplate(template)}
-                      className={`w-full p-3 rounded-lg border transition-all text-left ${
+                      className={`w-full p-4 rounded-lg border transition-all duration-200 text-left hover:shadow-lg ${
                         selectedTemplate?.id === template.id
-                          ? "bg-blue-900/20 border-blue-600"
-                          : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
+                          ? "bg-gradient-to-r from-blue-900/30 to-blue-800/20 border-blue-600 shadow-md"
+                          : "bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900/70"
                       }`}
                       data-testid={`button-template-${template.id}`}
                     >
@@ -662,7 +662,7 @@ export default function TemplateEditor() {
           </div>
 
           {/* Editor */}
-          <div className="flex-1 p-6">
+          <div className="flex-1 p-6 bg-slate-950/30 overflow-y-auto">
             {isEditing ? (
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -826,9 +826,9 @@ export default function TemplateEditor() {
                         <FormControl>
                           <Textarea
                             {...field}
-                            rows={10}
+                            rows={14}
                             placeholder="Digite o conteúdo do template aqui..."
-                            className="bg-slate-900 border-slate-800 font-mono"
+                            className="bg-slate-950 border-slate-800 font-mono text-sm resize-none min-h-[350px]"
                             data-testid="textarea-content"
                           />
                         </FormControl>
@@ -859,17 +859,17 @@ export default function TemplateEditor() {
             </Card>
 
             {/* Right Side - Phone Preview */}
-            <Card className="bg-slate-900 border-slate-800 h-fit">
-              <CardHeader>
-                <CardTitle>Preview do WhatsApp</CardTitle>
+            <Card className="bg-gradient-to-b from-slate-900 to-slate-900/95 border-slate-800 h-fit transition-all duration-300 hover:shadow-xl">
+              <CardHeader className="bg-slate-900/50 backdrop-blur-sm border-b border-slate-800">
+                <CardTitle className="text-xl text-slate-100">Preview do WhatsApp</CardTitle>
               </CardHeader>
-              <CardContent className="p-6">
-                <div className="h-[650px] flex flex-col">
+              <CardContent className="p-6 bg-slate-950/30">
+                <div className="h-[700px] flex flex-col">
                   {/* iPhone Frame */}
                   <div className="flex-1 flex items-center justify-center">
-          <div className="relative">
+          <div className="relative transform scale-95 hover:scale-100 transition-transform duration-300">
             {/* Phone Frame */}
-            <div className="w-80 h-[600px] bg-black rounded-[3rem] p-3 shadow-2xl border border-slate-800">
+            <div className="w-[340px] h-[680px] bg-gradient-to-b from-slate-900 to-black rounded-[3rem] p-3 shadow-2xl border border-slate-700/50">
               <div className="w-full h-full bg-slate-950 rounded-[2.5rem] overflow-hidden relative">
                 {/* Status Bar */}
                 <div className="h-8 bg-slate-900 flex items-center justify-between px-6 text-xs text-slate-400">
@@ -891,7 +891,7 @@ export default function TemplateEditor() {
                 </div>
 
                 {/* Chat Area */}
-                <div className="h-[calc(100%-112px)] bg-slate-950 p-4 overflow-y-auto">
+                <div className="h-[calc(100%-112px)] bg-gradient-to-b from-slate-950 to-slate-900 p-4 overflow-y-auto">
                   {/* Message Bubble */}
                   {(watchedContent || isEditing) && (
                     <div className="flex justify-end mb-2">
