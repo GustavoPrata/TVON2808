@@ -377,7 +377,7 @@ export default function TemplateEditor() {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-slate-950">
-      <div className="flex h-full flex-col">
+      <div className="flex h-full flex-col max-w-[1920px] mx-auto">
         {/* Header sticky fino */}
         <div className="h-14 sticky top-0 z-50 bg-slate-950/80 backdrop-blur border-b border-slate-800 px-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -568,7 +568,7 @@ export default function TemplateEditor() {
               <div className="h-full bg-slate-900/70 p-4 flex flex-col">
                 <h2 className="text-xl font-bold text-white mb-4">Preview do WhatsApp</h2>
                 <div className="flex-1 flex items-center justify-center">
-                  <div className="w-full max-w-sm">
+                  <div className="w-full max-w-[360px]">
                     <div className="bg-gradient-to-b from-slate-950 to-slate-900 rounded-2xl p-6 shadow-2xl">
                       <div className="bg-gradient-to-br from-green-900 to-green-800 text-white p-5 rounded-xl rounded-tr-sm shadow-xl">
                         <div className="whitespace-pre-wrap break-words text-base">
@@ -588,9 +588,9 @@ export default function TemplateEditor() {
         </div>
 
         {/* Desktop Layout - Grid de 3 Colunas FULLSCREEN */}
-        <div className="hidden lg:grid grid-cols-[340px_1fr_440px] gap-3 p-3 h-full overflow-hidden">
+        <div className="hidden lg:grid grid-cols-[280px_1fr_380px] gap-3 p-5 h-full overflow-hidden">
           
-          {/* Painel 1: Lista de Templates (340px fixo) */}
+          {/* Painel 1: Lista de Templates (280px fixo) */}
           <div className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70">
             {/* Barra de busca STICKY no topo */}
             <div className="sticky top-0 z-10 p-3 border-b border-slate-800 bg-slate-900/90 backdrop-blur">
@@ -851,7 +851,7 @@ export default function TemplateEditor() {
             )}
           </div>
 
-          {/* Painel 3: Preview WhatsApp (440px fixo) */}
+          {/* Painel 3: Preview WhatsApp (380px fixo) */}
           <div className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70 p-4">
             {/* Controle de Zoom opcional */}
             <div className="flex justify-center mb-4">
@@ -869,7 +869,7 @@ export default function TemplateEditor() {
             
             {/* iPhone MAIOR centralizado */}
             <div className="h-[calc(100%-56px)] flex items-center justify-center">
-              <div className="aspect-[9/19.5] w-full max-w-[420px] rounded-[32px] border-2 border-slate-700 bg-gradient-to-b from-slate-950 to-slate-900 shadow-2xl p-5">
+              <div className="aspect-[9/19.5] w-full max-w-[360px] rounded-[32px] border-2 border-slate-700 bg-gradient-to-b from-slate-950 to-slate-900 shadow-2xl p-5">
                 <div className="h-full bg-slate-950 rounded-[24px] overflow-hidden relative">
                   {/* Status Bar */}
                   <div className="h-8 bg-slate-900 flex items-center justify-between px-6 text-xs text-slate-400">
