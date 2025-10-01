@@ -9,6 +9,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Data Management**: Systems data must come from local database, not external API
 
 ## Recent Changes
+- **01/10/2025**: Fixed WhatsApp message status system based on Baileys documentation. Corrected status mapping (1=pending, 2=server, 3=delivered, 4=read), fixed initial status on message send (now starts at 2 instead of 1), corrected JID parsing for business accounts that was preventing status updates, and ensured both "sistema" and "bot" messages show status icons.
 - **26/09/2025**: Fixed critical bug where fixed systems (ID >= 1000) weren't appearing in distribution modal. Issue was caused by backend returning `systemId` (camelCase) while frontend expected `system_id` (snake_case). Solution: Added fallback support for both formats throughout the frontend.
 - **25/09/2025 (v2)**: Refactored fixed systems to be REAL systems saved in database and API. Fixed systems now require username/password, use IDs >= 1000, and points are automatically calculated (total_points / num_systems). Removed manual point editing.
 - **25/09/2025**: Added test message simulation feature in chat - allows sending messages as if from the client to test bot responses. Located above PIX billing option in chat sidebar.
