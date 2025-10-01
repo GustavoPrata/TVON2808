@@ -376,10 +376,10 @@ export default function TemplateEditor() {
   );
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-slate-950">
-      <div className="flex h-full flex-col max-w-[1920px] mx-auto">
+    <div className="h-screen w-full overflow-x-hidden bg-slate-950">
+      <div className="flex h-full flex-col">
         {/* Header sticky fino */}
-        <div className="h-14 sticky top-0 z-50 bg-slate-950/80 backdrop-blur border-b border-slate-800 px-4 flex items-center justify-between">
+        <div className="h-14 sticky top-0 z-50 bg-slate-950/80 backdrop-blur border-b border-slate-800 px-2 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/promocoes">
               <Button variant="ghost" size="lg" className="hover:bg-slate-800/50">
@@ -587,26 +587,26 @@ export default function TemplateEditor() {
           </Tabs>
         </div>
 
-        {/* Desktop Layout - Grid de 3 Colunas FULLSCREEN */}
-        <div className="hidden lg:grid grid-cols-[280px_1fr_380px] gap-3 p-5 h-full overflow-hidden">
+        {/* Desktop Layout - Grid de 3 Colunas com FR Units */}
+        <div className="hidden lg:grid grid-cols-[1fr_2.2fr_1.3fr] gap-2 p-2 h-full">
           
-          {/* Painel 1: Lista de Templates (280px fixo) */}
-          <div className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70">
+          {/* Painel 1: Lista de Templates */}
+          <div className="min-w-0 h-full min-h-0 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70">
             {/* Barra de busca STICKY no topo */}
-            <div className="sticky top-0 z-10 p-3 border-b border-slate-800 bg-slate-900/90 backdrop-blur">
-              <div className="flex items-center gap-2">
-                <Search className="h-5 w-5 text-slate-400" />
+            <div className="sticky top-0 z-10 p-2 border-b border-slate-800 bg-slate-900/90 backdrop-blur">
+              <div className="flex items-center gap-1">
+                <Search className="h-4 w-4 text-slate-400 flex-shrink-0" />
                 <Input
-                  placeholder="Buscar templates..."
-                  className="h-10 text-base bg-slate-950 border-slate-700"
+                  placeholder="Buscar..."
+                  className="h-8 text-sm bg-slate-950 border-slate-700"
                   data-testid="input-search-templates"
                 />
               </div>
             </div>
             
             {/* Lista scrollável */}
-            <ScrollArea className="h-[calc(100%-68px)]">
-              <div className="p-3 space-y-2">
+            <ScrollArea className="h-[calc(100%-56px)]">
+              <div className="p-2 space-y-1">
                 {isLoading ? (
                   <div className="text-slate-400 text-center py-8 text-base">Carregando templates...</div>
                 ) : templates.length === 0 ? (
@@ -616,29 +616,27 @@ export default function TemplateEditor() {
                     <button
                       key={template.id}
                       onClick={() => loadTemplate(template)}
-                      className={`w-full min-h-[56px] p-4 rounded-xl border transition-all duration-200 text-left hover:shadow-xl ${
+                      className={`w-full min-h-[48px] p-2 rounded-lg border transition-all duration-200 text-left ${
                         selectedTemplate?.id === template.id
-                          ? "bg-gradient-to-r from-blue-900/30 to-blue-800/20 border-blue-600 shadow-xl"
+                          ? "bg-gradient-to-r from-blue-900/30 to-blue-800/20 border-blue-600"
                           : "bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-800/50"
                       }`}
                       data-testid={`button-template-${template.id}`}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-2">
                         <IconComponent
                           name={template.icon}
-                          className="h-6 w-6 text-blue-400 mt-0.5"
+                          className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-white text-base truncate">{template.title}</div>
-                          <div className="text-sm text-slate-400 mt-1 line-clamp-2">
-                            {template.content.substring(0, 40)}...
+                          <div className="font-medium text-white text-xs truncate">{template.title}</div>
+                          <div className="text-[10px] text-slate-400 line-clamp-1">
+                            {template.content.substring(0, 30)}...
                           </div>
                           {template.usageCount > 0 && (
-                            <div className="mt-1">
-                              <span className="text-xs text-slate-500">
-                                Usado {template.usageCount}x
-                              </span>
-                            </div>
+                            <span className="text-[10px] text-slate-500">
+                              {template.usageCount}x
+                            </span>
                           )}
                         </div>
                       </div>
@@ -649,12 +647,12 @@ export default function TemplateEditor() {
             </ScrollArea>
           </div>
 
-          {/* Painel 2: Editor Central (flex-grow) */}
-          <div className="flex h-full min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-900/70">
+          {/* Painel 2: Editor Central */}
+          <div className="min-w-0 flex h-full min-h-0 flex-col rounded-xl border border-slate-800 bg-slate-900/70 overflow-hidden">
             {/* Barra de ações STICKY */}
-            <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur">
-              <h3 className="text-xl font-bold text-white">
-                {isEditing ? (selectedTemplate ? "Editando Template" : "Novo Template") : "Editor"}
+            <div className="sticky top-0 z-10 flex items-center justify-between p-2 border-b border-slate-800 bg-slate-900/90 backdrop-blur">
+              <h3 className="text-sm font-bold text-white">
+                {isEditing ? (selectedTemplate ? "Editando" : "Novo") : "Editor"}
               </h3>
               {isEditing && (
                 <div className="flex gap-2">
@@ -663,46 +661,44 @@ export default function TemplateEditor() {
                       <Button
                         type="button"
                         variant="outline"
-                        size="lg"
+                        size="sm"
                         onClick={duplicateTemplate}
                         data-testid="button-duplicate"
-                        className="shadow-xl"
                       >
-                        <Copy className="h-5 w-5 mr-2" />
-                        Duplicar
+                        <Copy className="h-3 w-3 mr-1" />
+                        <span className="text-xs">Duplicar</span>
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
-                        size="lg"
+                        size="sm"
                         onClick={() => deleteMutation.mutate(selectedTemplate.id)}
-                        className="text-red-400 hover:text-red-300 shadow-xl"
+                        className="text-red-400 hover:text-red-300"
                         data-testid="button-delete"
                       >
-                        <Trash2 className="h-5 w-5" />
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </>
                   )}
                   <Button
                     type="button"
                     variant="outline"
-                    size="lg"
+                    size="sm"
                     onClick={() => setIsEditing(false)}
                     data-testid="button-cancel"
-                    className="shadow-xl"
                   >
-                    <X className="h-5 w-5 mr-2" />
-                    <span className="text-base">Cancelar (Esc)</span>
+                    <X className="h-3 w-3 mr-1" />
+                    <span className="text-xs">Cancelar</span>
                   </Button>
                   <Button
                     onClick={form.handleSubmit(onSubmit)}
-                    size="lg"
-                    className="bg-blue-600 hover:bg-blue-700 shadow-xl"
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
                     disabled={createMutation.isPending || updateMutation.isPending}
                     data-testid="button-save"
                   >
-                    <Save className="h-5 w-5 mr-2" />
-                    <span className="text-base">Salvar (Ctrl+S)</span>
+                    <Save className="h-3 w-3 mr-1" />
+                    <span className="text-xs">Salvar</span>
                   </Button>
                 </div>
               )}
@@ -710,22 +706,22 @@ export default function TemplateEditor() {
             
             {/* Formulário flexível */}
             {isEditing ? (
-              <div className="flex-1 min-h-0 flex flex-col p-4 overflow-y-auto">
+              <div className="flex-1 min-h-0 flex flex-col p-2 overflow-y-auto">
                 <Form {...form}>
                   <form className="flex flex-col h-full">
                     {/* Grid de campos superiores */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="grid grid-cols-2 gap-2 mb-2">
                       <FormField
                         control={form.control}
                         name="title"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-base">Título</FormLabel>
+                            <FormLabel className="text-xs">Título</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
-                                placeholder="Ex: Promoção Especial"
-                                className="h-12 text-base bg-slate-950 border-slate-700"
+                                placeholder="Ex: Promoção"
+                                className="h-8 text-sm bg-slate-950 border-slate-700"
                                 data-testid="input-title"
                               />
                             </FormControl>
@@ -851,76 +847,47 @@ export default function TemplateEditor() {
             )}
           </div>
 
-          {/* Painel 3: Preview WhatsApp (380px fixo) */}
-          <div className="h-full min-h-0 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70 p-4">
-            {/* Controle de Zoom opcional */}
-            <div className="flex justify-center mb-4">
-              <Select defaultValue="1.0">
-                <SelectTrigger className="w-32 h-10 bg-slate-950 border-slate-700">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0.8">80%</SelectItem>
-                  <SelectItem value="1.0">100%</SelectItem>
-                  <SelectItem value="1.2">120%</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* Painel 3: Preview WhatsApp Compacto */}
+          <div className="min-w-0 h-full min-h-0 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70">
+            {/* Header compacto */}
+            <div className="p-2 border-b border-slate-800">
+              <h3 className="text-sm font-bold text-white text-center">Preview</h3>
             </div>
             
-            {/* iPhone MAIOR centralizado */}
-            <div className="h-[calc(100%-56px)] flex items-center justify-center">
-              <div className="aspect-[9/19.5] w-full max-w-[360px] rounded-[32px] border-2 border-slate-700 bg-gradient-to-b from-slate-950 to-slate-900 shadow-2xl p-5">
-                <div className="h-full bg-slate-950 rounded-[24px] overflow-hidden relative">
-                  {/* Status Bar */}
-                  <div className="h-8 bg-slate-900 flex items-center justify-between px-6 text-xs text-slate-400">
-                    <span>9:41 AM</span>
-                    <div className="flex gap-1">
-                      <div className="w-4 h-3 bg-slate-400 rounded-sm"></div>
-                      <div className="w-1 h-3 bg-slate-400 rounded-sm"></div>
-                      <div className="w-4 h-3 bg-slate-400 rounded-sm"></div>
-                    </div>
-                  </div>
-
-                  {/* WhatsApp Header */}
-                  <div className="h-14 bg-green-900 flex items-center px-4 gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-700"></div>
+            {/* Preview SIMPLIFICADO sem iPhone */}
+            <div className="flex-1 overflow-y-auto p-2">
+              <div className="mx-auto w-full max-w-[260px]">
+                <div className="bg-gradient-to-b from-teal-900 to-teal-800 rounded-lg shadow-xl overflow-hidden">
+                  {/* WhatsApp Header Compacto */}
+                  <div className="h-10 bg-green-900 flex items-center px-2 gap-2">
+                    <div className="w-7 h-7 rounded-full bg-slate-700"></div>
                     <div className="flex-1">
-                      <div className="text-white font-medium text-base">Sua Empresa</div>
-                      <div className="text-sm text-green-300">online</div>
+                      <div className="text-white font-medium text-xs">Cliente</div>
+                      <div className="text-[10px] text-green-300">online</div>
                     </div>
                   </div>
 
-                  {/* Chat Area */}
-                  <div className="h-[calc(100%-144px)] bg-gradient-to-b from-slate-950 to-slate-900 p-4 overflow-y-auto">
-                    {(watchedContent || isEditing) && (
-                      <div className="flex justify-end mb-2">
-                        <div className="max-w-[85%] bg-gradient-to-br from-green-900 to-green-800 text-white p-4 rounded-xl rounded-tr-sm shadow-xl">
-                          <div className="whitespace-pre-wrap break-words text-base">
-                            {formatWhatsAppMessage(watchedContent || "Digite sua mensagem...")}
-                          </div>
-                          <div className="flex items-center justify-end gap-1 mt-2">
-                            <span className="text-sm text-green-300">9:41 AM</span>
-                            <CheckCheck className="h-4 w-4 text-blue-400" />
-                          </div>
+                  {/* Chat Area Compacta */}
+                  <div className="min-h-[200px] bg-gradient-to-b from-slate-950 to-slate-900 p-2 overflow-y-auto">
+                    <div className="flex justify-end mb-1">
+                      <div className="max-w-full bg-gradient-to-br from-green-900 to-green-800 text-white p-2 rounded-lg rounded-tr-sm shadow">
+                        <div className="whitespace-pre-wrap break-words text-xs leading-relaxed">
+                          {formatWhatsAppMessage(watchedContent || "Digite sua mensagem...")}
+                        </div>
+                        <div className="flex items-center justify-end gap-0.5 mt-1">
+                          <span className="text-[10px] text-green-300">9:41 AM</span>
+                          <CheckCheck className="h-3 w-3 text-blue-400" />
                         </div>
                       </div>
-                    )}
-
-                    {!watchedContent && !isEditing && (
-                      <div className="text-center text-slate-500 text-base mt-20">
-                        O preview da mensagem aparecerá aqui
-                      </div>
-                    )}
+                    </div>
                   </div>
 
-                  {/* Input Area */}
-                  <div className="h-16 bg-slate-900 flex items-center px-4 gap-2">
-                    <div className="flex-1 h-11 bg-slate-800 rounded-full px-4 flex items-center">
-                      <span className="text-slate-400 text-base">Mensagem</span>
+                  {/* Input Area Compacta */}
+                  <div className="h-10 bg-slate-900 flex items-center px-2 gap-1">
+                    <div className="flex-1 h-7 bg-slate-800 rounded-full px-2 flex items-center">
+                      <span className="text-slate-400 text-[10px]">Mensagem</span>
                     </div>
-                    <div className="w-11 h-11 bg-green-600 rounded-full flex items-center justify-center shadow-xl">
-                      <Send className="h-5 w-5 text-white" />
-                    </div>
+                    <Send className="h-4 w-4 text-green-600" />
                   </div>
                 </div>
               </div>
