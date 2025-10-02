@@ -113,11 +113,25 @@ export class WhatsAppService extends EventEmitter {
   private conversationCreationLocks: Map<string, Promise<any>> = new Map(); // Prevent duplicate conversation creation
   private processedMessagesOnStartup: Set<string> = new Set(); // Track processed messages during startup
   private lidToPhoneMap: Map<string, string> = new Map(); // LID to real phone number mapping
+  
+  // Anti-spam system properties
+  private messageProcessingCache: Map<string, boolean> = new Map();
+  private messageResponseCache: Map<string, number> = new Map(); // Track responses per conversation
+  private readonly RESPONSE_COOLDOWN_MS = 3000; // 3 seconds between responses
+  private readonly MAX_CACHE_SIZE = 1000;
+  private readonly CACHE_CLEANUP_INTERVAL = 60000; // 1 minute
+  private cacheCleanupInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     super();
     // Initialize WhatsApp service
     console.log("🚀 WhatsApp Service Constructor Called");
+    
+    // Set up cache cleanup interval
+    this.cacheCleanupInterval = setInterval(() => {
+      this.cleanupMessageCache();
+    }, this.CACHE_CLEANUP_INTERVAL);
+    
     this.initialize().catch(error => {
       console.error("❌ Failed to initialize WhatsApp service:", error);
     });
@@ -130,6 +144,61 @@ export class WhatsAppService extends EventEmitter {
   private notifyWebSocketClients(type: string, data: any) {
     // Emit event to be handled by routes.ts WebSocket handler
     this.emit(type, data);
+  }
+
+  // Anti-spam methods
+  private cleanupMessageCache() {
+    const now = Date.now();
+    // Clean up response cache - remove entries older than 30 seconds
+    for (const [key, lastResponse] of this.messageResponseCache.entries()) {
+      if (now - lastResponse > 30000) { // Remove entries older than 30 seconds
+        this.messageResponseCache.delete(key);
+      }
+    }
+    // Clean up processing cache if it's too large
+    if (this.messageProcessingCache.size > this.MAX_CACHE_SIZE) {
+      // Clear the first half of the cache (oldest entries)
+      const entriesToDelete = Math.floor(this.messageProcessingCache.size / 2);
+      const keys = Array.from(this.messageProcessingCache.keys()).slice(0, entriesToDelete);
+      keys.forEach(key => this.messageProcessingCache.delete(key));
+      console.log(`[ANTI-SPAM] Limpeza de cache: removidas ${entriesToDelete} entradas antigas`);
+    }
+  }
+
+  private shouldProcessMessage(telefone: string, messageId: string, content?: string): boolean {
+    const cacheKey = `${telefone}_${messageId}_${content?.slice(0, 100) || 'media'}`;
+    
+    // Check if already processing or processed
+    if (this.messageProcessingCache.has(cacheKey)) {
+      console.log(`[ANTI-SPAM] Mensagem já processada, ignorando duplicata: ${cacheKey}`);
+      return false;
+    }
+    
+    // Check rate limiting per conversation
+    const lastResponseTime = this.messageResponseCache.get(telefone) || 0;
+    const now = Date.now();
+    if (now - lastResponseTime < this.RESPONSE_COOLDOWN_MS) {
+      const timeLeft = this.RESPONSE_COOLDOWN_MS - (now - lastResponseTime);
+      console.log(`[ANTI-SPAM] Cooldown ativo para ${telefone}, aguarde ${timeLeft}ms`);
+      return false;
+    }
+    
+    // Mark as processing
+    this.messageProcessingCache.set(cacheKey, true);
+    console.log(`[ANTI-SPAM] Mensagem aceita para processamento: ${cacheKey}`);
+    
+    // Clean up old entries after 30 seconds
+    setTimeout(() => {
+      this.messageProcessingCache.delete(cacheKey);
+      console.log(`[ANTI-SPAM] Cache key removida após timeout: ${cacheKey}`);
+    }, 30000);
+    
+    return true;
+  }
+
+  private markResponseSent(telefone: string) {
+    this.messageResponseCache.set(telefone, Date.now());
+    console.log(`[ANTI-SPAM] Resposta marcada como enviada para ${telefone}`);
   }
 
   async initialize() {
@@ -939,6 +1008,18 @@ export class WhatsAppService extends EventEmitter {
       metadados: replyMetadata,
     };
 
+    // Anti-spam check for incoming messages (not for outgoing)
+    if (!isFromMe) {
+      const contentHash = messageType === 'image' || messageType === 'video' || messageType === 'audio' || messageType === 'document'
+        ? `${messageType}_${message.key?.participant || message.key?.remoteJid}_${message.messageTimestamp}`
+        : messageText?.slice(0, 100);
+
+      if (!this.shouldProcessMessage(phone, message.key?.id || '', contentHash)) {
+        console.log(`[ANTI-SPAM] Bloqueando processamento duplicado para ${phone}`);
+        return;
+      }
+    }
+
     // Check if this is a self-message (sent to ourselves)
     if (isFromMe && this.sock?.user?.id) {
       const myNumber = extractPhoneFromJid(this.sock.user.id);
@@ -1412,6 +1493,16 @@ export class WhatsAppService extends EventEmitter {
     try {
       console.log("Processando mensagem recebida:", message);
 
+      // Additional anti-spam check using the new system
+      const contentHash = message.type === 'image' || message.type === 'video' || message.type === 'audio' || message.type === 'document'
+        ? `${message.type}_${message.from}_${message.timestamp}`
+        : message.message?.slice(0, 100);
+      
+      if (!this.shouldProcessMessage(message.from, message.id || `msg_${message.timestamp}`, contentHash)) {
+        console.log(`[ANTI-SPAM] Mensagem duplicada detectada em processIncomingMessage, ignorando: ${message.from}`);
+        return;
+      }
+
       // Check if message was already processed during startup (to avoid duplicates)
       const messageKey = `${message.from}_${message.id}_${message.timestamp}`;
       if (this.processedMessagesOnStartup.has(messageKey)) {
@@ -1607,6 +1698,12 @@ export class WhatsAppService extends EventEmitter {
     try {
       console.log("Iniciando processamento do bot para:", conversa.telefone);
 
+      // Anti-spam: Check rate limiting before processing bot response
+      if (!this.shouldProcessMessage(conversa.telefone, 'bot_response', 'bot_processing')) {
+        console.log(`[ANTI-SPAM] Bot já respondeu recentemente para ${conversa.telefone}, ignorando processamento`);
+        return;
+      }
+
       // CRITICAL: Re-check conversation mode to ensure it's still in bot mode
       // This prevents any race conditions where mode might have changed
       const currentConversa = await storage.getConversaByTelefone(conversa.telefone);
@@ -1695,6 +1792,7 @@ export class WhatsAppService extends EventEmitter {
               conversa.telefone,
               `❌ *Opção inválida!* Por favor, escolha uma das opções disponíveis.`,
             );
+            this.markResponseSent(conversa.telefone);
             return;
           }
         } else {
@@ -1742,7 +1840,9 @@ export class WhatsAppService extends EventEmitter {
           conversa.telefone,
           `✅ Estado do bot resetado com sucesso!\n\nVou reenviar o menu principal.`,
         );
+        this.markResponseSent(conversa.telefone);
         await this.sendBotMenu(conversa.telefone, botConfig);
+        this.markResponseSent(conversa.telefone);
         return;
       }
 
@@ -1812,8 +1912,10 @@ export class WhatsAppService extends EventEmitter {
             // Create proper test bot config with tipo
             const testBotConfig = { tipo: "testes", ativo: true, opcoes: [] };
             await this.sendBotMenu(conversa.telefone, testBotConfig);
+            this.markResponseSent(conversa.telefone);
           } else {
             await this.sendBotMenu(conversa.telefone, botConfig);
+            this.markResponseSent(conversa.telefone);
           }
         }
       }
@@ -1918,6 +2020,7 @@ export class WhatsAppService extends EventEmitter {
         telefone,
         `❌ *Opção inválida!* Por favor, escolha uma das opções disponíveis.`,
       );
+      this.markResponseSent(telefone);
       return;
     }
 
@@ -1934,6 +2037,7 @@ export class WhatsAppService extends EventEmitter {
             `5️⃣ Outros\n` +
             `0️⃣ Voltar`,
         );
+        this.markResponseSent(telefone);
         this.conversaStates.set(telefone, {
           submenu: "teste_dispositivo",
           lastActivity: new Date(),
@@ -1949,6 +2053,7 @@ export class WhatsAppService extends EventEmitter {
             `2️⃣ Não tenho\n` +
             `0️⃣ Voltar`,
         );
+        this.markResponseSent(telefone);
         this.conversaStates.set(telefone, {
           submenu: "assinar_codigo",
           lastActivity: new Date(),
@@ -1969,6 +2074,7 @@ export class WhatsAppService extends EventEmitter {
             `2️⃣ Testar grátis por 24h\n` +
             `0️⃣ Voltar`,
         );
+        this.markResponseSent(telefone);
         // Set state to track this is an info-only menu
         this.conversaStates.set(telefone, {
           submenu: "info_only",
@@ -5445,6 +5551,10 @@ export class WhatsAppService extends EventEmitter {
       }
 
       await this.logActivity("info", "WhatsApp", `Mensagem enviada para ${to}`);
+      
+      // Anti-spam: Mark response as sent for rate limiting
+      this.markResponseSent(to);
+      
       return whatsappMessageId;
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error);
@@ -6309,6 +6419,44 @@ export class WhatsAppService extends EventEmitter {
       );
       throw error;
     }
+  }
+
+  // Public cleanup method to properly shutdown the service
+  public cleanup() {
+    console.log("🧹 Cleaning up WhatsApp service...");
+    
+    // Clear the cache cleanup interval
+    if (this.cacheCleanupInterval) {
+      clearInterval(this.cacheCleanupInterval);
+      this.cacheCleanupInterval = null;
+    }
+    
+    // Clear the keep-alive interval
+    if (this.keepAliveInterval) {
+      clearInterval(this.keepAliveInterval);
+      this.keepAliveInterval = null;
+    }
+    
+    // Clear all caches
+    this.messageProcessingCache.clear();
+    this.messageResponseCache.clear();
+    this.messageCache.clear();
+    this.conversationCreationLocks.clear();
+    this.processedMessagesOnStartup.clear();
+    this.lidToPhoneMap.clear();
+    this.conversaStates.clear();
+    
+    // Close WebSocket connection if exists
+    if (this.sock) {
+      try {
+        this.sock.ws.close();
+        this.sock = null;
+      } catch (error) {
+        console.error("Error closing WebSocket connection:", error);
+      }
+    }
+    
+    console.log("✅ WhatsApp service cleanup completed");
   }
 }
 
