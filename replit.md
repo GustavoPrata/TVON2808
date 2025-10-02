@@ -7,11 +7,8 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **UI Simplification**: Remove unnecessary buttons from chat interface (no mute notifications or contact info buttons)
 - **Modern Tab Interface**: Use elegant tabbed layouts with gradient colors and icons for menu organization (similar to bot-config page style)
 - **Data Management**: Systems data must come from local database, not external API
-- **Layout Optimization**: Template editor must use fullscreen layout with responsive grid using fr units, avoiding horizontal overflow
 
 ## Recent Changes
-- **01/10/2025**: Implemented robust anti-spam system for WhatsApp bot. Bot now responds only once per message/photo with 3-second cooldown between responses. Added multi-layer deduplication using message cache and rate limiting to prevent multiple responses when receiving media messages.
-- **01/10/2025**: Redesigned template-editor with fullscreen layout using CSS Grid fr units (1fr:2.2fr:1.3fr) to prevent horizontal overflow. Removed max-width constraints and implemented responsive design that adapts to all screen sizes >= 1024px.
 - **26/09/2025**: Fixed critical bug where fixed systems (ID >= 1000) weren't appearing in distribution modal. Issue was caused by backend returning `systemId` (camelCase) while frontend expected `system_id` (snake_case). Solution: Added fallback support for both formats throughout the frontend.
 - **25/09/2025 (v2)**: Refactored fixed systems to be REAL systems saved in database and API. Fixed systems now require username/password, use IDs >= 1000, and points are automatically calculated (total_points / num_systems). Removed manual point editing.
 - **25/09/2025**: Added test message simulation feature in chat - allows sending messages as if from the client to test bot responses. Located above PIX billing option in chat sidebar.
@@ -33,8 +30,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Real-time Communication**: WebSocket.
 - **WhatsApp Integration**: Baileys library for WhatsApp Web API.
 - **Core Modules**:
-    - **WhatsApp Bot System**: Intelligent keyword detection, text-based visual menus, dynamic variables. Now with anti-spam system preventing duplicate responses.
-    - **Anti-Spam System**: Multi-layer deduplication with message cache, 3-second rate limiting per conversation, automatic cache cleanup every 5 minutes.
+    - **WhatsApp Bot System**: Intelligent keyword detection, text-based visual menus, dynamic variables.
     - **PIX Payment Management**: Comprehensive system for managing PIX payments, including configuration, test payment generation, transaction records, webhooks, and user-configurable expiration times.
     - **Customer & Test Management**: Tools for client and test account management, including status tracking and duration management.
     - **Chat Interface**: Real-time WhatsApp chat integration with media display and conversation management. Global WebSocket for cross-application messaging.
@@ -42,7 +38,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
     - **System Management**: Manages individual service points ("pontos") and overall system data from a local database.
     - **Recurring Expiration Notifications**: Configurable system for notifying expired clients.
     - **Applications Management (APPs)**: Interface for viewing registered applications with filtering capabilities.
-    - **Editable Campaign Templates**: Complete system for managing promotional message templates with full CRUD operations, icon selection from lucide-react library, live WhatsApp preview with iPhone-style interface, variable substitution system, and usage analytics tracking. Accessible via /template-editor route. Now with fullscreen responsive layout.
+    - **Editable Campaign Templates**: Complete system for managing promotional message templates with full CRUD operations, icon selection from lucide-react library, live WhatsApp preview with iPhone-style interface, variable substitution system, and usage analytics tracking. Accessible via /template-editor route.
     - **Referral System ("Indique e Ganhe")**: Clients earn free months via phone number-based referral codes with automatic validation and WhatsApp notifications.
     - **Ticket Management System**: Automatically pins conversations with open tickets, visual indicators, and mode switching (human/bot).
     - **Bot Test Feature**: Allows sending test messages as if from the client to evaluate bot responses, accessible above PIX billing in chat sidebar.
@@ -62,7 +58,6 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Local Data Priority**: Systems management endpoints fetch data from local database.
 - **Point Distribution System**: Intelligent distribution of service points (pontos) across systems with two modes: One-system-per-point and Fixed-points-per-system, including real-time preview and automatic system creation via external API.
 - **System ID Format**: All system IDs use numeric format only (1, 2, 3...) without prefixes. Legacy "sistema" prefixed IDs are normalized to numeric on read.
-- **Anti-Spam Protection**: Message deduplication using unique keys (phone+messageId+content), rate limiting with configurable cooldown, automatic cache management with 1000 entry limit and 30-second timeout.
 
 ## External Dependencies
 - **WhatsApp API**: For real-time messaging and bot interactions (via Baileys library).
