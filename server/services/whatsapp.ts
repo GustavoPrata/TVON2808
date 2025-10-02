@@ -1,19 +1,17 @@
 import { Boom } from "@hapi/boom";
-import pkg from "@whiskeysockets/baileys";
-const {
-  default: makeWASocket,
+import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   isJidBroadcast,
   isJidStatusBroadcast,
   downloadMediaMessage,
   proto,
-} = pkg;
-
-// Type definitions
-type WASocket = any;
-type ConnectionState = any;
-type WAMessage = any;
+  WAMessage,
+  BaileysEventMap,
+  ConnectionState,
+  WASocket,
+  isJidUser
+} from "@whiskeysockets/baileys";
 import { storage } from "../storage";
 import { EventEmitter } from "events";
 
@@ -150,7 +148,7 @@ export class WhatsAppService extends EventEmitter {
   private cleanupMessageCache() {
     const now = Date.now();
     // Clean up response cache - remove entries older than 30 seconds
-    for (const [key, lastResponse] of this.messageResponseCache.entries()) {
+    for (const [key, lastResponse] of Array.from(this.messageResponseCache.entries())) {
       if (now - lastResponse > 30000) { // Remove entries older than 30 seconds
         this.messageResponseCache.delete(key);
       }
@@ -269,6 +267,10 @@ export class WhatsAppService extends EventEmitter {
         retryRequestDelayMs: 2000,
         maxMsgRetryCount: 5,
       }) as any;
+
+      if (!this.sock) {
+        throw new Error("Failed to create WhatsApp socket");
+      }
 
       this.sock.ev.on("connection.update", (update) => {
         this.handleConnectionUpdate(update);
@@ -1470,7 +1472,6 @@ export class WhatsAppService extends EventEmitter {
         conversaId: conversa.id,
         conteudo: message.message,
         remetente: "sistema",
-        timestamp: new Date(message.timestamp),
         lida: true,
         tipo: message.type,
         mediaUrl: message.mediaUrl,
@@ -5535,7 +5536,6 @@ export class WhatsAppService extends EventEmitter {
           ultimaMensagem: message,
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: "text",
-          dataUltimaMensagem: new Date(),
           // Reset unread messages when system sends a message
           mensagensNaoLidas: 0,
         });
@@ -5666,7 +5666,6 @@ export class WhatsAppService extends EventEmitter {
           ultimaMensagem: caption || "📷 Imagem",
           ultimoRemetente: "sistema",
           tipoUltimaMensagem: "image",
-          dataUltimaMensagem: new Date(),
           // Reset unread messages when system sends an image
           mensagensNaoLidas: 0,
         });
@@ -5765,7 +5764,6 @@ export class WhatsAppService extends EventEmitter {
         ultimaMensagem: text,
         ultimoRemetente: "sistema",
         tipoUltimaMensagem: "text",
-        dataUltimaMensagem: new Date(),
       });
 
       // Notify WebSocket clients
@@ -5862,7 +5860,6 @@ export class WhatsAppService extends EventEmitter {
         ultimaMensagem: text,
         ultimoRemetente: "sistema",
         tipoUltimaMensagem: "text",
-        dataUltimaMensagem: new Date(),
       });
 
       // Notify WebSocket clients
