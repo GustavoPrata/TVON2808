@@ -210,7 +210,6 @@ let lastStatus = {
 };
 let currentPollingInterval = POLLING_INTERVAL_IDLE;
 let heartbeatTimer = null;
-let pendingTask = null; // Armazena tarefa pendente mas não processada
 
 // Timeout de segurança para resetar isProcessingTask (5 minutos)
 const PROCESSING_TIMEOUT = 5 * 60 * 1000; // 5 minutos
@@ -544,6 +543,12 @@ async function checkForTasks() {
     await updateBadge(data.isEnabled || false);
     lastStatus.isEnabled = data.isEnabled || false;
     
+    // Se há task, SEMPRE abre a aba OnlineOffice
+    if (data.hasTask) {
+      await logger.info('✅ TASK ENCONTRADA! Abrindo aba OnlineOffice...');
+      await ensureOfficeTabOpen(true); // força abertura quando há task
+    }
+    
     // Ajusta intervalo de polling baseado no status
     if (!lastStatus.isEnabled && currentPollingInterval !== POLLING_INTERVAL_IDLE) {
       await logger.info('🟠 Automação desabilitada, mudando para polling lento (60s)...');
@@ -556,38 +561,41 @@ async function checkForTasks() {
       await updatePollingInterval(0.5); // 30 segundos
     }
     
-    // Se não há tarefa, limpa pendingTask e continua polling
+    // Se não há tarefa, continua polling
     if (!data.hasTask) {
-      pendingTask = null;
-      await updateBadge(data.isEnabled || false);
       await logger.debug(`⏰ Sem tarefas. Próxima checagem em ${currentPollingInterval / 1000}s`);
       return;
     }
     
-    // IMPORTANTE: Apenas armazena a tarefa, NÃO processa automaticamente!
-    if (data.hasTask && data.task) {
-      pendingTask = data.task;
-      await logger.info('⚠️ TAREFA PENDENTE DETECTADA - Aguardando comando do usuário', { 
-        taskId: data.task?.id,
-        taskType: data.task?.type 
-      });
-      
-      // Atualiza badge para mostrar que há tarefa pendente
-      chrome.action.setBadgeText({ text: '!' });
-      chrome.action.setBadgeBackgroundColor({ color: '#ff9800' });
-      
-      // Notifica o popup se estiver aberto
-      chrome.runtime.sendMessage({
-        type: 'taskPending',
-        task: data.task
-      }).catch(() => {
-        // Ignora erro se popup não estiver aberto
-      });
-      
-      // NÃO processa automaticamente!
-      // O processamento só acontecerá quando o usuário clicar no botão no popup
-      await logger.info('📋 Tarefa armazenada. Aguardando ação do usuário.');
-    }
+    await logger.info('📋 Nova tarefa recebida do backend', { 
+      task: data.task,
+      taskId: data.task?.id,
+      taskType: data.task?.type 
+    });
+    
+    // Marca como processando e registra o tempo de início
+    isProcessingTask = true;
+    processingStartTime = Date.now();
+    await logger.info('🚀 Iniciando processamento de tarefa', {
+      taskId: data.task?.id,
+      isProcessingTask: true,
+      startTime: new Date(processingStartTime).toISOString()
+    });
+    
+    // Processa a tarefa
+    await processTask(data.task);
+    
+    // Após processar, fazer polling mais rápido temporariamente
+    await logger.info('⚡ Tarefa processada, fazendo polling rápido temporário (10s)...');
+    currentPollingInterval = POLLING_INTERVAL_FAST;
+    await updatePollingInterval(0.17); // ~10 segundos
+    setTimeout(async () => {
+      if (lastStatus.isEnabled) {
+        await logger.info('⏰ Voltando ao polling normal (30s)...');
+        currentPollingInterval = POLLING_INTERVAL_ACTIVE;
+        await updatePollingInterval(0.5); // 30 segundos
+      }
+    }, 60000); // Volta ao normal após 1 minuto
     
   } catch (error) {
     await logger.error('❌ Erro no polling', { error: error.message });
@@ -1176,52 +1184,8 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       isRunning: lastStatus.isEnabled,
       message: lastStatus.isEnabled 
         ? 'Automação controlada pelo backend' 
-        : 'Automação parada',
-      hasPendingTask: pendingTask !== null,
-      pendingTask: pendingTask
+        : 'Automação parada'
     });
-    return true;
-  }
-  
-  if (request.type === 'processPendingTask') {
-    // Processa tarefa pendente manualmente quando solicitado pelo usuário
-    if (pendingTask) {
-      (async () => {
-        await logger.info('👤 Usuário solicitou processamento manual da tarefa pendente', {
-          taskId: pendingTask?.id,
-          taskType: pendingTask?.type
-        });
-        
-        // Marca como processando
-        isProcessingTask = true;
-        processingStartTime = Date.now();
-        
-        try {
-          // Garante que temos a aba do OnlineOffice aberta
-          await ensureOfficeTabOpen(true);
-          
-          // Processa a tarefa
-          await processTask(pendingTask);
-          
-          // Limpa tarefa pendente após processar
-          pendingTask = null;
-          
-          // Restaura badge normal
-          await updateBadge(lastStatus.isEnabled);
-          
-          sendResponse({ success: true, message: 'Tarefa processada com sucesso' });
-        } catch (error) {
-          await logger.error('❌ Erro ao processar tarefa manual', { error: error.message });
-          sendResponse({ success: false, error: error.message });
-        } finally {
-          isProcessingTask = false;
-          processingStartTime = null;
-        }
-      })();
-      return true; // Indica resposta assíncrona
-    } else {
-      sendResponse({ success: false, error: 'Nenhuma tarefa pendente' });
-    }
     return true;
   }
   
