@@ -827,6 +827,21 @@ async function processTaskViaApi(task) {
     } else {
       throw new Error(result.error || 'API retornou erro');
     }
+      } catch (attemptError) {
+        lastError = attemptError;
+        await logger.warn(`⚠️ Tentativa ${attempt + 1} falhou`, { 
+          error: attemptError.message,
+          type: task.type,
+          taskId: task.id
+        });
+        // Se não for a última tentativa, espera antes de tentar novamente
+        if (attempt < RECONNECT_CONFIG.maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, RECONNECT_CONFIG.retryDelay));
+        }
+      }
+    }
+    // Se todas as tentativas falharam, lança o último erro
+    throw lastError || new Error('Todas as tentativas de processar via API falharam');
   } catch (error) {
     await logger.warn('⚠️ Falha no processamento via API', { 
       error: error.message,
@@ -1041,16 +1056,17 @@ async function checkForTasks() {
     isProcessingTask = false;
     pollingState.isChecking = false; // IMPORTANTE: libera flag de checagem
   }
+  
+  } catch (error) {
+    await logger.error('❌ Erro geral em checkForTasks:', { error: error.message });
+    pollingState.isChecking = false;
+  }
 }
 
 // ===========================================================================
 // CONFIGURAÇÃO DO BACKEND E COMPATIBILIDADE
 // ===========================================================================
-const BACKEND_URLS = [
-  'https://aef8336d-fdf6-4f45-8827-b87d99023c0e-00-3bbspqbjbb2rl.worf.replit.dev',
-  'https://tv-on.site',
-  'http://localhost:5000'
-];
+// REMOVIDO: Duplicação de BACKEND_URLS (já definido na linha 196)
 
 // Credenciais e configurações armazenadas localmente
 const LOCAL_CONFIG = {
@@ -1303,29 +1319,6 @@ async function processTask(task) {
     }
   }
 }
-  
-  const tabId = tabs[0].id;
-  await logger.info(`✅ Aba encontrada`, { url: tabs[0].url });
-  
-  // Processa baseado no tipo de tarefa
-  if (task.type === 'generate_batch') {
-    await generateBatch(tabId, task);
-  } else if (task.type === 'generate_single') {
-    await generateSingle(tabId, task);
-  } else if (task.type === 'renewal' || task.type === 'renew_system') {
-    // Suporta ambos os tipos: 'renewal' (do backend) e 'renew_system' (legado)
-    await logger.info('🔄 Task de renovação detectada', { 
-      type: task.type,
-      taskId: task.id,
-      sistemaId: task.sistemaId || task.data?.sistemaId || task.metadata?.sistemaId || 'N/A',
-      metadata: task.metadata,
-      data: task.data
-    });
-    await renewSystem(tabId, task);
-  } else {
-    await logger.warn('⚠️ Tipo de task desconhecido', { type: task.type, task });
-  }
-}   
 
 async function generateBatch(tabId, task) {
   const quantity = task.quantity || 10;
