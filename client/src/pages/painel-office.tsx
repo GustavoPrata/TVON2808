@@ -1576,7 +1576,7 @@ export default function PainelOffice() {
               </div>
               <div>
                 <a
-                  href="/extensao-tv-on.zip"
+                  href="/extensao-tv-on-store.zip"
                   download="extensao-tv-on.zip"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
                 >
