@@ -293,22 +293,22 @@ let currentPollingInterval = POLLING_INTERVAL_IDLE;
 
 // Configura listeners específicos para modo de compatibilidade
 function setupCompatibilityListeners() {
+  // Service Workers não têm window, então usamos self para eventos globais
   // Intercepta erros não tratados
-  window.onerror = async function(msg, url, line, col, error) {
+  self.addEventListener('error', async (event) => {
     await logger.error('Erro não tratado:', {
-      message: msg,
-      location: `${url}:${line}:${col}`,
-      error: error?.stack || 'No stack'
+      message: event.message,
+      filename: event.filename,
+      error: event.error?.stack || 'No stack'
     });
-    return false;
-  };
+  });
   
   // Intercepta rejeições de Promise não tratadas
-  window.onunhandledrejection = async function(event) {
+  self.addEventListener('unhandledrejection', async (event) => {
     await logger.error('Promise rejeitada não tratada:', {
       reason: event.reason?.message || event.reason
     });
-  };
+  });
   
   // Monitor de memória
   if (chrome.system && chrome.system.memory) {
@@ -1125,21 +1125,20 @@ async function getPlatformInfo() {
 // Função para verificar compatibilidade
 async function checkCompatibility() {
   try {
-    // Verifica recursos essenciais
-    if (!window.fetch) {
+    // Verifica recursos essenciais (em service workers, fetch e Promise são globais)
+    if (typeof fetch === 'undefined') {
       COMPATIBILITY_CONFIG.fallbackMode = true;
       COMPATIBILITY_CONFIG.features.fetchAPI = false;
     }
     
-    if (!window.Promise) {
+    if (typeof Promise === 'undefined') {
       COMPATIBILITY_CONFIG.fallbackMode = true;
       COMPATIBILITY_CONFIG.features.promiseAPI = false;
     }
     
-    // Verifica suporte a Service Worker
-    if (!('serviceWorker' in navigator)) {
-      COMPATIBILITY_CONFIG.features.serviceWorker = false;
-    }
+    // Service Workers sempre têm suporte a si mesmos
+    // Em background scripts do Chrome, não precisamos verificar isso
+    COMPATIBILITY_CONFIG.features.serviceWorker = true;
     
     // Atualiza status
     await chrome.storage.local.set({
