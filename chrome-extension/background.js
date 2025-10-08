@@ -209,6 +209,15 @@ const RECONNECT_CONFIG = {
 // ===========================================================================
 // ESTADO GLOBAL (mínimo, apenas para cache)
 // ===========================================================================
+// Estado global melhorado para evitar duplicações
+let pollingState = {
+  isChecking: false,           // Flag para evitar checagens simultâneas
+  lastCheckTime: 0,            // Timestamp da última checagem
+  minCheckInterval: 10000,     // Intervalo mínimo entre checagens (10s)
+  activeTaskId: null,          // ID da tarefa em processamento
+  isEnabled: false             // Estado real da automação
+};
+
 let pollingTimer = null;
 let isProcessingTask = false;
 let lastStatus = {
@@ -254,11 +263,11 @@ let currentPollingInterval = POLLING_INTERVAL_IDLE;
     API_BASE = await getApiBase();
     await logger.info(`🔗 Servidor API configurado: ${API_BASE}`);
     
-    // Inicializa verificação contínua de conexão
-    startConnectionCheck();
+    // DESATIVADO: Verificação contínua causava múltiplas requisições
+    // startConnectionCheck();
     
-    // Inicia o processo de auto-recuperação
-    startAutoRecovery();
+    // DESATIVADO: Auto-recuperação causava polling duplicado
+    // startAutoRecovery();
     
     // Configura listeners específicos para o modo de compatibilidade
     if (COMPATIBILITY_CONFIG.fallbackMode) {
@@ -403,31 +412,55 @@ async function startAutoRecovery() {
 
 // Usa Chrome Alarms API para manter a extensão sempre ativa
 async function setupAlarms() {
-  // Remove alarme anterior se existir
-  chrome.alarms.clear('pollBackend', async () => {
-    // Cria novo alarme que dispara a cada 20 segundos (mais rápido para não perder timing)
-    chrome.alarms.create('pollBackend', {
-      periodInMinutes: 0.33, // 20 segundos
-      delayInMinutes: 0 // Começa imediatamente
-    });
-    await logger.info('⏰ Alarme configurado para polling automático a cada 20s');
+  // Remove TODOS os alarmes anteriores
+  await chrome.alarms.clearAll();
+  
+  // Cria APENAS um alarme principal
+  chrome.alarms.create('pollBackend', {
+    periodInMinutes: 1, // 1 minuto apenas
+    delayInMinutes: 0   // Começa imediatamente
   });
   
-  // Cria alarme adicional para verificação de status
-  chrome.alarms.create('checkStatus', {
-    periodInMinutes: 1, // A cada minuto
-    delayInMinutes: 0
-  });
+  await logger.info('⏰ Alarme único configurado (1 min)');
 }
 
-// Listener para os alarmes
+// Função para obter status real da automação do backend
+async function getAutomationStatus() {
+  try {
+    // Garante que API_BASE está definido
+    if (!API_BASE) {
+      API_BASE = await getApiBase();
+    }
+    
+    const response = await fetch(`${API_BASE}/api/office/automation/status`, {
+      method: 'GET',
+      headers: {
+        'X-Extension-Key': 'chrome-extension-secret-2024'
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return { isEnabled: data.isEnabled };
+    }
+  } catch (e) {
+    await logger.error('❌ Erro ao obter status:', { error: e.message });
+  }
+  
+  return { isEnabled: false };
+}
+
+// Listener para os alarmes (simplificado)
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'pollBackend') {
-    await logger.debug('⏰ Alarme disparado: checando tarefas...', { alarm: alarm.name });
-    await checkForTasks();
-  } else if (alarm.name === 'checkStatus') {
-    // Verifica se precisa abrir a aba do OnlineOffice
-    await ensureOfficeTabOpen();
+    // Apenas checa se está habilitada
+    const status = await getAutomationStatus();
+    if (status.isEnabled) {
+      await logger.debug('🟢 Automação habilitada, checando tarefas...');
+      await checkForTasks();
+    } else {
+      await logger.debug('🔴 Automação desabilitada, pulando checagem');
+    }
   }
 });
 
@@ -449,35 +482,23 @@ chrome.runtime.onInstalled.addListener(async () => {
 // Sistema de auto-inicialização e recuperação
 async function startAutomation() {
   try {
-    // Força automação estar sempre ativa
-    LOCAL_CONFIG.automation.enabled = true;
-    lastStatus.isEnabled = true;
+    // NÃO forçar automação sempre ativa - respeita estado do backend
+    // LOCAL_CONFIG.automation.enabled = true; // REMOVIDO
+    // lastStatus.isEnabled = true; // REMOVIDO
     
-    // Configura alarmes
+    // Apenas configura alarmes
     await setupAlarms();
     
-    // Inicia verificação de tarefas
-    await checkForTasks();
+    // NÃO chamar checkForTasks() imediatamente - deixa o alarme fazer isso
+    // await checkForTasks(); // REMOVIDO
     
-    // Configura auto-restart periódico para garantir funcionamento
-    TASK_CACHE.autoRestartTimer = setInterval(async () => {
-      await logger.info('🔄 Auto-restart periódico...');
-      
-      // Força status ativo
-      lastStatus.isEnabled = true;
-      
-      // Reinicia verificações
-      await checkForTasks();
-      
-      // Força reconexão com backend
-      await ensureBackendConnection();
-      
-    }, 300000); // A cada 5 minutos
+    // DESATIVADO: auto-restart causava polling duplicado
+    // TASK_CACHE.autoRestartTimer = setInterval(async () => {...}, 300000);
     
-    await logger.info('✅ Automação iniciada em modo independente');
+    await logger.info('✅ Automação configurada (aguardando ativação do backend)');
     
   } catch (error) {
-    await logger.error('❌ Erro ao iniciar automação:', { error: error.message });
+    await logger.error('❌ Erro ao configurar automação:', { error: error.message });
     
     // Tenta reiniciar em 30 segundos
     setTimeout(startAutomation, 30000);
@@ -882,36 +903,40 @@ async function updatePollingInterval(minutes) {
 
 async function checkForTasks() {
   try {
-    // Força ativação da automação independente do painel
-    if (LOCAL_CONFIG.automation.shouldRunWithoutPanel) {
-      lastStatus.isEnabled = true;
+    // Evita checagens simultâneas
+    if (pollingState.isChecking) {
+      await logger.debug('⏳ Checagem já em andamento, ignorando...');
+      return;
     }
+    
+    // Evita checagens muito frequentes
+    const now = Date.now();
+    const timeSinceLastCheck = now - pollingState.lastCheckTime;
+    if (timeSinceLastCheck < pollingState.minCheckInterval) {
+      await logger.debug(`🚫 Aguardando intervalo mínimo (${pollingState.minCheckInterval}ms)...`);
+      return;
+    }
+    
+    // Marca início da checagem
+    pollingState.isChecking = true;
+    pollingState.lastCheckTime = now;
 
     // Verifica conexão com backend primeiro
     if (!await ensureBackendConnection()) {
       await logger.warn('🔌 Sem conexão com backend, tentando reconectar...');
+      pollingState.isChecking = false;
       return;
     }
     
     // Se já está processando, pula esta checagem
     if (isProcessingTask) {
       await logger.debug('⏳ Já processando tarefa, pulando checagem...');
+      pollingState.isChecking = false;
       return;
     }
     
-    // Força automação a continuar mesmo sem painel
-    if (!lastStatus.isEnabled && LOCAL_CONFIG.automation.shouldRunWithoutPanel) {
-      await logger.info('🔄 Forçando automação a continuar sem painel...');
-      lastStatus.isEnabled = true;
-    }
-  
-  // Evita requisições muito frequentes
-  const now = Date.now();
-  if (now - lastStatus.lastCheck < 5000) {
-    await logger.debug('🚫 Checagem muito recente, aguardando...');
-    return;
-  }
-  lastStatus.lastCheck = now;
+    // NÃO forçar automação ativa - respeitar estado do backend
+    // REMOVIDO: lastStatus.isEnabled = true;
   
   // Garante que API_BASE está definido
   if (!API_BASE) {
@@ -1014,6 +1039,7 @@ async function checkForTasks() {
     await updateBadge(false);
   } finally {
     isProcessingTask = false;
+    pollingState.isChecking = false; // IMPORTANTE: libera flag de checagem
   }
 }
 
@@ -1035,7 +1061,7 @@ const LOCAL_CONFIG = {
   },
   automation: {
     enabled: true,
-    shouldRunWithoutPanel: true, // IMPORTANTE: permite rodar sem painel
+    shouldRunWithoutPanel: false, // MUDADO: respeita estado do backend
     autoReconnect: true,
     maxRetries: 5
   }
