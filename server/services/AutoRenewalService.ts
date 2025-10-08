@@ -99,6 +99,7 @@ export class AutoRenewalService {
         detalhes: { checkTime: this.lastCheckTime.toISOString() }
       });
       
+      
       // Verificar status da extensão e notificar se houver problemas
       try {
         const extensionStatusData = await db.select().from(extensionStatus).limit(1);
@@ -653,15 +654,42 @@ export class AutoRenewalService {
 
   // Limpar itens antigos da fila
   private cleanupQueue() {
+    const now = new Date();
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
+    // Get the renewal advance time from config (default 30 minutes)
+    const renewalAdvanceMinutes = 30; // Will be fetched from config in checkAndRenewSystems
+    
     for (const [sistemaId, item] of this.renewalQueue.entries()) {
-      // Remover imediatamente itens completados
-      // Manter itens com erro por 5 minutos para análise antes de remover
-      if (item.status === 'completed' || 
-          (item.status === 'error' && item.completedAt && item.completedAt < fiveMinutesAgo)) {
+      let shouldRemove = false;
+      let removalReason = '';
+      
+      // Remove completed items immediately
+      if (item.status === 'completed') {
+        shouldRemove = true;
+        removalReason = 'completed';
+      }
+      // Remove error items after 5 minutes
+      else if (item.status === 'error' && item.completedAt && item.completedAt < fiveMinutesAgo) {
+        shouldRemove = true;
+        removalReason = 'old error';
+      }
+      // Remove waiting items that are no longer within renewal window
+      else if (item.status === 'waiting' && item.estimatedTime) {
+        const expirationDate = new Date(item.estimatedTime);
+        const minutesUntilExpiration = (expirationDate.getTime() - now.getTime()) / (1000 * 60);
+        
+        // If system expiration is more than renewalAdvanceMinutes away, remove from queue
+        if (minutesUntilExpiration > renewalAdvanceMinutes && expirationDate > now) {
+          shouldRemove = true;
+          removalReason = `outside renewal window (${minutesUntilExpiration.toFixed(0)} min until expiration > ${renewalAdvanceMinutes} min window)`;
+          console.log(`🗑️ Sistema ${sistemaId} removido da fila - fora da janela de renovação`);
+        }
+      }
+      
+      if (shouldRemove) {
         this.renewalQueue.delete(sistemaId);
-        console.log(`🗑️ Item removido da fila de renovação: ${sistemaId} (status: ${item.status})`);
+        console.log(`🗑️ Item removido da fila: Sistema ${sistemaId} (${removalReason})`);
       }
     }
   }
