@@ -9297,6 +9297,36 @@ Como posso ajudar você hoje?
     }
   });
 
+  // POST /api/office/automation/manual-task - adiciona tarefa manual
+  app.post('/api/office/automation/manual-task', async (req, res) => {
+    try {
+      const { type = 'generate_single', quantity = 1 } = req.body;
+      
+      console.log('📝 Adicionando tarefa manual:', { type, quantity });
+      
+      // Criar a tarefa no banco de dados
+      const task = await storage.createPendingTask(type, { 
+        quantity, 
+        source: 'manual',
+        createdAt: new Date()
+      });
+      
+      console.log('✅ Tarefa manual criada:', task);
+      
+      res.json({ 
+        success: true, 
+        message: 'Tarefa manual adicionada à fila',
+        task 
+      });
+    } catch (error) {
+      console.error('❌ Erro ao criar tarefa manual:', error);
+      res.status(500).json({ 
+        error: 'Erro ao criar tarefa manual',
+        details: error.message 
+      });
+    }
+  });
+
   // GET /api/office/automation/next-task - extensão consulta próxima tarefa
   app.get('/api/office/automation/next-task', async (req, res) => {
     // Adicionar headers anti-cache para evitar HTTP 304

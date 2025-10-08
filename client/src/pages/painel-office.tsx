@@ -1289,6 +1289,53 @@ export default function PainelOffice() {
           </div>
           <div className="flex items-center gap-2">
             <ExtensionStatusIndicator />
+            
+            {/* Botão de tarefa manual quando extensão estiver offline */}
+            <Button
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                try {
+                  setIsGeneratingSingle(true);
+                  const response = await fetch('/api/office/automation/manual-task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'generate_single', quantity: 1 })
+                  });
+                  const data = await response.json();
+                  if (data.success) {
+                    toast({ 
+                      title: "📝 Tarefa manual adicionada", 
+                      description: "Tarefa de geração foi adicionada à fila. A extensão irá processar quando voltar online.",
+                      duration: 5000
+                    });
+                    refetchCredentials();
+                  } else {
+                    throw new Error(data.error || 'Erro ao adicionar tarefa');
+                  }
+                } catch (error) {
+                  console.error('Erro:', error);
+                  toast({ 
+                    title: "❌ Erro ao adicionar tarefa", 
+                    variant: "destructive",
+                    description: error.message || "Não foi possível adicionar a tarefa manual."
+                  });
+                } finally {
+                  setIsGeneratingSingle(false);
+                }
+              }}
+              disabled={isGeneratingSingle}
+              className="text-yellow-400 border-yellow-400/50 hover:bg-yellow-400/10"
+              data-testid="button-manual-task"
+            >
+              {isGeneratingSingle ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
+              <span className="ml-1 hidden lg:inline">Gerar Manual</span>
+            </Button>
+            
             <Button
               variant={automationConfig.isEnabled ? "destructive" : "default"}
               size="sm"
