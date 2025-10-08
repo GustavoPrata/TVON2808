@@ -329,6 +329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // - /api/office/automation/status (pode expor status interno)
       // - /api/office/automation/credentials (gerencia credenciais)
       '/api/office/automation/extension.zip',  // Extension download endpoint (public)
+      '/api/office/automation/credentials', // Has its own auth handler (session or extension key)
       '/api/extension/logs',  // Extension logs endpoint (public for Chrome extension to send/receive logs)
       '/api/extension/heartbeat',  // Extension heartbeat endpoint (public for Chrome extension)
       '/api/extension/status',  // Extension status endpoint (public for frontend polling)

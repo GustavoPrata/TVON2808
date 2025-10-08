@@ -2920,12 +2920,22 @@ export class DatabaseStorage implements IStorage {
       }
 
       const sistemaId = row.sistemaId;
-      if (sistemaId && !seenSystems.has(sistemaId)) {
-        seenSystems.add(sistemaId);
-        // Usar systemId ao invés do sistemaId interno para exibição
+      
+      // Se tem sistemaId, verificar se já foi adicionado
+      if (sistemaId) {
+        if (!seenSystems.has(sistemaId)) {
+          seenSystems.add(sistemaId);
+          // Usar systemId ao invés do sistemaId interno para exibição
+          uniqueCredentials.push({
+            ...row,
+            sistemaId: row.systemId ? parseInt(row.systemId) : sistemaId
+          });
+        }
+      } else {
+        // Se não tem sistemaId, adicionar diretamente (credencial manual)
         uniqueCredentials.push({
           ...row,
-          sistemaId: row.systemId ? parseInt(row.systemId) : sistemaId
+          sistemaId: null
         });
       }
     }
