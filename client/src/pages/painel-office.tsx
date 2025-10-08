@@ -1574,14 +1574,57 @@ export default function PainelOffice() {
                   Configure a automação de geração de credenciais IPTV
                 </CardDescription>
               </div>
-              <a
-                href="/extensao-tv-on.zip"
-                download="extensao-tv-on.zip"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
-              >
-                <Chrome className="h-4 w-4" />
-                Baixar Extensão
-              </a>
+              <div className="flex flex-col gap-2">
+                <a
+                  href="/extensao-tv-on.zip"
+                  download="extensao-tv-on.zip"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
+                >
+                  <Chrome className="h-4 w-4" />
+                  <span>Baixar Extensão (Padrão)</span>
+                </a>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href="/extensao-tv-on-flat.zip"
+                    download="extensao-tv-on-flat.zip"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white font-medium rounded-md transition-all duration-200 shadow-md hover:shadow-lg text-xs"
+                    title="Arquivos na raiz do ZIP"
+                  >
+                    <Package className="h-3 w-3" />
+                    <span>Versão Flat</span>
+                  </a>
+                  <a
+                    href="/extensao-tv-on-folder.zip"
+                    download="extensao-tv-on-folder.zip"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white font-medium rounded-md transition-all duration-200 shadow-md hover:shadow-lg text-xs"
+                    title="ZIP com pasta container"
+                  >
+                    <Package className="h-3 w-3" />
+                    <span>Com Pasta</span>
+                  </a>
+                  <a
+                    href="/extensao-tv-on-store.zip"
+                    download="extensao-tv-on-store.zip"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white font-medium rounded-md transition-all duration-200 shadow-md hover:shadow-lg text-xs"
+                    title="Sem compressão (Chrome Web Store)"
+                  >
+                    <Package className="h-3 w-3" />
+                    <span>Store</span>
+                  </a>
+                  <a
+                    href="/INSTRUCOES_CRX.md"
+                    download="INSTRUCOES_CRX.md"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium rounded-md transition-all duration-200 shadow-md hover:shadow-lg text-xs"
+                    title="Instruções para converter em CRX"
+                  >
+                    <FileText className="h-3 w-3" />
+                    <span>Instruções CRX</span>
+                  </a>
+                </div>
+                <div className="text-[10px] text-slate-500 mt-1">
+                  💡 Se uma versão não funcionar, tente as alternativas
+                </div>
+              </div>
             </div>
           </CardHeader>
           
