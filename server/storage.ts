@@ -1589,11 +1589,12 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(sistemas);
     
-    // Filtrar sistemas que estão dentro do tempo de renovação antecipada
+    // Filtrar sistemas que estão vencidos OU dentro do tempo de renovação antecipada
     const filteredResult = result.filter((sistema) => {
       if (!sistema.expiracao) return false;
       const timeToExpire = sistema.expiracao.getTime() - now.getTime();
-      return timeToExpire <= renewalTime && timeToExpire > 0;
+      // Incluir sistemas vencidos (timeToExpire <= 0) OU próximos do vencimento (timeToExpire <= renewalTime)
+      return timeToExpire <= renewalTime;
     });
     
     return filteredResult.map(mapSistemaToFrontend);

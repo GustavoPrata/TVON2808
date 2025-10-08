@@ -695,6 +695,10 @@ export class AutoRenewalService {
   // Obter informações sobre sistemas programados para renovação
   async getScheduledRenewals() {
     try {
+      // Buscar configuração para obter renewalAdvanceTime
+      const config = await storage.getOfficeAutomationConfig();
+      const renewalAdvanceMinutes = config?.renewalAdvanceTime || 60;
+      
       // Buscar TODOS os sistemas agora
       const sistemas = await db
         .select()
@@ -702,18 +706,33 @@ export class AutoRenewalService {
       
       const now = new Date();
       
-      return sistemas.map(sistema => {
-        const expiracaoDate = new Date(sistema.expiracao);
-        const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
-        
-        return {
-          sistemaId: sistema.id,
-          systemId: sistema.systemId,
-          expiration: sistema.expiracao,
-          minutesUntilExpiration: Math.floor(minutosAteExpiracao),
-          isExpired: expiracaoDate <= now
-        };
-      }).sort((a, b) => a.minutesUntilExpiration - b.minutesUntilExpiration);
+      // Filtrar apenas sistemas que realmente precisam de renovação
+      const sistemasFilteredForRenewal = sistemas
+        .filter(sistema => {
+          if (!sistema.expiracao) return false; // Pular sistemas sem data de expiração
+          
+          const expiracaoDate = new Date(sistema.expiracao);
+          const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
+          const isExpired = expiracaoDate <= now;
+          
+          // Incluir apenas se está vencido OU dentro do tempo de renovação antecipada
+          return isExpired || minutosAteExpiracao <= renewalAdvanceMinutes;
+        })
+        .map(sistema => {
+          const expiracaoDate = new Date(sistema.expiracao);
+          const minutosAteExpiracao = (expiracaoDate.getTime() - now.getTime()) / (1000 * 60);
+          
+          return {
+            sistemaId: sistema.id,
+            systemId: sistema.systemId,
+            expiration: sistema.expiracao,
+            minutesUntilExpiration: Math.floor(minutosAteExpiracao),
+            isExpired: expiracaoDate <= now
+          };
+        })
+        .sort((a, b) => a.minutesUntilExpiration - b.minutesUntilExpiration);
+      
+      return sistemasFilteredForRenewal;
     } catch (error) {
       console.error('Erro ao obter renovações programadas:', error);
       return [];
