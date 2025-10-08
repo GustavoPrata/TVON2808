@@ -771,16 +771,10 @@ async function processTaskViaApi(task) {
         };
         break;
         
-      case 'renewal':
-      case 'renew_system':
-        endpoint = '/api/office/automation/renew-system';
-        payload = {
-          taskId: task.id,
-          sistemaId: task.sistemaId || task.data?.sistemaId || task.metadata?.sistemaId,
-          originalUsername: task.data?.originalUsername || task.metadata?.originalUsername,
-          metadata: task.metadata
-        };
-        break;
+      // REMOVIDO - Renovação não é feita pela extensão
+      // case 'renewal':
+      // case 'renew_system':
+      //   Edição/renovação é responsabilidade do app TV ON
         
       default:
         throw new Error(`Tipo de tarefa não suportado via API: ${task.type}`);
@@ -860,8 +854,9 @@ async function continueTaskProcessing(task, tabId) {
       return await generateBatch(tabId, task);
     } else if (task.type === 'generate_single') {
       return await generateSingle(tabId, task);
-    } else if (task.type === 'renewal' || task.type === 'renew_system') {
-      return await renewSystem(tabId, task);
+    // REMOVIDO - Renovação não é feita pela extensão
+    // } else if (task.type === 'renewal' || task.type === 'renew_system') {
+    //   A renovação é responsabilidade do app TV ON
     } else {
       throw new Error(`Tipo de tarefa desconhecido: ${task.type}`);
     }
@@ -1442,6 +1437,12 @@ async function generateSingle(tabId, task) {
   }
 }
 
+// REMOVIDO - Função renewSystem
+// A extensão apenas gera credenciais novas no OnlineOffice
+// Não faz renovação/edição de sistemas existentes
+// Essa responsabilidade é do app TV ON
+
+/*
 async function renewSystem(tabId, task) {
   await logger.info('🔄 Renovando sistema IPTV...', { taskData: task });
   
@@ -1660,6 +1661,7 @@ async function renewSystem(tabId, task) {
     }
   }
 }
+*/
 
 // ===========================================================================
 // COMUNICAÇÃO COM BACKEND
