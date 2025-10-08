@@ -261,8 +261,12 @@ export class AutoRenewalService {
         
         // APENAS adicionar se está vencido ou próximo do vencimento
         if (isExpired || minutosAteExpiracao <= renewalAdvanceMinutes) {
-          // Adicionar ou atualizar na fila se não estiver processando
-          if (!this.renewalQueue.has(sistema.systemId) || this.renewalQueue.get(sistema.systemId)?.status === 'completed' || this.renewalQueue.get(sistema.systemId)?.status === 'error') {
+          // Adicionar à fila APENAS se não existe ou está em erro (pode tentar novamente)
+          // NUNCA re-adicionar itens completed ou processing
+          const existingItem = this.renewalQueue.get(sistema.systemId);
+          const shouldAddToQueue = !existingItem || existingItem.status === 'error';
+          
+          if (shouldAddToQueue) {
             const queueItem: RenewalQueueItem = {
               sistemaId: sistema.systemId,
               status: 'waiting',
@@ -649,28 +653,33 @@ export class AutoRenewalService {
 
   // Limpar itens antigos da fila
   private cleanupQueue() {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
     for (const [sistemaId, item] of this.renewalQueue.entries()) {
-      // Remover itens completados ou com erro há mais de 1 hora
-      if ((item.status === 'completed' || item.status === 'error') && 
-          item.completedAt && item.completedAt < oneHourAgo) {
+      // Remover imediatamente itens completados
+      // Manter itens com erro por 5 minutos para análise antes de remover
+      if (item.status === 'completed' || 
+          (item.status === 'error' && item.completedAt && item.completedAt < fiveMinutesAgo)) {
         this.renewalQueue.delete(sistemaId);
+        console.log(`🗑️ Item removido da fila de renovação: ${sistemaId} (status: ${item.status})`);
       }
     }
   }
   
   // Obter status da fila de renovação
   getRenewalQueue() {
-    const queue = Array.from(this.renewalQueue.values())
+    // FILTRAR apenas itens que precisam de ação (waiting ou processing)
+    // NÃO incluir itens completed ou error na fila retornada
+    const activeQueue = Array.from(this.renewalQueue.values())
+      .filter(item => item.status === 'waiting' || item.status === 'processing') // APENAS itens ativos
       .map(item => ({
         ...item,
         sistemaName: item.sistemaId, // Adicionar sistemaName com o valor do systemId
         sistemaId: item.sistemaId // Manter sistemaId como está (é o systemId real)
       }))
       .sort((a, b) => {
-        // Priorizar por status: processing > waiting > completed/error
-        const statusOrder = { processing: 0, waiting: 1, completed: 2, error: 3 };
+        // Priorizar por status: processing > waiting
+        const statusOrder = { processing: 0, waiting: 1 };
         const statusDiff = statusOrder[a.status] - statusOrder[b.status];
         if (statusDiff !== 0) return statusDiff;
         
@@ -680,15 +689,18 @@ export class AutoRenewalService {
         return aTime - bTime;
       });
     
+    // Contar todos os itens para estatísticas (incluindo completed/error)
+    const allItems = Array.from(this.renewalQueue.values());
+    
     return {
-      queue,
+      queue: activeQueue, // Retornar APENAS itens ativos
       nextCheckTime: this.nextCheckTime,
       lastCheckTime: this.lastCheckTime,
       isRunning: this.intervalId !== null,
-      processingCount: queue.filter(item => item.status === 'processing').length,
-      waitingCount: queue.filter(item => item.status === 'waiting').length,
-      completedCount: queue.filter(item => item.status === 'completed').length,
-      errorCount: queue.filter(item => item.status === 'error').length
+      processingCount: allItems.filter(item => item.status === 'processing').length,
+      waitingCount: allItems.filter(item => item.status === 'waiting').length,
+      completedCount: allItems.filter(item => item.status === 'completed').length,
+      errorCount: allItems.filter(item => item.status === 'error').length
     };
   }
   

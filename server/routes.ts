@@ -338,7 +338,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '/api/sistemas/process-renewal',
       
       // TEMPORARY: Public access for user system sync
-      '/api/sync/user-systems'
+      '/api/sync/user-systems',
+      
+      // Public access for renewal queue monitoring
+      '/api/sistemas/renewal-queue'
     ];
     
     // Use originalUrl to get the full path including /api prefix
