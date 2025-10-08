@@ -9,6 +9,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Data Management**: Systems data must come from local database, not external API
 
 ## Recent Changes
+- **08/10/2025**: Added manual task generation for Chrome extension offline scenarios. New endpoint `/api/office/automation/manual-task` and "Gerar Manual" button in painel-office allow users to add credential generation tasks manually when extension is not running. Tasks are queued in database and processed when extension reconnects.
 - **26/09/2025**: Fixed critical bug where fixed systems (ID >= 1000) weren't appearing in distribution modal. Issue was caused by backend returning `systemId` (camelCase) while frontend expected `system_id` (snake_case). Solution: Added fallback support for both formats throughout the frontend.
 - **25/09/2025 (v2)**: Refactored fixed systems to be REAL systems saved in database and API. Fixed systems now require username/password, use IDs >= 1000, and points are automatically calculated (total_points / num_systems). Removed manual point editing.
 - **25/09/2025**: Added test message simulation feature in chat - allows sending messages as if from the client to test bot responses. Located above PIX billing option in chat sidebar.
@@ -47,6 +48,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
     - **Pricing Structure**: Configurable monthly, quarterly, semi-annual, and annual plans with progressive discounts.
     - **OnlineOffice IPTV Automation**: Advanced humanized automation using ghost-cursor, iframe integration, automatic credential generation, and manual fallback.
     - **IPTV Auto-Renewal System**: Comprehensive automatic renewal system with configurable advance time, individual system toggle, credential generation via Chrome extension, database field mapping, sequential queue processing, and integration with a task management system. Includes real-time queue visualization and extensive logging.
+    - **Chrome Extension Management**: Browser extension for automated credential generation from OnlineOffice. Features polling system for task fetching, automatic status updates, and manual task generation fallback when extension is offline. Extension must be manually installed in Chrome and kept running for automation to work.
     - **Promotional Mass Messaging System**: Complete bulk WhatsApp messaging system with customizable templates, advanced filtering by client status (active, expired, new), variable replacement system for personalized messages, real-time sending progress tracking, and manual client selection/deselection capabilities.
 
 ### Key Technical Decisions
