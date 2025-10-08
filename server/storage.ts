@@ -335,6 +335,7 @@ export interface IStorage {
   getOfficeCredentialsByStatus(status: string): Promise<OfficeCredentials[]>;
   deleteOfficeCredential(id: number): Promise<void>;
   deleteAllOfficeCredentials(): Promise<void>;
+  cleanupOfficeCredentials(): Promise<{ kept: number; deleted: number }>;
   
   // Extension Status
   getExtensionStatus(): Promise<ExtensionStatus | undefined>;
@@ -2868,8 +2869,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Office Credentials implementation
-  async getOfficeCredentials(limit: number = 10000): Promise<OfficeCredentials[]> {
+  async getOfficeCredentials(limit: number = 3): Promise<OfficeCredentials[]> {
     // Buscar credenciais de renovação com sistema associado
+    // IMPORTANT: Limit to 3 most recent credentials
     const result = await db
       .select({
         id: officeCredentials.id,
@@ -2886,9 +2888,9 @@ export class DatabaseStorage implements IStorage {
       })
       .from(officeCredentials)
       .leftJoin(sistemas, eq(officeCredentials.sistemaId, sistemas.id))
-      .where(eq(officeCredentials.source, 'renewal')) // Apenas credenciais de renovação
+      // Removed where clause - now fetching ALL credentials regardless of source
       .orderBy(desc(officeCredentials.generatedAt))
-      .limit(limit);
+      .limit(Math.min(limit, 3)); // Force limit to 3 max
 
     // Função para validar credenciais
     const isValidCredential = (username: string, password: string): boolean => {
@@ -2931,7 +2933,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createOfficeCredentials(credentials: InsertOfficeCredentials): Promise<OfficeCredentials> {
+    // First, insert the new credential
     const result = await db.insert(officeCredentials).values(credentials).returning();
+    
+    // Then, cleanup old credentials - keep only the 3 most recent
+    // Get ALL credentials ordered by generated_at DESC (regardless of source)
+    const allCredentials = await db
+      .select({ id: officeCredentials.id })
+      .from(officeCredentials)
+      // Removed where clause - now cleaning up ALL credentials regardless of source
+      .orderBy(desc(officeCredentials.generatedAt));
+    
+    // If there are more than 3 credentials, delete the old ones
+    if (allCredentials.length > 3) {
+      const idsToKeep = allCredentials.slice(0, 3).map(c => c.id);
+      const idsToDelete = allCredentials.slice(3).map(c => c.id);
+      
+      // Delete old credentials using their IDs directly
+      if (idsToDelete.length > 0) {
+        for (const id of idsToDelete) {
+          await db
+            .delete(officeCredentials)
+            .where(eq(officeCredentials.id, id));
+        }
+        
+        console.log(`🗑️ Cleaned up old credentials. Kept ${idsToKeep.length} most recent (IDs: ${idsToKeep.join(', ')}), deleted ${idsToDelete.length} old entries`);
+      }
+    }
+    
     return result[0];
   }
 
@@ -2954,6 +2983,53 @@ export class DatabaseStorage implements IStorage {
 
   async deleteAllOfficeCredentials(): Promise<void> {
     await db.delete(officeCredentials);
+  }
+
+  // Cleanup function to ensure only the 3 most recent credentials are kept
+  async cleanupOfficeCredentials(): Promise<{ kept: number; deleted: number }> {
+    console.log('🧹 Running office credentials cleanup...');
+    
+    // Get ALL credentials ordered by generated_at DESC
+    const allCredentials = await db
+      .select({ 
+        id: officeCredentials.id,
+        username: officeCredentials.username,
+        source: officeCredentials.source,
+        generatedAt: officeCredentials.generatedAt
+      })
+      .from(officeCredentials)
+      .orderBy(desc(officeCredentials.generatedAt));
+    
+    console.log(`📊 Found ${allCredentials.length} total credentials in database`);
+    
+    if (allCredentials.length <= 3) {
+      console.log('✅ No cleanup needed - 3 or fewer credentials exist');
+      return { kept: allCredentials.length, deleted: 0 };
+    }
+    
+    // Keep only the 3 most recent
+    const idsToKeep = allCredentials.slice(0, 3).map(c => c.id);
+    const credentialsToDelete = allCredentials.slice(3);
+    const idsToDelete = credentialsToDelete.map(c => c.id);
+    
+    console.log(`📌 Keeping ${idsToKeep.length} most recent credentials (IDs: ${idsToKeep.join(', ')})`);
+    console.log(`🗑️  Deleting ${idsToDelete.length} old credentials`);
+    
+    // Log details of credentials being deleted
+    credentialsToDelete.forEach(cred => {
+      console.log(`  - Deleting credential ID ${cred.id}: username=${cred.username}, source=${cred.source}, generated=${cred.generatedAt}`);
+    });
+    
+    // Delete old credentials
+    if (idsToDelete.length > 0) {
+      for (const id of idsToDelete) {
+        await db.delete(officeCredentials).where(eq(officeCredentials.id, id));
+      }
+    }
+    
+    console.log(`✅ Cleanup complete! Kept ${idsToKeep.length} credentials, deleted ${idsToDelete.length}`);
+    
+    return { kept: idsToKeep.length, deleted: idsToDelete.length };
   }
 
   // Task Management implementation

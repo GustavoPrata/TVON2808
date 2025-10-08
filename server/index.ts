@@ -49,6 +49,16 @@ app.use((req, res, next) => {
   // Initialize database tables
   await initDatabase();
   
+  // Cleanup office credentials to ensure only 3 most recent are kept
+  try {
+    console.log("🧹 Starting office credentials cleanup on server startup...");
+    const cleanupResult = await storage.cleanupOfficeCredentials();
+    console.log(`✅ Office credentials cleanup completed: kept ${cleanupResult.kept} credentials, deleted ${cleanupResult.deleted} old entries`);
+  } catch (error) {
+    console.error("⚠️ Error during office credentials cleanup:", error);
+    // Continue server startup even if cleanup fails
+  }
+  
   // Adicionar colunas de renovação automática na tabela sistemas se não existirem
   try {
     const { db } = await import("./db");
