@@ -4,111 +4,26 @@
 console.log('👋 OnlineOffice Automator carregado!');
 
 // ===========================================================================
-// CONFIGURAÇÃO E AUTENTICAÇÃO
+// CONFIGURAÇÃO - OnlineOffice não precisa de autenticação
 // ===========================================================================
 
-// Status da autenticação
-let isAuthenticated = false;
+// REMOVIDO - OnlineOffice não precisa verificar página de login
 
-// Verifica se está na página de login
-function isLoginPage() {
-  return window.location.href.includes('login.php') || 
-         document.querySelector('form[action*="login"]') !== null ||
-         document.querySelector('input[name="username"], input[name="password"]') !== null;
-}
+// REMOVIDO - OnlineOffice não precisa verificar autenticação
+// A plataforma permite gerar credenciais diretamente
 
-// Verifica se está autenticado
-function checkAuthStatus() {
-  // Verifica se há elementos que só existem quando logado
-  const loggedInIndicators = [
-    'button:contains("Gerar IPTV")',
-    '.user-profile',
-    '.logout-button',
-    '[href*="logout"]'
-  ];
-  
-  for (const selector of loggedInIndicators) {
-    if (document.querySelector(selector)) {
-      return true;
-    }
-  }
-  
-  // Verifica se não está na página de login
-  if (!isLoginPage()) {
-    // Se consegue acessar outras páginas, provavelmente está logado
-    return true;
-  }
-  
-  return false;
-}
-
-// Realiza login automaticamente
-async function autoLogin(credentials) {
-  console.log('🔐 Tentando login automático...');
-  
-  try {
-    // Se não estiver na página de login, navega para ela
-    if (!isLoginPage()) {
-      console.log('📍 Redirecionando para página de login...');
-      window.location.href = 'https://onlineoffice.zip/iptv/login.php';
-      await new Promise(resolve => setTimeout(resolve, 3000));
-    }
-    
-    // Procura campos de login
-    const usernameField = document.querySelector('input[name="username"], input[name="user"], input[type="text"]');
-    const passwordField = document.querySelector('input[name="password"], input[name="senha"], input[type="password"]');
-    const loginButton = document.querySelector('button[type="submit"], input[type="submit"], button:contains("Login"), button:contains("Entrar")');
-    
-    if (!usernameField || !passwordField || !loginButton) {
-      throw new Error('Campos de login não encontrados');
-    }
-    
-    // Preenche credenciais
-    usernameField.value = credentials.username;
-    passwordField.value = credentials.password;
-    
-    // Dispara eventos
-    [usernameField, passwordField].forEach(field => {
-      field.dispatchEvent(new Event('input', { bubbles: true }));
-      field.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-    
-    // Clica no botão de login
-    loginButton.click();
-    
-    // Aguarda redirecionamento
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    // Verifica se login foi bem sucedido
-    if (checkAuthStatus()) {
-      console.log('✅ Login realizado com sucesso!');
-      isAuthenticated = true;
-      return { success: true };
-    } else {
-      throw new Error('Login falhou - ainda na página de login');
-    }
-    
-  } catch (error) {
-    console.error('❌ Erro no login:', error);
-    return { success: false, error: error.message };
-  }
-}
+// REMOVIDO - OnlineOffice não precisa de login
+// A plataforma permite gerar credenciais diretamente sem autenticação
 
 // Listener para checagem de autenticação
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'checkAuth') {
-    const auth = checkAuthStatus();
-    isAuthenticated = auth;
-    sendResponse({ authenticated: auth });
+    // Sempre retorna autenticado pois o OnlineOffice não precisa de login para gerar credenciais
+    sendResponse({ authenticated: true });
     return true;
   }
   
-  if (request.action === 'autoLogin') {
-    autoLogin(request.credentials)
-      .then(result => sendResponse(result))
-      .catch(error => sendResponse({ success: false, error: error.message }));
-    return true;
-  }
+  // REMOVIDO autoLogin - OnlineOffice não precisa de login
   
   if (request.action === 'ping') {
     sendResponse({ success: true });

@@ -854,10 +854,8 @@ async function processTaskViaApi(task) {
 
 async function continueTaskProcessing(task, tabId) {
   try {
-    // Tenta autenticar primeiro
-    await ensureAuthenticated(tabId);
-    
-    // Processa baseado no tipo
+    // REMOVIDO - OnlineOffice não precisa de autenticação
+    // Processa diretamente baseado no tipo
     if (task.type === 'generate_batch') {
       return await generateBatch(tabId, task);
     } else if (task.type === 'generate_single') {
@@ -873,34 +871,8 @@ async function continueTaskProcessing(task, tabId) {
   }
 }
 
-async function ensureAuthenticated(tabId) {
-  try {
-    // Verifica se está logado
-    const authStatus = await chrome.tabs.sendMessage(tabId, { action: 'checkAuth' });
-    
-    if (!authStatus || !authStatus.authenticated) {
-      await logger.warn('⚠️ Não autenticado, tentando login...');
-      
-      // Tenta login automático
-      const loginResult = await chrome.tabs.sendMessage(tabId, { 
-        action: 'autoLogin',
-        credentials: {
-          username: 'seu_usuario', // Substitua pelos valores corretos
-          password: 'sua_senha'    // Substitua pelos valores corretos
-        }
-      });
-      
-      if (!loginResult || !loginResult.success) {
-        throw new Error('Falha na autenticação automática');
-      }
-      
-      await logger.info('✅ Login realizado com sucesso');
-    }
-  } catch (error) {
-    await logger.error('❌ Erro na verificação/autenticação', { error: error.message });
-    throw error;
-  }
-}
+// REMOVIDO - OnlineOffice não precisa de autenticação
+// A plataforma permite gerar credenciais diretamente
 
 // ===========================================================================
 // POLLING DO BACKEND (Agora usando Alarms API)
