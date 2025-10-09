@@ -130,15 +130,16 @@ export class AutoRenewalService {
         console.error('Erro ao verificar status da extensão:', error);
       }
       
-      // Limpar itens antigos da fila (mais de 1 hora)
-      this.cleanupQueue();
-      
       // 1. Buscar configuração global
       const config = await storage.getOfficeAutomationConfig();
       console.log(`📋 Configuração:`, {
         isEnabled: config?.isEnabled || false,
         renewalAdvanceTime: config?.renewalAdvanceTime || 60
       });
+      
+      // Limpar itens antigos da fila usando o tempo configurado
+      const renewalAdvanceMinutes = config?.renewalAdvanceTime || 60;
+      await this.cleanupQueue(renewalAdvanceMinutes);
       
       if (!config || !config.isEnabled) {
         console.log('⚠️ Serviço de renovação desabilitado na configuração');
@@ -167,8 +168,6 @@ export class AutoRenewalService {
         });
         return;
       }
-
-      const renewalAdvanceMinutes = config.renewalAdvanceTime || 60;
 
       // 2. Buscar sistemas com renovação automática habilitada
       const now = new Date();
@@ -527,11 +526,14 @@ export class AutoRenewalService {
           }
         });
         
-        // Atualizar status na fila
+        // Atualizar status na fila e remover imediatamente
         const queueItem = this.renewalQueue.get(sistema.systemId);
         if (queueItem) {
           queueItem.status = 'completed';
           queueItem.completedAt = new Date();
+          // Remover imediatamente da fila após completar
+          this.renewalQueue.delete(sistema.systemId);
+          console.log(`✅ Sistema ${sistema.systemId} removido da fila de renovação (task já existente)`);
         }
         
         // Agendar remoção da flag de renovação após 5 minutos
@@ -613,11 +615,14 @@ export class AutoRenewalService {
       console.log(`📝 [AutoRenewal] Task ${task.id} criada e aguardando extensão [${traceId}]`);
       console.log(`🎯 [AutoRenewal] A extensão deverá processar a task e chamar updateSistemaRenewal`);
       
-      // Atualizar status na fila
+      // Atualizar status na fila e remover imediatamente
       const queueItem = this.renewalQueue.get(sistema.systemId);
       if (queueItem) {
         queueItem.status = 'completed';
         queueItem.completedAt = new Date();
+        // Remover imediatamente da fila após completar
+        this.renewalQueue.delete(sistema.systemId);
+        console.log(`✅ Sistema ${sistema.systemId} removido da fila de renovação (task criada com sucesso)`);
       }
 
       // 3. Agendar remoção da flag de renovação após 5 minutos
@@ -653,12 +658,18 @@ export class AutoRenewalService {
   }
 
   // Limpar itens antigos da fila
-  private cleanupQueue() {
+  private async cleanupQueue(renewalAdvanceMinutes?: number) {
     const now = new Date();
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     
-    // Get the renewal advance time from config (default 30 minutes)
-    const renewalAdvanceMinutes = 30; // Will be fetched from config in checkAndRenewSystems
+    // Get the renewal advance time from config if not provided
+    if (!renewalAdvanceMinutes) {
+      const config = await storage.getOfficeAutomationConfig();
+      renewalAdvanceMinutes = config?.renewalAdvanceTime || 60; // Default to 60 minutes
+    }
+    
+    // Calculate the double threshold (2x the renewal window for "already renewed" detection)
+    const doubleRenewalWindow = renewalAdvanceMinutes * 2;
     
     for (const [sistemaId, item] of this.renewalQueue.entries()) {
       let shouldRemove = false;
@@ -674,16 +685,38 @@ export class AutoRenewalService {
         shouldRemove = true;
         removalReason = 'old error';
       }
-      // Remove waiting items that are no longer within renewal window
-      else if (item.status === 'waiting' && item.estimatedTime) {
-        const expirationDate = new Date(item.estimatedTime);
-        const minutesUntilExpiration = (expirationDate.getTime() - now.getTime()) / (1000 * 60);
-        
-        // If system expiration is more than renewalAdvanceMinutes away, remove from queue
-        if (minutesUntilExpiration > renewalAdvanceMinutes && expirationDate > now) {
+      // Remove waiting items that are no longer within renewal window OR have been renewed already
+      else if (item.status === 'waiting') {
+        // Check if item has an estimated time
+        if (item.estimatedTime) {
+          const expirationDate = new Date(item.estimatedTime);
+          const minutesUntilExpiration = (expirationDate.getTime() - now.getTime()) / (1000 * 60);
+          
+          // Remove if system expiration is more than 2x renewal window (indicates it was renewed)
+          if (minutesUntilExpiration > doubleRenewalWindow) {
+            shouldRemove = true;
+            removalReason = `already renewed (${minutesUntilExpiration.toFixed(0)} min until expiration > ${doubleRenewalWindow} min threshold)`;
+            console.log(`🗑️ Sistema ${sistemaId} removido da fila - já foi renovado`);
+          }
+          // Also remove if outside the renewal window but not expired yet
+          else if (minutesUntilExpiration > renewalAdvanceMinutes && expirationDate > now) {
+            shouldRemove = true;
+            removalReason = `outside renewal window (${minutesUntilExpiration.toFixed(0)} min until expiration > ${renewalAdvanceMinutes} min window)`;
+            console.log(`🗑️ Sistema ${sistemaId} removido da fila - fora da janela de renovação`);
+          }
+        }
+        // Remove waiting items without estimated time that are older than 5 minutes
+        else if (item.addedAt && item.addedAt < fiveMinutesAgo) {
           shouldRemove = true;
-          removalReason = `outside renewal window (${minutesUntilExpiration.toFixed(0)} min until expiration > ${renewalAdvanceMinutes} min window)`;
-          console.log(`🗑️ Sistema ${sistemaId} removido da fila - fora da janela de renovação`);
+          removalReason = 'stale waiting item without estimated time';
+        }
+      }
+      // Remove processing items that are stuck for more than 5 minutes
+      else if (item.status === 'processing' && item.startedAt) {
+        const processingTime = (now.getTime() - item.startedAt.getTime()) / (1000 * 60);
+        if (processingTime > 5) {
+          shouldRemove = true;
+          removalReason = `stuck in processing for ${processingTime.toFixed(0)} minutes`;
         }
       }
       
@@ -901,6 +934,45 @@ export class AutoRenewalService {
     }
     
     console.log(`✨ Estado de renovação limpo para sistema ${systemId}`);
+  }
+
+  // Método para limpar renovações por username quando systemId não está disponível
+  clearRenewalByUsername(username: string) {
+    console.log(`🧹 Limpando renovações por username: ${username}`);
+    
+    let clearedCount = 0;
+    
+    // Iterar pela fila de renovação procurando sistemas com o mesmo username
+    for (const [systemId, item] of this.renewalQueue.entries()) {
+      // Verificar se o item tem um username correspondente
+      // O username pode estar no item da fila (se foi incluído no metadata)
+      // ou precisamos buscar no banco de dados
+      this.checkAndClearIfMatchesUsername(systemId, username).then(matches => {
+        if (matches) {
+          this.renewalQueue.delete(systemId);
+          this.isRenewing.delete(systemId);
+          clearedCount++;
+          console.log(`✅ Sistema ${systemId} removido da fila (matched username: ${username})`);
+        }
+      }).catch(error => {
+        console.error(`❌ Erro ao verificar username para sistema ${systemId}:`, error);
+      });
+    }
+    
+    console.log(`✨ Limpeza por username completada. ${clearedCount} sistemas removidos.`);
+  }
+
+  // Helper method to check if a system matches a username
+  private async checkAndClearIfMatchesUsername(systemId: string, username: string): Promise<boolean> {
+    try {
+      const sistema = await storage.getSistemaBySystemId(systemId);
+      if (sistema && sistema.username === username) {
+        return true;
+      }
+    } catch (error) {
+      console.error(`Erro ao buscar sistema ${systemId}:`, error);
+    }
+    return false;
   }
 }
 

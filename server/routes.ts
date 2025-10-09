@@ -9749,16 +9749,66 @@ Como posso ajudar você hoje?
             savedCredentials.push(saved);
             
             console.log(`✅ [task-complete] Renovação completa para sistema ${finalSistemaId} [${traceId}]`);
+            
+            // Limpar o sistema da fila de renovação após sucesso
+            if (sistema?.systemId) {
+              console.log(`🧹 [task-complete] Limpando sistema ${sistema.systemId} da fila de renovação [${traceId}]`);
+              autoRenewalService.clearRenewalState(sistema.systemId);
+            }
           } else {
-            console.warn(`⚠️ [task-complete] Renovação sem sistemaId, salvando apenas credenciais [${traceId}]`);
-            // Salvar apenas credenciais se não tiver sistemaId
+            console.warn(`⚠️ [task-complete] Renovação sem sistemaId, tentando derivar... [${traceId}]`);
+            
+            // Tentar derivar sistemaId de várias fontes
+            let derivedSystemId = null;
+            
+            // 1. Tentar extrair do taskId se for do formato "renewal_<systemId>_<timestamp>"
+            if (taskId && taskId.startsWith('renewal_')) {
+              const parts = taskId.split('_');
+              if (parts[1]) {
+                derivedSystemId = parts[1];
+                console.log(`🔍 [task-complete] SystemId derivado do taskId: ${derivedSystemId} [${traceId}]`);
+              }
+            }
+            
+            // 2. Tentar buscar pelo username
+            if (!derivedSystemId && credentials.username) {
+              const sistemaByUsername = await storage.getSistemaByUsername(credentials.username);
+              if (sistemaByUsername) {
+                derivedSystemId = sistemaByUsername.systemId;
+                console.log(`🔍 [task-complete] SystemId derivado do username: ${derivedSystemId} [${traceId}]`);
+              }
+            }
+            
+            // 3. Verificar metadata
+            if (!derivedSystemId && metadata?.systemId) {
+              derivedSystemId = metadata.systemId;
+              console.log(`🔍 [task-complete] SystemId derivado do metadata: ${derivedSystemId} [${traceId}]`);
+            }
+            
+            // Se conseguiu derivar, limpar da fila
+            if (derivedSystemId) {
+              console.log(`🧹 [task-complete] Limpando sistema derivado ${derivedSystemId} da fila [${traceId}]`);
+              autoRenewalService.clearRenewalState(derivedSystemId);
+            } else {
+              // FALLBACK: Limpar por username como última tentativa
+              console.log(`🧹 [task-complete] Aplicando limpeza por username: ${credentials.username} [${traceId}]`);
+              autoRenewalService.clearRenewalByUsername(credentials.username);
+            }
+            
+            // Salvar credenciais mesmo sem sistemaId específico
             const saved = await storage.createOfficeCredentials({
               username: credentials.username,
               password: credentials.password,
-              sistemaId: null,
+              sistemaId: derivedSystemId || null,
               source: 'renewal',
               status: 'active',
-              generatedAt: new Date()
+              generatedAt: new Date(),
+              metadata: {
+                ...metadata,
+                warning: !derivedSystemId ? 'No sistemaId could be derived' : undefined,
+                derivedSystemId: derivedSystemId || undefined,
+                traceId
+              }
             });
             savedCredentials.push(saved);
             processedCount = 1;
