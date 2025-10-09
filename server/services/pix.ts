@@ -670,6 +670,10 @@ export class PixService {
             console.log('📨 Enviando mensagem WhatsApp...');
             await whatsappService.sendMessage(telefone, mensagem);
             console.log(`✅ Mensagem de confirmação enviada com sucesso para ${telefone}`);
+            
+            // Clear bot state and start silence period after payment confirmation
+            whatsappService.handlePaymentConfirmed(telefone);
+            console.log(`🔇 Estado do bot limpo e período de silêncio iniciado para ${telefone}`);
           } catch (whatsError: any) {
             console.error('❌ Erro ao enviar mensagem WhatsApp:', whatsError);
             console.error('Detalhes do erro:', whatsError?.message || whatsError);
@@ -755,6 +759,10 @@ export class PixService {
           
           try {
             await whatsappService.sendMessage(telefoneCliente, mensagem);
+            
+            // Clear bot state and start silence period after payment confirmation
+            whatsappService.handlePaymentConfirmed(telefoneCliente);
+            console.log(`🔇 Estado do bot limpo e período de silêncio iniciado para cliente ${telefoneCliente}`);
           } catch (whatsError: any) {
             console.error('Erro ao enviar mensagem WhatsApp:', whatsError);
             // Não interromper o processo se WhatsApp falhar

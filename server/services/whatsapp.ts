@@ -1617,6 +1617,12 @@ export class WhatsAppService extends EventEmitter {
         return;
       }
 
+      // Check if we're in payment silence period
+      if (this.isInPaymentSilencePeriod(conversa.telefone)) {
+        console.log(`[PAYMENT] Bot em período de silêncio após pagamento para ${conversa.telefone} - não responderá`);
+        return; // Don't respond to any messages during silence period
+      }
+
       const cliente = await storage.getClienteByTelefone(conversa.telefone);
 
       // Verificar se é um cliente teste (ativo ou expirado)
@@ -1881,6 +1887,7 @@ export class WhatsAppService extends EventEmitter {
       retryCount?: number;
       previousMenu?: string; // Para rastrear de onde veio
       codigoIndicacao?: string; // Para armazenar código de indicação
+      paymentConfirmedAt?: Date; // Para rastrear quando o pagamento foi confirmado
     }
   >();
 
@@ -1888,6 +1895,49 @@ export class WhatsAppService extends EventEmitter {
   public resetConversationState(telefone: string) {
     console.log(`Resetando estado da conversa para: ${telefone}`);
     this.conversaStates.delete(telefone);
+  }
+
+  // Método público para marcar pagamento como confirmado e iniciar período de silêncio
+  public handlePaymentConfirmed(telefone: string) {
+    console.log(`[PAYMENT] Marcando pagamento como confirmado para: ${telefone}`);
+    
+    // Get existing state or create a new one
+    const existingState = this.conversaStates.get(telefone);
+    
+    // Preserve existing state and add payment confirmation fields
+    this.conversaStates.set(telefone, {
+      ...existingState, // Preserve all existing fields (submenu, retryCount, etc.)
+      paymentConfirmedAt: new Date(),
+      lastActivity: new Date()
+    });
+    
+    console.log(`[PAYMENT] Período de silêncio iniciado para: ${telefone} (estado preservado)`);
+  }
+
+  // Método privado para verificar se está no período de silêncio após pagamento
+  private isInPaymentSilencePeriod(telefone: string): boolean {
+    const state = this.conversaStates.get(telefone);
+    
+    if (!state || !state.paymentConfirmedAt) {
+      return false;
+    }
+    
+    const now = new Date();
+    const paymentTime = new Date(state.paymentConfirmedAt);
+    const timeDiff = now.getTime() - paymentTime.getTime();
+    const minutesPassed = timeDiff / (1000 * 60);
+    
+    // Se passaram mais de 10 minutos, limpar o estado e retornar false
+    if (minutesPassed > 10) {
+      console.log(`[PAYMENT] Período de silêncio expirou para ${telefone} (${minutesPassed.toFixed(2)} minutos)`);
+      // Clear the payment confirmation timestamp but keep other state
+      delete state.paymentConfirmedAt;
+      this.conversaStates.set(telefone, state);
+      return false;
+    }
+    
+    console.log(`[PAYMENT] Em período de silêncio para ${telefone} (${minutesPassed.toFixed(2)} minutos desde confirmação)`);
+    return true;
   }
 
   private async handleNovosBotOption(
