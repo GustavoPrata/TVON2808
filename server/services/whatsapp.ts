@@ -1901,17 +1901,18 @@ export class WhatsAppService extends EventEmitter {
   public handlePaymentConfirmed(telefone: string) {
     console.log(`[PAYMENT] Marcando pagamento como confirmado para: ${telefone}`);
     
-    // Get existing state or create a new one
-    const existingState = this.conversaStates.get(telefone);
-    
-    // Preserve existing state and add payment confirmation fields
+    // Get existing state and MERGE with payment confirmation fields
+    // Preserve important fields like telefone while clearing submenu
+    const existingState = this.conversaStates.get(telefone) || {};
     this.conversaStates.set(telefone, {
-      ...existingState, // Preserve all existing fields (submenu, retryCount, etc.)
+      ...existingState, // Preserve all existing fields including telefone and other metadata
       paymentConfirmedAt: new Date(),
-      lastActivity: new Date()
+      lastActivity: new Date(),
+      submenu: null, // Clear payment menu to prevent showing options
+      retryCount: 0 // Reset retry count
     });
     
-    console.log(`[PAYMENT] Período de silêncio iniciado para: ${telefone} (estado preservado)`);
+    console.log(`[PAYMENT] Período de silêncio iniciado e menu limpo para: ${telefone}`);
   }
 
   // Método privado para verificar se está no período de silêncio após pagamento
@@ -1927,12 +1928,21 @@ export class WhatsAppService extends EventEmitter {
     const timeDiff = now.getTime() - paymentTime.getTime();
     const minutesPassed = timeDiff / (1000 * 60);
     
-    // Se passaram mais de 10 minutos, limpar o estado e retornar false
+    // Se passaram mais de 10 minutos, limpar APENAS o flag de pagamento e retornar false
     if (minutesPassed > 10) {
       console.log(`[PAYMENT] Período de silêncio expirou para ${telefone} (${minutesPassed.toFixed(2)} minutos)`);
-      // Clear the payment confirmation timestamp but keep other state
-      delete state.paymentConfirmedAt;
-      this.conversaStates.set(telefone, state);
+      // Remove ONLY the payment confirmation flag, preserve other state
+      const updatedState = { ...state };
+      delete updatedState.paymentConfirmedAt;
+      
+      // If there are other fields, preserve them; otherwise delete the entry
+      if (Object.keys(updatedState).length > 0) {
+        this.conversaStates.set(telefone, updatedState);
+        console.log(`[PAYMENT] Flag de pagamento removido para ${telefone}, estado preservado:`, updatedState);
+      } else {
+        this.conversaStates.delete(telefone);
+        console.log(`[PAYMENT] Estado vazio após remover flag de pagamento para ${telefone} - removendo entrada`);
+      }
       return false;
     }
     
