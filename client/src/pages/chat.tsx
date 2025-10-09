@@ -24,7 +24,7 @@ import type { Conversa, Mensagem } from '@/types';
 import { isToday, isYesterday, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { formatTimeInBrazil, formatShortInBrazil, formatDateTimeInBrazil } from '@/lib/date-utils';
-import { cn } from '@/lib/utils';
+import { cn, truncateWithSingleDot } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -2077,8 +2077,8 @@ export default function Chat() {
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <div className="flex flex-col min-w-0 flex-1">
-                              <h4 className="font-semibold truncate text-slate-100">
-                                {(() => {
+                              <h4 className="font-semibold text-slate-100 overflow-hidden whitespace-nowrap">
+                                {truncateWithSingleDot((() => {
                                   // Se for cliente, usar nome do cliente salvo
                                   if (conversa.isCliente && conversa.clienteNome) {
                                     return conversa.clienteNome;
@@ -2089,7 +2089,7 @@ export default function Chat() {
                                   }
                                   // Se for só número, mostrar formatado
                                   return formatPhoneNumber(conversa.telefone);
-                                })()}
+                                })(), 25)}
                               </h4>
                               <span className="text-xs text-slate-500">{formatPhoneNumber(conversa.telefone)}</span>
                             </div>
@@ -2107,8 +2107,7 @@ export default function Chat() {
                         
                         <div className="flex items-center gap-2">
                           {/* Last Message Preview */}
-                          <p className="text-sm text-slate-400 truncate flex-1 flex items-center gap-1 overflow-hidden"
-                             style={{ wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
+                          <p className="text-sm text-slate-400 flex-1 flex items-center gap-1 overflow-hidden whitespace-nowrap">
                             {conversa.isTyping ? (
                               <span className="text-blue-400 italic">digitando...</span>
                             ) : (
@@ -2132,53 +2131,65 @@ export default function Chat() {
                                     {conversa.tipoUltimaMensagem === 'sticker' && <Sparkles className="w-4 h-4 text-slate-400" />}
                                   </span>
                                 )}
-                                <span className="truncate">
+                                <span className="overflow-hidden whitespace-nowrap">
                                   {(() => {
-                                    if (!conversa.ultimaMensagem || conversa.ultimaMensagem === '') {
-                                      return <span className="italic">Clique para iniciar conversa</span>;
-                                    }
-                                    
-                                    // For media messages, show special formatting
-                                    if (conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text') {
-                                      try {
-                                        const parsedMessage = JSON.parse(conversa.ultimaMensagem);
-                                        
-                                        switch (conversa.tipoUltimaMensagem) {
-                                          case 'image':
-                                            return parsedMessage.caption ? `Foto: ${parsedMessage.caption}` : 'Foto';
-                                          case 'video':
-                                            return parsedMessage.caption ? `Vídeo: ${parsedMessage.caption}` : 'Vídeo';
-                                          case 'audio':
-                                            const duration = parsedMessage.duration || 0;
-                                            return `Áudio (${duration}s)`;
-                                          case 'document':
-                                            const fileName = parsedMessage.fileName || 'arquivo';
-                                            return fileName;
-                                          case 'sticker':
-                                            return 'Figurinha';
-                                          default:
-                                            return conversa.ultimaMensagem;
-                                        }
-                                      } catch (e) {
-                                        // If parsing fails, check for special media types
-                                        if (conversa.tipoUltimaMensagem === 'audio') {
-                                          return 'Áudio';
-                                        } else if (conversa.tipoUltimaMensagem === 'image') {
-                                          return 'Foto';
-                                        } else if (conversa.tipoUltimaMensagem === 'video') {
-                                          return 'Vídeo';
-                                        } else if (conversa.tipoUltimaMensagem === 'document') {
-                                          return 'Documento';
-                                        } else if (conversa.tipoUltimaMensagem === 'sticker') {
-                                          return 'Figurinha';
-                                        }
-                                        // Show raw message if not empty
-                                        return conversa.ultimaMensagem || <span className="italic">Clique para iniciar conversa</span>;
+                                    const messageContent = (() => {
+                                      if (!conversa.ultimaMensagem || conversa.ultimaMensagem === '') {
+                                        return 'Clique para iniciar conversa';
                                       }
+                                      
+                                      // For media messages, show special formatting
+                                      if (conversa.tipoUltimaMensagem && conversa.tipoUltimaMensagem !== 'text') {
+                                        try {
+                                          const parsedMessage = JSON.parse(conversa.ultimaMensagem);
+                                          
+                                          switch (conversa.tipoUltimaMensagem) {
+                                            case 'image':
+                                              return parsedMessage.caption ? `Foto: ${parsedMessage.caption}` : 'Foto';
+                                            case 'video':
+                                              return parsedMessage.caption ? `Vídeo: ${parsedMessage.caption}` : 'Vídeo';
+                                            case 'audio':
+                                              const duration = parsedMessage.duration || 0;
+                                              return `Áudio (${duration}s)`;
+                                            case 'document':
+                                              const fileName = parsedMessage.fileName || 'arquivo';
+                                              return fileName;
+                                            case 'sticker':
+                                              return 'Figurinha';
+                                            default:
+                                              return conversa.ultimaMensagem;
+                                          }
+                                        } catch (e) {
+                                          // If parsing fails, check for special media types
+                                          if (conversa.tipoUltimaMensagem === 'audio') {
+                                            return 'Áudio';
+                                          } else if (conversa.tipoUltimaMensagem === 'image') {
+                                            return 'Foto';
+                                          } else if (conversa.tipoUltimaMensagem === 'video') {
+                                            return 'Vídeo';
+                                          } else if (conversa.tipoUltimaMensagem === 'document') {
+                                            return 'Documento';
+                                          } else if (conversa.tipoUltimaMensagem === 'sticker') {
+                                            return 'Figurinha';
+                                          }
+                                          // Show raw message if not empty
+                                          return conversa.ultimaMensagem || 'Clique para iniciar conversa';
+                                        }
+                                      }
+                                      
+                                      // For text messages, show as is
+                                      return conversa.ultimaMensagem;
+                                    })();
+                                    
+                                    // Apply custom truncation with single dot
+                                    const truncatedMessage = truncateWithSingleDot(messageContent, 40);
+                                    
+                                    // Return italic if it's the placeholder message
+                                    if (messageContent === 'Clique para iniciar conversa') {
+                                      return <span className="italic">{truncatedMessage}</span>;
                                     }
                                     
-                                    // For text messages, show as is
-                                    return conversa.ultimaMensagem;
+                                    return truncatedMessage;
                                   })()}
                                 </span>
                               </>
