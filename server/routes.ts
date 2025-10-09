@@ -3284,6 +3284,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reset old conversations to bot attendance
+  app.post("/api/whatsapp/reset-old-conversations", async (req, res) => {
+    try {
+      // Find all conversations in human attendance mode
+      const conversas = await storage.getConversas();
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      
+      let resetCount = 0;
+      
+      for (const conversa of conversas) {
+        // Check if conversation is in human mode
+        if (conversa.modoAtendimento === 'human') {
+          // Check if last message is older than 24 hours
+          const lastMessageTime = conversa.dataUltimaMensagem 
+            ? new Date(conversa.dataUltimaMensagem) 
+            : null;
+          
+          if (lastMessageTime && lastMessageTime < twentyFourHoursAgo) {
+            // Reset to bot mode
+            await storage.updateConversa(conversa.id, {
+              modoAtendimento: 'bot'
+            });
+            
+            // Close any active tickets for this conversation
+            const tickets = await storage.getTicketsByConversaId(conversa.id);
+            for (const ticket of tickets) {
+              if (ticket.status === 'aberto' || ticket.status === 'em_andamento') {
+                await storage.updateTicket(ticket.id, {
+                  status: 'fechado',
+                  resolvidoEm: new Date()
+                });
+              }
+            }
+            
+            resetCount++;
+            
+            console.log(`Reset conversation ${conversa.id} (${conversa.telefone}) to bot mode`);
+          }
+        }
+      }
+      
+      console.log(`Reset ${resetCount} old conversations to bot mode`);
+      res.json({ count: resetCount });
+    } catch (error) {
+      console.error("Error resetting old conversations:", error);
+      res.status(500).json({ error: "Erro ao resetar conversas antigas" });
+    }
+  });
+
   // Clear WhatsApp session forcefully
   app.post("/api/whatsapp/clear-session", async (req, res) => {
     try {

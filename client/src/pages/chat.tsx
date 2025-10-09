@@ -459,6 +459,33 @@ export default function Chat() {
     }
   });
 
+  // Reset old conversations to bot attendance
+  const resetOldConversationsMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/whatsapp/reset-old-conversations'),
+    onSuccess: (data) => {
+      const count = data?.count || 0;
+      toast({
+        title: 'Conversas resetadas',
+        description: count > 0 
+          ? `${count} conversa${count > 1 ? 's' : ''} antiga${count > 1 ? 's' : ''} ${count > 1 ? 'foram resetadas' : 'foi resetada'} para atendimento do bot`
+          : 'Nenhuma conversa antiga encontrada para resetar',
+        variant: count > 0 ? 'default' : 'default'
+      });
+      
+      // Refresh conversations list
+      if (count > 0) {
+        refetchConversas();
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro ao resetar conversas',
+        description: error.response?.data?.error || 'Ocorreu um erro ao resetar as conversas antigas',
+        variant: 'destructive'
+      });
+    }
+  });
+
   // Send message mutation - Used for temporary conversations
   const sendMessageMutation = useMutation({
     mutationFn: async (data: { to: string; message: string }) => {
@@ -1709,6 +1736,28 @@ export default function Chat() {
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-xs text-green-400">Conectado</span>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => resetOldConversationsMutation.mutate()}
+                        disabled={resetOldConversationsMutation.isPending}
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0"
+                      >
+                        {resetOldConversationsMutation.isPending ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-3 h-3" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Resetar conversas antigas para bot</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             ) : isConnecting ? (
               <div className="flex items-center gap-2">
