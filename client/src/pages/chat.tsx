@@ -2089,7 +2089,7 @@ export default function Chat() {
                                   }
                                   // Se for só número, mostrar formatado
                                   return formatPhoneNumber(conversa.telefone);
-                                })(), 25)}
+                                })(), 18)}
                               </h4>
                               <span className="text-xs text-slate-500">{formatPhoneNumber(conversa.telefone)}</span>
                             </div>
