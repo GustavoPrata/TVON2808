@@ -461,7 +461,10 @@ export default function Chat() {
 
   // Reset old conversations to bot attendance
   const resetOldConversationsMutation = useMutation({
-    mutationFn: () => apiRequest('POST', '/api/whatsapp/reset-old-conversations'),
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/whatsapp/reset-old-conversations');
+      return response.json();
+    },
     onSuccess: (data) => {
       const count = data?.count || 0;
       toast({
@@ -480,7 +483,7 @@ export default function Chat() {
     onError: (error: any) => {
       toast({
         title: 'Erro ao resetar conversas',
-        description: error.response?.data?.error || 'Ocorreu um erro ao resetar as conversas antigas',
+        description: error.response?.data?.error || error.message || 'Ocorreu um erro ao resetar as conversas antigas',
         variant: 'destructive'
       });
     }
