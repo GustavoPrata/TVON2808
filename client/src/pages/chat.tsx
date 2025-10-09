@@ -2075,8 +2075,8 @@ export default function Chat() {
                       {/* Conversation Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2">
-                            <div className="flex flex-col">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="flex flex-col min-w-0 flex-1">
                               <h4 className="font-semibold truncate text-slate-100">
                                 {(() => {
                                   // Se for cliente, usar nome do cliente salvo
@@ -2100,7 +2100,7 @@ export default function Chat() {
                               <VolumeX className="w-3 h-3 text-slate-500" />
                             )}
                           </div>
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-slate-500 flex-shrink-0">
                             {conversa.dataUltimaMensagem && formatLastMessageDate(conversa.dataUltimaMensagem)}
                           </span>
                         </div>
