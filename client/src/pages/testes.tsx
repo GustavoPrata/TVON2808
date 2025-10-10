@@ -413,19 +413,6 @@ export default function Testes() {
                     </Badge>
                   </div>
 
-                  {/* System */}
-                  {teste.sistemaId && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-400">Sistema:</span>
-                      <span className="text-white">
-                        {sistemas?.find((s: any) => s.id === teste.sistemaId)?.systemId ? 
-                          `Sistema ${sistemas.find((s: any) => s.id === teste.sistemaId).systemId}` : 
-                          '-'
-                        }
-                      </span>
-                    </div>
-                  )}
-
                   {/* Creation Time */}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-400">Criado em:</span>

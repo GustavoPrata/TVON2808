@@ -555,22 +555,6 @@ export function TestDetailsDialog({
                   )}
                 </div>
 
-                {/* Sistema */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Sistema Vinculado</label>
-                  <div className="flex items-center justify-between p-3 bg-black/30 rounded-lg border border-purple-500/20">
-                    <div className="flex items-center gap-3">
-                      <Monitor className="w-5 h-5 text-cyan-400" />
-                      <span className="text-white font-medium">
-                        Sistema {test.sistemaId || 'N/A'}
-                      </span>
-                    </div>
-                    <Badge className="bg-purple-600/30 text-purple-300 border-purple-500/30">
-                      Fixo
-                    </Badge>
-                  </div>
-                </div>
-
                 {/* MAC Address */}
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-purple-300 uppercase tracking-wider">MAC Address</label>
