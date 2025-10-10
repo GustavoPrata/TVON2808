@@ -3287,22 +3287,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reset old conversations to bot attendance
   app.post("/api/whatsapp/reset-old-conversations", async (req, res) => {
     try {
-      // Find all conversations in human attendance mode
+      // Find all conversations
       const conversas = await storage.getConversas();
       const now = new Date();
       const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       
+      // Debug information
+      console.log(`[RESET] ====== INICIANDO RESET DE CONVERSAS ANTIGAS ======`);
+      console.log(`[RESET] Total de conversas: ${conversas.length}`);
+      console.log(`[RESET] Hora atual: ${now.toISOString()}`);
+      console.log(`[RESET] 24 horas atrás: ${twentyFourHoursAgo.toISOString()}`);
+      
       let resetCount = 0;
+      let humanModeCount = 0;
+      const conversationsReset = [];
+      const debugInfo = [];
       
       for (const conversa of conversas) {
-        // Check if conversation is in human mode
-        if (conversa.modoAtendimento === 'human') {
-          // Check if last message is older than 24 hours
-          const lastMessageTime = conversa.dataUltimaMensagem 
-            ? new Date(conversa.dataUltimaMensagem) 
+        // Check if conversation is in human mode (case-insensitive to be safe)
+        const modoAtendimento = conversa.modoAtendimento?.toLowerCase();
+        
+        if (modoAtendimento === 'human' || modoAtendimento === 'humano') {
+          humanModeCount++;
+          
+          // Get the last message time - handle various date formats
+          let lastMessageTime: Date | null = null;
+          
+          if (conversa.dataUltimaMensagem) {
+            // Try to parse the date
+            try {
+              lastMessageTime = new Date(conversa.dataUltimaMensagem);
+              // Check if date is valid
+              if (isNaN(lastMessageTime.getTime())) {
+                lastMessageTime = null;
+                console.log(`[RESET] Data inválida para conversa ${conversa.id}: ${conversa.dataUltimaMensagem}`);
+              }
+            } catch (e) {
+              lastMessageTime = null;
+              console.log(`[RESET] Erro ao parsear data para conversa ${conversa.id}: ${e}`);
+            }
+          }
+          
+          // Also check the actual last message from the database
+          const messages = await storage.getMensagensByConversaId(conversa.id, 1, 0);
+          const lastMessage = messages.length > 0 ? messages[0] : null;
+          
+          let lastMessageActualTime: Date | null = null;
+          if (lastMessage?.timestamp) {
+            try {
+              lastMessageActualTime = new Date(lastMessage.timestamp);
+              if (isNaN(lastMessageActualTime.getTime())) {
+                lastMessageActualTime = null;
+              }
+            } catch (e) {
+              lastMessageActualTime = null;
+            }
+          }
+          
+          // Use the most recent timestamp between the two
+          const effectiveLastMessageTime = (() => {
+            if (lastMessageTime && lastMessageActualTime) {
+              return lastMessageTime > lastMessageActualTime ? lastMessageTime : lastMessageActualTime;
+            }
+            return lastMessageTime || lastMessageActualTime;
+          })();
+          
+          // Calculate time difference
+          const hoursSinceLastMessage = effectiveLastMessageTime 
+            ? Math.floor((now.getTime() - effectiveLastMessageTime.getTime()) / (1000 * 60 * 60))
             : null;
           
-          if (lastMessageTime && lastMessageTime < twentyFourHoursAgo) {
+          debugInfo.push({
+            conversaId: conversa.id,
+            telefone: conversa.telefone,
+            modoAtendimento: conversa.modoAtendimento,
+            dataUltimaMensagem: conversa.dataUltimaMensagem,
+            lastMessageTime: lastMessageTime?.toISOString() || 'null',
+            lastMessageActualTime: lastMessageActualTime?.toISOString() || 'null',
+            effectiveLastMessageTime: effectiveLastMessageTime?.toISOString() || 'null',
+            hoursSinceLastMessage: hoursSinceLastMessage || 'N/A',
+            shouldReset: effectiveLastMessageTime ? effectiveLastMessageTime < twentyFourHoursAgo : true
+          });
+          
+          // Reset if:
+          // 1. Last message is older than 24 hours
+          // 2. DON'T reset if no timestamp available (might be a new conversation)
+          const shouldReset = effectiveLastMessageTime && effectiveLastMessageTime < twentyFourHoursAgo;
+          
+          if (shouldReset) {
             // Reset to bot mode
             await storage.updateConversa(conversa.id, {
               modoAtendimento: 'bot'
@@ -3310,27 +3382,214 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Close any active tickets for this conversation
             const tickets = await storage.getTicketsByConversaId(conversa.id);
+            let closedTickets = 0;
+            
             for (const ticket of tickets) {
               if (ticket.status === 'aberto' || ticket.status === 'em_andamento') {
                 await storage.updateTicket(ticket.id, {
-                  status: 'fechado',
-                  resolvidoEm: new Date()
+                  status: 'resolvido',
+                  dataFechamento: new Date()
                 });
+                closedTickets++;
               }
             }
             
             resetCount++;
+            conversationsReset.push({
+              id: conversa.id,
+              telefone: conversa.telefone,
+              hoursSinceLastMessage: hoursSinceLastMessage || 'unknown',
+              ticketsClosed: closedTickets
+            });
             
-            console.log(`Reset conversation ${conversa.id} (${conversa.telefone}) to bot mode`);
+            console.log(`[RESET] ✅ Resetada conversa ${conversa.id} (${conversa.telefone}) - ${hoursSinceLastMessage || 'sem mensagens'} horas desde última mensagem`);
+          } else {
+            console.log(`[RESET] ⏭️ Mantida conversa ${conversa.id} (${conversa.telefone}) - apenas ${hoursSinceLastMessage} horas desde última mensagem`);
           }
         }
       }
       
-      console.log(`Reset ${resetCount} old conversations to bot mode`);
-      res.json({ count: resetCount });
+      console.log(`[RESET] ====== RESUMO DO RESET ======`);
+      console.log(`[RESET] Conversas em modo humano: ${humanModeCount}`);
+      console.log(`[RESET] Conversas resetadas: ${resetCount}`);
+      console.log(`[RESET] ====== FIM DO RESET ======`);
+      
+      // Return detailed response
+      res.json({ 
+        success: true,
+        count: resetCount,
+        message: resetCount > 0 
+          ? `${resetCount} conversa${resetCount > 1 ? 's' : ''} resetada${resetCount > 1 ? 's' : ''} para modo bot`
+          : "Nenhuma conversa antiga encontrada para resetar",
+        details: {
+          totalConversations: conversas.length,
+          humanModeConversations: humanModeCount,
+          conversationsReset: conversationsReset,
+          debug: debugInfo.slice(0, 10) // Show first 10 for debugging
+        }
+      });
     } catch (error) {
-      console.error("Error resetting old conversations:", error);
-      res.status(500).json({ error: "Erro ao resetar conversas antigas" });
+      console.error("[RESET] ❌ Erro ao resetar conversas antigas:", error);
+      res.status(500).json({ 
+        error: "Erro ao resetar conversas antigas",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Test endpoint to check conversation states for reset debugging
+  app.get("/api/whatsapp/test-conversation-reset", checkAuth, async (req, res) => {
+    try {
+      const conversas = await storage.getConversas();
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      
+      const results = [];
+      
+      for (const conversa of conversas) {
+        const modoAtendimento = conversa.modoAtendimento?.toLowerCase();
+        const isHumanMode = modoAtendimento === 'human' || modoAtendimento === 'humano';
+        
+        if (isHumanMode) {
+          // Get the last message from storage
+          const messages = await storage.getMensagensByConversaId(conversa.id, 1, 0);
+          const lastMessage = messages.length > 0 ? messages[0] : null;
+          
+          let dataUltimaMensagemTime = null;
+          let lastMessageActualTime = null;
+          
+          if (conversa.dataUltimaMensagem) {
+            try {
+              dataUltimaMensagemTime = new Date(conversa.dataUltimaMensagem);
+              if (isNaN(dataUltimaMensagemTime.getTime())) {
+                dataUltimaMensagemTime = null;
+              }
+            } catch (e) {
+              dataUltimaMensagemTime = null;
+            }
+          }
+          
+          if (lastMessage?.timestamp) {
+            try {
+              lastMessageActualTime = new Date(lastMessage.timestamp);
+              if (isNaN(lastMessageActualTime.getTime())) {
+                lastMessageActualTime = null;
+              }
+            } catch (e) {
+              lastMessageActualTime = null;
+            }
+          }
+          
+          const effectiveLastMessageTime = (() => {
+            if (dataUltimaMensagemTime && lastMessageActualTime) {
+              return dataUltimaMensagemTime > lastMessageActualTime ? dataUltimaMensagemTime : lastMessageActualTime;
+            }
+            return dataUltimaMensagemTime || lastMessageActualTime;
+          })();
+          
+          const hoursSinceLastMessage = effectiveLastMessageTime 
+            ? Math.floor((now.getTime() - effectiveLastMessageTime.getTime()) / (1000 * 60 * 60))
+            : null;
+          
+          const shouldReset = effectiveLastMessageTime && effectiveLastMessageTime < twentyFourHoursAgo;
+          
+          results.push({
+            conversaId: conversa.id,
+            telefone: conversa.telefone,
+            modoAtendimento: conversa.modoAtendimento,
+            dataUltimaMensagem: conversa.dataUltimaMensagem,
+            dataUltimaMensagemParsed: dataUltimaMensagemTime?.toISOString() || null,
+            lastMessageFromStorage: lastMessageActualTime?.toISOString() || null,
+            effectiveLastMessageTime: effectiveLastMessageTime?.toISOString() || null,
+            hoursSinceLastMessage: hoursSinceLastMessage,
+            shouldReset: shouldReset,
+            reason: !effectiveLastMessageTime ? 'No timestamp available' : 
+                   shouldReset ? `Old enough (${hoursSinceLastMessage} hours)` : 
+                   `Too recent (${hoursSinceLastMessage} hours)`
+          });
+        }
+      }
+      
+      const summary = {
+        totalConversations: conversas.length,
+        humanModeConversations: results.length,
+        conversationsToReset: results.filter(r => r.shouldReset).length,
+        now: now.toISOString(),
+        twentyFourHoursAgo: twentyFourHoursAgo.toISOString()
+      };
+      
+      return res.json({
+        success: true,
+        summary,
+        conversations: results.sort((a, b) => {
+          // Sort by should reset first, then by hours
+          if (a.shouldReset && !b.shouldReset) return -1;
+          if (!a.shouldReset && b.shouldReset) return 1;
+          if (a.hoursSinceLastMessage === null && b.hoursSinceLastMessage === null) return 0;
+          if (a.hoursSinceLastMessage === null) return 1;
+          if (b.hoursSinceLastMessage === null) return -1;
+          return b.hoursSinceLastMessage - a.hoursSinceLastMessage;
+        })
+      });
+    } catch (error) {
+      console.error('Error checking conversation states:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erro ao verificar estados das conversas' 
+      });
+    }
+  });
+  
+  // Debug endpoint to check conversation states
+  app.get("/api/whatsapp/debug-conversations", checkAuth, async (req, res) => {
+    try {
+      const conversas = await storage.getConversas();
+      const now = new Date();
+      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      
+      const humanConversations = [];
+      
+      for (const conversa of conversas) {
+        if (conversa.modoAtendimento === 'human') {
+          const messages = await storage.getMensagensByConversaId(conversa.id, 1, 0);
+          const lastMessage = messages.length > 0 ? messages[0] : null;
+          
+          const lastMessageTime = conversa.dataUltimaMensagem 
+            ? new Date(conversa.dataUltimaMensagem) 
+            : null;
+          
+          const lastMessageActualTime = lastMessage 
+            ? new Date(lastMessage.timestamp) 
+            : null;
+          
+          humanConversations.push({
+            id: conversa.id,
+            telefone: conversa.telefone,
+            dataUltimaMensagem: conversa.dataUltimaMensagem,
+            lastMessageTime: lastMessageTime ? lastMessageTime.toISOString() : 'null',
+            lastMessageActualTime: lastMessageActualTime ? lastMessageActualTime.toISOString() : 'no messages',
+            timeDiff: lastMessageTime 
+              ? Math.floor((now.getTime() - lastMessageTime.getTime()) / (1000 * 60 * 60)) + ' hours ago'
+              : 'N/A',
+            actualTimeDiff: lastMessageActualTime
+              ? Math.floor((now.getTime() - lastMessageActualTime.getTime()) / (1000 * 60 * 60)) + ' hours ago'
+              : 'N/A',
+            isOld: lastMessageTime ? lastMessageTime < twentyFourHoursAgo : false,
+            isActuallyOld: lastMessageActualTime ? lastMessageActualTime < twentyFourHoursAgo : false
+          });
+        }
+      }
+      
+      res.json({
+        currentTime: now.toISOString(),
+        twentyFourHoursAgo: twentyFourHoursAgo.toISOString(),
+        totalConversations: conversas.length,
+        humanModeConversations: humanConversations.length,
+        conversations: humanConversations
+      });
+    } catch (error) {
+      console.error("Error debugging conversations:", error);
+      res.status(500).json({ error: "Erro ao debugar conversas" });
     }
   });
 
