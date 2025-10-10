@@ -1,0 +1,151 @@
+<?php
+/**
+ * Script PHP aprimorado para processar um arquivo M3U upado pelo usuário,
+ * deletar os arquivos antigos 'lista.m3u' e 'lista.m3u.gz',
+ * salvar o novo conteúdo como 'lista.m3u' e compactá-lo em GZIP
+ * como 'lista.m3u.gz'.
+ *
+ * Melhorias:
+ * - Aceita upload de arquivo .m3u em vez de download via URL.
+ * - Exibe mensagens detalhadas de status (o que está acontecendo).
+ * - Confirmação clara de sucesso ou erro.
+ * - Interface mais bonita com formulário para upload.
+ * - Headers para flush de output e visualização progressiva no navegador.
+ *
+ * Uso: Acesse via navegador e upe o arquivo .m3u via formulário.
+ *
+ * Requisitos: PHP com permissão para upload de arquivos (verifique php.ini: file_uploads = On).
+ * Permissões de escrita no diretório para deletar e criar arquivos.
+ *
+ * @author Grok 4
+ */
+
+// Headers para permitir flush e visualização em tempo real
+header('Content-Type: text/html; charset=utf-8');
+header('Cache-Control: no-cache, must-revalidate');
+header('Expires: 0');
+ob_implicit_flush(true);
+ob_end_flush();
+
+// Função principal para processar o upload e atualização
+function atualizarListaM3U($conteudo) {
+    // Iniciar HTML para consistência visual
+    echo "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'><title>Atualizador de Lista M3U - Processando...</title>";
+    echo "<style>body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 10px; } .status { color: green; font-weight: bold; } .error { color: red; font-weight: bold; } .progress { color: blue; font-weight: bold; }</style></head><body>";
+    echo "<h1>Atualizador de Lista M3U - Status</h1>";
+
+    // Definir nomes dos arquivos
+    $arquivoM3U = 'lista.m3u';
+    $arquivoGZIP = 'lista.m3u.gz';
+
+    // Passo 1: Deletar arquivos antigos, se existirem
+    echo "<div class='status'>Iniciando processo de atualização...</div><br>";
+    
+    if (file_exists($arquivoM3U)) {
+        unlink($arquivoM3U);
+        echo "<div class='status'>✓ Arquivo antigo '$arquivoM3U' deletado com sucesso.</div><br>";
+    } else {
+        echo "<div class='status'>ℹ Arquivo '$arquivoM3U' não existia.</div><br>";
+    }
+    
+    if (file_exists($arquivoGZIP)) {
+        unlink($arquivoGZIP);
+        echo "<div class='status'>✓ Arquivo antigo '$arquivoGZIP' deletado com sucesso.</div><br>";
+    } else {
+        echo "<div class='status'>ℹ Arquivo '$arquivoGZIP' não existia.</div><br>";
+    }
+
+    // Passo 2: Verificar e processar o conteúdo upado
+    if (empty($conteudo)) {
+        echo "<div class='error'>✗ Erro: O arquivo upado está vazio ou inválido.</div>";
+        echo "</body></html>";
+        exit;
+    }
+
+    $tamanho = strlen($conteudo);
+    echo "<div class='status'>✓ Upload processado com sucesso! Tamanho total: $tamanho bytes (aprox. " . round($tamanho / 1024 / 1024, 2) . " MB).</div><br>";
+
+    // Passo 3: Salvar o novo conteúdo como 'lista.m3u'
+    echo "<div class='status'>Salvando novo arquivo '$arquivoM3U'...</div><br>";
+    if (file_put_contents($arquivoM3U, $conteudo) === false) {
+        echo "<div class='error'>✗ Erro ao salvar o arquivo '$arquivoM3U'. Verifique permissões.</div>";
+        echo "</body></html>";
+        exit;
+    }
+    echo "<div class='status'>✓ Novo arquivo '$arquivoM3U' salvo com sucesso.</div><br>";
+
+    // Passo 4: Compactar em GZIP e salvar como 'lista.m3u.gz'
+    echo "<div class='status'>Compactando em GZIP (pode demorar para arquivos grandes)...</div><br>";
+    $conteudoGZIP = gzencode($conteudo, 9); // Nível máximo de compressão
+    if ($conteudoGZIP === false) {
+        echo "<div class='error'>✗ Erro ao compactar o arquivo em GZIP.</div>";
+        echo "</body></html>";
+        exit;
+    }
+    $tamanhoGZIP = strlen($conteudoGZIP);
+    echo "<div class='status'>Compactação concluída! Tamanho GZIP: $tamanhoGZIP bytes (compressão: " . round(($tamanho - $tamanhoGZIP) / $tamanho * 100, 2) . "% menor).</div><br>";
+    
+    if (file_put_contents($arquivoGZIP, $conteudoGZIP) === false) {
+        echo "<div class='error'>✗ Erro ao salvar o arquivo '$arquivoGZIP'. Verifique permissões.</div>";
+        echo "</body></html>";
+        exit;
+    }
+    echo "<div class='status'>✓ Arquivo compactado '$arquivoGZIP' salvo com sucesso.</div><br>";
+
+    echo "<div style='color: green; font-size: 18px; font-weight: bold; text-align: center; padding: 20px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px;'>🎉 PROCESSO CONCLUÍDO COM SUCESSO! Todos os arquivos foram atualizados.</div>";
+    echo "</body></html>";
+}
+
+// Verificar se houve upload de arquivo via POST
+if (isset($_FILES['arquivo_m3u']) && $_FILES['arquivo_m3u']['error'] === UPLOAD_ERR_OK) {
+    $arquivoTmp = $_FILES['arquivo_m3u']['tmp_name'];
+    $nomeOriginal = basename($_FILES['arquivo_m3u']['name']);
+    $extensao = strtolower(pathinfo($nomeOriginal, PATHINFO_EXTENSION));
+
+    // Verificar se é um arquivo .m3u
+    if ($extensao !== 'm3u') {
+        echo "<div class='error'>✗ Erro: O arquivo deve ter extensão .m3u.</div>";
+        exit;
+    }
+
+    // Ler o conteúdo do arquivo upado
+    $conteudo = file_get_contents($arquivoTmp);
+    if ($conteudo === false) {
+        echo "<div class='error'>✗ Erro ao ler o arquivo upado.</div>";
+        exit;
+    }
+
+    atualizarListaM3U($conteudo);
+} else {
+    // Formulário simples para upload do arquivo (para tornar o script "bonito" e interativo)
+    ?>
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <title>Atualizador de Lista M3U</title>
+        <style>
+            body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; border-radius: 10px; background-color: #f9f9f9; }
+            h1 { text-align: center; color: #333; }
+            form { display: flex; flex-direction: column; }
+            input[type="file"] { padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+            button { padding: 10px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+            button:hover { background-color: #45a049; }
+            .info { background-color: #e7f3ff; padding: 10px; border-radius: 5px; margin-top: 20px; }
+        </style>
+    </head>
+    <body>
+        <h1>Atualizador de Lista M3U</h1>
+        <form method="POST" enctype="multipart/form-data">
+            <label for="arquivo_m3u" style="font-weight: bold;">Selecione o arquivo .m3u para upload:</label>
+            <input type="file" id="arquivo_m3u" name="arquivo_m3u" accept=".m3u" required style="width: 100%;">
+            <button type="submit">Atualizar Lista</button>
+        </form>
+        <div class="info">
+            <strong>Dicas:</strong> O script deletará os arquivos antigos (lista.m3u e lista.m3u.gz), processará o arquivo upado (~60MB), salvará como lista.m3u e criará o arquivo compactado lista.m3u.gz. Monitore o status na tela!
+        </div>
+    </body>
+    </html>
+    <?php
+}
+?>
