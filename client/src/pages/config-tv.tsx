@@ -172,7 +172,6 @@ export default function ConfigTV() {
   const [urlToDelete, setUrlToDelete] = useState<number | null>(null);
   const [urlTestStatus, setUrlTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [isTestingApi, setIsTestingApi] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -520,42 +519,6 @@ export default function ConfigTV() {
   };
 
   // M3U Upload handlers
-  const handleFileDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleFileDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleFileDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleFileDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    const files = Array.from(e.dataTransfer.files);
-    const m3uFile = files.find(file => file.name.toLowerCase().endsWith('.m3u'));
-
-    if (m3uFile) {
-      setSelectedFile(m3uFile);
-    } else {
-      toast({
-        title: 'Arquivo inválido',
-        description: 'Por favor, selecione um arquivo .m3u',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -703,156 +666,105 @@ export default function ConfigTV() {
               </p>
             </div>
           </div>
-          <a
-            href="https://tvonbr.fun/att.php"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-lg shadow-green-500/30 transition-all hover:scale-105 h-10 px-4 py-2"
-            title="Abrir painel de atualização M3U"
-            data-testid="button-open-att-php"
-          >
-            <ExternalLink className="w-4 h-4 mr-1 md:mr-2" />
-            <span className="hidden sm:inline">Atualizar M3U</span>
-            <span className="sm:hidden">M3U</span>
-          </a>
+          <div className="flex items-center gap-2">
+            {/* M3U Upload Controls */}
+            {selectedFile ? (
+              <div className="flex items-center gap-2 bg-slate-800/50 rounded-lg px-3 py-1 border border-slate-700">
+                <FileText className={`w-4 h-4 ${
+                  uploadStatus === 'success' ? 'text-green-400' : 
+                  uploadStatus === 'error' ? 'text-red-400' : 
+                  'text-blue-400'
+                }`} />
+                <div className="flex flex-col">
+                  <span className="text-xs text-slate-300 max-w-[150px] truncate" title={selectedFile.name}>
+                    {selectedFile.name}
+                  </span>
+                  {isUploading && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-20 h-1 bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-slate-400">{uploadProgress}%</span>
+                    </div>
+                  )}
+                  {uploadStatus === 'success' && (
+                    <span className="text-xs text-green-400">✅ Sucesso!</span>
+                  )}
+                  {uploadStatus === 'error' && (
+                    <span className="text-xs text-red-400">❌ Erro</span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleClearFile}
+                  className="p-1 hover:bg-slate-700 text-slate-400 hover:text-white"
+                  disabled={isUploading}
+                  title="Cancelar"
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleUploadM3U}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-2 py-1"
+                  disabled={isUploading || uploadStatus === 'success'}
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" />
+                    </>
+                  ) : uploadStatus === 'success' ? (
+                    <>
+                      <CheckCircle className="w-3 h-3" />
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-3 h-3" />
+                    </>
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".m3u"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="m3u-file-input"
+                />
+                <label
+                  htmlFor="m3u-file-input"
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg shadow-blue-500/30 transition-all hover:scale-105 h-10 px-4 py-2 cursor-pointer"
+                  title="Selecionar arquivo M3U"
+                >
+                  <Upload className="w-4 h-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">Carregar M3U</span>
+                  <span className="sm:hidden">M3U</span>
+                </label>
+              </>
+            )}
+            
+            <a
+              href="https://tvonbr.fun/att.php"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold shadow-lg shadow-green-500/30 transition-all hover:scale-105 h-10 px-4 py-2"
+              title="Abrir painel de atualização M3U"
+              data-testid="button-open-att-php"
+            >
+              <ExternalLink className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Atualizar M3U</span>
+              <span className="sm:hidden">Externo</span>
+            </a>
+          </div>
         </div>
       </div>
-
-      {/* M3U Upload Area */}
-      <Card className="bg-dark-card border-slate-600">
-        <CardHeader>
-          <CardTitle className="text-white text-lg md:text-xl flex items-center gap-2">
-            <Upload className="w-4 h-4 md:w-5 md:h-5 text-green-400" />
-            Upload de Arquivo M3U
-          </CardTitle>
-          <CardDescription className="text-xs md:text-sm text-slate-400">
-            Arraste e solte um arquivo M3U ou clique para selecionar
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div
-            className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-all ${
-              isDragging 
-                ? 'border-green-500 bg-green-500/10' 
-                : 'border-slate-600 hover:border-slate-500 bg-slate-800/30'
-            }`}
-            onDragEnter={handleFileDragEnter}
-            onDragLeave={handleFileDragLeave}
-            onDragOver={handleFileDragOver}
-            onDrop={handleFileDrop}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".m3u"
-              onChange={handleFileSelect}
-              className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer ${
-                selectedFile ? 'pointer-events-none' : ''
-              }`}
-              disabled={isUploading}
-            />
-            
-            <div className="flex flex-col items-center justify-center space-y-4">
-              {selectedFile ? (
-                <>
-                  <FileText className={`w-12 h-12 ${
-                    uploadStatus === 'success' ? 'text-green-400' : 
-                    uploadStatus === 'error' ? 'text-red-400' : 
-                    'text-green-400'
-                  }`} />
-                  <div className="space-y-2 w-full max-w-md">
-                    <p className="text-white font-medium text-center">{selectedFile.name}</p>
-                    <p className="text-slate-400 text-sm text-center">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                    
-                    {/* Progress Bar */}
-                    {(isUploading || uploadStatus === 'success' || uploadStatus === 'error') && (
-                      <div className="space-y-2 mt-4">
-                        <div className="relative w-full h-2 bg-slate-700 rounded-full overflow-hidden">
-                          <div 
-                            className={`absolute top-0 left-0 h-full transition-all duration-300 ${
-                              uploadStatus === 'success' ? 'bg-green-500' :
-                              uploadStatus === 'error' ? 'bg-red-500' :
-                              'bg-gradient-to-r from-blue-500 to-purple-500'
-                            }`}
-                            style={{ width: `${uploadProgress}%` }}
-                          />
-                        </div>
-                        
-                        {/* Status Message */}
-                        <p className={`text-sm font-medium text-center ${
-                          uploadStatus === 'success' ? 'text-green-400' :
-                          uploadStatus === 'error' ? 'text-red-400' :
-                          'text-blue-400'
-                        }`}>
-                          {statusMessage}
-                        </p>
-                        
-                        {/* Progress Percentage */}
-                        {isUploading && (
-                          <p className="text-2xl font-bold text-center text-white">
-                            {uploadProgress}%
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleClearFile}
-                      variant="outline"
-                      className="border-slate-600 text-slate-400 hover:text-white hover:bg-slate-700"
-                      disabled={isUploading}
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      {uploadStatus === 'success' ? 'Limpar' : 'Remover'}
-                    </Button>
-                    <Button
-                      onClick={handleUploadM3U}
-                      className={`${
-                        uploadStatus === 'success' 
-                          ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
-                          : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
-                      }`}
-                      disabled={isUploading || uploadStatus === 'success'}
-                    >
-                      {isUploading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                          Enviando...
-                        </>
-                      ) : uploadStatus === 'success' ? (
-                        <>
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Concluído
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Enviar Arquivo
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Upload className={`w-12 h-12 ${isDragging ? 'text-green-400' : 'text-slate-500'}`} />
-                  <div className="space-y-2">
-                    <p className={`font-medium ${isDragging ? 'text-green-400' : 'text-slate-300'}`}>
-                      {isDragging ? 'Solte o arquivo aqui' : 'Arraste um arquivo M3U aqui'}
-                    </p>
-                    <p className="text-slate-400 text-sm">ou clique para selecionar</p>
-                    <p className="text-slate-500 text-xs">Apenas arquivos .m3u são aceitos</p>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <Tabs defaultValue="settings" className="space-y-4 md:space-y-6">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-slate-900 border border-slate-700">
