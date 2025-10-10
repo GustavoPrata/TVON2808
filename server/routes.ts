@@ -52,6 +52,7 @@ import multer from "multer";
 import { execSync } from "child_process";
 import FormData from "form-data";
 import fetch from "node-fetch";
+import crypto from "crypto";
 
 // Helper function to get current date in Brazil timezone
 // IMPORTANT: This should NOT be used for saving to database!
@@ -152,6 +153,79 @@ function formatPhoneNumber(phone: string) {
 const autoCloseTimers = new Map<number, { timer: NodeJS.Timeout, startTime: number }>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // CRITICAL SECURITY CHECK: Validate SESSION_SECRET before starting
+  const sessionSecret = process.env.SESSION_SECRET;
+  
+  if (!sessionSecret) {
+    console.error('\n' + '='.repeat(80));
+    console.error('🚨 ERRO CRÍTICO DE SEGURANÇA: SESSION_SECRET não configurada!');
+    console.error('='.repeat(80));
+    console.error('\nO servidor NÃO PODE iniciar sem uma SESSION_SECRET configurada.');
+    console.error('\n📝 COMO CORRIGIR:');
+    console.error('1. No Replit, vá para a aba "Secrets" (ícone de cadeado)');
+    console.error('2. Adicione uma nova secret com o nome: SESSION_SECRET');
+    console.error('3. Use este valor seguro gerado automaticamente:');
+    
+    // Gera um secret seguro para o usuário copiar
+    const suggestedSecret = crypto.randomBytes(48).toString('hex');
+    console.error(`\n   ${suggestedSecret}\n`);
+    
+    console.error('4. Ou gere seu próprio valor executando:');
+    console.error('   node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"');
+    console.error('\n⚠️  IMPORTANTE: Nunca use valores previsíveis ou compartilhe o SESSION_SECRET!');
+    console.error('='.repeat(80) + '\n');
+    
+    // Termina o processo imediatamente
+    process.exit(1);
+  }
+  
+  // Validação do comprimento mínimo do SESSION_SECRET
+  if (sessionSecret.length < 32) {
+    console.warn('\n' + '⚠'.repeat(40));
+    console.warn('⚠️  AVISO DE SEGURANÇA: SESSION_SECRET muito curta!');
+    console.warn('⚠'.repeat(40));
+    console.warn(`\nSua SESSION_SECRET tem apenas ${sessionSecret.length} caracteres.`);
+    console.warn('Recomendamos fortemente usar pelo menos 32 caracteres.');
+    console.warn('Para gerar um secret mais seguro, execute:');
+    console.warn('node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"');
+    console.warn('⚠'.repeat(40) + '\n');
+  }
+  
+  // Verifica se o secret parece ser um valor padrão ou fraco
+  const weakSecrets = [
+    'secret', 'password', '123456', 'admin', 'default',
+    'teste', 'test', 'exemplo', 'example', 'demo'
+  ];
+  
+  const lowerSecret = sessionSecret.toLowerCase();
+  const isWeakSecret = weakSecrets.some(weak => 
+    lowerSecret.includes(weak) || 
+    lowerSecret === weak ||
+    /^[a-z]+$/.test(lowerSecret) || // apenas letras minúsculas
+    /^[0-9]+$/.test(sessionSecret) || // apenas números
+    /^(.)\1+$/.test(sessionSecret) // caracteres repetidos (aaa, 111, etc)
+  );
+  
+  if (isWeakSecret) {
+    console.error('\n' + '🔴'.repeat(40));
+    console.error('🔴 ERRO: SESSION_SECRET INSEGURA DETECTADA!');
+    console.error('🔴'.repeat(40));
+    console.error('\nSua SESSION_SECRET parece usar um valor previsível ou fraco.');
+    console.error('Isso compromete COMPLETAMENTE a segurança do sistema!');
+    console.error('\n🛡️  Por segurança, o servidor será encerrado.');
+    console.error('Use um secret criptograficamente seguro:');
+    console.error('node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"');
+    console.error('🔴'.repeat(40) + '\n');
+    
+    // Em produção, recusa inicializar com secret fraco
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+  }
+  
+  // Log de sucesso na validação
+  console.log('✅ SESSION_SECRET configurada corretamente (comprimento: ' + sessionSecret.length + ' caracteres)');
+  
   // Initialize admin user on startup
   await initAdmin();
   
@@ -188,7 +262,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.use(session({
-    secret: process.env.SESSION_SECRET || 'tv-on-secret-key-2024',
+    secret: sessionSecret, // Usa a SESSION_SECRET validada
     resave: false,
     saveUninitialized: false,
     store: new PgStore({
@@ -202,7 +276,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       secure: process.env.NODE_ENV === 'production', // secure em produção
       httpOnly: true,
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dias por padrão
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias por padrão
+      // Adiciona name único para invalidar sessões antigas quando o secret muda
+      name: 'tv.sid.' + crypto.createHash('md5').update(sessionSecret).digest('hex').substring(0, 8)
     }
   }));
 
