@@ -9,6 +9,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Data Management**: Systems data must come from local database, not external API
 
 ## Recent Changes
+- **10/10/2025 (v4)**: Added external link buttons in test details modal to access streaming service websites (IBO Pro, IBO Player, Shamel) with proper new-tab behavior. Button displays next to application name in view mode only, with purple hover effect and "Acessar site" tooltip.
 - **10/10/2025 (v3)**: Implemented persistent login sessions with PostgreSQL. Added connect-pg-simple for session storage, remember-me tokens with bcrypt hashing, auto-login on app reload, and critical security fix requiring SESSION_SECRET environment variable. Sessions and remember tokens now persist across server restarts.
 - **10/10/2025**: Added M3U file upload functionality to config-tv page. Features include "Atualizar M3U" button in header that opens external att.php page in new tab, drag-and-drop area for uploading M3U files directly, backend proxy at `/api/m3u/upload` to handle CORS issues, and proper file input reset functionality allowing re-selection of same file.
 - **08/10/2025**: Added manual task generation for Chrome extension offline scenarios. New endpoint `/api/office/automation/manual-task` and "Gerar Manual" button in painel-office allow users to add credential generation tasks manually when extension is not running. Tasks are queued in database and processed when extension reconnects.
