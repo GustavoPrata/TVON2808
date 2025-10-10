@@ -175,6 +175,9 @@ export default function ConfigTV() {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const sensors = useSensors(
@@ -570,13 +573,16 @@ export default function ConfigTV() {
 
   const handleClearFile = () => {
     setSelectedFile(null);
+    setUploadProgress(0);
+    setUploadStatus('idle');
+    setStatusMessage('');
     // Reset the file input value to allow selecting the same file again
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleUploadM3U = async () => {
+  const handleUploadM3U = () => {
     if (!selectedFile) {
       toast({
         title: 'Nenhum arquivo selecionado',
@@ -587,40 +593,87 @@ export default function ConfigTV() {
     }
 
     setIsUploading(true);
+    setUploadStatus('uploading');
+    setUploadProgress(0);
+    setStatusMessage('Preparando upload...');
+
     const formData = new FormData();
     formData.append('arquivo_m3u', selectedFile);
 
-    try {
-      // Use our proxy endpoint instead of direct upload
-      const response = await fetch('/api/m3u/upload', {
-        method: 'POST',
-        body: formData,
-      });
+    const xhr = new XMLHttpRequest();
 
-      const result = await response.json();
+    // Track upload progress
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        setUploadProgress(percentComplete);
+        setStatusMessage(`Enviando arquivo... ${percentComplete}%`);
+      }
+    });
 
-      if (response.ok && result.success) {
-        toast({
-          title: 'Upload realizado com sucesso',
-          description: result.message || 'O arquivo M3U foi enviado com sucesso',
-        });
-        setSelectedFile(null);
-        // Reset the file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+    // Handle upload complete
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        try {
+          const result = JSON.parse(xhr.responseText);
+          if (result.success) {
+            setUploadStatus('success');
+            setStatusMessage('✅ Upload concluído com sucesso!');
+            toast({
+              title: '🎉 Upload realizado com sucesso!',
+              description: result.message || 'O arquivo M3U foi processado e salvo',
+              className: 'bg-green-500/10 border-green-500',
+            });
+            
+            // Clear file after 3 seconds
+            setTimeout(() => {
+              setSelectedFile(null);
+              if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+              }
+              setUploadProgress(0);
+              setUploadStatus('idle');
+              setStatusMessage('');
+            }, 3000);
+          } else {
+            throw new Error(result.error || result.message || 'Erro no upload');
+          }
+        } catch (error: any) {
+          setUploadStatus('error');
+          setStatusMessage('❌ Erro ao processar resposta do servidor');
+          toast({
+            title: '❌ Erro no upload',
+            description: error.message || 'Erro ao processar resposta',
+            variant: 'destructive',
+          });
         }
       } else {
-        throw new Error(result.error || 'Erro no upload');
+        setUploadStatus('error');
+        setStatusMessage(`❌ Erro no upload (Status: ${xhr.status})`);
+        toast({
+          title: '❌ Erro no upload',
+          description: `Servidor retornou status ${xhr.status}`,
+          variant: 'destructive',
+        });
       }
-    } catch (error: any) {
+      setIsUploading(false);
+    });
+
+    // Handle errors
+    xhr.addEventListener('error', () => {
+      setUploadStatus('error');
+      setStatusMessage('❌ Erro de conexão com o servidor');
+      setIsUploading(false);
       toast({
-        title: 'Erro no upload',
-        description: error.message || 'Não foi possível enviar o arquivo. Tente novamente.',
+        title: '❌ Erro de conexão',
+        description: 'Não foi possível conectar ao servidor. Verifique sua conexão.',
         variant: 'destructive',
       });
-    } finally {
-      setIsUploading(false);
-    }
+    });
+
+    // Start upload
+    xhr.open('POST', '/api/m3u/upload');
+    xhr.send(formData);
   };
 
   if (loadingUrls || loadingSystems) {
@@ -702,13 +755,50 @@ export default function ConfigTV() {
             <div className="flex flex-col items-center justify-center space-y-4">
               {selectedFile ? (
                 <>
-                  <FileText className="w-12 h-12 text-green-400" />
-                  <div className="space-y-2">
-                    <p className="text-white font-medium">{selectedFile.name}</p>
-                    <p className="text-slate-400 text-sm">
-                      {(selectedFile.size / 1024).toFixed(2)} KB
+                  <FileText className={`w-12 h-12 ${
+                    uploadStatus === 'success' ? 'text-green-400' : 
+                    uploadStatus === 'error' ? 'text-red-400' : 
+                    'text-green-400'
+                  }`} />
+                  <div className="space-y-2 w-full max-w-md">
+                    <p className="text-white font-medium text-center">{selectedFile.name}</p>
+                    <p className="text-slate-400 text-sm text-center">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                     </p>
+                    
+                    {/* Progress Bar */}
+                    {(isUploading || uploadStatus === 'success' || uploadStatus === 'error') && (
+                      <div className="space-y-2 mt-4">
+                        <div className="relative w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                          <div 
+                            className={`absolute top-0 left-0 h-full transition-all duration-300 ${
+                              uploadStatus === 'success' ? 'bg-green-500' :
+                              uploadStatus === 'error' ? 'bg-red-500' :
+                              'bg-gradient-to-r from-blue-500 to-purple-500'
+                            }`}
+                            style={{ width: `${uploadProgress}%` }}
+                          />
+                        </div>
+                        
+                        {/* Status Message */}
+                        <p className={`text-sm font-medium text-center ${
+                          uploadStatus === 'success' ? 'text-green-400' :
+                          uploadStatus === 'error' ? 'text-red-400' :
+                          'text-blue-400'
+                        }`}>
+                          {statusMessage}
+                        </p>
+                        
+                        {/* Progress Percentage */}
+                        {isUploading && (
+                          <p className="text-2xl font-bold text-center text-white">
+                            {uploadProgress}%
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
+                  
                   <div className="flex gap-2">
                     <Button
                       onClick={handleClearFile}
@@ -717,17 +807,26 @@ export default function ConfigTV() {
                       disabled={isUploading}
                     >
                       <X className="w-4 h-4 mr-2" />
-                      Remover
+                      {uploadStatus === 'success' ? 'Limpar' : 'Remover'}
                     </Button>
                     <Button
                       onClick={handleUploadM3U}
-                      className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
-                      disabled={isUploading}
+                      className={`${
+                        uploadStatus === 'success' 
+                          ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
+                          : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
+                      }`}
+                      disabled={isUploading || uploadStatus === 'success'}
                     >
                       {isUploading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
                           Enviando...
+                        </>
+                      ) : uploadStatus === 'success' ? (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Concluído
                         </>
                       ) : (
                         <>
