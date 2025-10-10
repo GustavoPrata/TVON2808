@@ -9,6 +9,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Data Management**: Systems data must come from local database, not external API
 
 ## Recent Changes
+- **10/10/2025**: Added M3U file upload functionality to config-tv page. Features include "Atualizar M3U" button in header that opens external att.php page in new tab, drag-and-drop area for uploading M3U files directly, backend proxy at `/api/m3u/upload` to handle CORS issues, and proper file input reset functionality allowing re-selection of same file.
 - **08/10/2025**: Added manual task generation for Chrome extension offline scenarios. New endpoint `/api/office/automation/manual-task` and "Gerar Manual" button in painel-office allow users to add credential generation tasks manually when extension is not running. Tasks are queued in database and processed when extension reconnects.
 - **26/09/2025**: Fixed critical bug where fixed systems (ID >= 1000) weren't appearing in distribution modal. Issue was caused by backend returning `systemId` (camelCase) while frontend expected `system_id` (snake_case). Solution: Added fallback support for both formats throughout the frontend.
 - **25/09/2025 (v2)**: Refactored fixed systems to be REAL systems saved in database and API. Fixed systems now require username/password, use IDs >= 1000, and points are automatically calculated (total_points / num_systems). Removed manual point editing.
