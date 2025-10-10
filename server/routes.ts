@@ -2,15 +2,24 @@ import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
 import { storage, normalizeSystemId } from "./storage";
 import { db } from "./db";
+import pkg from "pg";
+const { Pool } = pkg;
 import { whatsappService } from "./services/whatsapp";
 import { externalApiService } from "./services/externalApi";
 import { pixService } from "./services/pix";
 import { notificationService } from "./services/notifications";
 import quickMessagesRouter from "./routes/quick-messages";
-import { authenticate, checkAuth } from "./auth";
+import { 
+  authenticate, 
+  checkAuth, 
+  createRememberToken, 
+  validateRememberToken, 
+  invalidateUserTokens,
+  getRememberTokenCookieOptions 
+} from "./auth";
 import bcrypt from 'bcrypt';
 import { initAdmin } from "./init-admin";
 import { OnlineOfficeService } from "./services/onlineoffice";
@@ -169,19 +178,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.use('/office-proxy', officeProxy);
   
-  // Configure session middleware
-  const MemoryStoreSession = (MemoryStore as any)(session);
+  // Configure session middleware with PostgreSQL store
+  const PgStore = connectPgSimple(session);
+  
+  // Create PostgreSQL pool for session store
+  const sessionPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  });
+  
   app.use(session({
     secret: process.env.SESSION_SECRET || 'tv-on-secret-key-2024',
     resave: false,
     saveUninitialized: false,
-    store: new MemoryStoreSession({
-      checkPeriod: 86400000 // prune expired entries every 24h
+    store: new PgStore({
+      pool: sessionPool,
+      tableName: 'session', // Nome da tabela de sessões
+      createTableIfMissing: true, // Criar tabela automaticamente se não existir
+      pruneSessionInterval: 60 * 60, // Limpar sessões expiradas a cada 1 hora
+      ttl: 30 * 24 * 60 * 60, // TTL padrão de 30 dias para sessões
     }),
     cookie: {
-      secure: false, // set to true in production with HTTPS
+      secure: process.env.NODE_ENV === 'production', // secure em produção
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days by default
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dias por padrão
     }
   }));
 
@@ -254,10 +275,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (req.session as any).userId = admin.id;
       (req.session as any).user = admin.user;
       
-      // Set longer session cookie if remember me is checked
+      // Configure session duration based on rememberMe
       if (rememberMe) {
-        // Set cookie to expire in 30 days
+        // Set session cookie to expire in 30 days
         req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+        
+        // Generate and save remember token
+        try {
+          // Invalidate any existing tokens for this user
+          await invalidateUserTokens(admin.id);
+          
+          // Create new remember token
+          const userAgent = req.headers['user-agent'];
+          const ipAddress = req.ip || req.connection.remoteAddress;
+          const rememberToken = await createRememberToken(admin.id, userAgent, ipAddress as string);
+          
+          // Set remember token cookie
+          res.cookie('rememberToken', rememberToken, getRememberTokenCookieOptions(true));
+        } catch (error) {
+          console.error('Erro ao criar remember token:', error);
+          // Continue without remember token if there's an error
+        }
       } else {
         // Default to 7 days even without remember me
         req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -274,7 +312,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(401).json({ error: 'Usuário ou senha inválidos' });
   });
 
-  app.post("/api/logout", (req, res) => {
+  app.post("/api/logout", async (req, res) => {
+    const userId = (req.session as any).userId;
+    
+    // Invalidar tokens de lembrar-me do usuário
+    if (userId) {
+      try {
+        await invalidateUserTokens(userId);
+      } catch (error) {
+        console.error('Erro ao invalidar tokens:', error);
+      }
+    }
+    
+    // Limpar cookie de remember token
+    res.clearCookie('rememberToken');
+    
+    // Destruir sessão
     req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({ error: 'Erro ao fazer logout' });
@@ -288,6 +341,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ authenticated: true, user: (req.session as any).user });
     } else {
       res.json({ authenticated: false });
+    }
+  });
+
+  // Endpoint para verificar token de lembrar-me e fazer auto-login
+  app.post("/api/auth/verify-token", async (req, res) => {
+    try {
+      // Obter token do cookie
+      const rememberToken = req.cookies?.rememberToken;
+      
+      if (!rememberToken) {
+        return res.json({ authenticated: false });
+      }
+      
+      // Validar token
+      const userData = await validateRememberToken(rememberToken);
+      
+      if (!userData) {
+        // Token inválido ou expirado - limpar cookie
+        res.clearCookie('rememberToken');
+        return res.json({ authenticated: false });
+      }
+      
+      // Token válido - criar nova sessão
+      (req.session as any).userId = userData.userId;
+      (req.session as any).user = userData.user;
+      
+      // Configurar duração da sessão (30 dias já que tem remember token)
+      req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+      
+      // Atualizar último acesso do usuário
+      await db.update(login)
+        .set({ ultimoAcesso: new Date() })
+        .where(eq(login.id, userData.userId));
+      
+      return res.json({ 
+        authenticated: true, 
+        user: userData.user,
+        message: 'Auto-login realizado com sucesso'
+      });
+    } catch (error) {
+      console.error('Erro ao verificar token:', error);
+      res.clearCookie('rememberToken');
+      return res.json({ authenticated: false });
     }
   });
 

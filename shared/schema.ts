@@ -520,6 +520,31 @@ export const insertLoginSchema = createInsertSchema(login).omit({
 export type Login = typeof login.$inferSelect;
 export type InsertLogin = z.infer<typeof insertLoginSchema>;
 
+// Remember Me Tokens
+export const rememberTokens = pgTable("remember_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => login.id, { onDelete: "cascade" }).notNull(),
+  token: text("token").notNull().unique(), // Hash do token
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(),
+  lastUsed: timestamp("last_used"),
+  userAgent: text("user_agent"), // Para identificar dispositivos
+  ipAddress: text("ip_address"), // Para segurança adicional
+}, (table) => ({
+  userIdIdx: index().on(table.userId),
+  tokenIdx: index().on(table.token),
+  expiresAtIdx: index().on(table.expiresAt),
+}));
+
+export const insertRememberTokenSchema = createInsertSchema(rememberTokens).omit({
+  id: true,
+  createdAt: true,
+  lastUsed: true,
+});
+
+export type RememberToken = typeof rememberTokens.$inferSelect;
+export type InsertRememberToken = z.infer<typeof insertRememberTokenSchema>;
+
 // Tests table
 export const testes = pgTable("testes", {
   id: serial("id").primaryKey(),

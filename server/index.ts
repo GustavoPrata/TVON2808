@@ -7,10 +7,12 @@ import * as cron from "node-cron";
 import { storage } from "./storage";
 import { whatsappService } from "./services/whatsapp";
 import { sql } from "drizzle-orm";
+import cookieParser from "cookie-parser";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
