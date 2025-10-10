@@ -41,6 +41,8 @@ import path from "path";
 import { nanoid } from "nanoid";
 import multer from "multer";
 import { execSync } from "child_process";
+import FormData from "form-data";
+import fetch from "node-fetch";
 
 // Helper function to get current date in Brazil timezone
 // IMPORTANT: This should NOT be used for saving to database!
@@ -10792,6 +10794,101 @@ Como posso ajudar você hoje?
     } catch (error) {
       console.error('Erro ao verificar usuários da API:', error);
       res.status(500).json({ error: 'Erro ao verificar usuários da API' });
+    }
+  });
+  
+  // Configure multer for M3U file uploads
+  const m3uStorage = multer.memoryStorage();
+  const m3uUpload = multer({
+    storage: m3uStorage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for M3U files
+    fileFilter: (req, file, cb) => {
+      // Accept M3U files and text files
+      const allowedTypes = /m3u|m3u8|txt|text/;
+      const extname = allowedTypes.test(
+        path.extname(file.originalname).toLowerCase(),
+      );
+      const mimetype = file.mimetype.includes('text') || 
+                      file.mimetype.includes('m3u') || 
+                      file.mimetype.includes('application/octet-stream');
+
+      if (mimetype || extname) {
+        return cb(null, true);
+      } else {
+        cb(new Error("Only M3U/M3U8/text files are allowed"));
+      }
+    },
+  });
+
+  // M3U Upload Proxy endpoint to bypass CORS
+  app.post('/api/m3u/upload', m3uUpload.single('arquivo_m3u'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'No file provided' 
+        });
+      }
+
+      console.log('📤 Proxying M3U upload to external server:', {
+        filename: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+
+      // Create form data to forward to the external server
+      const form = new FormData();
+      form.append('arquivo_m3u', req.file.buffer, {
+        filename: req.file.originalname,
+        contentType: req.file.mimetype || 'application/octet-stream'
+      });
+
+      // Forward the file to the external server
+      const response = await fetch('https://tvonbr.fun/att.php', {
+        method: 'POST',
+        body: form as any,
+        headers: {
+          ...form.getHeaders(),
+        },
+      });
+
+      const responseText = await response.text();
+      
+      console.log('📥 Response from external server:', {
+        status: response.status,
+        responsePreview: responseText.substring(0, 200)
+      });
+
+      // Check if the response is successful
+      if (response.ok) {
+        // Try to parse as JSON if possible, otherwise return as text
+        try {
+          const jsonResponse = JSON.parse(responseText);
+          return res.json({ 
+            success: true, 
+            data: jsonResponse 
+          });
+        } catch {
+          // Not JSON, return as text
+          return res.json({ 
+            success: true, 
+            message: responseText 
+          });
+        }
+      } else {
+        return res.status(response.status).json({ 
+          success: false, 
+          error: `Upload failed with status ${response.status}`,
+          details: responseText 
+        });
+      }
+    } catch (error: any) {
+      console.error('❌ Error proxying M3U upload:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to upload M3U file',
+        details: error.message 
+      });
     }
   });
 
