@@ -1859,7 +1859,7 @@ export class DatabaseStorage implements IStorage {
     // Código original para criar novo sistema
     const systemId = await this.getNextSistemaId(); // Now returns numeric string like "7", not "sistema7"
     const nome = data.nome || `Sistema Auto ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`;
-    const url = data.url || 'https://onlineoffice.zip/iptv/';
+    const url = data.url || 'https://gestordefender.com/iptv/';
     const expiracao = data.expiracao || new Date(Date.now() + 6 * 60 * 60 * 1000);
     
     const sistema = await this.createSistema({

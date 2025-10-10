@@ -404,7 +404,7 @@ export class OnlineOfficeService {
       
       let response;
       try {
-        response = await page.goto('https://onlineoffice.zip/', {
+        response = await page.goto('https://gestordefender.com/', {
           waitUntil: 'networkidle2',
           timeout: 45000
         });
@@ -436,7 +436,7 @@ export class OnlineOfficeService {
           
           // Verificar se ainda está com erro
           const finalUrl = page.url();
-          if (!finalUrl.includes('onlineoffice')) {
+          if (!finalUrl.includes('gestordefender')) {
             throw new Error(
               'BLOQUEIO_TOTAL: Site OnlineOffice bloqueia IPs de servidores/datacenters. ' +
               'Este tipo de bloqueio não pode ser contornado com automação. ' +
@@ -801,7 +801,7 @@ export class OnlineOfficeService {
       // Tenta acessar o site
       let response;
       try {
-        response = await page.goto('https://onlineoffice.zip/', {
+        response = await page.goto('https://gestordefender.com/', {
           waitUntil: 'domcontentloaded',
           timeout: 30000
         });
@@ -813,7 +813,7 @@ export class OnlineOfficeService {
           throw new Error(
             'SITE_BLOQUEADO: O site OnlineOffice está bloqueando acessos de servidores. ' +
             'Este site só funciona em navegadores de usuários finais e bloqueia IPs de datacenters/cloud. ' +
-            'Por favor, acesse https://onlineoffice.zip diretamente no seu navegador, ' +
+            'Por favor, acesse https://gestordefender.com diretamente no seu navegador, ' +
             'gere o teste IPTV e use a opção "Extrair Credenciais" para processar o resultado.'
           );
         }
@@ -836,11 +836,11 @@ export class OnlineOfficeService {
           await new Promise(resolve => setTimeout(resolve, 5000));
           
           const finalUrl = page.url();
-          if (!finalUrl.includes('onlineoffice')) {
+          if (!finalUrl.includes('gestordefender')) {
             throw new Error(
               'BLOQUEIO_TOTAL: Site OnlineOffice bloqueia IPs de servidores/datacenters. ' +
               'Este tipo de bloqueio não pode ser contornado. ' +
-              'Acesse https://onlineoffice.zip diretamente no seu navegador, ' +
+              'Acesse https://gestordefender.com diretamente no seu navegador, ' +
               'gere o teste IPTV e use a opção "Extrair Credenciais" para processar.'
             );
           }
@@ -848,7 +848,7 @@ export class OnlineOfficeService {
           throw new Error(
             'SITE_BLOQUEADO: O site OnlineOffice retornou erro ' + status + '. ' +
             'Este site detecta e bloqueia acessos automatizados de servidores. ' +
-            'Por favor, acesse https://onlineoffice.zip diretamente no seu navegador, ' +
+            'Por favor, acesse https://gestordefender.com diretamente no seu navegador, ' +
             'gere o teste IPTV manualmente e use a função "Extrair Credenciais" para processar o resultado copiado.'
           );
         }
@@ -869,7 +869,7 @@ export class OnlineOfficeService {
         throw new Error(
           'SITE_BLOQUEADO: Não foi possível acessar o site OnlineOffice. ' +
           'O site está bloqueando acessos de servidores/automação. ' +
-          'Acesse https://onlineoffice.zip no seu navegador e use a opção manual.'
+          'Acesse https://gestordefender.com no seu navegador e use a opção manual.'
         );
       }
       
@@ -1013,7 +1013,7 @@ export class OnlineOfficeService {
         throw new Error(
           'Não foi possível capturar as credenciais. ' +
           'O site pode estar com problemas ou as credenciais não foram geradas. ' +
-          'Tente acessar manualmente em https://onlineoffice.zip'
+          'Tente acessar manualmente em https://gestordefender.com'
         );
       }
 

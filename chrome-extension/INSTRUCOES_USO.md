@@ -56,7 +56,7 @@
 ## 🎯 COMO TESTAR A PERSISTÊNCIA
 
 ### TESTE 1: Básico
-1. Acesse `onlineoffice.zip` e faça login
+1. Acesse `gestordefender.com` e faça login
 2. Abra a extensão (ícone na barra)
 3. Configure:
    - Quantidade: 5 credenciais

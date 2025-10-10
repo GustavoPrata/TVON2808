@@ -146,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup proxy for OnlineOffice to bypass CORS
   const officeProxy = createProxyMiddleware({
-    target: 'https://onlineoffice.zip',
+    target: 'https://gestordefender.com',
     changeOrigin: true,
     secure: false,
     onProxyRes: (proxyRes, req, res) => {
@@ -7141,7 +7141,7 @@ Como posso ajudar você hoje?
         username: username,
         password: password,
         nome: `Sistema ${nextSystemId}`,
-        url: 'https://onlineoffice.zip/iptv/',
+        url: 'https://gestordefender.com/iptv/',
         expiracao: ontem,
         maxPontosAtivos: 100,
         pontosAtivos: 0
@@ -7757,7 +7757,7 @@ Como posso ajudar você hoje?
       });
 
       const page = await browser.newPage();
-      await page.goto('https://onlineoffice.zip/', { waitUntil: 'networkidle2' });
+      await page.goto('https://gestordefender.com/', { waitUntil: 'networkidle2' });
       
       // Wait for and click the "Gerar IPTV" button
       await page.waitForSelector('button.btn-outline-success', { timeout: 5000 });
@@ -10454,7 +10454,7 @@ Como posso ajudar você hoje?
       
       // Check if logged in based on URL
       let isLoggedIn = status.isLoggedIn;
-      if (status.currentUrl && status.currentUrl.includes('onlineoffice.zip/#/login')) {
+      if (status.currentUrl && status.currentUrl.includes('gestordefender.com/#/login')) {
         isLoggedIn = false;
       }
       

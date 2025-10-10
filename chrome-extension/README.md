@@ -1,7 +1,7 @@
 # OnlineOffice IPTV Automator - Chrome Extension
 
 ## Descrição
-Esta extensão automatiza a geração de credenciais IPTV no site OnlineOffice.zip.
+Esta extensão automatiza a geração de credenciais IPTV no site GestorDefender.com.
 
 ## Recursos
 
@@ -37,7 +37,7 @@ Esta extensão automatiza a geração de credenciais IPTV no site OnlineOffice.z
 
 ### Método 1: Geração Manual
 
-1. Acesse [onlineoffice.zip](https://onlineoffice.zip)
+1. Acesse [gestordefender.com](https://gestordefender.com)
 2. Faça login em sua conta
 3. Navegue até a página de geração de IPTV
 4. Clique no ícone da extensão
@@ -110,7 +110,7 @@ Após fazer alterações no código:
 
 ## Segurança
 
-- A extensão só tem permissão para acessar onlineoffice.zip
+- A extensão só tem permissão para acessar gestordefender.com
 - As credenciais são enviadas via HTTPS quando em produção
 - Nenhuma informação pessoal é coletada ou armazenada
 

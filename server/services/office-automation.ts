@@ -16,7 +16,7 @@ interface IPTVCredentials {
 export class OfficeAutomation {
   private username = 'gustavoprata17';
   private password = 'iptv102030';
-  private baseUrl = 'https://onlineoffice.zip';
+  private baseUrl = 'https://gestordefender.com';
 
   async generateIPTVTest(): Promise<IPTVCredentials> {
     let browser;

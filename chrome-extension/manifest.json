@@ -10,8 +10,8 @@
     "alarms"
   ],
   "host_permissions": [
-    "https://onlineoffice.zip/*",
-    "https://*.onlineoffice.zip/*",
+    "https://gestordefender.com/*",
+    "https://*.gestordefender.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*",
     "https://tv-on.site/*",
@@ -24,8 +24,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://onlineoffice.zip/*",
-        "https://*.onlineoffice.zip/*",
+        "https://gestordefender.com/*",
+        "https://*.gestordefender.com/*",
         "https://tv-on.site/*",
         "https://*.tv-on.site/*",
         "http://localhost/*",

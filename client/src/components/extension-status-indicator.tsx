@@ -51,7 +51,7 @@ export function ExtensionStatusIndicator() {
 
     // Check if URL indicates login page
     const isOnLoginPage = status.currentUrl && status.currentUrl.includes('#/login');
-    const isOnOnlineOffice = status.currentUrl && status.currentUrl.includes('onlineoffice.zip');
+    const isOnOnlineOffice = status.currentUrl && status.currentUrl.includes('gestordefender.com');
     
     if (!status.loggedIn || isOnLoginPage) {
       return {
@@ -62,7 +62,7 @@ export function ExtensionStatusIndicator() {
         borderColor: "border-yellow-500/20",
         pulseColor: "bg-yellow-500",
         description: isOnLoginPage 
-          ? "Extensão ativa e deslogada na página https://onlineoffice.zip/#/login"
+          ? "Extensão ativa e deslogada na página https://gestordefender.com/#/login"
           : "Extensão ativa mas não está logada no OnlineOffice",
       };
     }
@@ -80,7 +80,7 @@ export function ExtensionStatusIndicator() {
         bgColor: "bg-green-500/10",
         borderColor: "border-green-500/20",
         pulseColor: "bg-green-500",
-        description: `Extensão corretamente logada em https://onlineoffice.zip/#/${pageType}`,
+        description: `Extensão corretamente logada em https://gestordefender.com/#/${pageType}`,
       };
     }
 

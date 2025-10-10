@@ -192,7 +192,7 @@ const POLLING_INTERVAL_IDLE = 5000; // 5 segundos quando automação está desab
 const POLLING_INTERVAL_FAST = 1000; // 1 segundo após processar tarefa
 
 // URLs importantes
-const OFFICE_URL = 'https://onlineoffice.zip/iptv/index.php';
+const OFFICE_URL = 'https://gestordefender.com/iptv/index.php';
 const BACKEND_URLS = [
   'https://aef8336d-fdf6-4f45-8827-b87d99023c0e-00-3bbspqbjbb2rl.worf.replit.dev',
   'https://tv-on.site',
@@ -393,7 +393,7 @@ async function startAutoRecovery() {
     
     for (const tab of tabs) {
       if (tab.url && (
-        tab.url.includes('onlineoffice.zip') ||
+        tab.url.includes('gestordefender.com') ||
         tab.url.includes('tv-on.site')
       )) {
         hasOfficeTab = true;
@@ -514,8 +514,8 @@ async function ensureOfficeTabOpen(forceOpen = false) {
     // Sempre mantém uma aba aberta, independente do status
     const tabs = await chrome.tabs.query({
       url: [
-        '*://onlineoffice.zip/*', 
-        '*://*.onlineoffice.zip/*',
+        '*://gestordefender.com/*', 
+        '*://*.gestordefender.com/*',
         '*://tv-on.site/*',
         '*://*.tv-on.site/*'
       ]
@@ -535,7 +535,7 @@ async function ensureOfficeTabOpen(forceOpen = false) {
           // Fecha abas antigas do OnlineOffice
           for (const tab of allTabs) {
             if (tab.url && (
-              tab.url.includes('onlineoffice.zip') ||
+              tab.url.includes('gestordefender.com') ||
               tab.url.includes('tv-on.site')
             )) {
               await chrome.tabs.remove(tab.id).catch(() => {});
