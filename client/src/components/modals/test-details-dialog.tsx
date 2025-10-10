@@ -273,9 +273,9 @@ export function TestDetailsDialog({
   const getStreamingUrl = (app: string) => {
     switch (app) {
       case 'ibo_pro':
-        return 'https://iboproapp.com';
+        return 'https://iboproapp.com/manage-playlists/list/';
       case 'ibo_player':
-        return 'https://iboplayer.com';
+        return 'https://iboplayer.com/dashboard';
       case 'shamel':
         return 'https://shamel.tv';
       default:
@@ -516,6 +516,15 @@ export function TestDetailsDialog({
                     <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-lg">
                       <Shield className="w-5 h-5 text-purple-400" />
                       <span className="text-white font-semibold">{getAppLabel(test.aplicativo)}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="ml-auto hover:bg-purple-600/30 border-purple-500/30"
+                        onClick={() => window.open(getStreamingUrl(test.aplicativo), '_blank')}
+                        title="Acessar site"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
                     </div>
                   )}
                 </div>
