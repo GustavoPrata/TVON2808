@@ -177,6 +177,7 @@ export default function ConfigTV() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
+  const [isDraggingOverPage, setIsDraggingOverPage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const sensors = useSensors(
@@ -185,6 +186,74 @@ export default function ConfigTV() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Global drag and drop handlers for the entire page
+  useEffect(() => {
+    const handlePageDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handlePageDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Check if it's a file being dragged
+      if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
+        const hasFile = Array.from(e.dataTransfer.items).some(item => item.kind === 'file');
+        if (hasFile) {
+          setIsDraggingOverPage(true);
+        }
+      }
+    };
+
+    const handlePageDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Only hide overlay if leaving the window
+      if (e.clientX === 0 && e.clientY === 0) {
+        setIsDraggingOverPage(false);
+      }
+    };
+
+    const handlePageDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDraggingOverPage(false);
+      
+      const files = Array.from(e.dataTransfer?.files || []);
+      const m3uFile = files.find(file => file.name.toLowerCase().endsWith('.m3u'));
+      
+      if (m3uFile) {
+        setSelectedFile(m3uFile);
+        // Clear any previous upload status
+        setUploadProgress(0);
+        setUploadStatus('idle');
+        setStatusMessage('');
+      } else if (files.length > 0) {
+        toast({
+          title: 'Arquivo inválido',
+          description: 'Por favor, solte apenas arquivos .m3u',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    // Add event listeners to document
+    document.addEventListener('dragover', handlePageDragOver);
+    document.addEventListener('dragenter', handlePageDragEnter);
+    document.addEventListener('dragleave', handlePageDragLeave);
+    document.addEventListener('drop', handlePageDrop);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('dragover', handlePageDragOver);
+      document.removeEventListener('dragenter', handlePageDragEnter);
+      document.removeEventListener('dragleave', handlePageDragLeave);
+      document.removeEventListener('drop', handlePageDrop);
+    };
+  }, [toast]);
 
   // Fetch redirect URLs
   const { data: redirectUrls = [], isLoading: loadingUrls } = useQuery({
@@ -650,7 +719,29 @@ export default function ConfigTV() {
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-4 md:space-y-6 relative">
+      {/* Drag and Drop Overlay */}
+      {isDraggingOverPage && (
+        <div className="fixed inset-0 z-50 pointer-events-none">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl p-12 border-4 border-dashed border-white/30 animate-pulse">
+              <div className="flex flex-col items-center gap-4">
+                <Upload className="w-24 h-24 text-white/80 animate-bounce" />
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-white">
+                    Solte o arquivo M3U aqui
+                  </p>
+                  <p className="text-lg text-white/70 mt-2">
+                    O arquivo será carregado automaticamente
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mb-4 md:mb-6 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-xl md:rounded-2xl p-4 md:p-6 backdrop-blur-sm border border-slate-700/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 md:gap-4">
