@@ -10801,7 +10801,7 @@ Como posso ajudar você hoje?
   const m3uStorage = multer.memoryStorage();
   const m3uUpload = multer({
     storage: m3uStorage,
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit for M3U files
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit for M3U files
     fileFilter: (req, file, cb) => {
       // Accept M3U files and text files
       const allowedTypes = /m3u|m3u8|txt|text/;
