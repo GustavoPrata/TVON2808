@@ -113,6 +113,15 @@ export class WhatsAppService extends EventEmitter {
   private conversationCreationLocks: Map<string, Promise<any>> = new Map(); // Prevent duplicate conversation creation
   private processedMessagesOnStartup: Set<string> = new Set(); // Track processed messages during startup
   private lidToPhoneMap: Map<string, string> = new Map(); // LID to real phone number mapping
+  
+  // Anti-spam structures
+  private messageBuffers: Map<string, {
+    messages: WhatsAppMessage[],
+    timer: NodeJS.Timeout | null,
+    lastMessageTime: Date,
+    conversaId?: number,
+    pushName?: string
+  }> = new Map();
 
   constructor() {
     super();
@@ -499,6 +508,33 @@ export class WhatsAppService extends EventEmitter {
     } catch (error) {
       console.error("Error handling message edit:", error);
     }
+  }
+
+  // Helper function to check if message is a menu option (number only)
+  private isMenuOption(text: string): boolean {
+    return /^[0-9]+$/.test(text.trim());
+  }
+
+  // Process buffered messages after delay
+  private async processBufferedMessages(telefone: string) {
+    const buffer = this.messageBuffers.get(telefone);
+    if (!buffer || buffer.messages.length === 0) return;
+
+    console.log(`[ANTI-SPAM] Processing ${buffer.messages.length} buffered messages for ${telefone}`);
+    
+    // Join all messages into one
+    const allMessages = buffer.messages.map(m => m.message).join(' ');
+    console.log(`[ANTI-SPAM] Combined message: ${allMessages}`);
+    
+    // Get the first message as the base (for metadata)
+    const firstMessage = buffer.messages[0];
+    firstMessage.message = allMessages;
+    
+    // Process the combined message
+    await this.processIncomingMessage(firstMessage, buffer.pushName, true);
+    
+    // Clear buffer
+    this.messageBuffers.delete(telefone);
   }
 
   private async handleConnectionUpdate(update: Partial<ConnectionState>) {
@@ -953,11 +989,55 @@ export class WhatsAppService extends EventEmitter {
       // Handle outgoing messages sent from personal WhatsApp
       await this.processOutgoingMessage(whatsappMessage, phone);
     } else {
-      // Process incoming messages from clients
-      const processedMessage = await this.processIncomingMessage(
-        whatsappMessage,
-        pushName,
-      );
+      // ANTI-SPAM SYSTEM: Check if message should be buffered or processed immediately
+      console.log(`[ANTI-SPAM] Incoming message from ${phone} - Type: ${messageType}, Text: "${messageText}"`);
+      
+      // Process immediately if:
+      // 1. It's a menu option (numbers only)
+      // 2. It's NOT a text message (audio, image, video, document, sticker)
+      if (this.isMenuOption(messageText) || messageType !== 'text') {
+        if (this.isMenuOption(messageText)) {
+          console.log(`[ANTI-SPAM] Menu option detected (${messageText}) - processing immediately`);
+        } else {
+          console.log(`[ANTI-SPAM] Media message detected (${messageType}) - processing immediately without delay`);
+        }
+        // Process immediately
+        await this.processIncomingMessage(whatsappMessage, pushName);
+      } else {
+        // Only text messages that are NOT menu options: apply 5s delay
+        console.log(`[ANTI-SPAM] Text message detected - adding to buffer with 5s delay`);
+        
+        // Text messages: add to buffer with delay
+        if (!this.messageBuffers.has(phone)) {
+          console.log(`[ANTI-SPAM] Creating new buffer for ${phone}`);
+          this.messageBuffers.set(phone, {
+            messages: [],
+            timer: null,
+            lastMessageTime: new Date(),
+            pushName: pushName
+          });
+        }
+        
+        const buffer = this.messageBuffers.get(phone)!;
+        buffer.messages.push(whatsappMessage);
+        buffer.lastMessageTime = new Date();
+        buffer.pushName = pushName || buffer.pushName; // Update pushName if available
+        
+        // Cancel previous timer if exists
+        if (buffer.timer) {
+          console.log(`[ANTI-SPAM] Cancelling previous timer for ${phone} - new message arrived`);
+          clearTimeout(buffer.timer);
+        }
+        
+        // Schedule processing in 5 seconds
+        console.log(`[ANTI-SPAM] Scheduling message processing in 5 seconds for ${phone}`);
+        buffer.timer = setTimeout(() => {
+          console.log(`[ANTI-SPAM] Timer expired for ${phone} - processing buffered messages`);
+          this.processBufferedMessages(phone);
+        }, 5000);
+        
+        console.log(`[ANTI-SPAM] Buffer now has ${buffer.messages.length} messages for ${phone}`);
+      }
     }
 
     // Only mark as read automatically if markMessagesRead is true
@@ -1408,9 +1488,13 @@ export class WhatsAppService extends EventEmitter {
   private async processIncomingMessage(
     message: WhatsAppMessage,
     pushName?: string,
+    bypassAntiSpam?: boolean
   ) {
     try {
       console.log("Processando mensagem recebida:", message);
+      if (bypassAntiSpam) {
+        console.log("[ANTI-SPAM] Processing buffered/combined message");
+      }
 
       // Check if message was already processed during startup (to avoid duplicates)
       const messageKey = `${message.from}_${message.id}_${message.timestamp}`;
