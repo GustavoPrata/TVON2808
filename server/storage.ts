@@ -1276,7 +1276,8 @@ export class DatabaseStorage implements IStorage {
 
   async getSistemas(): Promise<Sistema[]> {
     try {
-      const result = await db.select().from(sistemas).orderBy(asc(sistemas.id));
+      // Ordenar por systemId convertendo para inteiro para ordenação numérica correta
+      const result = await db.select().from(sistemas).orderBy(sql`CAST(${sistemas.systemId} AS INTEGER) ASC`);
       return result.map(mapSistemaToFrontend);
     } catch (error: any) {
       if (error.code === '42P01') {
@@ -1291,8 +1292,8 @@ export class DatabaseStorage implements IStorage {
             atualizado_em TIMESTAMP DEFAULT NOW()
           )
         `);
-        // Try again
-        return await db.select().from(sistemas).orderBy(asc(sistemas.id));
+        // Try again - também ordenar numericamente aqui
+        return await db.select().from(sistemas).orderBy(sql`CAST(${sistemas.systemId} AS INTEGER) ASC`);
       }
       throw error;
     }

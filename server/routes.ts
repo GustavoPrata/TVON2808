@@ -8346,7 +8346,7 @@ Como posso ajudar você hoje?
       // Determine which sistema to use
       let selectedSistema = null;
       if (config) {
-        const sistemasList = await db.select().from(sistemas).orderBy(asc(sistemas.id));
+        const sistemasList = await db.select().from(sistemas).orderBy(sql`CAST(${sistemas.systemId} AS INTEGER) ASC`);
         console.log(`📊 [Extension] Found ${sistemasList.length} sistemas`);
         
         if (sistemasList.length > 0) {
