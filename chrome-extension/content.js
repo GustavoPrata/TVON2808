@@ -1,29 +1,29 @@
-// OnlineOffice IPTV Automator - Content Script
+// GestorDefender IPTV Automator - Content Script
 // Versão corrigida - extração funcionando com salvamento no banco e ESC
 
-console.log('👋 OnlineOffice Automator carregado!');
+console.log('👋 GestorDefender Automator carregado!');
 
 // ===========================================================================
-// CONFIGURAÇÃO - OnlineOffice não precisa de autenticação
+// CONFIGURAÇÃO - GestorDefender não precisa de autenticação
 // ===========================================================================
 
-// REMOVIDO - OnlineOffice não precisa verificar página de login
+// REMOVIDO - GestorDefender não precisa verificar página de login
 
-// REMOVIDO - OnlineOffice não precisa verificar autenticação
+// REMOVIDO - GestorDefender não precisa verificar autenticação
 // A plataforma permite gerar credenciais diretamente
 
-// REMOVIDO - OnlineOffice não precisa de login
+// REMOVIDO - GestorDefender não precisa de login
 // A plataforma permite gerar credenciais diretamente sem autenticação
 
 // Listener para checagem de autenticação
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'checkAuth') {
-    // Sempre retorna autenticado pois o OnlineOffice não precisa de login para gerar credenciais
+    // Sempre retorna autenticado pois o GestorDefender não precisa de login para gerar credenciais
     sendResponse({ authenticated: true });
     return true;
   }
   
-  // REMOVIDO autoLogin - OnlineOffice não precisa de login
+  // REMOVIDO autoLogin - GestorDefender não precisa de login
   
   if (request.action === 'ping') {
     sendResponse({ success: true });
@@ -31,7 +31,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 // URL do servidor onde o sistema TV ON está rodando
-// IMPORTANTE: A extensão roda no OnlineOffice, mas envia dados para nosso servidor
+// IMPORTANTE: A extensão roda no GestorDefender, mas envia dados para nosso servidor
 // Função para determinar a URL do servidor dinamicamente
 async function getApiBase() {
   // Primeiro, verifica se há uma configuração salva no storage
@@ -285,7 +285,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     const text = modalContent.innerText || modalContent.textContent;
                     console.log('Texto do modal:', text);
                     
-                    // Método especial para OnlineOffice - detecta formato específico do modal
+                    // Método especial para GestorDefender - detecta formato específico do modal
                     // O modal tem formato:
                     // USUÁRIO:
                     // 12345usuario
@@ -589,7 +589,7 @@ async function waitForPageLoad() {
 }
 
 // REMOVIDO - A extensão não deve editar sistemas
-// Ela apenas gera/cria credenciais no OnlineOffice
+// Ela apenas gera/cria credenciais no GestorDefender
 // Edições são responsabilidade do app TV ON
 
 // Notifica que o script está pronto

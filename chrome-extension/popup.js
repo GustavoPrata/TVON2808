@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <strong>Extensão Funcionando Automaticamente!</strong><br>
           <span style="font-size: 11px;">
             A extensão está rodando em background e funcionará mesmo com esta janela fechada.
-            Ela verifica tarefas a cada 30 segundos e abre a aba do OnlineOffice automaticamente quando necessário.
+            Ela verifica tarefas a cada 30 segundos e abre a aba do GestorDefender automaticamente quando necessário.
           </span>
         </div>
         

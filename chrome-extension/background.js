@@ -1222,8 +1222,8 @@ async function processTask(task) {
       // Procura ou cria aba do OnlineOffice
       let tabs = await chrome.tabs.query({
         url: [
-          '*://onlineoffice.zip/*', 
-          '*://*.onlineoffice.zip/*',
+          '*://gestordefender.com/*', 
+          '*://*.gestordefender.com/*',
           '*://tv-on.site/*',
           '*://*.tv-on.site/*'
         ]
