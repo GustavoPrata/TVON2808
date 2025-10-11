@@ -1552,6 +1552,21 @@ export default function Chat() {
     }, 3000);
   };
 
+  // Calculate unread counts for each category
+  const unreadCounts = {
+    novos: conversas?.filter(conv => 
+      !conv.isCliente && !conv.isTeste && conv.mensagensNaoLidas > 0
+    ).reduce((sum, conv) => sum + conv.mensagensNaoLidas, 0) || 0,
+    
+    clientes: conversas?.filter(conv => 
+      conv.isCliente && conv.mensagensNaoLidas > 0
+    ).reduce((sum, conv) => sum + conv.mensagensNaoLidas, 0) || 0,
+    
+    testes: conversas?.filter(conv => 
+      conv.isTeste && !conv.isCliente && conv.mensagensNaoLidas > 0
+    ).reduce((sum, conv) => sum + conv.mensagensNaoLidas, 0) || 0
+  };
+
   // Filter conversations based on contact type, attendance mode and search
   const filteredConversas = conversas?.filter(conv => {
     // Hide own WhatsApp number from the list
@@ -1911,8 +1926,15 @@ export default function Chat() {
                       setContactFilter('novos');
                     }}
                   >
-                    <UserPlus className="w-4 h-4 mr-1" />
-                    Novos
+                    <div className="flex items-center gap-1">
+                      <UserPlus className="w-4 h-4" />
+                      <span>Novos</span>
+                      {unreadCounts.novos > 0 && (
+                        <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">
+                          {unreadCounts.novos > 99 ? '99+' : unreadCounts.novos}
+                        </span>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="clientes" 
@@ -1922,8 +1944,15 @@ export default function Chat() {
                       setContactFilter('clientes');
                     }}
                   >
-                    <User className="w-4 h-4 mr-1" />
-                    Clientes
+                    <div className="flex items-center gap-1">
+                      <User className="w-4 h-4" />
+                      <span>Clientes</span>
+                      {unreadCounts.clientes > 0 && (
+                        <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">
+                          {unreadCounts.clientes > 99 ? '99+' : unreadCounts.clientes}
+                        </span>
+                      )}
+                    </div>
                   </TabsTrigger>
                   <TabsTrigger 
                     value="testes" 
@@ -1933,8 +1962,15 @@ export default function Chat() {
                       setContactFilter('testes');
                     }}
                   >
-                    <Sparkles className="w-4 h-4 mr-1" />
-                    Testes
+                    <div className="flex items-center gap-1">
+                      <Sparkles className="w-4 h-4" />
+                      <span>Testes</span>
+                      {unreadCounts.testes > 0 && (
+                        <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">
+                          {unreadCounts.testes > 99 ? '99+' : unreadCounts.testes}
+                        </span>
+                      )}
+                    </div>
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
