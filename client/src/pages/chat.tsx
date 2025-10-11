@@ -1804,12 +1804,12 @@ export default function Chat() {
                     <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 rounded-lg border border-blue-500/30 cursor-pointer">
                       <Users className="w-4 h-4 text-blue-400" />
                       <span className="text-xs font-medium text-blue-300">
-                        {humanModeCount} {humanModeCount === 1 ? 'Humano' : 'Humanos'}
+                        {humanModeCount}
                       </span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{humanModeCount} {humanModeCount === 1 ? 'conversa' : 'conversas'} em atendimento humano</p>
+                    <p>{humanModeCount} {humanModeCount === 1 ? 'Humano' : 'Humanos'} - {humanModeCount === 1 ? 'conversa' : 'conversas'} em atendimento humano</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
