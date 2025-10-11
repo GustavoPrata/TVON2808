@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -197,6 +197,12 @@ export default function Chat() {
     staleTime: 0,
     gcTime: 0,
   });
+
+  // Contar conversas com modo humano ativo
+  const humanModeCount = useMemo(() => 
+    conversas?.filter(conv => conv.modoAtendimento === 'humano')?.length || 0,
+    [conversas]
+  );
 
   // Get sistemas for test creation
   const { data: sistemas } = useQuery({
@@ -1736,6 +1742,7 @@ export default function Chat() {
   const isConnected = whatsappStatus?.status.connection === 'open';
   const isConnecting = whatsappStatus?.status.connection === 'connecting';
 
+
   return (
     <div className="h-[calc(100vh-40px)] flex flex-col">
       {/* Hidden file input */}
@@ -1787,6 +1794,25 @@ export default function Chat() {
                 <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
                 <span className="text-xs text-slate-400">Desconectado</span>
               </div>
+            )}
+
+            {/* Contador de chats com modo humano */}
+            {humanModeCount > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 rounded-lg border border-blue-500/30 cursor-pointer">
+                      <Users className="w-4 h-4 text-blue-400" />
+                      <span className="text-xs font-medium text-blue-300">
+                        {humanModeCount} {humanModeCount === 1 ? 'Humano' : 'Humanos'}
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{humanModeCount} {humanModeCount === 1 ? 'conversa' : 'conversas'} em atendimento humano</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
           <div className="flex items-center gap-2">
