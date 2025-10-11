@@ -187,9 +187,9 @@ async function getApiBase() {
 
 // Variável global para armazenar a URL do API
 let API_BASE = null;
-const POLLING_INTERVAL_ACTIVE = 3000; // 3 segundos quando não há tarefas
-const POLLING_INTERVAL_IDLE = 5000; // 5 segundos quando automação está desabilitada
-const POLLING_INTERVAL_FAST = 1000; // 1 segundo após processar tarefa
+const POLLING_INTERVAL_ACTIVE = 60000; // 60 segundos quando ativo
+const POLLING_INTERVAL_IDLE = 300000; // 5 minutos quando inativo
+const POLLING_INTERVAL_FAST = 30000; // 30 segundos após processar
 
 // URLs importantes
 const OFFICE_URL = 'https://gestordefender.com/iptv/index.php';
@@ -417,11 +417,11 @@ async function setupAlarms() {
   
   // Cria APENAS um alarme principal
   chrome.alarms.create('pollBackend', {
-    periodInMinutes: 1, // 1 minuto apenas
+    periodInMinutes: 2, // 2 minutos mínimo para evitar polling excessivo
     delayInMinutes: 0   // Começa imediatamente
   });
   
-  await logger.info('⏰ Alarme único configurado (1 min)');
+  await logger.info('⏰ Alarme único configurado (2 min)');
 }
 
 // Função para obter status real da automação do backend
@@ -507,6 +507,36 @@ async function startAutomation() {
 
 // Inicia automação
 startAutomation();
+
+// Sistema de reset de emergência - detecta e limpa tarefas travadas
+setInterval(async () => {
+  const now = Date.now();
+  
+  // Verifica se há uma tarefa travada por mais de 5 minutos
+  if (isProcessingTask && (now - pollingState.lastCheckTime > 300000)) {
+    await logger.error('⚠️ EMERGÊNCIA: Tarefa travada detectada, executando reset...');
+    
+    // Limpa todas as flags
+    isProcessingTask = false;
+    pollingState.isChecking = false;
+    pollingState.activeTaskId = null;
+    
+    await logger.info('🔧 Flags resetadas devido a tarefa travada', {
+      tempoTravado: Math.round((now - pollingState.lastCheckTime) / 1000) + 's',
+      taskIdAnterior: pollingState.activeTaskId
+    });
+    
+    // Atualiza badge
+    await updateBadge(false);
+  }
+  
+  // Também verifica activeTaskId isolado (proteção adicional)
+  if (!isProcessingTask && pollingState.activeTaskId) {
+    await logger.warn('🔧 Limpando activeTaskId órfão');
+    pollingState.activeTaskId = null;
+  }
+  
+}, 60000); // Verifica a cada 1 minuto
 
 // Função para garantir que a aba do OnlineOffice está aberta
 async function ensureOfficeTabOpen(forceOpen = false) {
@@ -899,6 +929,12 @@ async function checkForTasks() {
       return;
     }
     
+    // Verifica se já tem uma tarefa ativa
+    if (pollingState.activeTaskId) {
+      await logger.debug(`⏭️ Tarefa ${pollingState.activeTaskId} ainda em processamento, pulando checagem...`);
+      return;
+    }
+    
     // Marca início da checagem
     pollingState.isChecking = true;
     pollingState.lastCheckTime = now;
@@ -998,8 +1034,11 @@ async function checkForTasks() {
       taskType: data.task?.type 
     });
     
-    // Marca como processando
+    // Marca como processando com ID da tarefa
     isProcessingTask = true;
+    pollingState.activeTaskId = data.task?.id || Date.now().toString();
+    
+    await logger.info(`🔒 Tarefa ${pollingState.activeTaskId} marcada como ativa`);
     
     // Processa a tarefa
     await processTask(data.task);
@@ -1020,8 +1059,11 @@ async function checkForTasks() {
     await logger.error('❌ Erro no polling', { error: error.message });
     await updateBadge(false);
   } finally {
+    // SEMPRE limpa as flags ao terminar
     isProcessingTask = false;
-    pollingState.isChecking = false; // IMPORTANTE: libera flag de checagem
+    pollingState.isChecking = false;
+    pollingState.activeTaskId = null;
+    await logger.info(`🔓 Tarefa finalizada, flags limpas`);
   }
   
   } catch (error) {
@@ -1197,13 +1239,33 @@ async function processTask(task) {
   await logger.info('🎯 PROCESSANDO TAREFA DO BACKEND');
   await logger.info(`📦 Tipo: ${task.type}`);
   await logger.info(`🔢 Quantidade: ${task.quantity || 1}`);
+  await logger.info(`🆔 Task ID: ${pollingState.activeTaskId}`);
   await logger.info('========================================');
+  
+  // Configura timeout de 2 minutos
+  const taskTimeout = setTimeout(async () => {
+    await logger.error('⏱️ TIMEOUT: Tarefa demorou mais de 2 minutos!');
+    isProcessingTask = false;
+    pollingState.activeTaskId = null;
+    
+    // Reporta timeout ao backend
+    await reportTaskResult({
+      taskId: task.id,
+      success: false,
+      error: 'Timeout: tarefa excedeu 2 minutos de processamento',
+      metadata: {
+        timeoutAt: new Date().toISOString()
+      }
+    });
+  }, 120000); // 2 minutos
   
   try {
     // Tenta processar diretamente via API primeiro
     const directProcessResult = await processTaskViaApi(task);
     if (directProcessResult.success) {
       await logger.info('✅ Tarefa processada diretamente via API');
+      clearTimeout(taskTimeout);
+      pollingState.activeTaskId = null;
       return;
     }
   } catch (error) {
@@ -1284,6 +1346,11 @@ async function processTask(task) {
       await new Promise(resolve => setTimeout(resolve, 5000 * currentTry));
     }
   }
+  
+  // Limpa timeout e flags ao terminar
+  clearTimeout(taskTimeout);
+  pollingState.activeTaskId = null;
+  isProcessingTask = false;
 }
 
 async function generateBatch(tabId, task) {
