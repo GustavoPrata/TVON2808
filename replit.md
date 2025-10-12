@@ -9,6 +9,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Data Management**: Systems data must come from local database, not external API
 
 ## Recent Changes
+- **11/10/2025 (v3)**: Updated WhatsApp bot trial duration from 24h to 6h. Changed all references in bot messages, menu options, PIX payment instructions, and backend calculations. Maintained 24h references for support availability only.
 - **11/10/2025 (v2)**: Fixed critical Chrome extension infinite loop bug. Adjusted polling intervals from aggressive 1-3 seconds to conservative 60 seconds (active) and 5 minutes (idle). Implemented single-task control using activeTaskId, emergency reset system for stuck tasks (5-minute timeout), and improved flag management to prevent duplicate credential generation.
 - **11/10/2025**: Implemented intelligent anti-spam system for WhatsApp bot. Adds 5-second delay for text messages to prevent multiple responses when clients send rapid messages. Menu navigation numbers (1, 2, 3, etc) and media messages (audio, images, videos) are processed immediately without delay, ensuring smooth user experience.
 - **10/10/2025 (v5)**: Added unread message count badges to chat navigation tabs. Red circular badges display the number of unread messages for each category (Novos, Clientes, Testes), with real-time updates and "99+" limit for large counts. 
