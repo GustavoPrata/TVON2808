@@ -2066,10 +2066,10 @@ export class WhatsAppService extends EventEmitter {
     }
 
     switch (opcaoId) {
-      case "1": // Teste grátis por 24h
+      case "1": // Teste grátis por 6h
         await this.sendMessage(
           telefone,
-          `Legal! 😄 Vamos ativar seu teste gratuito por 24h.\n\n` +
+          `Legal! 😄 Vamos ativar seu teste gratuito por 6h.\n\n` +
             `Onde você vai assistir?\n\n` +
             `1️⃣ Celular\n` +
             `2️⃣ TV Box (caixinha)\n` +
@@ -2110,7 +2110,7 @@ export class WhatsAppService extends EventEmitter {
             `• Qualidade até 4K, sem travar\n` +
             `• Suporte 24 horas!\n\n` +
             `1️⃣ Assinar agora\n` +
-            `2️⃣ Testar grátis por 24h\n` +
+            `2️⃣ Testar grátis por 6h\n` +
             `0️⃣ Voltar`,
         );
         // Set state to track this is an info-only menu
@@ -2134,7 +2134,7 @@ export class WhatsAppService extends EventEmitter {
             `• ✅ Sem taxas extras\n` +
             `• ✅ Reembolso proporcional em caso de cancelamento, conforme nossas políticas\n\n` +
             `1️⃣ Assinar agora\n` +
-            `2️⃣ Testar grátis por 24h\n` +
+            `2️⃣ Testar grátis por 6h\n` +
             `0️⃣ Voltar`,
         );
         // Set state to track this is an info-only menu
@@ -2156,7 +2156,7 @@ export class WhatsAppService extends EventEmitter {
             `• 💻 Notebooks e PCs\n` +
             `• 📦 Outros aparelhos conectados à internet\n\n` +
             `1️⃣ Assinar agora\n` +
-            `2️⃣ Testar grátis por 24h\n` +
+            `2️⃣ Testar grátis por 6h\n` +
             `0️⃣ Voltar`,
         );
         // Set state to track this is an info-only menu
@@ -2181,7 +2181,7 @@ export class WhatsAppService extends EventEmitter {
             `• ✅ Acesso por celular, Smart TV, TV Box, notebook, computador e muito mais!\n\n` +
             `Tudo isso por um preço justo, com estabilidade e facilidade.\n\n` +
             `1️⃣ Assinar agora\n` +
-            `2️⃣ Testar grátis por 24h\n` +
+            `2️⃣ Testar grátis por 6h\n` +
             `0️⃣ Voltar`,
         );
         // Set state to track this is an info-only menu
@@ -2286,7 +2286,7 @@ export class WhatsAppService extends EventEmitter {
         });
         await this.sendMessage(
           telefone,
-          `Legal! 😄 Vamos ativar seu teste gratuito por 24h.\n\n` +
+          `Legal! 😄 Vamos ativar seu teste gratuito por 6h.\n\n` +
             `Onde você vai assistir?\n\n` +
             `1️⃣ Celular\n` +
             `2️⃣ TV Box (caixinha)\n` +
@@ -2774,7 +2774,7 @@ export class WhatsAppService extends EventEmitter {
           `• Qualidade até 4K, sem travar\n` +
           `• Suporte 24 horas!\n\n` +
           `1️⃣ Assinar agora\n` +
-          `2️⃣ Testar grátis por 24h\n` +
+          `2️⃣ Testar grátis por 6h\n` +
           `0️⃣ Voltar`
         );
       case "4": // Qual o valor?
@@ -2788,7 +2788,7 @@ export class WhatsAppService extends EventEmitter {
           `• ✅ Sem taxas extras\n` +
           `• ✅ Reembolso proporcional em caso de cancelamento, conforme nossas políticas\n\n` +
           `1️⃣ Assinar agora\n` +
-          `2️⃣ Testar grátis por 24h\n` +
+          `2️⃣ Testar grátis por 6h\n` +
           `0️⃣ Voltar`
         );
       case "5": // Por onde consigo assistir?
@@ -2800,7 +2800,7 @@ export class WhatsAppService extends EventEmitter {
           `• 💻 Notebooks e PCs\n` +
           `• 📦 Outros aparelhos conectados à internet\n\n` +
           `1️⃣ Assinar agora\n` +
-          `2️⃣ Testar grátis por 24h\n` +
+          `2️⃣ Testar grátis por 6h\n` +
           `0️⃣ Voltar`
         );
       case "6": // Saber mais
@@ -2815,11 +2815,11 @@ export class WhatsAppService extends EventEmitter {
           `• ✅ Acesso por celular, Smart TV, TV Box, notebook, computador e muito mais!\n\n` +
           `Tudo isso por um preço justo, com estabilidade e facilidade.\n\n` +
           `1️⃣ Assinar agora\n` +
-          `2️⃣ Testar grátis por 24h\n` +
+          `2️⃣ Testar grátis por 6h\n` +
           `0️⃣ Voltar`
         );
       default:
-        return `1️⃣ Assinar agora\n2️⃣ Testar grátis por 24h\n0️⃣ Voltar ao menu principal`;
+        return `1️⃣ Assinar agora\n2️⃣ Testar grátis por 6h\n0️⃣ Voltar ao menu principal`;
     }
   }
 
@@ -4675,7 +4675,7 @@ export class WhatsAppService extends EventEmitter {
               `*Valor:* R$ ${state.valorTotal.toFixed(2).replace(".", ",")}\n` +
               `*Novo Vencimento:* ${state.novoVencimento.toLocaleDateString("pt-BR")}\n\n` +
               `*Renovação automática após pagamento*\n` +
-              `*Válido por 24 horas*\n\n` +
+              `*Válido por 6 horas*\n\n` +
               `Escolha uma opção:\n` +
               `1️⃣ Já paguei\n` +
               `0️⃣ Cancelar e voltar`,
@@ -4961,7 +4961,7 @@ export class WhatsAppService extends EventEmitter {
         const menu =
           `${greeting}, bem-vindo(a) à *TvON*!\n\n` +
           `Escolha uma opção:\n\n` +
-          `1️⃣ Teste grátis por 24h\n` +
+          `1️⃣ Teste grátis por 6h\n` +
           `2️⃣ Quero assinar agora\n` +
           `3️⃣ Qual o conteúdo?\n` +
           `4️⃣ Qual o valor?\n` +
@@ -5207,7 +5207,7 @@ export class WhatsAppService extends EventEmitter {
         testar: { id: "1" },
         grátis: { id: "1" },
         gratuito: { id: "1" },
-        "24h": { id: "1" },
+        "6h": { id: "1" },
         experimentar: { id: "1" },
         assinar: { id: "2" },
         comprar: { id: "2" },
@@ -5428,7 +5428,7 @@ export class WhatsAppService extends EventEmitter {
         clienteId: cliente.id,
         valor: valorFinal,
         status: "pendente",
-        dataVencimento: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
+        dataVencimento: new Date(Date.now() + 6 * 60 * 60 * 1000), // 6 horas
       });
 
       // Aqui você integraria com a API do PIX
@@ -5441,7 +5441,7 @@ export class WhatsAppService extends EventEmitter {
 
       await this.sendMessage(
         telefone,
-        `mp�� *Pagamento PIX*\n\nValor: R$ ${valorFinal.replace(".", ",")}\nVencimento: 24h\n\nCódigo PIX:\n\`\`\`${pixCode}\`\`\``,
+        `mp�� *Pagamento PIX*\n\nValor: R$ ${valorFinal.replace(".", ",")}\nVencimento: 6h\n\nCódigo PIX:\n\`\`\`${pixCode}\`\`\``,
       );
     } catch (error) {
       console.error("Erro ao gerar PIX:", error);
