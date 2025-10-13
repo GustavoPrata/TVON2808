@@ -580,33 +580,56 @@ export class WhatsAppService extends EventEmitter {
         );
         
         try {
+          // Stop reconnection attempts
+          this.isReconnecting = true; // Prevent auto-reconnect while clearing
+          
+          // Close existing connection
+          if (this.sock) {
+            try {
+              await this.sock.ws.close();
+            } catch (error) {
+              console.log("Error closing connection:", error);
+            }
+            this.sock = null;
+          }
+          
           // Clear auth state to force new session
           const fs = await import("fs/promises");
           const path = await import("path");
           const authDir = "./auth_info_baileys";
           
+          // Ensure directory exists
+          await fs.mkdir(authDir, { recursive: true });
+          
           // Remove all auth files
           const files = await fs.readdir(authDir);
           for (const file of files) {
-            await fs.unlink(path.join(authDir, file)).catch(() => {});
+            const filePath = path.join(authDir, file);
+            try {
+              await fs.unlink(filePath);
+              console.log(`✅ Removed auth file: ${file}`);
+            } catch (err) {
+              console.log(`Failed to remove ${file}:`, err);
+            }
           }
           
           console.log("✅ Credenciais limpas com sucesso");
           await this.logActivity("info", "WhatsApp", "Credenciais limpas. Aguardando novo QR code.");
           
-          // Reset connection state
+          // Reset all state completely
           this.qrCode = null;
           this.connectionState = { connection: "close" } as any;
-          this.isReconnecting = false;
           this.reconnectAttempts = 0;
           
-          // Reinitialize after a short delay
+          // Wait a bit longer to ensure everything is cleaned up
           setTimeout(() => {
-            console.log("🔄 Reinicializando WhatsApp após limpeza de credenciais...");
+            this.isReconnecting = false; // Allow reconnection now
+            console.log("🔄 Reinicializando WhatsApp com sessão limpa...");
             this.initialize().catch(err => {
               console.error("❌ Erro ao reinicializar após limpeza:", err);
+              this.isReconnecting = false; // Reset flag on error
             });
-          }, 2000);
+          }, 3000);
           
           return; // Exit to avoid normal reconnection logic
         } catch (error) {
@@ -616,6 +639,7 @@ export class WhatsAppService extends EventEmitter {
             "WhatsApp",
             `Erro ao limpar credenciais: ${error}`,
           );
+          this.isReconnecting = false; // Reset flag on error
         }
       }
 
@@ -684,16 +708,18 @@ export class WhatsAppService extends EventEmitter {
           reconnectDelay = Math.min(30000, 5000 * this.reconnectAttempts);
         }
 
-        // Always try to reconnect
-        this.reconnectAttempts++;
-        console.log(
-          `Reconectando em ${reconnectDelay / 1000}s (tentativa ${this.reconnectAttempts})...`,
-        );
+        // Always try to reconnect (unless it's a 405 error which is handled above)
+        if (!isMethodNotAllowed) {
+          this.reconnectAttempts++;
+          console.log(
+            `Reconectando em ${reconnectDelay / 1000}s (tentativa ${this.reconnectAttempts})...`,
+          );
 
-        setTimeout(() => {
-          this.isReconnecting = false;
-          this.initialize();
-        }, reconnectDelay);
+          setTimeout(() => {
+            this.isReconnecting = false;
+            this.initialize();
+          }, reconnectDelay);
+        }
       } else if (!shouldReconnect) {
         // User logged out manually, clear session
         console.log("Usuário deslogou manualmente, limpando sessão...");
@@ -6451,6 +6477,9 @@ export class WhatsAppService extends EventEmitter {
     console.log("🔄 Clearing WhatsApp session manually...");
     
     try {
+      // Stop any ongoing reconnection attempts FIRST
+      this.isReconnecting = true; // Block auto-reconnect during clearing
+      
       // Close existing connection if any
       if (this.sock) {
         try {
@@ -6473,7 +6502,13 @@ export class WhatsAppService extends EventEmitter {
         
         // Remove all auth files
         for (const file of files) {
-          await fs.unlink(path.join(authDir, file)).catch(() => {});
+          const filePath = path.join(authDir, file);
+          try {
+            await fs.unlink(filePath);
+            console.log(`✅ Removed auth file: ${file}`);
+          } catch (err) {
+            console.log(`Failed to remove ${file}:`, err);
+          }
         }
         
         console.log("✅ Session cleared successfully");
@@ -6482,22 +6517,23 @@ export class WhatsAppService extends EventEmitter {
         console.log("Auth directory not found or already empty");
       }
 
-      // Reset connection state
+      // Reset connection state completely
       this.qrCode = null;
       this.connectionState = { connection: "close" } as any;
-      this.isReconnecting = false;
       this.reconnectAttempts = 0;
 
       // Notify connected clients
       this.emit("session_cleared", { success: true });
       
-      // Reinitialize after a short delay
+      // Reinitialize after a longer delay, and reset reconnecting flag
       setTimeout(() => {
+        this.isReconnecting = false; // Now allow initialization
         console.log("🔄 Reinitializing WhatsApp after session clear...");
         this.initialize().catch(err => {
           console.error("❌ Error reinitializing after clear:", err);
+          this.isReconnecting = false; // Reset flag on error
         });
-      }, 1000);
+      }, 3000);
 
     } catch (error) {
       console.error("❌ Error clearing session:", error);
@@ -6506,6 +6542,7 @@ export class WhatsAppService extends EventEmitter {
         "WhatsApp",
         `Erro ao limpar sessão: ${error}`,
       );
+      this.isReconnecting = false; // Reset flag on error
       throw error;
     }
   }
