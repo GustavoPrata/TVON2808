@@ -11033,7 +11033,7 @@ Como posso ajudar você hoje?
 
       // Check if the response is successful
       if (response.ok) {
-        // Try to parse as JSON if possible, otherwise return as text
+        // Try to parse as JSON if possible
         try {
           const jsonResponse = JSON.parse(responseText);
           return res.json({ 
@@ -11041,18 +11041,96 @@ Como posso ajudar você hoje?
             data: jsonResponse 
           });
         } catch {
-          // Not JSON, return as text
-          return res.json({ 
-            success: true, 
-            message: responseText 
-          });
+          // Not JSON, check if it's HTML
+          const isHTML = responseText.trim().toLowerCase().startsWith('<') || 
+                        responseText.includes('<!DOCTYPE') || 
+                        responseText.includes('<html');
+          
+          if (isHTML) {
+            // Response is HTML - need to analyze content
+            const lowerText = responseText.toLowerCase();
+            
+            // First, check for error indicators (priority)
+            const hasError = lowerText.includes('erro') || 
+                           lowerText.includes('error') ||
+                           lowerText.includes('falha') ||
+                           lowerText.includes('failed') ||
+                           lowerText.includes('problema') ||
+                           lowerText.includes('inválido') ||
+                           lowerText.includes('invalid');
+            
+            // Then check for success indicators
+            const hasSuccess = lowerText.includes('sucesso') || 
+                              lowerText.includes('success') ||
+                              lowerText.includes('bem-vindo') ||
+                              lowerText.includes('concluído') ||
+                              lowerText.includes('completed') ||
+                              lowerText.includes('arquivo m3u');
+            
+            if (hasError) {
+              // Error detected - return error even with status 200
+              console.log('❌ M3U upload failed (HTML response with error keywords detected)');
+              
+              // Try to extract error message from HTML
+              const errorMatch = responseText.match(/<(?:p|div|span)[^>]*>([^<]*(?:erro|error|falha|failed)[^<]*)<\/(?:p|div|span)>/i);
+              const errorMessage = errorMatch ? errorMatch[1].trim() : 'Erro detectado no processamento do arquivo';
+              
+              return res.json({ 
+                success: false, 
+                error: errorMessage 
+              });
+            } else if (hasSuccess) {
+              // Success detected
+              console.log('✅ M3U upload successful (HTML response with success keywords)');
+              return res.json({ 
+                success: true, 
+                message: 'Arquivo M3U enviado com sucesso! O servidor processou o arquivo corretamente.' 
+              });
+            } else if (response.status === 200) {
+              // No clear indicators but status 200 = generic success
+              console.log('✅ M3U upload presumed successful (status 200, no clear indicators)');
+              return res.json({ 
+                success: true, 
+                message: 'Arquivo M3U processado (resposta HTML sem indicadores claros)' 
+              });
+            } else {
+              // No clear indicators and non-200 status = generic error
+              console.log('❌ M3U upload failed (non-200 status, no clear indicators)');
+              return res.json({ 
+                success: false, 
+                error: `Processamento falhou com status ${response.status}` 
+              });
+            }
+          } else {
+            // Plain text response, return as message
+            return res.json({ 
+              success: true, 
+              message: responseText.trim() || 'Arquivo M3U processado com sucesso' 
+            });
+          }
         }
       } else {
-        return res.status(response.status).json({ 
-          success: false, 
-          error: `Upload failed with status ${response.status}`,
-          details: responseText 
-        });
+        // Check if error response is HTML
+        const isHTML = responseText.trim().toLowerCase().startsWith('<') || 
+                      responseText.includes('<!DOCTYPE') || 
+                      responseText.includes('<html');
+        
+        if (isHTML) {
+          // Try to extract error message from HTML with more keywords
+          const errorMatch = responseText.match(/<(?:p|div|span)[^>]*>([^<]*(?:erro|error|falha|failed|problema|inválido|invalid)[^<]*)<\/(?:p|div|span)>/i);
+          const errorMessage = errorMatch ? errorMatch[1].trim() : `Upload falhou com status ${response.status}`;
+          
+          return res.status(response.status).json({ 
+            success: false, 
+            error: errorMessage
+          });
+        } else {
+          return res.status(response.status).json({ 
+            success: false, 
+            error: `Upload failed with status ${response.status}`,
+            details: responseText.trim() 
+          });
+        }
       }
     } catch (error: any) {
       console.error('❌ Error proxying M3U upload:', error);
