@@ -548,21 +548,76 @@ export class WhatsAppService extends EventEmitter {
 
     if (connection === "close") {
       const errorCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+      const errorReason = (lastDisconnect?.error as any)?.data?.reason;
       const shouldReconnect = errorCode !== DisconnectReason.loggedOut;
       const isConflict =
         lastDisconnect?.error?.message?.includes("conflict") ||
         lastDisconnect?.error?.message?.includes("replaced");
       const isAuthFailure = errorCode === 401;
+      const isMethodNotAllowed = errorCode === 405 || errorReason === '405';
 
       console.log("Conexão fechada devido a:", lastDisconnect?.error);
       console.log(
         "Error code:",
         errorCode,
+        "Error reason:",
+        errorReason,
         "Is conflict:",
         isConflict,
         "Is auth failure:",
         isAuthFailure,
+        "Is 405 error:",
+        isMethodNotAllowed,
       );
+
+      // Handle 405 error - clear credentials and force new authentication
+      if (isMethodNotAllowed) {
+        console.log("⚠️ Erro 405 detectado - sessão obsoleta. Limpando credenciais...");
+        await this.logActivity(
+          "warning",
+          "WhatsApp",
+          "Sessão obsoleta (erro 405). Limpando credenciais para nova autenticação.",
+        );
+        
+        try {
+          // Clear auth state to force new session
+          const fs = await import("fs/promises");
+          const path = await import("path");
+          const authDir = "./auth_info_baileys";
+          
+          // Remove all auth files
+          const files = await fs.readdir(authDir);
+          for (const file of files) {
+            await fs.unlink(path.join(authDir, file)).catch(() => {});
+          }
+          
+          console.log("✅ Credenciais limpas com sucesso");
+          await this.logActivity("info", "WhatsApp", "Credenciais limpas. Aguardando novo QR code.");
+          
+          // Reset connection state
+          this.qrCode = null;
+          this.connectionState = { connection: "close" } as any;
+          this.isReconnecting = false;
+          this.reconnectAttempts = 0;
+          
+          // Reinitialize after a short delay
+          setTimeout(() => {
+            console.log("🔄 Reinicializando WhatsApp após limpeza de credenciais...");
+            this.initialize().catch(err => {
+              console.error("❌ Erro ao reinicializar após limpeza:", err);
+            });
+          }, 2000);
+          
+          return; // Exit to avoid normal reconnection logic
+        } catch (error) {
+          console.error("❌ Erro ao limpar credenciais:", error);
+          await this.logActivity(
+            "error",
+            "WhatsApp",
+            `Erro ao limpar credenciais: ${error}`,
+          );
+        }
+      }
 
       if (shouldReconnect && !this.isReconnecting) {
         this.isReconnecting = true;
@@ -6389,6 +6444,69 @@ export class WhatsAppService extends EventEmitter {
       });
     } catch (error) {
       console.error("Erro ao criar log:", error);
+    }
+  }
+
+  async clearSession(): Promise<void> {
+    console.log("🔄 Clearing WhatsApp session manually...");
+    
+    try {
+      // Close existing connection if any
+      if (this.sock) {
+        try {
+          await this.sock.ws.close();
+        } catch (error) {
+          console.log("Error closing existing connection:", error);
+        }
+        this.sock = null;
+      }
+
+      // Clear auth state files
+      const fs = await import("fs/promises");
+      const path = await import("path");
+      const authDir = "./auth_info_baileys";
+
+      // Check if directory exists
+      try {
+        await fs.access(authDir);
+        const files = await fs.readdir(authDir);
+        
+        // Remove all auth files
+        for (const file of files) {
+          await fs.unlink(path.join(authDir, file)).catch(() => {});
+        }
+        
+        console.log("✅ Session cleared successfully");
+        await this.logActivity("info", "WhatsApp", "Sessão limpa manualmente. Aguardando novo QR code.");
+      } catch (error) {
+        console.log("Auth directory not found or already empty");
+      }
+
+      // Reset connection state
+      this.qrCode = null;
+      this.connectionState = { connection: "close" } as any;
+      this.isReconnecting = false;
+      this.reconnectAttempts = 0;
+
+      // Notify connected clients
+      this.emit("session_cleared", { success: true });
+      
+      // Reinitialize after a short delay
+      setTimeout(() => {
+        console.log("🔄 Reinitializing WhatsApp after session clear...");
+        this.initialize().catch(err => {
+          console.error("❌ Error reinitializing after clear:", err);
+        });
+      }, 1000);
+
+    } catch (error) {
+      console.error("❌ Error clearing session:", error);
+      await this.logActivity(
+        "error",
+        "WhatsApp",
+        `Erro ao limpar sessão: ${error}`,
+      );
+      throw error;
     }
   }
 
