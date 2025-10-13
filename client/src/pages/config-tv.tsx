@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tv, Settings, Server, Save, Plus, Pencil, Trash2, Link, Shield, CheckCircle, AlertCircle, GripVertical, Wifi, X, Key, TestTube, Users, RefreshCw, ExternalLink, Upload, FileText } from 'lucide-react';
+import { Tv, Settings, Server, Save, Plus, Pencil, Trash2, Link, Shield, CheckCircle, AlertCircle, GripVertical, Wifi, X, Key, TestTube, Users, RefreshCw, ExternalLink, Upload, FileText, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 import { SyncStatus } from '@/components/sync-status';
@@ -821,6 +821,18 @@ export default function ConfigTV() {
               </div>
             ) : (
               <>
+                <a
+                  href="https://gestordefender.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white shadow-lg shadow-indigo-500/30 transition-all hover:scale-105 h-10 px-4 py-2"
+                  title="Acessar Gestor Defender"
+                  data-testid="link-gestor-defender"
+                >
+                  <Globe className="w-4 h-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">Gestor</span>
+                  <span className="sm:hidden">GD</span>
+                </a>
                 <input
                   ref={fileInputRef}
                   type="file"
