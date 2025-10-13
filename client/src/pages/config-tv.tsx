@@ -830,7 +830,6 @@ export default function ConfigTV() {
                   data-testid="link-gestor-defender"
                 >
                   <Globe className="w-4 h-4 mr-1 md:mr-2" />
-                  <span className="hidden sm:inline">Gestor</span>
                   <span className="sm:hidden">GD</span>
                 </a>
                 <input
