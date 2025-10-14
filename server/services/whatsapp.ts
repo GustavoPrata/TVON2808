@@ -20,6 +20,8 @@ import { EventEmitter } from "events";
 // Import sharp for image processing - required by Baileys
 import sharp from "sharp";
 import { addMonths } from 'date-fns';
+import * as fs from "fs/promises";
+import * as path from "path";
 
 console.log("📱 WhatsApp service module loading...");
 
@@ -151,13 +153,6 @@ export class WhatsAppService extends EventEmitter {
     }
 
     try {
-      console.log("📂 Creating auth directory...");
-      // Ensure auth directory exists
-      const fs = await import("fs/promises");
-      const authDir = "./auth_info_baileys";
-      await fs.mkdir(authDir, { recursive: true });
-      console.log("✅ Auth directory ready");
-
       console.log("🔧 Loading WhatsApp settings from database...");
       // Load saved settings from database
       const savedSettings = await storage.getWhatsAppSettings();
@@ -168,11 +163,24 @@ export class WhatsAppService extends EventEmitter {
         console.log("ℹ️ No saved WhatsApp settings found, using defaults");
       }
 
-      console.log("🔐 Loading authentication state...");
-      const { state, saveCreds } = await useMultiFileAuthState(
-        "./auth_info_baileys",
-      );
-      console.log("✅ Authentication state loaded");
+      console.log("📂 Creating auth directory and clearing old credentials...");
+      // Create auth directory if it doesn't exist
+      const authDir = "./auth_info_baileys";
+      await fs.mkdir(authDir, { recursive: true });
+      
+      // Clear any existing auth files before starting
+      try {
+        const files = await fs.readdir(authDir);
+        for (const file of files) {
+          await fs.unlink(path.join(authDir, file));
+        }
+        console.log("✅ Cleared old auth files");
+      } catch (err) {
+        // Directory may not exist, that's fine
+      }
+      
+      const { state, saveCreds } = await useMultiFileAuthState(authDir);
+      console.log("✅ Authentication state loaded (fresh)");
 
       // Close existing connection if any
       if (this.sock) {
@@ -199,17 +207,22 @@ export class WhatsAppService extends EventEmitter {
 
       this.sock = makeWASocket({
         auth: state,
-        browser: ["Chrome (Linux)", "", ""],
+        // Use a more standard browser configuration
+        browser: ["Ubuntu", "Chrome", "20.0.04"],
         logger: logger,
+        // Print QR in terminal for debugging
+        printQRInTerminal: true,
         // Add connection timeout to prevent hanging
         connectTimeoutMs: 60000,
-        // Version configuration
-        version: [2, 3000, 1015901307],
+        // Disable syncing of full history
+        syncFullHistory: false,
         // Add default presence to available
         markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? true,
         // Add retry options
         retryRequestDelayMs: 2000,
         maxMsgRetryCount: 5,
+        // Generate higher quality link previews
+        generateHighQualityLinkPreview: false,
       }) as any;
 
       this.sock.ev.on("connection.update", (update) => {
