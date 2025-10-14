@@ -1,7 +1,7 @@
 import { Boom } from "@hapi/boom";
-import pkg from "@whiskeysockets/baileys";
+import * as pkg from "@whiskeysockets/baileys";
+const makeWASocket = pkg.default;
 const {
-  default: makeWASocket,
   DisconnectReason,
   useMultiFileAuthState,
   isJidBroadcast,
@@ -199,10 +199,12 @@ export class WhatsAppService extends EventEmitter {
 
       this.sock = makeWASocket({
         auth: state,
-        browser: ["TV ON System", "Chrome", "1.0.0"],
+        browser: ["Chrome (Linux)", "", ""],
         logger: logger,
         // Add connection timeout to prevent hanging
         connectTimeoutMs: 60000,
+        // Version configuration
+        version: [2, 3000, 1015901307],
         // Add default presence to available
         markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? true,
         // Add retry options
