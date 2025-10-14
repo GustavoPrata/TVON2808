@@ -1,14 +1,12 @@
 import { Boom } from "@hapi/boom";
-import * as pkg from "@whiskeysockets/baileys";
-const makeWASocket = pkg.default;
-const {
+import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   isJidBroadcast,
   isJidStatusBroadcast,
   downloadMediaMessage,
   proto,
-} = pkg;
+} from "baileys";
 
 // Type definitions
 type WASocket = any;
@@ -207,11 +205,9 @@ export class WhatsAppService extends EventEmitter {
 
       this.sock = makeWASocket({
         auth: state,
-        // Use a more standard browser configuration
-        browser: ["Ubuntu", "Chrome", "20.0.04"],
+        // Use Windows Chrome to appear more like a real browser
+        browser: ["Windows", "Chrome", "10"],
         logger: logger,
-        // Print QR in terminal for debugging
-        printQRInTerminal: true,
         // Add connection timeout to prevent hanging
         connectTimeoutMs: 60000,
         // Disable syncing of full history
@@ -223,6 +219,8 @@ export class WhatsAppService extends EventEmitter {
         maxMsgRetryCount: 5,
         // Generate higher quality link previews
         generateHighQualityLinkPreview: false,
+        // Disable auto reconnection initially
+        shouldIgnoreJid: jid => isJidBroadcast(jid) || isJidStatusBroadcast(jid),
       }) as any;
 
       this.sock.ev.on("connection.update", (update) => {
