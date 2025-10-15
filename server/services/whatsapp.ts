@@ -1,12 +1,14 @@
 import { Boom } from "@hapi/boom";
-import makeWASocket, {
+import pkg from "@whiskeysockets/baileys";
+const {
+  default: makeWASocket,
   DisconnectReason,
   useMultiFileAuthState,
   isJidBroadcast,
   isJidStatusBroadcast,
   downloadMediaMessage,
   proto,
-} from "baileys";
+} = pkg;
 
 // Type definitions
 type WASocket = any;
@@ -18,8 +20,6 @@ import { EventEmitter } from "events";
 // Import sharp for image processing - required by Baileys
 import sharp from "sharp";
 import { addMonths } from 'date-fns';
-import * as fs from "fs/promises";
-import * as path from "path";
 
 console.log("📱 WhatsApp service module loading...");
 
@@ -151,6 +151,13 @@ export class WhatsAppService extends EventEmitter {
     }
 
     try {
+      console.log("📂 Creating auth directory...");
+      // Ensure auth directory exists
+      const fs = await import("fs/promises");
+      const authDir = "./auth_info_baileys";
+      await fs.mkdir(authDir, { recursive: true });
+      console.log("✅ Auth directory ready");
+
       console.log("🔧 Loading WhatsApp settings from database...");
       // Load saved settings from database
       const savedSettings = await storage.getWhatsAppSettings();
@@ -161,24 +168,11 @@ export class WhatsAppService extends EventEmitter {
         console.log("ℹ️ No saved WhatsApp settings found, using defaults");
       }
 
-      console.log("📂 Creating auth directory and clearing old credentials...");
-      // Create auth directory if it doesn't exist
-      const authDir = "./auth_info_baileys";
-      await fs.mkdir(authDir, { recursive: true });
-      
-      // Clear any existing auth files before starting
-      try {
-        const files = await fs.readdir(authDir);
-        for (const file of files) {
-          await fs.unlink(path.join(authDir, file));
-        }
-        console.log("✅ Cleared old auth files");
-      } catch (err) {
-        // Directory may not exist, that's fine
-      }
-      
-      const { state, saveCreds } = await useMultiFileAuthState(authDir);
-      console.log("✅ Authentication state loaded (fresh)");
+      console.log("🔐 Loading authentication state...");
+      const { state, saveCreds } = await useMultiFileAuthState(
+        "./auth_info_baileys",
+      );
+      console.log("✅ Authentication state loaded");
 
       // Close existing connection if any
       if (this.sock) {
@@ -205,22 +199,15 @@ export class WhatsAppService extends EventEmitter {
 
       this.sock = makeWASocket({
         auth: state,
-        // Use Windows Chrome to appear more like a real browser
-        browser: ["Windows", "Chrome", "10"],
+        browser: ["TV ON System", "Chrome", "1.0.0"],
         logger: logger,
         // Add connection timeout to prevent hanging
         connectTimeoutMs: 60000,
-        // Disable syncing of full history
-        syncFullHistory: false,
         // Add default presence to available
         markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? true,
         // Add retry options
         retryRequestDelayMs: 2000,
         maxMsgRetryCount: 5,
-        // Generate higher quality link previews
-        generateHighQualityLinkPreview: false,
-        // Disable auto reconnection initially
-        shouldIgnoreJid: jid => isJidBroadcast(jid) || isJidStatusBroadcast(jid),
       }) as any;
 
       this.sock.ev.on("connection.update", (update) => {
@@ -561,100 +548,21 @@ export class WhatsAppService extends EventEmitter {
 
     if (connection === "close") {
       const errorCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
-      const errorReason = (lastDisconnect?.error as any)?.data?.reason;
       const shouldReconnect = errorCode !== DisconnectReason.loggedOut;
       const isConflict =
         lastDisconnect?.error?.message?.includes("conflict") ||
         lastDisconnect?.error?.message?.includes("replaced");
       const isAuthFailure = errorCode === 401;
-      const isMethodNotAllowed = errorCode === 405 || errorReason === '405';
 
       console.log("Conexão fechada devido a:", lastDisconnect?.error);
       console.log(
         "Error code:",
         errorCode,
-        "Error reason:",
-        errorReason,
         "Is conflict:",
         isConflict,
         "Is auth failure:",
         isAuthFailure,
-        "Is 405 error:",
-        isMethodNotAllowed,
       );
-
-      // Handle 405 error - clear credentials and force new authentication
-      if (isMethodNotAllowed) {
-        console.log("⚠️ Erro 405 detectado - sessão obsoleta. Limpando credenciais...");
-        await this.logActivity(
-          "warning",
-          "WhatsApp",
-          "Sessão obsoleta (erro 405). Limpando credenciais para nova autenticação.",
-        );
-        
-        try {
-          // Stop reconnection attempts
-          this.isReconnecting = true; // Prevent auto-reconnect while clearing
-          
-          // Close existing connection
-          if (this.sock) {
-            try {
-              await this.sock.ws.close();
-            } catch (error) {
-              console.log("Error closing connection:", error);
-            }
-            this.sock = null;
-          }
-          
-          // Clear auth state to force new session
-          const fs = await import("fs/promises");
-          const path = await import("path");
-          const authDir = "./auth_info_baileys";
-          
-          // Ensure directory exists
-          await fs.mkdir(authDir, { recursive: true });
-          
-          // Remove all auth files
-          const files = await fs.readdir(authDir);
-          for (const file of files) {
-            const filePath = path.join(authDir, file);
-            try {
-              await fs.unlink(filePath);
-              console.log(`✅ Removed auth file: ${file}`);
-            } catch (err) {
-              console.log(`Failed to remove ${file}:`, err);
-            }
-          }
-          
-          console.log("✅ Credenciais limpas com sucesso");
-          await this.logActivity("info", "WhatsApp", "Credenciais limpas. Aguardando novo QR code.");
-          
-          // Reset all state completely
-          this.qrCode = null;
-          this.connectionState = { connection: "close" } as any;
-          this.reconnectAttempts = 0;
-          
-          // Wait a bit longer to ensure everything is cleaned up
-          setTimeout(() => {
-            this.isReconnecting = false; // Allow reconnection now
-            console.log("🔄 Reinicializando WhatsApp com sessão limpa...");
-            this.initialize().catch(err => {
-              console.error("❌ Erro ao reinicializar após limpeza:", err);
-              this.isReconnecting = false; // Reset flag on error
-            });
-          }, 3000);
-          
-          return; // Exit to avoid normal reconnection logic
-        } catch (error) {
-          console.error("❌ Erro ao limpar credenciais:", error);
-          await this.logActivity(
-            "error",
-            "WhatsApp",
-            `Erro ao limpar credenciais: ${error}`,
-          );
-          this.isReconnecting = false; // Reset flag on error
-        }
-      }
 
       if (shouldReconnect && !this.isReconnecting) {
         this.isReconnecting = true;
@@ -721,18 +629,16 @@ export class WhatsAppService extends EventEmitter {
           reconnectDelay = Math.min(30000, 5000 * this.reconnectAttempts);
         }
 
-        // Always try to reconnect (unless it's a 405 error which is handled above)
-        if (!isMethodNotAllowed) {
-          this.reconnectAttempts++;
-          console.log(
-            `Reconectando em ${reconnectDelay / 1000}s (tentativa ${this.reconnectAttempts})...`,
-          );
+        // Always try to reconnect
+        this.reconnectAttempts++;
+        console.log(
+          `Reconectando em ${reconnectDelay / 1000}s (tentativa ${this.reconnectAttempts})...`,
+        );
 
-          setTimeout(() => {
-            this.isReconnecting = false;
-            this.initialize();
-          }, reconnectDelay);
-        }
+        setTimeout(() => {
+          this.isReconnecting = false;
+          this.initialize();
+        }, reconnectDelay);
       } else if (!shouldReconnect) {
         // User logged out manually, clear session
         console.log("Usuário deslogou manualmente, limpando sessão...");
@@ -6483,80 +6389,6 @@ export class WhatsAppService extends EventEmitter {
       });
     } catch (error) {
       console.error("Erro ao criar log:", error);
-    }
-  }
-
-  async clearSession(): Promise<void> {
-    console.log("🔄 Clearing WhatsApp session manually...");
-    
-    try {
-      // Stop any ongoing reconnection attempts FIRST
-      this.isReconnecting = true; // Block auto-reconnect during clearing
-      
-      // Close existing connection if any
-      if (this.sock) {
-        try {
-          await this.sock.ws.close();
-        } catch (error) {
-          console.log("Error closing existing connection:", error);
-        }
-        this.sock = null;
-      }
-
-      // Clear auth state files
-      const fs = await import("fs/promises");
-      const path = await import("path");
-      const authDir = "./auth_info_baileys";
-
-      // Check if directory exists
-      try {
-        await fs.access(authDir);
-        const files = await fs.readdir(authDir);
-        
-        // Remove all auth files
-        for (const file of files) {
-          const filePath = path.join(authDir, file);
-          try {
-            await fs.unlink(filePath);
-            console.log(`✅ Removed auth file: ${file}`);
-          } catch (err) {
-            console.log(`Failed to remove ${file}:`, err);
-          }
-        }
-        
-        console.log("✅ Session cleared successfully");
-        await this.logActivity("info", "WhatsApp", "Sessão limpa manualmente. Aguardando novo QR code.");
-      } catch (error) {
-        console.log("Auth directory not found or already empty");
-      }
-
-      // Reset connection state completely
-      this.qrCode = null;
-      this.connectionState = { connection: "close" } as any;
-      this.reconnectAttempts = 0;
-
-      // Notify connected clients
-      this.emit("session_cleared", { success: true });
-      
-      // Reinitialize after a longer delay, and reset reconnecting flag
-      setTimeout(() => {
-        this.isReconnecting = false; // Now allow initialization
-        console.log("🔄 Reinitializing WhatsApp after session clear...");
-        this.initialize().catch(err => {
-          console.error("❌ Error reinitializing after clear:", err);
-          this.isReconnecting = false; // Reset flag on error
-        });
-      }, 3000);
-
-    } catch (error) {
-      console.error("❌ Error clearing session:", error);
-      await this.logActivity(
-        "error",
-        "WhatsApp",
-        `Erro ao limpar sessão: ${error}`,
-      );
-      this.isReconnecting = false; // Reset flag on error
-      throw error;
     }
   }
 
