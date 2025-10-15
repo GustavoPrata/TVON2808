@@ -125,11 +125,13 @@ export class WhatsAppService extends EventEmitter {
 
   constructor() {
     super();
-    // Initialize WhatsApp service
-    console.log("🚀 WhatsApp Service Constructor Called");
-    this.initialize().catch(error => {
-      console.error("❌ Failed to initialize WhatsApp service:", error);
-    });
+    // WhatsApp initialization disabled due to Error 405 - Meta/Facebook blocking
+    console.log("⚠️ WhatsApp Service: Initialization disabled due to WhatsApp Web blocking (Error 405)");
+    // To re-enable when WhatsApp fixes the issue:
+    // Uncomment the lines below and restart the server
+    // this.initialize().catch(error => {
+    //   console.error("❌ Failed to initialize WhatsApp service:", error);
+    // });
   }
 
   setWebSocketClients(clients: Set<any>) {
