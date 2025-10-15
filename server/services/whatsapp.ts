@@ -1,14 +1,12 @@
 import { Boom } from "@hapi/boom";
-import pkg from "@whiskeysockets/baileys";
-const {
-  default: makeWASocket,
+import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   isJidBroadcast,
   isJidStatusBroadcast,
   downloadMediaMessage,
   proto,
-} = pkg;
+} from "baileys";
 
 // Type definitions
 type WASocket = any;
