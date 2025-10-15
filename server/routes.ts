@@ -3768,33 +3768,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clear WhatsApp session forcefully
-  app.post("/api/whatsapp/clear-session", async (req, res) => {
+  app.post("/api/whatsapp/clear-session", checkAuth, async (req, res) => {
     try {
-      // First disconnect if connected
-      if (whatsappService.isConnected()) {
-        await whatsappService.disconnect();
-      }
-
-      // Clear auth files
-      const fs = await import("fs/promises");
-      const path = await import("path");
-      const authDir = "./auth_info_baileys";
-
-      try {
-        await fs.access(authDir);
-        const files = await fs.readdir(authDir);
-        for (const file of files) {
-          await fs.unlink(path.join(authDir, file));
-        }
-        console.log("Sessão do WhatsApp limpa manualmente");
-      } catch (error) {
-        console.log("Diretório de autenticação não existe ou já está vazio");
-      }
-
-      res.json({ message: "Sessão limpa com sucesso" });
+      // Use the new clearSession method from WhatsApp service
+      await whatsappService.clearSession();
+      
+      res.json({ 
+        success: true,
+        message: "Sessão limpa com sucesso. Aguarde novo QR code." 
+      });
     } catch (error) {
       console.error("Erro ao limpar sessão:", error);
-      res.status(500).json({ error: "Erro ao limpar sessão" });
+      res.status(500).json({ 
+        error: "Erro ao limpar sessão do WhatsApp",
+        details: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

@@ -10,7 +10,7 @@ import { queryClient, apiRequest } from '@/lib/queryClient';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Settings, User, Wifi, MessageSquare, Image, Users, Wrench, QrCode, Upload, Camera } from 'lucide-react';
+import { Settings, User, Wifi, MessageSquare, Image, Users, Wrench, QrCode, Upload, Camera, RefreshCw } from 'lucide-react';
 import QRCode from 'react-qr-code';
 
 interface WhatsAppSettings {
@@ -186,6 +186,28 @@ export default function WhatsAppConfig() {
     },
   });
 
+  // Clear session mutation
+  const clearSessionMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/whatsapp/clear-session');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: '🔄 Sessão limpa com sucesso!',
+        description: 'Aguarde novo QR code para reconectar.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/whatsapp/status'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: '❌ Erro ao limpar sessão',
+        description: error?.message || 'Não foi possível limpar a sessão.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleSaveSettings = async (field: keyof WhatsAppSettings) => {
     setIsSaving(field);
     // Send only the field being updated
@@ -254,23 +276,44 @@ export default function WhatsAppConfig() {
                 {isConnected ? 'WhatsApp Conectado' : 'WhatsApp Desconectado'}
               </span>
             </div>
-            {isConnected ? (
+            <div className="flex gap-2">
+              {isConnected ? (
+                <Button
+                  onClick={() => disconnectMutation.mutate()}
+                  className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white"
+                  size="sm"
+                >
+                  Desconectar
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => connectMutation.mutate()}
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
+                  size="sm"
+                >
+                  Conectar
+                </Button>
+              )}
               <Button
-                onClick={() => disconnectMutation.mutate()}
-                className="bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white"
+                onClick={() => clearSessionMutation.mutate()}
+                disabled={clearSessionMutation.isPending}
+                className="bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 text-white"
                 size="sm"
+                title="Limpar sessão atual e forçar novo QR code"
               >
-                Desconectar
+                {clearSessionMutation.isPending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Limpando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Limpar Sessão
+                  </>
+                )}
               </Button>
-            ) : (
-              <Button
-                onClick={() => connectMutation.mutate()}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white"
-                size="sm"
-              >
-                Conectar
-              </Button>
-            )}
+            </div>
           </div>
           
           {!isConnected && whatsappStatus?.qr && (
