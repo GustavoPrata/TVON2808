@@ -99,14 +99,5 @@ task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
-[[workflows.workflow]]
-name = "pm"
-mode = "parallel"
-author = 44958585
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "bash -c 'echo \"PROMPT:\"; exec bash'"
-
 [agent]
-integrations = ["javascript_log_in_with_replit:1.0.0", "javascript_database:1.0.0"]
+integrations = ["javascript_log_in_with_replit==1.0.0", "javascript_database==1.0.0"]
