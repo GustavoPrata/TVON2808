@@ -22,6 +22,7 @@ import {
 } from "./auth";
 import bcrypt from 'bcrypt';
 import { initAdmin } from "./init-admin";
+import { setupAuth } from "./replitAuth";
 import { OnlineOfficeService } from "./services/onlineoffice";
 import { autoRenewalService } from "./services/AutoRenewalService";
 import { createProxyMiddleware } from "http-proxy-middleware";
@@ -281,6 +282,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       name: 'tv.sid.' + crypto.createHash('md5').update(sessionSecret).digest('hex').substring(0, 8)
     }
   }));
+  
+  // Initialize Replit Auth
+  await setupAuth(app);
 
   // Serve static files for uploads
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
