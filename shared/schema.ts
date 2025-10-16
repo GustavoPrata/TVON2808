@@ -487,19 +487,46 @@ export const insertWhatsappSettingsSchema = createInsertSchema(whatsappSettings)
 export type WhatsappSettings = typeof whatsappSettings.$inferSelect;
 export type InsertWhatsappSettings = z.infer<typeof insertWhatsappSettingsSchema>;
 
-// Users table for compatibility
-export const users = pgTable("users", {
+// Admin users table (renamed from users to avoid conflict with Replit Auth)
+export const adminUsers = pgTable("admin_users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
+export const insertAdminUserSchema = createInsertSchema(adminUsers).pick({
   username: true,
   password: true,
 });
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
+export type AdminUser = typeof adminUsers.$inferSelect;
+
+// Session storage table for Replit Auth
+// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: json("sess").$type<any>().notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// User storage table for Replit Auth
+// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
 // Admin login table

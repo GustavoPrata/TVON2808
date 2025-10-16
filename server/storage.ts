@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { 
   clientes, pontos, pagamentos, pagamentosManual, conversas, mensagens, tickets, 
-  botConfig, notificacoesConfig, integracoes, logs, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
+  botConfig, notificacoesConfig, integracoes, logs, adminUsers, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
   avisosVencimento, configAvisos, anotacoes, notificacoesRecorrentes,
   officeAutomationConfig, officeAutomationLogs, officeCredentials, extensionStatus, campaignTemplates,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
@@ -9,7 +9,7 @@ import {
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
   type BotConfig, type InsertBotConfig, type NotificacaoConfig, type InsertNotificacaoConfig,
   type Integracao, type InsertIntegracao, type Log, type InsertLog,
-  type User, type InsertUser, type Sistema, type InsertSistema,
+  type AdminUser, type InsertAdminUser, type User, type UpsertUser, type Sistema, type InsertSistema,
   type RedirectUrl, type InsertRedirectUrl, type WhatsappSettings, type InsertWhatsappSettings,
   type Teste, type InsertTeste, type Indicacao, type InsertIndicacao,
   type MensagemRapida, type InsertMensagemRapida,
