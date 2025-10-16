@@ -417,9 +417,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/auth/status", (req, res) => {
-    if ((req.session as any).userId) {
-      res.json({ authenticated: true, user: (req.session as any).user });
-    } else {
+    // Check for Replit Auth (passport) first
+    if (req.user) {
+      const user = req.user as any;
+      res.json({ 
+        authenticated: true, 
+        user: user.claims?.email || user.claims?.sub || 'user' 
+      });
+    } 
+    // Then check for local authentication
+    else if ((req.session as any).userId) {
+      res.json({ 
+        authenticated: true, 
+        user: (req.session as any).user 
+      });
+    } 
+    // Not authenticated
+    else {
       res.json({ authenticated: false });
     }
   });
