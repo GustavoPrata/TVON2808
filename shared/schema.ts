@@ -1,4 +1,5 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, numeric, index, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, varchar, numeric, index, unique, jsonb } from "drizzle-orm/pg-core";
+import { sql } from 'drizzle-orm';
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -772,3 +773,15 @@ export const insertNotificacaoRecorrenteSchema = createInsertSchema(notificacoes
 
 export type NotificacaoRecorrente = typeof notificacoesRecorrentes.$inferSelect;
 export type InsertNotificacaoRecorrente = z.infer<typeof insertNotificacaoRecorrenteSchema>;
+
+// Session storage table for Replit Auth
+// (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
