@@ -1,54 +1,51 @@
-import { useState, useEffect } from 'react';
-import { authClient } from '../lib/authUtils';
+import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 
-export interface AuthUser {
-  id: string;
-  name?: string;
-  email?: string;
-  avatar?: string;
+interface AuthStatus {
+  authenticated: boolean;
+  username?: string;
 }
 
 export function useAuth() {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [, setLocation] = useLocation();
+  
+  const { data, isLoading, error, refetch } = useQuery<AuthStatus>({
+    queryKey: ["/api/auth/status"],
+    queryFn: async () => {
+      const response = await fetch("/api/auth/status");
+      if (response.status === 401) {
+        return { authenticated: false };
+      }
+      if (!response.ok) {
+        throw new Error("Failed to check auth status");
+      }
+      return response.json();
+    },
+    retry: false,
+    refetchOnWindowFocus: true,
+  });
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const userData = await authClient.getUser();
-      setUser(userData);
-    } catch (error) {
-      console.error('Failed to check auth status:', error);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+  const handleLogin = () => {
+    // Redirect to Replit Auth login
+    window.location.href = "/api/login";
   };
 
-  const login = () => {
-    authClient.login();
-  };
-
-  const logout = async () => {
+  const handleLogout = async () => {
     try {
-      await authClient.logout();
-      setUser(null);
-      // Redirect to home page after logout
-      window.location.href = '/';
+      await fetch("/api/logout", { method: "GET" });
+      refetch();
+      setLocation("/");
     } catch (error) {
-      console.error('Failed to logout:', error);
+      console.error("Logout failed:", error);
     }
   };
 
   return {
-    user,
-    loading,
-    isAuthenticated: !!user,
-    login,
-    logout,
-    checkAuth
+    isAuthenticated: data?.authenticated ?? false,
+    username: data?.username,
+    isLoading,
+    login: handleLogin,
+    logout: handleLogout,
+    refetch,
   };
 }
