@@ -515,6 +515,70 @@ export class WhatsAppService extends EventEmitter {
     return /^[0-9]+$/.test(text.trim());
   }
 
+  // Helper function to normalize button/list IDs to their corresponding menu options
+  private normalizeInteractiveId(id: string): string {
+    if (!id) return id;
+    
+    // Handle "option_X" format - extract the number
+    const optionMatch = id.match(/option[_\-]?(\d+)/i);
+    if (optionMatch) {
+      return optionMatch[1];
+    }
+    
+    // Map specific IDs to their menu numbers
+    const idMappings: Record<string, string> = {
+      // Common menu options
+      'ver_vencimento': '1',
+      'segunda_via': '2',
+      'suporte': '3',
+      'suporte_tecnico': '3',
+      'adicionar_ponto': '4',
+      'falar_vendedor': '5',
+      'teste_gratis': '6',
+      'renovar': '1',
+      'alterar_vencimento': '2',
+      'pagamento': '3',
+      'outros': '7',
+      
+      // Test menu options
+      'testar_novamente': '1',
+      'ativar_servico': '2',
+      
+      // Support submenu
+      'app_travando': '1',
+      'fora_do_ar': '2',
+      'outros_problemas': '3',
+      
+      // Device type options
+      'android': '1',
+      'iphone': '2',
+      'smart_tv': '1',
+      'tv_box': '2',
+      'computador': '3',
+      'celular': '4',
+      
+      // Common actions
+      'sim': '1',
+      'nao': '2',
+      'voltar': '0',
+      'menu': '0',
+    };
+    
+    // Check if ID is in our mappings (case-insensitive)
+    const lowerCaseId = id.toLowerCase().trim();
+    if (idMappings[lowerCaseId]) {
+      return idMappings[lowerCaseId];
+    }
+    
+    // If it's already a number, return as is
+    if (/^\d+$/.test(id.trim())) {
+      return id.trim();
+    }
+    
+    // Return original if no mapping found
+    return id;
+  }
+
   // Process buffered messages after delay
   private async processBufferedMessages(telefone: string) {
     const buffer = this.messageBuffers.get(telefone);
@@ -777,14 +841,20 @@ export class WhatsAppService extends EventEmitter {
     } else if (message.message?.ephemeralMessage?.message?.extendedTextMessage?.text) {
       messageText = message.message.ephemeralMessage.message.extendedTextMessage.text;
     } else if (message.message?.buttonsResponseMessage?.selectedButtonId) {
-      // Handle button response
-      messageText = message.message.buttonsResponseMessage.selectedButtonId;
+      // Handle button response and normalize the ID
+      const buttonId = message.message.buttonsResponseMessage.selectedButtonId;
+      messageText = this.normalizeInteractiveId(buttonId);
+      console.log(`Button response received: "${buttonId}" -> normalized to: "${messageText}"`);
     } else if (message.message?.listResponseMessage?.singleSelectReply?.selectedRowId) {
-      // Handle list response
-      messageText = message.message.listResponseMessage.singleSelectReply.selectedRowId;
+      // Handle list response and normalize the ID
+      const listId = message.message.listResponseMessage.singleSelectReply.selectedRowId;
+      messageText = this.normalizeInteractiveId(listId);
+      console.log(`List response received: "${listId}" -> normalized to: "${messageText}"`);
     } else if (message.message?.templateButtonReplyMessage?.selectedId) {
-      // Handle template button reply
-      messageText = message.message.templateButtonReplyMessage.selectedId;
+      // Handle template button reply and normalize the ID
+      const templateId = message.message.templateButtonReplyMessage.selectedId;
+      messageText = this.normalizeInteractiveId(templateId);
+      console.log(`Template button response received: "${templateId}" -> normalized to: "${messageText}"`;
     }
     
     let mediaUrl: string | undefined;
