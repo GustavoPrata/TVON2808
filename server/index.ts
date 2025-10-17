@@ -194,6 +194,16 @@ app.use((req, res, next) => {
   await discordNotificationService.initialize();
   console.log("✅ Serviço de notificações Discord inicializado");
   
+  // Importar e inicializar o WhatsApp Bot
+  try {
+    console.log("🤖 Iniciando WhatsApp Bot...");
+    const { whatsappBot } = await import("./services/whatsappBot");
+    await whatsappBot.initialize();
+    console.log("✅ WhatsApp Bot inicializado com sucesso");
+  } catch (error) {
+    console.error("❌ Erro ao inicializar WhatsApp Bot:", error);
+  }
+  
   // Iniciar o serviço de renovação automática se a configuração estiver habilitada
   try {
     const config = await storage.getOfficeAutomationConfig();
