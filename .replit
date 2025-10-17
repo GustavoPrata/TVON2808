@@ -99,5 +99,14 @@ task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
+[[workflows.workflow]]
+name = "prompt"
+mode = "sequential"
+author = 44958585
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"PROMPT:\" && tail -f /dev/null"
+
 [agent]
 integrations = ["javascript_log_in_with_replit==1.0.0", "javascript_database==1.0.0"]
