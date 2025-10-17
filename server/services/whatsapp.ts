@@ -2502,7 +2502,7 @@ export class WhatsAppService extends EventEmitter {
         if (formattedCode.length < 8) {
           console.log("Code too short to be a valid phone number:", formattedCode);
           // Invalid referral code - give options
-          await this.sendMessage(
+          await this.sendInteractiveMenu(
             telefone,
             `❌ Código de indicação inválido!\n\n` +
             `O código "${opcaoId}" não é um número de telefone válido.\n` +
@@ -2592,7 +2592,7 @@ export class WhatsAppService extends EventEmitter {
             );
           } else {
             // No test or no device info - ask for device
-            await this.sendMessage(
+            await this.sendInteractiveMenu(
               telefone,
               `✅ Código de indicação válido!\n` +
               `Indicado por: *${clienteIndicador.nome}*\n\n` +
@@ -2630,7 +2630,7 @@ export class WhatsAppService extends EventEmitter {
           return;
         } else {
           // Invalid referral code - give options
-          await this.sendMessage(
+          await this.sendInteractiveMenu(
             telefone,
             `❌ Código de indicação não encontrado!\n\n` +
             `O código "${opcaoId}" não está cadastrado.\n\n` +
@@ -2706,7 +2706,7 @@ export class WhatsAppService extends EventEmitter {
             );
           } else {
             // No test or no device info - ask for device
-            await this.sendMessage(
+            await this.sendInteractiveMenu(
               telefone,
               `Onde você vai assistir?\n\n` +
                 `1️⃣ Celular\n` +
@@ -2780,7 +2780,7 @@ export class WhatsAppService extends EventEmitter {
             `⏰ *Horário de atendimento:* Das 8h às 22h`,
           );
         } else {
-          await this.sendMessage(
+          await this.sendInteractiveMenu(
             telefone,
             `❌ *Opção inválida!* Por favor, escolha uma das opções disponíveis.\n\n` +
             `1️⃣ Ativar plano agora\n` +
@@ -4101,7 +4101,7 @@ export class WhatsAppService extends EventEmitter {
     }
 
     // Invalid option
-    await this.sendMessage(
+    await this.sendInteractiveMenu(
       telefone,
       `❌ *Opção inválida!* Por favor, escolha:\n\n` +
         `1️⃣ Renovar plano\n` +
@@ -4125,7 +4125,7 @@ export class WhatsAppService extends EventEmitter {
     // Opção 0 - Voltar
     if (opcaoId === "0") {
       // Voltar para o menu de dispositivos
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `Legal! 😄 Vamos adicionar um novo ponto.\n\n` +
           `Onde você vai assistir?\n\n` +
@@ -4511,7 +4511,7 @@ export class WhatsAppService extends EventEmitter {
     // Opção 0 - Voltar
     if (opcaoId === "0") {
       // Voltar para o menu de dispositivos
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `Legal! 😄 Vamos adicionar um novo ponto.\n\n` +
           `Onde você vai assistir?\n\n` +
@@ -4783,7 +4783,7 @@ export class WhatsAppService extends EventEmitter {
             !integracao.ativo ||
             !(integracao.configuracoes as any)?.appId
           ) {
-            await this.sendMessage(
+            await this.sendInteractiveMenu(
               telefone,
               `⚠️ *SISTEMA PIX NÃO CONFIGURADO*\n\n` +
                 `O sistema de pagamento PIX ainda não está configurado.\n` +
@@ -4804,7 +4804,7 @@ export class WhatsAppService extends EventEmitter {
 
         // Verificar se é erro de configuração
         if (error.message?.includes("PIX não está configurado")) {
-          await this.sendMessage(
+          await this.sendInteractiveMenu(
             telefone,
             `⚠️ *SISTEMA PIX NÃO CONFIGURADO*\n\n` +
               `O sistema de pagamento PIX ainda não está configurado.\n` +
@@ -4928,7 +4928,7 @@ export class WhatsAppService extends EventEmitter {
         }
       } catch (error) {
         console.error("Erro ao verificar pagamento:", error);
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `⚠️ *Pagamento ainda não confirmado*\n\n` +
             `Por favor, aguarde alguns instantes após o pagamento.\n\n` +
