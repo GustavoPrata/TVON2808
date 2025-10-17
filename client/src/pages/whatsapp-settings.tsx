@@ -277,7 +277,7 @@ export default function WhatsAppSettings() {
         <div className="text-center">
           <div className="w-48 h-48 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
             <img 
-              src={whatsappStatus.qr} 
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(whatsappStatus.qr)}`} 
               alt="QR Code WhatsApp" 
               className="w-full h-full object-contain"
               style={{ pointerEvents: 'none' }}
@@ -1006,7 +1006,7 @@ export default function WhatsAppSettings() {
               </Button>
             </div>
             <img 
-              src={whatsappStatus.qr}
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(whatsappStatus.qr)}`}
               alt="QR Code Ampliado"
               className="w-96 h-96"
             />
