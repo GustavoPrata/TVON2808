@@ -1,5 +1,5 @@
 import { Boom } from "@hapi/boom";
-import pkg from "@whiskeysockets/baileys";
+import pkg from "baileys";
 const {
   default: makeWASocket,
   DisconnectReason,
