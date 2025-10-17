@@ -529,6 +529,127 @@ class WhatsAppModule {
       return false;
     }
   }
+
+  // WebSocket management
+  setWebSocketClients(clients) {
+    this.webSocketClients = clients;
+    console.log("✅ WebSocket clients set in WhatsApp module");
+  }
+
+  // Additional methods needed by routes
+  async getCachedMessage(messageId) {
+    // Implement if needed
+    return null;
+  }
+
+  async sendImage(to, buffer, caption) {
+    if (!this.sock) throw new Error("WhatsApp não conectado");
+    
+    const jid = this.formatPhoneNumber(to) + "@s.whatsapp.net";
+    
+    try {
+      const result = await this.sock.sendMessage(jid, {
+        image: buffer,
+        caption: caption || ""
+      });
+      return result;
+    } catch (error) {
+      console.error("Error sending image:", error);
+      throw error;
+    }
+  }
+
+  async sendMedia(to, media, options = {}) {
+    if (!this.sock) throw new Error("WhatsApp não conectado");
+    
+    const jid = this.formatPhoneNumber(to) + "@s.whatsapp.net";
+    
+    try {
+      const result = await this.sock.sendMessage(jid, { ...media, ...options });
+      return result;
+    } catch (error) {
+      console.error("Error sending media:", error);
+      throw error;
+    }
+  }
+
+  async deleteMessage(jid, messageId) {
+    if (!this.sock) throw new Error("WhatsApp não conectado");
+    
+    try {
+      await this.sock.sendMessage(jid, { delete: { id: messageId } });
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      throw error;
+    }
+  }
+
+  async editMessage(jid, messageId, newContent) {
+    if (!this.sock) throw new Error("WhatsApp não conectado");
+    
+    try {
+      await this.sock.sendMessage(jid, {
+        text: newContent,
+        edit: { id: messageId }
+      });
+    } catch (error) {
+      console.error("Error editing message:", error);
+      throw error;
+    }
+  }
+
+  async resetConversationState(jid) {
+    // Implement if needed - usually involves clearing conversation cache
+    console.log("Resetting conversation state for:", jid);
+  }
+
+  getConnectionState() {
+    return {
+      isConnected: this.sock ? !this.sock.ws.isClosed : false,
+      isConnecting: this.isConnecting
+    };
+  }
+
+  getQRCode() {
+    return this.qr;
+  }
+
+  getCurrentUserProfile() {
+    return this.userProfile;
+  }
+
+  async requestPairingCode(phoneNumber) {
+    // Not implemented in Baileys 6.4.0
+    throw new Error("Pairing code not supported in this version");
+  }
+
+  async connectWithPairingCode(code) {
+    // Not implemented in Baileys 6.4.0
+    throw new Error("Pairing code not supported in this version");
+  }
+
+  formatPhoneNumber(number) {
+    if (!number) return "";
+    
+    number = number.replace(/\D/g, "");
+    
+    if (number.length === 10 || number.length === 11) {
+      number = "55" + number;
+    }
+    
+    if (number.startsWith("55") && number.length === 13) {
+      if (number[4] === "9" && number.length === 13) {
+        return number;
+      }
+      if (number[4] !== "9") {
+        const ddd = number.substring(2, 4);
+        const numeroSemNove = number.substring(4);
+        number = "55" + ddd + "9" + numeroSemNove;
+      }
+    }
+    
+    return number;
+  }
 }
 
 module.exports = WhatsAppModule;
