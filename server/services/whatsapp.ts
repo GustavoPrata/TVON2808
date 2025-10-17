@@ -830,6 +830,8 @@ export class WhatsAppService extends EventEmitter {
     }
     // Extract text from different message types
     let messageText = "";
+    let mediaUrl: string | undefined;
+    let replyMetadata: any = undefined;
     
     // Try to extract text from various message formats
     if (message.message?.conversation) {
@@ -845,20 +847,29 @@ export class WhatsAppService extends EventEmitter {
       const buttonId = message.message.buttonsResponseMessage.selectedButtonId;
       messageText = this.normalizeInteractiveId(buttonId);
       console.log(`Button response received: "${buttonId}" -> normalized to: "${messageText}"`);
+      // Store original button ID in metadata for debugging
+      if (buttonId !== messageText) {
+        replyMetadata = { ...replyMetadata, originalButtonId: buttonId };
+      }
     } else if (message.message?.listResponseMessage?.singleSelectReply?.selectedRowId) {
       // Handle list response and normalize the ID
       const listId = message.message.listResponseMessage.singleSelectReply.selectedRowId;
       messageText = this.normalizeInteractiveId(listId);
       console.log(`List response received: "${listId}" -> normalized to: "${messageText}"`);
+      // Store original list ID in metadata for debugging
+      if (listId !== messageText) {
+        replyMetadata = { ...replyMetadata, originalButtonId: listId };
+      }
     } else if (message.message?.templateButtonReplyMessage?.selectedId) {
       // Handle template button reply and normalize the ID
       const templateId = message.message.templateButtonReplyMessage.selectedId;
       messageText = this.normalizeInteractiveId(templateId);
-      console.log(`Template button response received: "${templateId}" -> normalized to: "${messageText}"`;
+      console.log(`Template button response received: "${templateId}" -> normalized to: "${messageText}"`);
+      // Store original template ID in metadata for debugging
+      if (templateId !== messageText) {
+        replyMetadata = { ...replyMetadata, originalButtonId: templateId };
+      }
     }
-    
-    let mediaUrl: string | undefined;
-    let replyMetadata: any = undefined;
 
     // Check if this is a reply message
     if (message.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
@@ -1680,6 +1691,10 @@ export class WhatsAppService extends EventEmitter {
       }
 
       // Salvar mensagem
+      // Log to verify normalized value is being saved
+      if (message.type === "text" && message.metadados?.originalButtonId) {
+        console.log(`[DEBUG] Saving normalized button response: "${message.message}" (original: "${message.metadados.originalButtonId}")`);
+      }
       const mensagem = await storage.createMensagem({
         conversaId: conversa.id,
         conteudo: message.message,
