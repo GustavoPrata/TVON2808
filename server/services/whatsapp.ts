@@ -5749,21 +5749,20 @@ export class WhatsAppService extends EventEmitter {
     try {
       const jid = `${telefone}@s.whatsapp.net`;
 
-      // Use template buttons format
+      // Use correct Itsukichann/Baileys button format
       const buttonMessage = {
         text: text,
         footer: footer || "TV ON Sistema - Atendimento 24/7",
-        templateButtons: buttons.map((btn, index) => ({
-          index: index + 1,
-          quickReplyButton: {
-            displayText: btn.displayText,
-            id: btn.id,
-          },
-        })),
+        buttons: buttons.map((btn) => ({
+          buttonId: btn.id,
+          buttonText: {
+            displayText: btn.displayText
+          }
+        }))
       };
 
       console.log(
-        "Enviando mensagem com botões - formato:",
+        "Enviando mensagem com botões - formato Itsukichann/Baileys:",
         JSON.stringify(buttonMessage, null, 2),
       );
 

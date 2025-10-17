@@ -4245,13 +4245,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Test menu message endpoint
   app.post("/api/whatsapp/test-menu", async (req, res) => {
     try {
-      const { telefone = "5514991949280", type = "text" } = req.body;
+      const { telefone = "5514991949280", type = "buttons" } = req.body;
 
-      // NOTA: WhatsApp descontinuou botões clicáveis (template buttons) em 2022
-      // Para contas não-verificadas, apenas menu de texto funciona
-      // Botões reais só funcionam com WhatsApp Business API oficial (pago)
-      
-      const menuMessage = `👋 *Olá! Bem-vindo ao TV ON Sistema!*
+      if (type === "buttons") {
+        // Teste com botões usando formato correto da Itsukichann/Baileys
+        const text = `👋 *Olá! Bem-vindo ao TV ON Sistema!*
+
+📅 Vencimento: 14/11/2025
+💰 Valor: R$ 49.90
+
+Selecione uma opção:`;
+
+        const buttons = [
+          { id: "ver_vencimento", displayText: "📅 Ver Vencimento" },
+          { id: "segunda_via", displayText: "💳 Segunda Via" },
+          { id: "suporte", displayText: "🛠️ Suporte" },
+        ];
+
+        const messageId = await whatsappService.sendButtonMessage(
+          telefone,
+          text,
+          buttons,
+          "TV ON Sistema - Atendimento 24/7"
+        );
+
+        res.json({
+          success: true,
+          messageId,
+          message: "Mensagem com botões enviada! Usando formato Itsukichann/Baileys.",
+          type: "buttons",
+          format: "Itsukichann/Baileys buttons format"
+        });
+      } else {
+        // Fallback para menu de texto
+        const menuMessage = `👋 *Olá! Bem-vindo ao TV ON Sistema!*
 
 📅 Vencimento: 14/11/2025
 💰 Valor: R$ 49.90
@@ -4269,18 +4296,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 💡 _Dica: Você também pode digitar palavras como "vencimento", "pix", "renovar" ou "suporte"_`;
 
-      const messageId = await whatsappService.sendMessage(
-        telefone,
-        menuMessage,
-      );
+        const messageId = await whatsappService.sendMessage(
+          telefone,
+          menuMessage,
+        );
 
-      res.json({
-        success: true,
-        messageId,
-        message: "Menu interativo enviado! Os botões clicáveis foram descontinuados pelo WhatsApp para contas não-verificadas.",
-        type: "text",
-        note: "WhatsApp descontinuou botões em 2022. Use menu numerado ou WhatsApp Business API oficial."
-      });
+        res.json({
+          success: true,
+          messageId,
+          message: "Menu de texto enviado com sucesso!",
+          type: "text"
+        });
+      }
     } catch (error) {
       console.error("Erro ao enviar menu de teste:", error);
       res.status(500).json({ error: error.message });

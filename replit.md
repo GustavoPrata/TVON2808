@@ -9,6 +9,7 @@ TV ON is a comprehensive management system for TV/streaming services, designed t
 - **Data Management**: Systems data must come from local database, not external API
 
 ## Recent Changes
+- **17/10/2025**: Successfully implemented WhatsApp interactive buttons using correct Itsukichann/Baileys format. Buttons now work with buttonId/buttonText structure, sending button ID as response when clicked. Added test endpoint for buttons and text menus.
 - **13/10/2025 (v2)**: Fixed M3U upload HTML display bug. Server proxy now properly detects and converts HTML responses to JSON, preventing raw HTML/CSS code from appearing on screen after file upload. Improved error detection logic to correctly identify HTML error messages even with 200 status codes.
 - **13/10/2025**: Added Gestor Defender quick access button in config-tv page. New indigo gradient button with Globe icon positioned left of "Carregar M3U" button, opens gestordefender.com in new tab for easy access to management platform.
 - **11/10/2025 (v3)**: Updated WhatsApp bot trial duration from 24h to 6h. Changed all references in bot messages, menu options, PIX payment instructions, and backend calculations. Maintained 24h references for support availability only.
