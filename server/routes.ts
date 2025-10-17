@@ -3458,10 +3458,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WhatsApp
   app.get("/api/whatsapp/status", async (req, res) => {
     try {
-      const status = whatsappService.getConnectionState();
-      const qr = whatsappService.getQRCode();
-      const userProfile = await whatsappService.getCurrentUserProfile();
-      res.json({ status, qr, userProfile });
+      const status = whatsappService.getStatus();
+      res.json({
+        status: {
+          ...status,
+          connection: status.isConnected ? 'open' : status.isConnecting ? 'connecting' : 'close'
+        }
+      });
     } catch (error) {
       res.status(500).json({ error: "Erro ao buscar status do WhatsApp" });
     }
