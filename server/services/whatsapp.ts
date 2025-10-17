@@ -199,15 +199,44 @@ export class WhatsAppService extends EventEmitter {
 
       this.sock = makeWASocket({
         auth: state,
-        browser: ["TV ON System", "Chrome", "1.0.0"],
+        browser: ["Ubuntu", "Chrome", "20.0.04"],
         logger: logger,
         // Add connection timeout to prevent hanging
         connectTimeoutMs: 60000,
         // Add default presence to available
-        markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? true,
+        markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? false,
         // Add retry options
         retryRequestDelayMs: 2000,
         maxMsgRetryCount: 5,
+        // Additional options to bypass Meta blocking
+        printQRInTerminal: false,
+        generateHighQualityLinkPreview: true,
+        syncFullHistory: false,
+        fireInitQueries: false,
+        shouldSyncHistoryMessage: () => false,
+        getMessage: async () => undefined,
+        // User agent customization
+        patchMessageBeforeSending: (message: any) => {
+          const requiresPatch = !!(
+            message.buttonsMessage ||
+            message.templateMessage ||
+            message.listMessage
+          );
+          if (requiresPatch) {
+            message = {
+              viewOnceMessage: {
+                message: {
+                  messageContextInfo: {
+                    deviceListMetadata: {},
+                    deviceListMetadataVersion: 2
+                  },
+                  ...message
+                }
+              }
+            };
+          }
+          return message;
+        },
       }) as any;
 
       this.sock.ev.on("connection.update", (update) => {
