@@ -2152,7 +2152,7 @@ export class WhatsAppService extends EventEmitter {
 
     switch (opcaoId) {
       case "1": // Teste grátis por 6h
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Legal! 😄 Vamos ativar seu teste gratuito por 6h.\n\n` +
             `Onde você vai assistir?\n\n` +
@@ -2171,7 +2171,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "2": // Quero assinar agora
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Show! 🎉 Agora me diz, você tem um código de indicação?\n\n` +
             `1️⃣ Sim, tenho código\n` +
@@ -2186,7 +2186,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "3": // Qual o conteúdo?
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `📺 A TvON te dá acesso a:\n\n` +
             `• Todos os canais ao vivo (Globo, SBT, Record, SporTV, Premiere, Discovery, Cartoon, etc)\n` +
@@ -2208,7 +2208,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "4": // Qual o valor?
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `💰 Planos TvON:\n\n` +
             `• 🔹 Mensal: R$ 29,90\n` +
@@ -2232,7 +2232,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "5": // Por onde consigo assistir?
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Você pode usar a TvON em praticamente qualquer dispositivo com internet:\n\n` +
             `• 📱 Celulares Android e iPhone\n` +
@@ -2254,7 +2254,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "6": // Saber mais
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `A *TvON* é uma central de conteúdo que reúne:\n\n` +
             `• ✅ Canais ao vivo de todas as categorias (abertos e fechados)\n` +
@@ -3585,7 +3585,7 @@ export class WhatsAppService extends EventEmitter {
           clienteId: cliente.id,
         });
 
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `*INFORMAÇÕES DO SEU PLANO*\n\n` +
             `Vencimento: ${vencimento}\n` +
@@ -3623,7 +3623,7 @@ export class WhatsAppService extends EventEmitter {
         const precos2 = this.calcularPrecosRenovacao(valorMensal2);
 
         // Mostrar informações do plano e opções de renovação
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `*RENOVAR PLANO*\n\n` +
             `*Seu plano atual:*\n` +
@@ -3672,7 +3672,7 @@ export class WhatsAppService extends EventEmitter {
           listaPontos = "Nenhum ponto cadastrado\n";
         }
 
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `*GERENCIAR PONTOS*\n\n` +
             `*Pontos ativos:* ${pontosAtuais.length}\n` +
@@ -3697,7 +3697,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "5": // Suporte técnico
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `*SUPORTE TÉCNICO*\n\n` +
             `*Escolha o problema que está enfrentando:*\n\n` +
@@ -3935,7 +3935,7 @@ export class WhatsAppService extends EventEmitter {
         listaPontos = "Nenhum ponto cadastrado\n";
       }
 
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `*GERENCIAR PONTOS*\n\n` +
           `*Pontos ativos:* ${pontosAtuais.length}\n` +
@@ -4385,7 +4385,7 @@ export class WhatsAppService extends EventEmitter {
             (lastUnlock.getTime() + 30 * 24 * 60 * 60 * 1000 - now.getTime()) / (1000 * 60 * 60 * 24)
           );
           
-          await this.sendMessage(
+          await this.sendInteractiveMenu(
             telefone,
             `❌ *Desbloqueio não disponível*\n\n` +
             `Você já utilizou o desbloqueio de confiança este mês.\n` +
@@ -4438,7 +4438,7 @@ export class WhatsAppService extends EventEmitter {
         const precos = this.calcularPrecosRenovacao(valorMensal);
 
         // Show renewal options
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `*RENOVAR PLANO*\n\n` +
           `*Escolha o período:*\n\n` +
@@ -4983,7 +4983,7 @@ export class WhatsAppService extends EventEmitter {
 
     switch (opcaoId) {
       case "1": // Ativar plano agora (igual novos bot opção 2)
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Show! 🎉 Agora me diz, você tem um código de indicação?\n\n` +
             `1️⃣ Sim, tenho código\n` +
@@ -6030,12 +6030,11 @@ export class WhatsAppService extends EventEmitter {
     while ((match = numberPattern.exec(text)) !== null) {
       const optionNumber = match[1];
       const optionText = match[2].trim();
-      if (optionNumber !== '0') { // Skip "0️⃣ Voltar" option
-        menuOptions.push({
-          id: `option_${optionNumber}`,
-          text: `${optionNumber}️⃣ ${optionText}`
-        });
-      }
+      // Include all options, including "0️⃣ Voltar"
+      menuOptions.push({
+        id: `option_${optionNumber}`,
+        text: `${optionNumber}️⃣ ${optionText}`
+      });
     }
 
     // If no options found, send as regular message
