@@ -534,7 +534,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       '/api/sync/user-systems',
       
       // Public access for renewal queue monitoring
-      '/api/sistemas/renewal-queue'
+      '/api/sistemas/renewal-queue',
+      
+      // TEMPORARY: Test menu endpoint for WhatsApp
+      '/api/whatsapp/test-menu'
     ];
     
     // Use originalUrl to get the full path including /api prefix
