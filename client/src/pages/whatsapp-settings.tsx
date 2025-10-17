@@ -46,6 +46,7 @@ interface WhatsAppSettings {
   reconnectInterval: number;
   maxReconnectRetries: number;
   logLevel: string;
+  menuInterativoEnabled: boolean;
 }
 
 // Custom hook for debounced value
@@ -110,6 +111,7 @@ export default function WhatsAppSettings() {
     reconnectInterval: settings?.reconnectInterval ?? 5000,
     maxReconnectRetries: settings?.maxReconnectRetries ?? 5,
     logLevel: settings?.logLevel ?? 'info',
+    menuInterativoEnabled: settings?.menuInterativoEnabled ?? false,
   });
 
   useEffect(() => {
@@ -978,6 +980,44 @@ export default function WhatsAppSettings() {
                   <p className="text-sm text-slate-400">
                     Número máximo de tentativas de reconexão
                   </p>
+                </div>
+                
+                <Separator className="bg-slate-700" />
+                
+                <div className="space-y-2">
+                  <h4 className="text-white font-semibold flex items-center gap-2">
+                    🎯 Menu Interativo
+                  </h4>
+                  <div className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg">
+                    <div className="space-y-1">
+                      <Label htmlFor="menuInterativoEnabled" className="text-white">
+                        Ativar Modo Menu Interativo
+                      </Label>
+                      <p className="text-sm text-slate-400">
+                        Usa botões clicáveis (até 3) ou listas (mais de 3 opções)
+                      </p>
+                    </div>
+                    <Switch
+                      id="menuInterativoEnabled"
+                      checked={formData.menuInterativoEnabled}
+                      onCheckedChange={(checked) => handleUpdateSettings('menuInterativoEnabled', checked)}
+                    />
+                  </div>
+                  <div className="bg-blue-950/50 border border-blue-800 rounded-lg p-4">
+                    <div className="flex gap-3">
+                      <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div className="space-y-2 text-sm">
+                        <p className="text-blue-300 font-medium">Como funciona:</p>
+                        <ul className="space-y-1 text-slate-400 list-disc list-inside">
+                          <li>Detecta automaticamente a quantidade de opções</li>
+                          <li>1-3 opções: Usa botões clicáveis interativos</li>
+                          <li>4+ opções: Usa lista interativa com seleção</li>
+                          <li>Mantém exatamente os mesmos textos</li>
+                          <li>Fallback para menu numerado se falhar</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

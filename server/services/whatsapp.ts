@@ -2830,10 +2830,10 @@ export class WhatsAppService extends EventEmitter {
       case "info_only":
         const state = this.conversaStates.get(telefone);
         const lastOption = state?.lastOption || "";
-        await this.sendMessage(telefone, this.getInfoOnlyMenuText(lastOption));
+        await this.sendInteractiveMenu(telefone, this.getInfoOnlyMenuText(lastOption));
         break;
       case "teste_dispositivo":
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Por qual dispositivo você quer fazer o teste?\n\n` +
             `1️⃣ Celular\n` +
@@ -2845,7 +2845,7 @@ export class WhatsAppService extends EventEmitter {
         );
         break;
       case "assinar_codigo":
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Show! 🎉 Agora me diz, você tem um código de indicação?\n\n` +
             `1️⃣ Sim, tenho código\n` +
@@ -2854,7 +2854,7 @@ export class WhatsAppService extends EventEmitter {
         );
         break;
       case "assinar_dispositivo":
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Por qual dispositivo você quer usar?\n\n` +
             `1️⃣ Celular\n` +
@@ -2866,13 +2866,13 @@ export class WhatsAppService extends EventEmitter {
         );
         break;
       case "celular_tipo":
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Seu celular é:\n\n` + `1️⃣ Android\n` + `2️⃣ iPhone\n` + `0️⃣ Voltar`,
         );
         break;
       case "smart_tv_marca":
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Qual é a marca da sua Smart TV?\n\n` +
             `1️⃣ Samsung\n` +
@@ -2898,7 +2898,7 @@ export class WhatsAppService extends EventEmitter {
   ) {
     switch (opcaoId) {
       case "1": // Celular
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Seu celular é:\n\n` + `1️⃣ Android\n` + `2️⃣ iPhone\n` + `0️⃣ Voltar`,
         );
@@ -2926,7 +2926,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "3": // Smart TV
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Qual é a marca da sua Smart TV?\n\n` +
             `1️⃣ Samsung\n` +
@@ -3086,7 +3086,7 @@ export class WhatsAppService extends EventEmitter {
         );
       } else {
         // No test or no device info - ask for device
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Onde você vai assistir?\n\n` +
             `1️⃣ Celular\n` +
@@ -3123,7 +3123,7 @@ export class WhatsAppService extends EventEmitter {
         lastActivity: new Date(),
         previousMenu: "assinar_dispositivo",
       });
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `Show! 🎉 Agora me diz, você tem um código de indicação?\n\n` +
           `1️⃣ Sim, tenho código\n` +
@@ -3139,7 +3139,7 @@ export class WhatsAppService extends EventEmitter {
 
     switch (opcaoId) {
       case "1": // Celular - ask for type
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Seu celular é:\n\n` + `1️⃣ Android\n` + `2️⃣ iPhone\n` + `0️⃣ Voltar`,
         );
@@ -3163,7 +3163,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "3": // Smart TV - ask for brand
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Qual é a marca da sua Smart TV?\n\n` +
             `1️⃣ Samsung\n` +
@@ -4971,7 +4971,7 @@ export class WhatsAppService extends EventEmitter {
           `8️⃣ Já sou cliente`;
 
         console.log("Enviando menu de novos clientes:", menu);
-        await this.sendMessage(telefone, menu);
+        await this.sendInteractiveMenu(telefone, menu);
 
         // Limpar estado de submenu se existir
         this.conversaStates.delete(telefone);
@@ -5004,7 +5004,7 @@ export class WhatsAppService extends EventEmitter {
             `3️⃣ Falar com atendente`;
           
           console.log("Enviando menu de cliente vencido:", expiredMenu);
-          await this.sendMessage(telefone, expiredMenu);
+          await this.sendInteractiveMenu(telefone, expiredMenu);
           
           // Set state for expired client menu
           this.conversaStates.set(telefone, {
@@ -5038,7 +5038,7 @@ export class WhatsAppService extends EventEmitter {
           menuOptions;
 
         console.log("Enviando menu de clientes:", menu);
-        await this.sendMessage(telefone, menu);
+        await this.sendInteractiveMenu(telefone, menu);
 
         // Limpar estado de submenu se existir
         this.conversaStates.delete(telefone);
@@ -5065,7 +5065,7 @@ export class WhatsAppService extends EventEmitter {
               `2️⃣ Falar com atendente`;
             
             console.log("Enviando menu de teste expirado:", expiredMenu);
-            await this.sendMessage(telefone, expiredMenu);
+            await this.sendInteractiveMenu(telefone, expiredMenu);
             
             // Limpar estado de submenu se existir
             this.conversaStates.delete(telefone);
@@ -5102,7 +5102,7 @@ export class WhatsAppService extends EventEmitter {
             `2️⃣ Falar com atendente`;
           
           console.log("Enviando menu de teste ativo:", activeTestMenu);
-          await this.sendMessage(telefone, activeTestMenu);
+          await this.sendInteractiveMenu(telefone, activeTestMenu);
           
           // Limpar estado de submenu se existir
           this.conversaStates.delete(telefone);
@@ -5117,7 +5117,7 @@ export class WhatsAppService extends EventEmitter {
           `2️⃣ Falar com atendente`;
         
         console.log("Enviando menu padrão (sem teste encontrado):", defaultTestMenu);
-        await this.sendMessage(telefone, defaultTestMenu);
+        await this.sendInteractiveMenu(telefone, defaultTestMenu);
         
         // Limpar estado de submenu se existir
         this.conversaStates.delete(telefone);
@@ -5146,7 +5146,7 @@ export class WhatsAppService extends EventEmitter {
       });
 
       console.log("Enviando menu de texto:", menu);
-      await this.sendMessage(telefone, menu);
+      await this.sendInteractiveMenu(telefone, menu);
 
       console.log("Menu enviado com sucesso");
     } catch (error) {
@@ -5921,6 +5921,86 @@ export class WhatsAppService extends EventEmitter {
         `Erro ao enviar lista: ${error}`,
       );
       return null;
+    }
+  }
+
+  async sendInteractiveMenu(
+    telefone: string,
+    text: string,
+    footer?: string
+  ): Promise<string | null> {
+    // Check if menu mode is enabled
+    const settings = await storage.getWhatsappSettings();
+    if (!settings?.menuInterativoEnabled) {
+      // Send as normal text message if menu mode is disabled
+      return this.sendMessage(telefone, text);
+    }
+
+    // Parse menu options from text
+    const menuOptions: Array<{ id: string; text: string }> = [];
+    
+    // Extract numbered options (1️⃣, 2️⃣, etc.)
+    const numberPattern = /([0-9])️⃣\s*([^\n]+)/g;
+    let match;
+    while ((match = numberPattern.exec(text)) !== null) {
+      const optionNumber = match[1];
+      const optionText = match[2].trim();
+      if (optionNumber !== '0') { // Skip "0️⃣ Voltar" option
+        menuOptions.push({
+          id: `option_${optionNumber}`,
+          text: `${optionNumber}️⃣ ${optionText}`
+        });
+      }
+    }
+
+    // If no options found, send as regular message
+    if (menuOptions.length === 0) {
+      return this.sendMessage(telefone, text);
+    }
+
+    // Get the main text (before options)
+    const mainTextMatch = text.match(/^([\s\S]*?)(?=[0-9]️⃣)/);
+    const mainText = mainTextMatch ? mainTextMatch[1].trim() : text;
+
+    try {
+      if (menuOptions.length <= 3) {
+        // Use buttons for 3 or fewer options
+        const buttons = menuOptions.map(opt => ({
+          id: opt.id,
+          displayText: opt.text
+        }));
+
+        console.log(`📱 Enviando menu com ${buttons.length} botões para ${telefone}`);
+        return await this.sendButtonMessage(
+          telefone,
+          mainText,
+          buttons,
+          footer || "TV ON Sistema - Atendimento 24/7"
+        );
+      } else {
+        // Use list for more than 3 options
+        const sections = [{
+          title: "Escolha uma opção",
+          rows: menuOptions.map(opt => ({
+            id: opt.id,
+            title: opt.text,
+            description: ""
+          }))
+        }];
+
+        console.log(`📋 Enviando menu com lista (${menuOptions.length} opções) para ${telefone}`);
+        return await this.sendListMessage(
+          telefone,
+          "Menu de Opções",
+          mainText,
+          "Ver Opções",
+          sections
+        );
+      }
+    } catch (error) {
+      console.error("Erro ao enviar menu interativo, usando fallback:", error);
+      // Fallback to regular text message
+      return this.sendMessage(telefone, text);
     }
   }
 

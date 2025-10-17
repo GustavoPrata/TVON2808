@@ -481,6 +481,9 @@ export const whatsappSettings = pgTable('whatsapp_settings', {
   maxReconnectRetries: integer('max_reconnect_retries').default(5),
   logLevel: text('log_level').default('info'),
   
+  // Interactive menu settings
+  menuInterativoEnabled: boolean('menu_interativo_enabled').default(false),
+  
   updatedAt: timestamp('updated_at').defaultNow(),
 });
 
