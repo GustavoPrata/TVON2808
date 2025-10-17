@@ -1,20 +1,15 @@
 import { Boom } from "@hapi/boom";
 
-// Using require for Baileys due to ESM compatibility issues
-const baileys = require("@whiskeysockets/baileys");
-
-// Debug: check what baileys contains
-console.log("Baileys keys:", Object.keys(baileys));
-
-const makeWASocket = baileys.default;
-const { 
+// Using require for Baileys due to ESM compatibility issues with version 6.4.0
+const {
+  makeWASocket,
   DisconnectReason,
   useMultiFileAuthState,
   isJidBroadcast,
   isJidStatusBroadcast,
   downloadMediaMessage,
   proto
-} = baileys;
+} = require("@whiskeysockets/baileys");
 
 // Type definitions
 type WASocket = any;
