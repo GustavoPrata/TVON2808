@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ptBR } from 'date-fns/locale';
 import { formatTimeInBrazil } from '@/lib/date-utils';
-import { Check, CheckCheck, Clock, Reply, Forward, Copy, Trash2, Download, MoreVertical, FileText, Edit, Eye, EyeOff, ChevronRight, List } from 'lucide-react';
+import { Check, CheckCheck, Clock, Reply, Forward, Copy, Trash2, Download, MoreVertical, FileText, Edit, Eye, EyeOff, ChevronRight, ChevronDown, ChevronUp, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -70,6 +70,7 @@ export function MessageBubble({
   isLastInGroup = true,
 }: MessageBubbleProps) {
   const [showImageViewer, setShowImageViewer] = useState(false);
+  const [isListExpanded, setIsListExpanded] = useState(false);
   
   // Check if message can be edited (within 14.5 minutes)
   const canEditMessage = () => {
@@ -174,48 +175,78 @@ export function MessageBubble({
       return (
         <div className="mt-3">
           <div className="border-t border-white/10 pt-3">
-            <div className="bg-white/5 rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between mb-2">
+            <div 
+              className={cn(
+                "bg-white/5 rounded-lg overflow-hidden transition-all duration-300",
+                !isListExpanded ? "cursor-pointer hover:bg-white/10" : ""
+              )}
+              onClick={() => !isListExpanded && setIsListExpanded(true)}
+            >
+              {/* Header - Always visible */}
+              <div 
+                className={cn(
+                  "p-3 flex items-center justify-between",
+                  isListExpanded && "cursor-pointer hover:bg-white/5 border-b border-white/10"
+                )}
+                onClick={(e) => {
+                  if (isListExpanded) {
+                    e.stopPropagation();
+                    setIsListExpanded(false);
+                  }
+                }}
+              >
                 <div className="flex items-center gap-2">
                   <List className="w-4 h-4 opacity-70" />
                   <span className="text-sm font-medium">
-                    {message.metadados.buttonText || 'Ver Opções'}
+                    {message.metadados.buttonText || '📋 Ver Opções'}
                   </span>
                 </div>
-                <ChevronRight className="w-4 h-4 opacity-50" />
+                {isListExpanded ? (
+                  <ChevronUp className="w-4 h-4 opacity-70 transition-transform" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 opacity-70 transition-transform" />
+                )}
               </div>
               
-              <div className="space-y-3">
-                {message.metadados.sections.map((section: any, sectionIndex: number) => (
-                  <div key={sectionIndex}>
-                    {section.title && (
-                      <p className="text-xs font-medium opacity-70 mb-2">
-                        {section.title}
-                      </p>
-                    )}
-                    <div className="space-y-1">
-                      {section.rows.map((row: any, rowIndex: number) => (
-                        <div
-                          key={row.id || rowIndex}
-                          className={cn(
-                            "px-3 py-2 rounded-md transition-all cursor-pointer",
-                            "bg-white/5 hover:bg-white/10",
-                            "flex items-center gap-2"
-                          )}
-                        >
-                          <div className="flex-1">
-                            <p className="text-sm">{row.title}</p>
-                            {row.description && (
-                              <p className="text-xs opacity-60 mt-0.5">
-                                {row.description}
-                              </p>
+              {/* Expandable content with smooth transition */}
+              <div
+                className={cn(
+                  "transition-all duration-300 ease-in-out",
+                  isListExpanded ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0 overflow-hidden"
+                )}
+              >
+                <div className="p-3 pt-0 space-y-3">
+                  {message.metadados.sections.map((section: any, sectionIndex: number) => (
+                    <div key={sectionIndex}>
+                      {section.title && (
+                        <p className="text-xs font-medium opacity-70 mb-2">
+                          {section.title}
+                        </p>
+                      )}
+                      <div className="space-y-1">
+                        {section.rows.map((row: any, rowIndex: number) => (
+                          <div
+                            key={row.id || rowIndex}
+                            className={cn(
+                              "px-3 py-2 rounded-md transition-all cursor-pointer",
+                              "bg-white/5 hover:bg-white/10",
+                              "flex items-center gap-2"
                             )}
+                          >
+                            <div className="flex-1">
+                              <p className="text-sm">{row.title}</p>
+                              {row.description && (
+                                <p className="text-xs opacity-60 mt-0.5">
+                                  {row.description}
+                                </p>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
             
