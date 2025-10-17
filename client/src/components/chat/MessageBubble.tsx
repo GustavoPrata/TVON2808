@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ptBR } from 'date-fns/locale';
 import { formatTimeInBrazil } from '@/lib/date-utils';
-import { Check, CheckCheck, Clock, Reply, Forward, Copy, Trash2, Download, MoreVertical, FileText, Edit, Eye, EyeOff } from 'lucide-react';
+import { Check, CheckCheck, Clock, Reply, Forward, Copy, Trash2, Download, MoreVertical, FileText, Edit, Eye, EyeOff, ChevronRight, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ImageViewer } from './ImageViewer';
 import { AudioMessage } from './AudioMessage';
@@ -133,6 +133,103 @@ export function MessageBubble({
     }
     
     return <Check className="w-3 h-3 text-slate-400" />;
+  };
+
+  const renderInteractiveMenu = () => {
+    if (!message.metadados?.messageType || !message.remetente || message.remetente === 'cliente') {
+      return null;
+    }
+
+    // Render button message
+    if (message.metadados.messageType === 'button' && message.metadados.buttons) {
+      return (
+        <div className="mt-3 space-y-2">
+          <div className="border-t border-white/10 pt-3">
+            <div className="grid grid-cols-1 gap-2">
+              {message.metadados.buttons.map((button: any, index: number) => (
+                <div
+                  key={button.id || index}
+                  className={cn(
+                    "px-3 py-2 rounded-lg text-center transition-all cursor-pointer",
+                    "bg-white/10 hover:bg-white/20 border border-white/20",
+                    "flex items-center justify-center gap-2"
+                  )}
+                >
+                  <span className="text-sm font-medium">{button.displayText}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {message.metadados.footer && (
+            <p className="text-xs opacity-60 text-center mt-2">
+              {message.metadados.footer}
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    // Render list message
+    if (message.metadados.messageType === 'list' && message.metadados.sections) {
+      return (
+        <div className="mt-3">
+          <div className="border-t border-white/10 pt-3">
+            <div className="bg-white/5 rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <List className="w-4 h-4 opacity-70" />
+                  <span className="text-sm font-medium">
+                    {message.metadados.buttonText || 'Ver Opções'}
+                  </span>
+                </div>
+                <ChevronRight className="w-4 h-4 opacity-50" />
+              </div>
+              
+              <div className="space-y-3">
+                {message.metadados.sections.map((section: any, sectionIndex: number) => (
+                  <div key={sectionIndex}>
+                    {section.title && (
+                      <p className="text-xs font-medium opacity-70 mb-2">
+                        {section.title}
+                      </p>
+                    )}
+                    <div className="space-y-1">
+                      {section.rows.map((row: any, rowIndex: number) => (
+                        <div
+                          key={row.id || rowIndex}
+                          className={cn(
+                            "px-3 py-2 rounded-md transition-all cursor-pointer",
+                            "bg-white/5 hover:bg-white/10",
+                            "flex items-center gap-2"
+                          )}
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm">{row.title}</p>
+                            {row.description && (
+                              <p className="text-xs opacity-60 mt-0.5">
+                                {row.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {message.metadados.footer && (
+              <p className="text-xs opacity-60 text-center mt-2">
+                {message.metadados.footer}
+              </p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return null;
   };
 
   const renderMedia = () => {
@@ -381,6 +478,9 @@ export function MessageBubble({
                         {formatMessageText(message.conteudo)}
                       </p>
                     )}
+                    
+                    {/* Render interactive menu if present */}
+                    {renderInteractiveMenu()}
                   </>
                 )}
               </>

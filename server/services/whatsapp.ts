@@ -5875,7 +5875,12 @@ export class WhatsAppService extends EventEmitter {
         tipo: "text",
         remetente: "sistema",
         lida: true,
-        metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
+        metadados: {
+          whatsappMessageId,
+          messageType: 'button',
+          buttons: buttons,
+          footer: footer || "TV ON Sistema - Atendimento 24/7"
+        },
       });
 
       // Update conversation
@@ -5972,7 +5977,14 @@ export class WhatsAppService extends EventEmitter {
         tipo: "text",
         remetente: "sistema",
         lida: true,
-        metadados: whatsappMessageId ? { whatsappMessageId } : undefined,
+        metadados: {
+          whatsappMessageId,
+          messageType: 'list',
+          title: title,
+          buttonText: buttonText,
+          sections: sections,
+          footer: "TV ON Sistema - Atendimento 24/7"
+        },
       });
 
       // Update conversation
