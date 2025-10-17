@@ -1866,7 +1866,7 @@ export class WhatsAppService extends EventEmitter {
             console.log(
               `ERRO: Opção "${messageText}" inválida para submenu "${state.submenu}"`,
             );
-            await this.sendMessage(
+            await this.sendInteractiveMenu(
               conversa.telefone,
               `❌ *Opção inválida!* Por favor, escolha uma das opções disponíveis.`,
             );
@@ -2143,7 +2143,7 @@ export class WhatsAppService extends EventEmitter {
     // Menu principal - validar opções
     const validMainMenuOptions = ["1", "2", "3", "4", "5", "6", "7", "8"];
     if (!validMainMenuOptions.includes(opcaoId)) {
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `❌ *Opção inválida!* Por favor, escolha uma das opções disponíveis.`,
       );
@@ -2279,7 +2279,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "7": // Falar com atendente
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Chamando um atendente agora...\n` +
             `Por favor, aguarde um instante enquanto transferimos você para um atendente humano.`,
@@ -2297,7 +2297,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "8": // Já sou cliente
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Entendido! Você já é nosso cliente. 👍\n\n` +
             `Vou chamar um atendente para te ajudar melhor.\n` +
@@ -2381,7 +2381,7 @@ export class WhatsAppService extends EventEmitter {
             `0️⃣ Voltar`,
         );
       } else {
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `❌ *Opção inválida!* Por favor, escolha uma das opções disponíveis.`,
         );
@@ -2407,7 +2407,7 @@ export class WhatsAppService extends EventEmitter {
           lastOption: lastOption,
           previousMenu: "main",
         });
-        await this.sendMessage(telefone, this.getInfoOnlyMenuText(lastOption));
+        await this.sendInteractiveMenu(telefone, this.getInfoOnlyMenuText(lastOption));
       } else if (previousMenu === "assinar_codigo") {
         // Voltar para o menu de código
         this.conversaStates.set(telefone, {
@@ -2437,7 +2437,7 @@ export class WhatsAppService extends EventEmitter {
       // Não validar, apenas continuar para processar o código
     } else if (!validOptions.includes(opcaoId)) {
       // Send only error message without resending the menu
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `❌ *Opção inválida!* Por favor, escolha uma das opções disponíveis.`,
       );
@@ -2723,7 +2723,7 @@ export class WhatsAppService extends EventEmitter {
             } as any);
           }
         } else {
-          await this.sendMessage(
+          await this.sendInteractiveMenu(
             telefone,
             `❌ *Opção inválida!* Por favor, escolha uma das opções disponíveis.`,
           );
@@ -2774,7 +2774,7 @@ export class WhatsAppService extends EventEmitter {
           // Clear conversation state
           this.conversaStates.delete(telefone);
           
-          await this.sendMessage(
+          await this.sendInteractiveMenu(
             telefone,
             `🙋 *Aguarde!* Um atendente entrará em contato em breve para ajudá-lo com a ativação do seu plano.\n\n` +
             `⏰ *Horário de atendimento:* Das 8h às 22h`,
@@ -2791,7 +2791,7 @@ export class WhatsAppService extends EventEmitter {
         
       default:
         console.log(`Submenu não reconhecido: ${submenu}`);
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `❌ Erro interno. Por favor, digite 0 para voltar ao menu principal.`,
         );
@@ -2994,7 +2994,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "2": // TV Box
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Vamos te ajudar a configurar sua TV Box.\n` +
             `Chamando um atendente...`,
@@ -3033,7 +3033,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "4": // Notebook ou Computador
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Beleza! A ativação para computador é feita manualmente.\n` +
             `Chamando um atendente...`,
@@ -3050,7 +3050,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "5": // Outros
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Sem problema! Vamos te ajudar.\n` + `Chamando um atendente...`,
         );
@@ -3079,7 +3079,7 @@ export class WhatsAppService extends EventEmitter {
       null,
       `[Ticket] Novo teste grátis - Dispositivo: Celular (${tipo})`,
     );
-    await this.sendMessage(
+    await this.sendInteractiveMenu(
       telefone,
       `Perfeito! Vamos ativar seu teste para ${tipo}.\n` +
         `Um atendente entrará em contato em instantes!`,
@@ -3115,7 +3115,7 @@ export class WhatsAppService extends EventEmitter {
       null,
       `[Ticket] Novo teste grátis - Dispositivo: Smart TV (${marca})`,
     );
-    await this.sendMessage(
+    await this.sendInteractiveMenu(
       telefone,
       `Ótimo! Vamos configurar para Smart TV ${marca}.\n` +
         `Um atendente já vai te atender!`,
@@ -3293,7 +3293,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       default:
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `❌ *Opção inválida!* Por favor, escolha uma das opções disponíveis.`,
         );
@@ -3535,7 +3535,7 @@ export class WhatsAppService extends EventEmitter {
         break;
       default:
         console.log(`Submenu não reconhecido: ${submenu}`);
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `❌ Erro interno. Por favor, digite 0 para voltar ao menu principal.`,
         );
@@ -3552,7 +3552,7 @@ export class WhatsAppService extends EventEmitter {
     // Validar opções do menu principal de clientes
     const validOptions = ["1", "2", "3", "4", "5", "6"];
     if (!validOptions.includes(opcaoId)) {
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `❌ *Opção inválida!* Por favor, escolha uma das opções disponíveis.`,
       );
@@ -3716,7 +3716,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       case "6": // Falar com atendente
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `*Atendimento Humano*\n\n` +
             `Estou transferindo você para um atendente humano, aguarde...\n\n` +
@@ -3843,7 +3843,7 @@ export class WhatsAppService extends EventEmitter {
 
     // Validar opções
     if (!["1", "2"].includes(opcaoId)) {
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `❌ *Opção inválida!* Por favor, escolha 1, 2 ou 0 para voltar.`,
       );
@@ -3958,7 +3958,7 @@ export class WhatsAppService extends EventEmitter {
 
     // Validar opções
     if (!["1", "2", "3", "4", "5"].includes(opcaoId)) {
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `❌ *Opção inválida!* Por favor, escolha entre 1 e 5 ou 0 para voltar.`,
       );
@@ -4025,7 +4025,7 @@ export class WhatsAppService extends EventEmitter {
     }
 
     // Para outros dispositivos, criar ticket direto
-    await this.sendMessage(
+    await this.sendInteractiveMenu(
       telefone,
       `Perfeito! Vamos finalizar seu ponto.\nUm vendedor entrará em contato agora mesmo!`,
     );
@@ -4148,7 +4148,7 @@ export class WhatsAppService extends EventEmitter {
 
     // Validar opções
     if (!["1", "2"].includes(opcaoId)) {
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `❌ *Opção inválida!* Por favor, escolha 1 ou 2, ou 0 para voltar.`,
       );
@@ -4158,7 +4158,7 @@ export class WhatsAppService extends EventEmitter {
     const tipo = opcaoId === "1" ? "Android" : "iPhone";
 
     // Criar ticket para adicionar ponto
-    await this.sendMessage(
+    await this.sendInteractiveMenu(
       telefone,
       `Perfeito! Vamos finalizar seu ponto.\nUm vendedor entrará em contato agora mesmo!`,
     );
@@ -4536,7 +4536,7 @@ export class WhatsAppService extends EventEmitter {
     if (
       !["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"].includes(opcaoId)
     ) {
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `❌ *Opção inválida!* Por favor, escolha entre 1 e 10, ou 0 para voltar.`,
       );
@@ -4559,7 +4559,7 @@ export class WhatsAppService extends EventEmitter {
     const marca = marcas[parseInt(opcaoId) - 1] || "Outras";
 
     // Criar ticket para adicionar ponto
-    await this.sendMessage(
+    await this.sendInteractiveMenu(
       telefone,
       `Perfeito! Vamos finalizar seu ponto.\nUm vendedor entrará em contato agora mesmo!`,
     );
@@ -4601,7 +4601,7 @@ export class WhatsAppService extends EventEmitter {
 
     // Validar opções
     if (!["1", "2", "3", "4"].includes(opcaoId)) {
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `❌ *Opção inválida!* Por favor, escolha entre 1 e 4 ou 0 para voltar.`,
       );
@@ -4825,7 +4825,7 @@ export class WhatsAppService extends EventEmitter {
         this.conversaStates.delete(telefone);
       }
     } else {
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `❌ *Opção inválida!* Digite 1 para pagar ou 0 para voltar.`,
       );
@@ -4939,7 +4939,7 @@ export class WhatsAppService extends EventEmitter {
         );
       }
     } else {
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `❌ *Opção inválida!* Digite 1 para confirmar, 2 para atendente ou 0 para cancelar.`,
       );
@@ -4974,7 +4974,7 @@ export class WhatsAppService extends EventEmitter {
     // Validar opções do menu principal de testes (agora apenas 2)
     const validOptions = ["1", "2"];
     if (!validOptions.includes(opcaoId)) {
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `❌ *Opção inválida!* Por favor, escolha entre 1 e 2.`,
       );
