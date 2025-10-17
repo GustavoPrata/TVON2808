@@ -137,32 +137,48 @@ export function MessageBubble({
   };
 
   const renderInteractiveMenu = () => {
-    if (!message.metadados?.messageType || !message.remetente || message.remetente === 'cliente') {
+    // Check if message has interactive menu metadata
+    if (!message.metadados?.messageType) {
       return null;
     }
 
-    // Render button message
+    // Only render menus for bot/sistema messages, not cliente
+    if (!message.remetente || message.remetente === 'cliente') {
+      return null;
+    }
+
+    // Render button message (≤3 options)
     if (message.metadados.messageType === 'button' && message.metadados.buttons) {
+      const buttonCount = message.metadados.buttons.length;
       return (
-        <div className="mt-3 space-y-2">
+        <div className="mt-3 space-y-2" data-testid={`interactive-menu-buttons-${message.id}`}>
           <div className="border-t border-white/10 pt-3">
-            <div className="grid grid-cols-1 gap-2">
+            <div 
+              className="grid grid-cols-1 gap-2"
+              role="group"
+              aria-label="Menu de opções"
+            >
               {message.metadados.buttons.map((button: any, index: number) => (
-                <div
+                <button
                   key={button.id || index}
+                  type="button"
+                  role="button"
+                  data-testid={`button-option-${index}`}
+                  aria-label={button.displayText}
                   className={cn(
                     "px-3 py-2 rounded-lg text-center transition-all cursor-pointer",
                     "bg-white/10 hover:bg-white/20 border border-white/20",
-                    "flex items-center justify-center gap-2"
+                    "flex items-center justify-center gap-2",
+                    "focus:outline-none focus:ring-2 focus:ring-blue-500"
                   )}
                 >
                   <span className="text-sm font-medium">{button.displayText}</span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
           {message.metadados.footer && (
-            <p className="text-xs opacity-60 text-center mt-2">
+            <p className="text-xs opacity-60 text-center mt-2" role="contentinfo">
               {message.metadados.footer}
             </p>
           )}
@@ -170,67 +186,90 @@ export function MessageBubble({
       );
     }
 
-    // Render list message
+    // Render list message (>3 options)
     if (message.metadados.messageType === 'list' && message.metadados.sections) {
+      const totalOptions = message.metadados.sections.reduce(
+        (sum: number, section: any) => sum + (section.rows?.length || 0), 
+        0
+      );
+      
       return (
-        <div className="mt-3">
+        <div className="mt-3" data-testid={`interactive-menu-list-${message.id}`}>
           <div className="border-t border-white/10 pt-3">
             <div 
               className={cn(
                 "bg-white/5 rounded-lg overflow-hidden transition-all duration-300",
                 !isListExpanded ? "cursor-pointer hover:bg-white/10" : ""
               )}
-              onClick={() => !isListExpanded && setIsListExpanded(true)}
+              role="region"
+              aria-expanded={isListExpanded}
+              aria-label="Lista de opções expansível"
             >
               {/* Header - Always visible */}
-              <div 
+              <button
+                type="button"
+                data-testid="list-header-toggle"
                 className={cn(
-                  "p-3 flex items-center justify-between",
-                  isListExpanded && "cursor-pointer hover:bg-white/5 border-b border-white/10"
+                  "w-full p-3 flex items-center justify-between text-left",
+                  isListExpanded && "hover:bg-white/5 border-b border-white/10"
                 )}
-                onClick={(e) => {
-                  if (isListExpanded) {
-                    e.stopPropagation();
-                    setIsListExpanded(false);
-                  }
-                }}
+                onClick={() => setIsListExpanded(!isListExpanded)}
+                aria-expanded={isListExpanded}
+                aria-controls={`list-content-${message.id}`}
               >
                 <div className="flex items-center gap-2">
-                  <List className="w-4 h-4 opacity-70" />
+                  <List className="w-4 h-4 opacity-70" aria-hidden="true" />
                   <span className="text-sm font-medium">
                     {message.metadados.buttonText || '📋 Ver Opções'}
                   </span>
+                  <span className="text-xs opacity-60">
+                    ({totalOptions} {totalOptions === 1 ? 'opção' : 'opções'})
+                  </span>
                 </div>
                 {isListExpanded ? (
-                  <ChevronUp className="w-4 h-4 opacity-70 transition-transform" />
+                  <ChevronUp className="w-4 h-4 opacity-70 transition-transform" aria-hidden="true" />
                 ) : (
-                  <ChevronDown className="w-4 h-4 opacity-70 transition-transform" />
+                  <ChevronDown className="w-4 h-4 opacity-70 transition-transform" aria-hidden="true" />
                 )}
-              </div>
+              </button>
               
               {/* Expandable content with smooth transition */}
               <div
+                id={`list-content-${message.id}`}
+                role="listbox"
+                aria-label="Opções disponíveis"
                 className={cn(
                   "transition-all duration-300 ease-in-out",
                   isListExpanded ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0 overflow-hidden"
                 )}
+                style={{
+                  visibility: isListExpanded ? 'visible' : 'hidden'
+                }}
               >
                 <div className="p-3 pt-0 space-y-3">
                   {message.metadados.sections.map((section: any, sectionIndex: number) => (
-                    <div key={sectionIndex}>
+                    <div key={sectionIndex} role="group" aria-labelledby={`section-title-${sectionIndex}-${message.id}`}>
                       {section.title && (
-                        <p className="text-xs font-medium opacity-70 mb-2">
+                        <h4 
+                          id={`section-title-${sectionIndex}-${message.id}`}
+                          className="text-xs font-medium opacity-70 mb-2"
+                        >
                           {section.title}
-                        </p>
+                        </h4>
                       )}
-                      <div className="space-y-1">
+                      <ul className="space-y-1" role="list">
                         {section.rows.map((row: any, rowIndex: number) => (
-                          <div
+                          <li
                             key={row.id || rowIndex}
+                            role="option"
+                            data-testid={`list-option-${sectionIndex}-${rowIndex}`}
+                            tabIndex={isListExpanded ? 0 : -1}
+                            aria-selected="false"
                             className={cn(
                               "px-3 py-2 rounded-md transition-all cursor-pointer",
                               "bg-white/5 hover:bg-white/10",
-                              "flex items-center gap-2"
+                              "flex items-center gap-2",
+                              "focus:outline-none focus:ring-2 focus:ring-blue-500"
                             )}
                           >
                             <div className="flex-1">
@@ -241,9 +280,9 @@ export function MessageBubble({
                                 </p>
                               )}
                             </div>
-                          </div>
+                          </li>
                         ))}
-                      </div>
+                      </ul>
                     </div>
                   ))}
                 </div>
@@ -251,7 +290,7 @@ export function MessageBubble({
             </div>
             
             {message.metadados.footer && (
-              <p className="text-xs opacity-60 text-center mt-2">
+              <p className="text-xs opacity-60 text-center mt-2" role="contentinfo">
                 {message.metadados.footer}
               </p>
             )}
