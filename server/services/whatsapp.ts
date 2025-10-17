@@ -2355,7 +2355,7 @@ export class WhatsAppService extends EventEmitter {
           lastActivity: new Date(),
           previousMenu: "info_only",
         });
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Show! 🎉 Agora me diz, você tem um código de indicação?\n\n` +
             `1️⃣ Sim, tenho código\n` +
@@ -2369,7 +2369,7 @@ export class WhatsAppService extends EventEmitter {
           lastActivity: new Date(),
           previousMenu: "info_only",
         });
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Legal! 😄 Vamos ativar seu teste gratuito por 6h.\n\n` +
             `Onde você vai assistir?\n\n` +
@@ -2415,7 +2415,7 @@ export class WhatsAppService extends EventEmitter {
           lastActivity: new Date(),
           previousMenu: "main",
         });
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Show! 🎉 Agora me diz, você tem um código de indicação?\n\n` +
             `1️⃣ Sim, tenho código\n` +
@@ -2651,7 +2651,7 @@ export class WhatsAppService extends EventEmitter {
         // Handle invalid referral code options
         if (opcaoId === "0") {
           // Go back to asking if they have a code
-          await this.sendMessage(
+          await this.sendInteractiveMenu(
             telefone,
             `Show! 🎉 Agora me diz, você tem um código de indicação?\n\n` +
               `1️⃣ Sim, tenho código\n` +
@@ -2734,7 +2734,7 @@ export class WhatsAppService extends EventEmitter {
         // Tratamento para o menu de teste expirado
         if (opcaoId === "1") {
           // Ativar plano agora
-          await this.sendMessage(
+          await this.sendInteractiveMenu(
             telefone,
             `Show! 🎉 Agora me diz, você tem um código de indicação?\n\n` +
               `1️⃣ Sim, tenho código\n` +
@@ -3378,7 +3378,7 @@ export class WhatsAppService extends EventEmitter {
         nomeIndicador: state?.nomeIndicador,
         previousMenu: "celular_tipo_assinar",
       });
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `Onde você vai assistir?\n\n` +
           `1️⃣ Celular\n` +
@@ -3420,7 +3420,7 @@ export class WhatsAppService extends EventEmitter {
         nomeIndicador: state?.nomeIndicador,
         previousMenu: "smart_tv_marca_assinar",
       });
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `Onde você vai assistir?\n\n` +
           `1️⃣ Celular\n` +
@@ -3853,7 +3853,7 @@ export class WhatsAppService extends EventEmitter {
     switch (opcaoId) {
       case "1": // Adicionar ponto
         // Redirecionar para o menu de compra (similar ao de novos clientes)
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Legal! 😄 Vamos adicionar um novo ponto.\n\n` +
             `Onde você vai assistir?\n\n` +
@@ -3979,7 +3979,7 @@ export class WhatsAppService extends EventEmitter {
     // Verificar se é celular e precisamos do tipo
     if (opcaoId === "1") {
       // Celular - perguntar se é Android ou iPhone
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `📱 *Qual o tipo do celular?*\n\n` +
           `1️⃣ Android\n` +
@@ -3999,7 +3999,7 @@ export class WhatsAppService extends EventEmitter {
     // Verificar se é Smart TV e precisamos da marca
     if (opcaoId === "3") {
       // Smart TV - perguntar a marca
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `📺 *Qual a marca da Smart TV?*\n\n` +
           `1️⃣ Samsung\n` +
@@ -4078,7 +4078,7 @@ export class WhatsAppService extends EventEmitter {
       const valorMensal = valorTotal > 0 ? valorTotal : 29.0;
       const precos = this.calcularPrecosRenovacao(valorMensal);
 
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `*RENOVAR PLANO*\n\n` +
           `Escolha o período:\n\n` +
@@ -4270,7 +4270,7 @@ export class WhatsAppService extends EventEmitter {
     }
 
     // Enviar solução e perguntar se resolveu
-    await this.sendMessage(
+    await this.sendInteractiveMenu(
       telefone,
       solucao +
         `*Resolveu?*\n\n` +
@@ -4345,7 +4345,7 @@ export class WhatsAppService extends EventEmitter {
         break;
 
       default:
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `Opção inválida! Por favor, escolha:\n\n` +
             `1️⃣ Sim, resolveu\n` +
@@ -4483,7 +4483,7 @@ export class WhatsAppService extends EventEmitter {
         break;
         
       default:
-        await this.sendMessage(
+        await this.sendInteractiveMenu(
           telefone,
           `❌ *Opção inválida!*\n\n` +
           `Por favor, escolha uma das opções disponíveis:\n\n` +
@@ -4635,7 +4635,7 @@ export class WhatsAppService extends EventEmitter {
     novoVencimento.setHours(23, 59, 59, 999);
 
     // Mostrar confirmação
-    await this.sendMessage(
+    await this.sendInteractiveMenu(
       telefone,
       `*CONFIRMAÇÃO DE RENOVAÇÃO*\n\n` +
         `*Período:* ${periodo.label}\n` +
@@ -4679,7 +4679,7 @@ export class WhatsAppService extends EventEmitter {
       const valorMensal = parseFloat(cliente?.valorTotal) || 19.99;
       const precos = this.calcularPrecosRenovacao(valorMensal);
 
-      await this.sendMessage(
+      await this.sendInteractiveMenu(
         telefone,
         `*RENOVAR PLANO*\n\n` +
           `Escolha o período:\n\n` +
@@ -4753,7 +4753,7 @@ export class WhatsAppService extends EventEmitter {
           }
 
           // 3. Terceiro: Enviar menu com informações do PIX (sem link de pagamento)
-          await this.sendMessage(
+          await this.sendInteractiveMenu(
             telefone,
             `*PIX PARA RENOVAÇÃO GERADO*\n\n` +
               `*Período:* ${state.meses} ${state.meses === 1 ? "mês" : "meses"}\n` +
