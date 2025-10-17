@@ -1,14 +1,12 @@
 import { Boom } from "@hapi/boom";
-import pkg from "@whiskeysockets/baileys";
-const {
-  default: makeWASocket,
+import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   isJidBroadcast,
   isJidStatusBroadcast,
   downloadMediaMessage,
-  proto,
-} = pkg;
+  proto
+} from "@whiskeysockets/baileys";
 
 // Type definitions
 type WASocket = any;
@@ -199,7 +197,7 @@ export class WhatsAppService extends EventEmitter {
 
       this.sock = makeWASocket({
         auth: state,
-        browser: ["Ubuntu", "Chrome", "20.0.04"],
+        browser: ["Chrome (Linux)", "Chrome", "127.0.0.0"],
         logger: logger,
         // Add connection timeout to prevent hanging
         connectTimeoutMs: 60000,
@@ -208,35 +206,11 @@ export class WhatsAppService extends EventEmitter {
         // Add retry options
         retryRequestDelayMs: 2000,
         maxMsgRetryCount: 5,
-        // Additional options to bypass Meta blocking
+        // Additional options to help with connection stability
         printQRInTerminal: false,
-        generateHighQualityLinkPreview: true,
+        generateHighQualityLinkPreview: false,
         syncFullHistory: false,
-        fireInitQueries: false,
-        shouldSyncHistoryMessage: () => false,
         getMessage: async () => undefined,
-        // User agent customization
-        patchMessageBeforeSending: (message: any) => {
-          const requiresPatch = !!(
-            message.buttonsMessage ||
-            message.templateMessage ||
-            message.listMessage
-          );
-          if (requiresPatch) {
-            message = {
-              viewOnceMessage: {
-                message: {
-                  messageContextInfo: {
-                    deviceListMetadata: {},
-                    deviceListMetadataVersion: 2
-                  },
-                  ...message
-                }
-              }
-            };
-          }
-          return message;
-        },
       }) as any;
 
       this.sock.ev.on("connection.update", (update) => {
