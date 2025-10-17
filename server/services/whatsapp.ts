@@ -5930,7 +5930,7 @@ export class WhatsAppService extends EventEmitter {
     footer?: string
   ): Promise<string | null> {
     // Check if menu mode is enabled
-    const settings = await storage.getWhatsappSettings();
+    const settings = await storage.getWhatsAppSettings();
     if (!settings?.menuInterativoEnabled) {
       // Send as normal text message if menu mode is disabled
       return this.sendMessage(telefone, text);

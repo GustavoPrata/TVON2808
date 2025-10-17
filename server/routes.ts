@@ -1168,7 +1168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // Clear bot state when switching modes
-    const conversa = await storage.getConversa(conversaId);
+    const conversa = await storage.getConversaById(conversaId);
     if (conversa && whatsappService) {
       // Clear the bot state for this phone number
       whatsappService.resetConversationState(conversa.telefone);
@@ -3148,7 +3148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           // Clear bot state when switching back to bot mode
-          const conversa = await storage.getConversa(ticket.conversaId);
+          const conversa = await storage.getConversaById(ticket.conversaId);
           if (conversa && whatsappService) {
             whatsappService.resetConversationState(conversa.telefone);
             console.log(`Bot state cleared for ${conversa.telefone} when ticket was closed`);
@@ -3203,7 +3203,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               modoAtendimento: 'bot'
             });
             
-            const conversa = await storage.getConversa(ticket.conversaId);
+            const conversa = await storage.getConversaById(ticket.conversaId);
             if (conversa && whatsappService) {
               whatsappService.resetConversationState(conversa.telefone);
             }
