@@ -4245,98 +4245,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Test menu message endpoint
   app.post("/api/whatsapp/test-menu", async (req, res) => {
     try {
-      const { telefone = "5514991949280", type = "buttons" } = req.body;
+      const { telefone = "5514991949280", type = "text" } = req.body;
 
-      if (type === "buttons") {
-        // Send clickable button menu using the new Baileys library
-        const text = `👋 *Olá! Bem-vindo ao TV ON Sistema!*
-
-📅 Vencimento: 14/11/2025
-💰 Valor: R$ 49.90
-
-Como posso ajudar você hoje?`;
-
-        const buttons = [
-          { id: "ver_vencimento", displayText: "📅 Ver Vencimento" },
-          { id: "segunda_via", displayText: "💳 Segunda Via" },
-          { id: "suporte", displayText: "🛠️ Suporte/Atendimento" },
-        ];
-
-        const messageId = await whatsappService.sendButtonMessage(
-          telefone,
-          text,
-          buttons,
-          "Selecione uma opção abaixo"
-        );
-
-        res.json({
-          success: true,
-          messageId,
-          message: "Menu clicável com botões enviado com sucesso!",
-          type: "buttons"
-        });
-
-      } else if (type === "list") {
-        // Send interactive list menu
-        const messageId = await whatsappService.sendListMessage(
-          telefone,
-          "TV ON Sistema",
-          "👋 *Olá! Bem-vindo ao TV ON Sistema!*\n\n📅 Vencimento: 14/11/2025\n💰 Valor: R$ 49.90",
-          "📱 Ver Opções",
-          [
-            {
-              title: "🎯 Menu Principal",
-              rows: [
-                { id: "ver_vencimento", title: "📅 Ver Vencimento", description: "Consulte sua data de vencimento" },
-                { id: "segunda_via", title: "💳 Segunda Via", description: "Gere segunda via do boleto" },
-                { id: "suporte", title: "🛠️ Suporte", description: "Fale com nosso atendimento" },
-              ]
-            },
-            {
-              title: "⚡ Ações Rápidas",
-              rows: [
-                { id: "renovar", title: "🔄 Renovar Plano", description: "Renove seu plano agora" },
-                { id: "planos", title: "📋 Ver Planos", description: "Conheça nossos planos" },
-                { id: "indicar", title: "🎁 Indique e Ganhe", description: "Indique amigos e ganhe desconto" },
-              ]
-            }
-          ]
-        );
-
-        res.json({
-          success: true,
-          messageId,
-          message: "Menu clicável em lista enviado com sucesso!",
-          type: "list"
-        });
-
-      } else {
-        // Send test menu as text (fallback)
-        const menuMessage = `👋 *Olá! Bem-vindo ao TV ON Sistema!*
+      // NOTA: WhatsApp descontinuou botões clicáveis (template buttons) em 2022
+      // Para contas não-verificadas, apenas menu de texto funciona
+      // Botões reais só funcionam com WhatsApp Business API oficial (pago)
+      
+      const menuMessage = `👋 *Olá! Bem-vindo ao TV ON Sistema!*
 
 📅 Vencimento: 14/11/2025
 💰 Valor: R$ 49.90
 
-Como posso ajudar você hoje?
+✨ *MENU INTERATIVO* ✨
 
-1 - 📅 Ver Vencimento
-2 - 💳 Segunda Via  
-3 - 🛠️ Suporte/Atendimento
+1️⃣ Ver Vencimento
+2️⃣ Segunda Via PIX  
+3️⃣ Renovar Plano
+4️⃣ Ver Pontos
+5️⃣ Indique e Ganhe
+6️⃣ Suporte/Atendimento
 
-*Digite o número da opção desejada*`;
+*Digite o número da opção desejada* ⬆️
 
-        const messageId = await whatsappService.sendMessage(
-          telefone,
-          menuMessage,
-        );
+💡 _Dica: Você também pode digitar palavras como "vencimento", "pix", "renovar" ou "suporte"_`;
 
-        res.json({
-          success: true,
-          messageId,
-          message: "Menu de texto enviado com sucesso",
-          type: "text"
-        });
-      }
+      const messageId = await whatsappService.sendMessage(
+        telefone,
+        menuMessage,
+      );
+
+      res.json({
+        success: true,
+        messageId,
+        message: "Menu interativo enviado! Os botões clicáveis foram descontinuados pelo WhatsApp para contas não-verificadas.",
+        type: "text",
+        note: "WhatsApp descontinuou botões em 2022. Use menu numerado ou WhatsApp Business API oficial."
+      });
     } catch (error) {
       console.error("Erro ao enviar menu de teste:", error);
       res.status(500).json({ error: error.message });
