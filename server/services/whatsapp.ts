@@ -737,7 +737,10 @@ export class WhatsAppService extends EventEmitter {
       this.emit("connected");
       await this.logActivity("info", "WhatsApp", "Conectado com sucesso");
 
-      // Clean up self-conversations (conversations with our own number)
+      // DISABLED: Self-conversation cleanup - was causing issues with legitimate conversations being deleted
+      // The logic below was identifying conversations incorrectly and deleting them
+      // TODO: Implement better logic to identify self-conversations if needed
+      /*
       if (this.sock?.user?.id) {
         const myNumber = extractPhoneFromJid(this.sock.user.id);
         const selfConversation = await storage.getConversaByTelefone(myNumber);
@@ -747,6 +750,7 @@ export class WhatsAppService extends EventEmitter {
           console.log("Self-conversation removed successfully");
         }
       }
+      */
 
       // Apply settings when connected
       await this.applySettings(this.settings);
