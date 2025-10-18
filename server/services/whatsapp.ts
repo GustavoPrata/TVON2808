@@ -1,12 +1,14 @@
 import { Boom } from "@hapi/boom";
-import makeWASocket, {
+import * as Baileys from "@itsukichan/baileys";
+const {
+  default: makeWASocket,
   DisconnectReason,
   useMultiFileAuthState,
   isJidBroadcast,
   isJidStatusBroadcast,
   downloadMediaMessage,
   proto,
-} from "baileys";
+} = Baileys;
 
 // Type definitions
 type WASocket = any;
