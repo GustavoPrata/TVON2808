@@ -657,16 +657,9 @@ export const officeAutomationConfig = pgTable("office_automation_config", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Office Automation Logs
-export const officeAutomationLogs = pgTable("office_automation_logs", {
-  id: serial("id").primaryKey(),
-  taskType: varchar("task_type", { length: 50 }).notNull(),
-  status: varchar("status", { length: 50 }).notNull(),
-  username: varchar("username", { length: 255 }),
-  password: varchar("password", { length: 255 }),
-  errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+// Office Automation Logs - REMOVIDO
+// Esta tabela foi removida para evitar armazenamento desnecessário de logs
+// Logs agora são apenas exibidos no console quando necessário
 
 // Office Extension Configuration (Legacy - mantido para compatibilidade)
 export const officeExtensionConfig = pgTable("office_extension_config", {
@@ -730,17 +723,11 @@ export const insertOfficeAutomationConfigSchema = createInsertSchema(officeAutom
   updatedAt: true,
 });
 
-export const insertOfficeAutomationLogsSchema = createInsertSchema(officeAutomationLogs).omit({
-  id: true,
-  createdAt: true,
-});
-
 // Types para Office Automation
 export type OfficeAutomationConfig = typeof officeAutomationConfig.$inferSelect;
 export type InsertOfficeAutomationConfig = z.infer<typeof insertOfficeAutomationConfigSchema>;
 
-export type OfficeAutomationLogs = typeof officeAutomationLogs.$inferSelect;
-export type InsertOfficeAutomationLogs = z.infer<typeof insertOfficeAutomationLogsSchema>;
+// Tipos de logs de automação removidos - logs não são mais armazenados no banco
 
 // Legacy schemas mantidos para compatibilidade
 export const insertOfficeExtensionConfigSchema = createInsertSchema(officeExtensionConfig).omit({

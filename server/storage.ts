@@ -3,7 +3,7 @@ import {
   clientes, pontos, pagamentos, pagamentosManual, conversas, mensagens, tickets, 
   botConfig, notificacoesConfig, integracoes, logs, adminUsers, users, sistemas, redirectUrls, whatsappSettings, testes, indicacoes, mensagensRapidas, pixState,
   avisosVencimento, configAvisos, anotacoes, notificacoesRecorrentes,
-  officeAutomationConfig, officeAutomationLogs, officeCredentials, extensionStatus, campaignTemplates,
+  officeAutomationConfig, officeCredentials, extensionStatus, campaignTemplates,
   type Cliente, type InsertCliente, type Ponto, type InsertPonto,
   type Pagamento, type InsertPagamento, type Conversa, type InsertConversa,
   type Mensagem, type InsertMensagem, type Ticket, type InsertTicket,
@@ -18,7 +18,6 @@ import {
   type Anotacao, type InsertAnotacao,
   type NotificacaoRecorrente, type InsertNotificacaoRecorrente,
   type OfficeAutomationConfig, type InsertOfficeAutomationConfig,
-  type OfficeAutomationLogs, type InsertOfficeAutomationLogs,
   type OfficeCredentials, type InsertOfficeCredentials,
   type ExtensionStatus, type InsertExtensionStatus, type UpdateExtensionStatus,
   type CampaignTemplate, type InsertCampaignTemplate
@@ -316,18 +315,12 @@ export interface IStorage {
   updateOfficeAutomationConfig(config: Partial<InsertOfficeAutomationConfig>): Promise<OfficeAutomationConfig>;
   updateExistingFixedSystemsExpiry(): Promise<void>;
   
-  // Office Automation Logs
-  getOfficeAutomationLogs(limit?: number): Promise<OfficeAutomationLogs[]>;
-  createOfficeAutomationLog(log: InsertOfficeAutomationLogs): Promise<OfficeAutomationLogs>;
-  getOfficeAutomationLogsByAction(action: string, limit?: number): Promise<OfficeAutomationLogs[]>;
+  // Office Automation Logs - REMOVIDOS
+  // Logs não são mais armazenados no banco de dados
   
   // Task Management
-  createPendingTask(taskType: string, data?: any): Promise<OfficeAutomationLogs>;
-  getNextPendingTask(): Promise<OfficeAutomationLogs | null>;
   getNextPendingRenewalTask(): Promise<OfficeCredentials | null>;
-  updateTaskStatus(taskId: number, status: string, result?: { username?: string; password?: string; errorMessage?: string }): Promise<OfficeAutomationLogs>;
   updateRenewalTaskStatus(taskId: number, username: string, password: string): Promise<OfficeCredentials>;
-  getOfficeAutomationTaskById(taskId: number): Promise<OfficeAutomationLogs | null>;
   
   // Office Credentials
   getOfficeCredentials(limit?: number): Promise<OfficeCredentials[]>;
@@ -2856,24 +2849,8 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  // Office Automation Logs implementation
-  async getOfficeAutomationLogs(limit: number = 100): Promise<OfficeAutomationLogs[]> {
-    return await db.select().from(officeAutomationLogs)
-      .orderBy(desc(officeAutomationLogs.createdAt))
-      .limit(limit);
-  }
-
-  async createOfficeAutomationLog(log: InsertOfficeAutomationLogs): Promise<OfficeAutomationLogs> {
-    const result = await db.insert(officeAutomationLogs).values(log).returning();
-    return result[0];
-  }
-
-  async getOfficeAutomationLogsByAction(action: string, limit: number = 100): Promise<OfficeAutomationLogs[]> {
-    return await db.select().from(officeAutomationLogs)
-      .where(eq(officeAutomationLogs.taskType, action))
-      .orderBy(desc(officeAutomationLogs.createdAt))
-      .limit(limit);
-  }
+  // Office Automation Logs implementation - REMOVIDOS
+  // Logs não são mais armazenados no banco de dados
 
   // Office Credentials implementation
   async getOfficeCredentials(limit: number = 3): Promise<OfficeCredentials[]> {
@@ -3049,25 +3026,8 @@ export class DatabaseStorage implements IStorage {
     return { kept: idsToKeep.length, deleted: idsToDelete.length };
   }
 
-  // Task Management implementation
-  async createPendingTask(taskType: string, data?: any): Promise<OfficeAutomationLogs> {
-    const result = await db.insert(officeAutomationLogs)
-      .values({
-        taskType: taskType,
-        status: 'pending'
-      })
-      .returning();
-    return result[0];
-  }
-
-  async getNextPendingTask(): Promise<OfficeAutomationLogs | null> {
-    const result = await db.select()
-      .from(officeAutomationLogs)
-      .where(eq(officeAutomationLogs.status, 'pending'))
-      .orderBy(asc(officeAutomationLogs.createdAt))
-      .limit(1);
-    return result[0] || null;
-  }
+  // Task Management implementation - Métodos de logs removidos
+  // Logs não são mais armazenados no banco de dados
 
   async getNextPendingRenewalTask(): Promise<OfficeCredentials | null> {
     // IMPORTANTE: Filtrar apenas tarefas com credenciais completas (username E password não nulos)
@@ -3095,30 +3055,6 @@ export class DatabaseStorage implements IStorage {
     return result[0] || null;
   }
 
-  async updateTaskStatus(taskId: number, status: string, result?: { username?: string; password?: string; errorMessage?: string }): Promise<OfficeAutomationLogs> {
-    const updateData: any = {
-      status
-    };
-    
-    // Update fields if provided in result
-    if (result) {
-      if (result.username) {
-        updateData.username = result.username;
-      }
-      if (result.password) {
-        updateData.password = result.password;
-      }
-      if (result.errorMessage) {
-        updateData.errorMessage = result.errorMessage;
-      }
-    }
-    
-    const updated = await db.update(officeAutomationLogs)
-      .set(updateData)
-      .where(eq(officeAutomationLogs.id, taskId))
-      .returning();
-    return updated[0];
-  }
 
   async updateRenewalTaskStatus(taskId: number, username: string, password: string): Promise<OfficeCredentials> {
     const updated = await db.update(officeCredentials)
@@ -3133,13 +3069,6 @@ export class DatabaseStorage implements IStorage {
     return updated[0];
   }
 
-  async getOfficeAutomationTaskById(taskId: number): Promise<OfficeAutomationLogs | null> {
-    const results = await db.select().from(officeAutomationLogs)
-      .where(eq(officeAutomationLogs.id, taskId))
-      .limit(1);
-    
-    return results.length > 0 ? results[0] : null;
-  }
 
 
   async updateOfficeCredential(id: number, data: Partial<OfficeCredentials>): Promise<OfficeCredentials> {
