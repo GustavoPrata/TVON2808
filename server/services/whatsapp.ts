@@ -199,13 +199,19 @@ export class WhatsAppService extends EventEmitter {
         auth: state,
         browser: ["TV ON System", "Chrome", "1.0.0"],
         logger: logger,
-        // Add connection timeout to prevent hanging
+        // Optimized timeout settings to prevent connection issues
         connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 120000, // 2 minutes timeout for queries
+        // Keep connection alive
+        keepAliveIntervalMs: 20000, // Send keep-alive every 20 seconds
         // Add default presence to available
         markOnlineOnConnect: this.settings?.markOnlineOnConnect ?? true,
         // Add retry options
         retryRequestDelayMs: 2000,
         maxMsgRetryCount: 5,
+        // WebSocket options
+        qrTimeout: 60000,
+        emitOwnEvents: true,
       }) as any;
 
       this.sock.ev.on("connection.update", (update) => {
@@ -6304,32 +6310,50 @@ export class WhatsAppService extends EventEmitter {
       clearInterval(this.keepAliveInterval);
     }
 
-    // Set up keep-alive ping every 30 seconds
+    // Set up more aggressive keep-alive ping every 20 seconds to prevent timeouts
     this.keepAliveInterval = setInterval(async () => {
       if (this.sock && this.connectionState.connection === "open") {
         try {
           // Only send presence update if markOnlineOnConnect is true
           if (this.settings?.markOnlineOnConnect) {
-            await this.sock.sendPresenceUpdate("available");
-            console.log("Keep-alive ping sent with presence update");
+            // Use Promise.race to implement timeout for presence update
+            await Promise.race([
+              this.sock.sendPresenceUpdate("available"),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Keep-alive timeout')), 5000)
+              )
+            ]);
+            console.log("[Keep-alive] ✓ Presence update sent");
           } else {
             // Just send a simple ping without presence update
             // This keeps the connection alive without showing as online
-            await this.sock.query({
-              tag: "iq",
-              attrs: {
-                to: "@s.whatsapp.net",
-                type: "get",
-                xmlns: "w:ping",
-              },
-            });
-            console.log("Keep-alive ping sent (no presence update)");
+            await Promise.race([
+              this.sock.query({
+                tag: "iq",
+                attrs: {
+                  to: "@s.whatsapp.net",
+                  type: "get",
+                  xmlns: "w:ping",
+                },
+              }),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Keep-alive timeout')), 5000)
+              )
+            ]);
+            console.log("[Keep-alive] ✓ Ping sent (no presence)");
           }
-        } catch (error) {
-          console.error("Keep-alive ping failed:", error);
+        } catch (error: any) {
+          console.error("[Keep-alive] ✗ Failed:", error?.message || error);
+          // If keep-alive fails multiple times, try to reconnect
+          if (error?.message === 'Keep-alive timeout') {
+            console.log("[Keep-alive] Connection appears stale, checking connection state...");
+            // The connection update handler will handle reconnection if needed
+          }
         }
+      } else if (this.sock && this.connectionState.connection !== "open") {
+        console.log("[Keep-alive] Connection not open, current state:", this.connectionState.connection);
       }
-    }, 30000); // Every 30 seconds
+    }, 20000); // Every 20 seconds (more frequent to prevent timeout)
   }
 
   async applySettings(settings: any) {
