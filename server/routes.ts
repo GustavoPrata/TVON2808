@@ -9803,8 +9803,8 @@ Selecione uma opção:`;
     try {
       const config = await storage.getOfficeAutomationConfig();
       
-      // Buscar logs recentes do banco
-      const recentLogs = await storage.getOfficeAutomationLogs(10);
+      // Logs não são mais armazenados no banco
+      const recentLogs = [];
       
       // Buscar credenciais do banco
       let recentCredentials = [];
@@ -10181,12 +10181,8 @@ Selecione uma opção:`;
           console.log(`✅ Task ${taskId} completed - Tipo: ${type}, Status: ${error ? 'erro' : 'sucesso'}`);
           console.log(`✅ Task de renovação ${taskId} atualizada na tabela officeCredentials`);
         } else {
-          // Outras tasks atualizar na tabela officeAutomationLogs  
-          await storage.updateTaskStatus(taskId, error ? 'failed' : 'completed', {
-            errorMessage: error,
-            username: credentials?.username,
-            password: credentials?.password
-          });
+          // Logs de automação removidos - não há mais atualização de status para tasks normais
+          console.log(`Task ${taskId} processada - logs não são mais salvos no banco`);
         }
       }
       
@@ -10553,16 +10549,7 @@ Selecione uma opção:`;
         }
       }
       
-      // Criar log de automação
-      await storage.createOfficeAutomationLog({
-        taskType: type || 'task_complete',
-        status: processedCount > 0 ? 'completed' : 'failed',
-        responseData: {
-          processedCount,
-          savedCredentials: savedCredentials.length,
-          errors: errors.length > 0 ? errors : undefined
-        }
-      });
+      // Log de automação removido - não é mais necessário salvar no banco
       
       // Enviar atualização via WebSocket
       broadcastMessage('office_automation_task_complete', {
@@ -10606,8 +10593,8 @@ Selecione uma opção:`;
   // GET /api/office/automation/logs - busca logs de execução
   app.get('/api/office/automation/logs', async (req, res) => {
     try {
-      const logs = await storage.getOfficeAutomationLogs(100);
-      res.json(logs);
+      // Logs não são mais armazenados no banco - retorna array vazio
+      res.json([]);
     } catch (error) {
       console.error('Erro ao buscar logs de automação:', error);
       res.status(500).json({ error: 'Erro ao buscar logs' });
@@ -10720,60 +10707,20 @@ Selecione uma opção:`;
 
       console.log(`📝 Recebendo ${logs.length} logs da extensão Chrome`);
       
-      // Armazena logs no banco de dados
-      for (const log of logs) {
-        await storage.createOfficeAutomationLog({
-          taskType: 'EXTENSION_LOG',  // Default task type for extension logs
-          status: 'LOG',  // Default status for log entries
-          username: log.context?.username || null,
-          password: null,
-          errorMessage: `[${log.level}] ${log.message}`
-        });
-      }
+      // Logs não são mais salvos no banco - apenas processados em memória se necessário
 
       res.json({ success: true, count: logs.length });
     } catch (error) {
-      console.error('Erro ao salvar logs da extensão:', error);
-      res.status(500).json({ error: 'Erro ao salvar logs' });
+      console.error('Erro ao processar logs da extensão:', error);
+      res.status(500).json({ error: 'Erro ao processar logs' });
     }
   });
 
   // GET /api/extension/logs - busca logs da extensão Chrome
   app.get('/api/extension/logs', async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 100;
-      const level = req.query.level as string;
-      
-      // Busca logs com filtro de taskType = 'EXTENSION_LOG' (logs da extensão)
-      let logs = await storage.getOfficeAutomationLogs(limit);
-      
-      // Filtra apenas logs da extensão
-      logs = logs.filter(log => log.taskType === 'EXTENSION_LOG');
-      
-      // Aplica filtro de nível se fornecido
-      if (level && level !== 'all') {
-        // Extract level from errorMessage format: [LEVEL] message
-        logs = logs.filter(log => {
-          const match = log.errorMessage?.match(/^\[(\w+)\]/);
-          return match && match[1] === level;
-        });
-      }
-
-      // Formata logs para o frontend
-      const formattedLogs = logs.map(log => {
-        // Extract level and message from errorMessage format: [LEVEL] message
-        const match = log.errorMessage?.match(/^\[(\w+)\]\s*(.+)/);
-        const extractedLevel = match ? match[1] : 'INFO';
-        const extractedMessage = match ? match[2] : log.errorMessage || '';
-        
-        return {
-          timestamp: log.createdAt,
-          level: extractedLevel,
-          message: extractedMessage,
-          context: { username: log.username },
-          traceId: null
-        };
-      });
+      // Logs não são mais armazenados no banco - retorna array vazio
+      const formattedLogs = [];
 
       res.json({ success: true, logs: formattedLogs });
     } catch (error) {
@@ -10785,98 +10732,8 @@ Selecione uma opção:`;
   // GET /api/all-logs - busca TODOS os logs (aplicação + extensão)
   app.get('/api/all-logs', checkAuth, async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 500;
-      const level = req.query.level as string;
-      const source = req.query.source as string; // 'all', 'chrome-extension', 'application'
-      
-      // Busca todos os logs
-      let logs = await storage.getOfficeAutomationLogs(limit);
-      
-      // Filtra por fonte se especificado
-      if (source && source !== 'all') {
-        logs = logs.filter(log => {
-          if (source === 'chrome-extension') {
-            return log.source === 'chrome-extension';
-          } else if (source === 'application') {
-            return !log.source || log.source !== 'chrome-extension';
-          }
-          return true;
-        });
-      }
-      
-      // Aplica filtro de nível se fornecido
-      if (level && level !== 'all') {
-        logs = logs.filter(log => log.level === level);
-      }
-
-      // Filtra logs vazios ou sem conteúdo relevante ANTES de formatar
-      const relevantLogs = logs.filter(log => {
-        // Remove logs sem mensagem ou com mensagem vazia
-        if (!log.message || log.message.trim() === '') {
-          return false;
-        }
-        
-        // Remove logs genéricos sem informação útil
-        const genericMessages = [
-          'aplicação',
-          'application',
-          'log',
-          'info',
-          'debug',
-          'trace'
-        ];
-        
-        const lowerMessage = log.message.toLowerCase().trim();
-        
-        // Se a mensagem é apenas uma palavra genérica, remove
-        if (genericMessages.includes(lowerMessage)) {
-          return false;
-        }
-        
-        // Se é DEBUG, só incluir se tiver informação substancial
-        if (log.level === 'DEBUG') {
-          // Debug logs precisam ter pelo menos 10 caracteres de conteúdo útil
-          return log.message.trim().length > 10;
-        }
-        
-        // Se é INFO, verificar se tem conteúdo significativo
-        if (log.level === 'INFO') {
-          // Info logs precisam ter mais do que apenas timestamps ou IDs
-          const hasUsefulContent = 
-            log.message.trim().length > 5 &&
-            !/^\d+$/.test(lowerMessage) && // Não é apenas números
-            !/^[\d\-:\.\s]+$/.test(lowerMessage); // Não é apenas timestamp
-          return hasUsefulContent;
-        }
-        
-        // ERROR e WARN sempre passam (se tiverem mensagem)
-        if (log.level === 'ERROR' || log.level === 'WARN') {
-          return true;
-        }
-        
-        // Por padrão, incluir se tiver conteúdo
-        return log.message.trim().length > 0;
-      });
-
-      // Formata logs para o frontend com indicação de fonte
-      const formattedLogs = relevantLogs.map(log => ({
-        timestamp: log.timestamp || new Date().toISOString(),
-        level: log.level || 'INFO',
-        message: log.message || '',
-        context: log.context || {},
-        traceId: log.traceId || null,
-        source: log.source || 'application',
-        sourceLabel: log.source === 'chrome-extension' ? '🔧 Extensão' : '🚀 Aplicação'
-      }));
-
-      // Ordena por timestamp decrescente (mais recente primeiro)
-      formattedLogs.sort((a, b) => {
-        const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-        const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-        if (isNaN(dateA)) return 1;
-        if (isNaN(dateB)) return -1;
-        return dateB - dateA;
-      });
+      // Logs não são mais armazenados no banco - retorna array vazio
+      const formattedLogs = [];
 
       res.json({ success: true, logs: formattedLogs });
     } catch (error) {
@@ -10888,14 +10745,8 @@ Selecione uma opção:`;
   // DELETE /api/extension/logs - limpa logs da extensão Chrome
   app.delete('/api/extension/logs', checkAuth, async (req, res) => {
     try {
-      // Deleta logs da extensão do banco
-      const deleted = await storage.db
-        .delete(officeAutomationLogs)
-        .where(eq(officeAutomationLogs.source, 'chrome-extension'))
-        .returning();
-      
-      console.log(`🗑️ ${deleted.length} logs da extensão Chrome removidos`);
-      res.json({ success: true, count: deleted.length });
+      // Logs não são mais armazenados no banco - não há nada para deletar
+      res.json({ success: true, count: 0 });
     } catch (error) {
       console.error('Erro ao limpar logs da extensão:', error);
       res.status(500).json({ error: 'Erro ao limpar logs' });
