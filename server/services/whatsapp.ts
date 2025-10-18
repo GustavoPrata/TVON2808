@@ -1,14 +1,12 @@
 import { Boom } from "@hapi/boom";
-import pkg from "baileys";
-const {
-  default: makeWASocket,
+import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   isJidBroadcast,
   isJidStatusBroadcast,
   downloadMediaMessage,
   proto,
-} = pkg;
+} from "baileys";
 
 // Type definitions
 type WASocket = any;
@@ -2758,14 +2756,14 @@ export class WhatsAppService extends EventEmitter {
             titulo: "Cliente com teste expirado",
             descricao: "Cliente solicitou falar com atendente após teste expirar",
             status: "aberto",
-            tipo: "expiracao",
-            prioridade: "alta"
+            prioridade: "alta",
+            telefone: telefone
           });
           
           // Send Discord notification for new ticket
           try {
             const { discordNotificationService } = await import('./DiscordNotificationService');
-            const clientName = cliente?.nome || null;
+            const clientName = conversa?.nome || null;
             await discordNotificationService.notifyTicketOpened(clientName, "Cliente com teste expirado");
             console.log(`🎫 Notificação Discord enviada para ticket de teste expirado`);
           } catch (error) {
@@ -2773,7 +2771,7 @@ export class WhatsAppService extends EventEmitter {
           }
           
           // Switch conversation to human mode
-          await storage.updateConversa(conversa.id, { modoAtual: "humano" });
+          await storage.updateConversa(conversa.id, { modoAtendimento: "humano" });
           
           // Clear conversation state
           this.conversaStates.delete(telefone);
@@ -4881,7 +4879,7 @@ export class WhatsAppService extends EventEmitter {
       try {
         // Verificar status do pagamento
         const pixService = new (await import("./pix.js")).PixService();
-        const statusPagamento = await pixService.verificarStatusPagamento(
+        const statusPagamento = await pixService.checkPaymentStatus(
           state.chargeId,
         );
 
